@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- SheetJS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- jsonrepair: corrige JSON malformado gerado por IA -->
+<script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
 
 <style>
 /* ── Reset & Base ─────────────────────────────────────────── */
@@ -646,8 +648,9 @@ REGRAS OBRIGATÓRIAS:
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
 5. Organize por categorias SINAPI.
-6. Inclua SEMPRE a memória de cálculo resumida.
+6. Inclua SEMPRE a memória de cálculo resumida, em UMA ÚNICA LINHA (sem quebras de linha dentro das strings).
 7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
+8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
@@ -912,21 +915,24 @@ async function startAnalysis() {
     const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
 
     let parsedResult;
-    try {
-      parsedResult = JSON.parse(jsonStr);
-    } catch(e1) {
-      // Tenta extrair apenas o bloco JSON principal
-      const m = rawText.match(/\{[\s\S]*\}/);
-      if (m) {
-        try {
-          parsedResult = JSON.parse(m[0]);
-        } catch(e2) {
-          // Último recurso: mostra os primeiros 500 chars do raw para debug
-          throw new Error("JSON inválido ou truncado. Resposta parcial: " + rawText.substring(0, 500));
-        }
-      } else {
-        throw new Error("IA não retornou JSON. Resposta: " + rawText.substring(0, 500));
+    const tryParse = (str) => {
+      // Tenta direto
+      try { return JSON.parse(str); } catch(_) {}
+      // Tenta com jsonrepair (corrige newlines literais em strings, vírgulas extras, etc.)
+      if (typeof jsonrepair !== "undefined") {
+        try { return JSON.parse(jsonrepair(str)); } catch(_) {}
       }
+      return null;
+    };
+
+    parsedResult = tryParse(jsonStr);
+    if (!parsedResult) {
+      // Extrai bloco {} do texto bruto e tenta novamente
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if (m) parsedResult = tryParse(m[0]);
+    }
+    if (!parsedResult) {
+      throw new Error("JSON inválido após tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
     }
 
     setStep("pstep2", true, "Análise com IA concluída");
