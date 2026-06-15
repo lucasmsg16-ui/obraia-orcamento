@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ObraIA — Sistema de Orçamento Arquitetônico</title>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:   #1a3c5e;
+  --blue:   #2e75b6;
+  --sky:    #5ba3d9;
+  --amber:  #e67e22;
+  --green:  #27ae60;
+  --red:    #e74c3c;
+  --bg:     #f0f4f8;
+  --card:   #ffffff;
+  --border: #dce3ea;
+  --text:   #2c3e50;
+  --muted:  #7f8c8d;
+  --shadow: 0 2px 12px rgba(26,60,94,.10);
+}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── Header ───────────────────────────────────────────────── */
+header {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e5080 100%);
+  color: #fff; padding: 0 24px;
+  display: flex; align-items: center; gap: 16px;
+  height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+header .logo { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
+header .logo span { color: var(--amber); }
+header .subtitle { font-size: 12px; color: rgba(255,255,255,.65); margin-top: 2px; }
+header .header-right { margin-left: auto; font-size: 12px; color: rgba(255,255,255,.5); }
+
+/* ── Steps ────────────────────────────────────────────────── */
+.steps-bar {
+  background: var(--navy); padding: 0 24px 0;
+  display: flex; gap: 0; overflow-x: auto;
+}
+.step-tab {
+  padding: 10px 20px; font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.45); cursor: default;
+  border-bottom: 3px solid transparent; white-space: nowrap;
+  transition: all .2s;
+}
+.step-tab.active   { color: #fff; border-bottom-color: var(--amber); }
+.step-tab.done     { color: rgba(255,255,255,.7); border-bottom-color: var(--green); }
+.step-tab .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; font-size: 11px;
+  background: rgba(255,255,255,.12); margin-right: 6px;
+}
+.step-tab.active .num { background: var(--amber); color: #fff; }
+.step-tab.done   .num { background: var(--green);  color: #fff; }
+
+/* ── Main container ───────────────────────────────────────── */
+main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── Cards ────────────────────────────────────────────────── */
+.card {
+  background: var(--card); border-radius: 10px;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
+  padding: 28px; margin-bottom: 20px;
+}
+.card-title {
+  font-size: 15px; font-weight: 700; color: var(--navy);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.card-title .icon { font-size: 18px; }
+
+/* ── Upload zone ──────────────────────────────────────────── */
+.upload-zone {
+  display: block; position: relative;
+  border: 2.5px dashed var(--border); border-radius: 10px;
+  padding: 40px 30px; text-align: center;
+  transition: all .2s; background: #f8fafc;
+}
+.btn-upload {
+  display: inline-block; margin-top: 14px; padding: 11px 32px;
+  background: var(--blue); color: #fff; border: none; border-radius: 6px;
+  font-size: 14px; font-weight: 600; cursor: pointer; position: relative; z-index: 5;
+}
+.btn-upload input[type="file"] {
+  position: absolute; width: 0.1px; height: 0.1px;
+  opacity: 0; overflow: hidden; z-index: -1;
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--blue); background: #e8f2fb; }
+.upload-zone .upload-icon { font-size: 48px; margin-bottom: 12px; }
+.upload-zone h3 { font-size: 16px; color: var(--navy); margin-bottom: 6px; }
+.upload-zone p  { font-size: 13px; color: var(--muted); }
+/* file input: estilizado inline no HTML */
+
+/* ── Inputs ───────────────────────────────────────────────── */
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
+.field input, .field select {
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--border);
+  border-radius: 6px; font-size: 14px; color: var(--text);
+  background: #fff; transition: border-color .2s;
+  outline: none;
+}
+.field input:focus, .field select:focus { border-color: var(--blue); }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 22px; border-radius: 6px; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all .15s; text-decoration: none;
+}
+.btn-primary   { background: var(--blue);  color: #fff; }
+.btn-primary:hover  { background: #1e5f9e; }
+.btn-success   { background: var(--green); color: #fff; }
+.btn-success:hover  { background: #1e8449; }
+.btn-amber     { background: var(--amber); color: #fff; }
+.btn-amber:hover    { background: #c0392b; }
+.btn-outline   { background: transparent; color: var(--blue); border: 1.5px solid var(--blue); }
+.btn-outline:hover  { background: #e8f2fb; }
+.btn:disabled  { opacity: .5; cursor: not-allowed; }
+.btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* ── Page thumbnails ──────────────────────────────────────── */
+.pages-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px; margin-top: 16px;
+}
+.page-thumb {
+  border: 2.5px solid var(--border); border-radius: 8px;
+  overflow: hidden; cursor: pointer; position: relative;
+  transition: border-color .15s; background: #f5f5f5;
+}
+.page-thumb:hover     { border-color: var(--blue); }
+.page-thumb.selected  { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(46,117,182,.2); }
+.page-thumb canvas    { width: 100%; display: block; }
+.page-thumb .page-num {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(0,0,0,.55); color: #fff;
+  font-size: 11px; text-align: center; padding: 3px 0;
+}
+.page-thumb .check {
+  position: absolute; top: 5px; right: 5px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  display: none; align-items: center; justify-content: center;
+  font-size: 12px;
+}
+.page-thumb.selected .check { display: flex; }
+
+/* ── Progress ─────────────────────────────────────────────── */
+.progress-wrap { margin: 20px 0; }
+.progress-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.progress-bar { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--sky)); border-radius: 99px; transition: width .4s ease; }
+.status-msg { font-size: 13px; color: var(--navy); margin-top: 10px; min-height: 20px; }
+.spinner {
+  display: inline-block; width: 16px; height: 16px; border: 2.5px solid var(--border);
+  border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EAP Tree ─────────────────────────────────────────────── */
+.eap-tree { margin-top: 12px; }
+.eap-node {
+  border-radius: 6px; margin-bottom: 6px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.eap-node-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; user-select: none;
+  background: #f0f4f8; font-size: 13px; font-weight: 600; color: var(--navy);
+}
+.eap-node-header:hover { background: #e4ecf5; }
+.eap-node-header .caret { transition: transform .2s; font-size: 11px; margin-right: 2px; }
+.eap-node-header.open .caret { transform: rotate(90deg); }
+.eap-node-header .badge {
+  margin-left: auto; background: var(--navy); color: #fff;
+  font-size: 10px; padding: 2px 8px; border-radius: 99px;
+}
+.eap-children { display: none; padding: 6px; background: #fff; }
+.eap-children.open { display: block; }
+.eap-item {
+  display: grid; grid-template-columns: 90px 1fr 50px 80px;
+  gap: 8px; padding: 6px 8px; border-radius: 4px; font-size: 12px;
+  align-items: center;
+}
+.eap-item:nth-child(even) { background: #f8fafc; }
+.eap-item .codigo { color: var(--muted); font-family: monospace; }
+.eap-item .qtd    { text-align: right; font-weight: 600; }
+.eap-item .un     { color: var(--muted); }
+.eap-item .memo-toggle {
+  color: var(--blue); cursor: pointer; font-size: 11px;
+  text-decoration: underline; grid-column: 1 / -1; margin-top: 2px;
+}
+.eap-memo {
+  display: none; grid-column: 1 / -1; font-size: 11px; color: var(--muted);
+  background: #f0f4f8; border-radius: 4px; padding: 6px 8px; margin-top: 4px;
+}
+.eap-memo.open { display: block; }
+
+/* ── Budget table ─────────────────────────────────────────── */
+.budget-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.budget-table th {
+  background: var(--navy); color: #fff; padding: 9px 10px;
+  text-align: left; font-weight: 600; font-size: 11px; white-space: nowrap;
+}
+.budget-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.budget-table tr.cat-row td {
+  background: var(--blue); color: #fff; font-weight: 700;
+  font-size: 12px; padding: 8px 10px;
+}
+.budget-table tr.subtotal-row td {
+  background: #e8f2fb; font-weight: 700; border-top: 1.5px solid var(--blue);
+}
+.budget-table tr.total-row td {
+  background: var(--navy); color: #fff; font-weight: 700; font-size: 13px;
+}
+.budget-table tr:nth-child(even) td:not(.cat-row td):not(.subtotal-row td) { background: #f8fafc; }
+.budget-table .num { text-align: right; }
+.budget-table .warn { color: var(--amber); font-style: italic; }
+
+/* ── Info boxes ───────────────────────────────────────────── */
+.info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px;
+}
+.info-box {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 16px; box-shadow: var(--shadow);
+}
+.info-box .label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.info-box .value { font-size: 22px; font-weight: 700; color: var(--navy); margin-top: 4px; }
+.info-box .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── State selector row ───────────────────────────────────── */
+.state-bar {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 20px; margin-bottom: 20px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.state-bar label { font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; }
+.state-bar select {
+  padding: 8px 12px; border: 1.5px solid var(--border);
+  border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; outline: none;
+}
+.state-bar select:focus { border-color: var(--blue); }
+.state-bar .bdi-field { display: flex; align-items: center; gap: 6px; }
+.state-bar .bdi-field input {
+  width: 70px; padding: 8px 10px;
+  border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; outline: none;
+}
+.state-bar .ref-sinapi { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* ── Alert / toast ────────────────────────────────────────── */
+.alert {
+  padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.alert-info    { background: #e8f2fb; color: var(--blue); border: 1px solid #b8d9f5; }
+.alert-success { background: #e9f7ef; color: var(--green); border: 1px solid #a9dfbf; }
+.alert-warn    { background: #fef9e7; color: var(--amber); border: 1px solid #f9e79f; }
+.alert-error   { background: #fdedec; color: var(--red);   border: 1px solid #f5b7b1; }
+
+/* ── Responsive tweaks ────────────────────────────────────── */
+@media (max-width: 640px) {
+  main { padding: 16px 12px 40px; }
+  .budget-table { font-size: 11px; }
+  .info-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+
+<body>
+<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<header>
+  <div>
+    <div class="logo">Obra<span>IA</span></div>
+    <div class="subtitle">Sistema de Orçamento Arquitetônico com Inteligência Artificial</div>
+  </div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal</div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
+<div class="steps-bar" id="stepsBar">
+  <div class="step-tab active" data-step="1"><span class="num">1</span>Upload do Projeto</div>
+  <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
+  <div class="step-tab" data-step="3"><span class="num">3</span>EAP — Quantitativos</div>
+  <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MAIN -->
+<main>
+
+<!-- ─── SCREEN 1: Upload ──────────────────────────────────── -->
+<div class="screen active" id="screen-1">
+  <!-- API Key banner -->
+  <div id="apiKeyBanner" class="card" style="margin-bottom:16px; border-left:4px solid var(--amber);">
+    <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de API Anthropic</div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..."
+        style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace;">
+      <button onclick="saveApiKey()" style="padding:10px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; white-space:nowrap;">Salvar</button>
+    </div>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;">A chave fica salva apenas no seu navegador (localStorage). Obtenha em <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📂</span> Envio do Projeto</div>
+
+    <div class="field">
+      <label>Nome do Projeto</label>
+      <input type="text" id="projectName" placeholder="Ex.: Residência Unifamiliar — Loteamento Jardins">
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <div class="upload-icon">📄</div>
+      <h3>Selecione o PDF do projeto</h3>
+      <p>Plantas, cortes e fachadas · Máximo 50 MB</p>
+      <div style="margin-top:18px;">
+        <input type="file" id="fileInput" accept=".pdf,application/pdf"
+          style="display:block; margin:0 auto; font-size:14px; cursor:pointer; padding:8px;">
+      </div>
+      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste o arquivo para cá</p>
+    </div>
+    <div id="uploadStatus" style="display:none; margin-top:10px; padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500;"></div>
+
+    <div id="fileInfo" style="display:none; margin-top:12px;" class="alert alert-success">
+      <span>📄</span>
+      <div>
+        <strong id="fileName"></strong>
+        <div id="fileSize" style="font-size:11px; opacity:.8;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page selector -->
+  <div class="card" id="pageCard" style="display:none">
+    <div class="card-title"><span class="icon">🗂️</span> Selecionar Páginas para Análise</div>
+    <div class="alert alert-info">
+      <span>💡</span>
+      <span>Selecione as páginas com plantas baixas, cortes e fachadas. A IA analisará apenas as páginas marcadas.</span>
+    </div>
+    <div class="pages-grid" id="pagesGrid"></div>
+    <div style="margin-top:14px; font-size:12px; color:var(--muted);">
+      <span id="selectedCount">0</span> página(s) selecionada(s)
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 6 páginas enviadas para IA — selecione as plantas baixas principais.</span>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnAnalyze" disabled>
+        🤖 Analisar com IA
+      </button>
+      <button class="btn btn-outline" id="btnSelectAll">Selecionar Todas</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCREEN 2: Processing ──────────────────────────────── -->
+<div class="screen" id="screen-2">
+  <div class="card">
+    <div class="card-title"><span class="icon">🤖</span> Análise com Inteligência Artificial</div>
+
+    <div class="alert alert-info" style="margin-bottom:20px">
+      <span class="spinner"></span>
+      Claude está analisando as plantas e extraindo os quantitativos. Aguarde…
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-label">Processando o projeto…</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:5%"></div></div>
+      <div class="status-msg" id="statusMsg">Enviando imagens para análise…</div>
+    </div>
+
+    <div id="processingSteps" style="margin-top:20px">
+      <div class="alert alert-info" id="pstep1">⏳ Convertendo páginas PDF em imagens…</div>
+      <div class="alert" id="pstep2" style="display:none">⏳ Enviando para análise com IA…</div>
+      <div class="alert" id="pstep3" style="display:none">⏳ Extraindo quantitativos…</div>
+      <div class="alert" id="pstep4" style="display:none">⏳ Estruturando EAP…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCREEN 3: EAP ─────────────────────────────────────── -->
+<div class="screen" id="screen-3">
+  <div class="info-grid" id="projectInfoGrid"></div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> EAP — Estrutura Analítica do Projeto</div>
+    <div class="alert alert-success" id="eapAlert">
+      <span>✅</span>
+      <span>Levantamento concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>
+    </div>
+    <div class="eap-tree" id="eapTree"></div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnGoToBudget">📊 Gerar Orçamento SINAPI →</button>
+      <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
+<div class="screen" id="screen-4">
+  <!-- State selector -->
+  <div class="state-bar">
+    <label>🗺️ Estado do Projeto:</label>
+    <select id="stateSelect" onchange="recalcBudget()">
+      <option value="SP">SP — São Paulo</option>
+      <option value="RJ">RJ — Rio de Janeiro</option>
+      <option value="MG">MG — Minas Gerais</option>
+      <option value="RS">RS — Rio Grande do Sul</option>
+      <option value="PR">PR — Paraná</option>
+      <option value="SC">SC — Santa Catarina</option>
+      <option value="BA">BA — Bahia</option>
+      <option value="PE">PE — Pernambuco</option>
+      <option value="CE">CE — Ceará</option>
+      <option value="GO">GO — Goiás</option>
+      <option value="DF">DF — Distrito Federal</option>
+      <option value="MT">MT — Mato Grosso</option>
+      <option value="MS">MS — Mato Grosso do Sul</option>
+      <option value="PA">PA — Pará</option>
+      <option value="AM">AM — Amazonas</option>
+      <option value="ES">ES — Espírito Santo</option>
+      <option value="MA">MA — Maranhão</option>
+      <option value="PB">PB — Paraíba</option>
+      <option value="RN">RN — Rio Grande do Norte</option>
+      <option value="AL">AL — Alagoas</option>
+      <option value="SE">SE — Sergipe</option>
+      <option value="PI">PI — Piauí</option>
+      <option value="TO">TO — Tocantins</option>
+      <option value="RO">RO — Rondônia</option>
+      <option value="AC">AC — Acre</option>
+      <option value="RR">RR — Roraima</option>
+      <option value="AP">AP — Amapá</option>
+    </select>
+
+    <div class="bdi-field">
+      <label style="white-space:nowrap">BDI (%):</label>
+      <input type="number" id="bdiInput" value="24.75" min="0" max="60" step="0.25" onchange="recalcBudget()">
+    </div>
+
+    <div class="ref-sinapi">Referência: SINAPI 05/2025 · Preços sem desoneração</div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="info-grid" id="budgetKpis"></div>
+
+  <!-- Budget table -->
+  <div class="card">
+    <div class="card-title"><span class="icon">💰</span> Planilha Orçamentária</div>
+    <div style="overflow-x:auto">
+      <table class="budget-table" id="budgetTable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Cód. SINAPI</th>
+            <th style="min-width:250px">Descrição do Serviço</th>
+            <th>UN</th>
+            <th class="num">Qtd.</th>
+            <th class="num">Preço Unit. (R$)</th>
+            <th class="num">Total s/ BDI (R$)</th>
+            <th class="num">BDI (%)</th>
+            <th class="num">Total c/ BDI (R$)</th>
+          </tr>
+        </thead>
+        <tbody id="budgetBody"></tbody>
+      </table>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
+      <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════ SCRIPTS -->
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SINAPI DATA — Preços referência SP Mai/2025
+// ═══════════════════════════════════════════════════════════════
+const SINAPI_ITENS = [
+  // 1. SERVIÇOS PRELIMINARES
+  { codigo:"73965/001", descricao:"Placa de obra em chapa de aço galvanizado",              un:"m²",  preco:233.48, cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"74155/001", descricao:"Tapume em chapa de madeira compensada resinada",          un:"m²",  preco:67.80,  cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"74209/001", descricao:"Ligação provisória de energia para canteiro de obras",    un:"un",  preco:812.30, cat:"1. SERVIÇOS PRELIMINARES" },
+  // 2. MOVIMENTO DE TERRA
+  { codigo:"73961/001", descricao:"Locação de obra com gabarito",                            un:"m²",  preco:4.85,   cat:"2. MOVIMENTO DE TERRA" },
+  { codigo:"73583/001", descricao:"Escavação manual em solo 1ª categoria, h≤1,30m",         un:"m³",  preco:52.40,  cat:"2. MOVIMENTO DE TERRA" },
+  { codigo:"74136/001", descricao:"Reaterro manual soqueteado com material de jazida",       un:"m³",  preco:36.90,  cat:"2. MOVIMENTO DE TERRA" },
+  // 3. FUNDAÇÕES
+  { codigo:"74119/001", descricao:"Lastro de concreto magro fck=15MPa, e=5cm",              un:"m²",  preco:28.70,  cat:"3. FUNDAÇÕES" },
+  { codigo:"94965",     descricao:"Radier em concreto armado fck=20MPa, e=10cm",             un:"m²",  preco:165.40, cat:"3. FUNDAÇÕES" },
+  { codigo:"74155/002", descricao:"Baldrame em concreto armado fck=20MPa (forma+armação+concretagem)", un:"m³", preco:1240.50, cat:"3. FUNDAÇÕES" },
+  { codigo:"96527",     descricao:"Estaca escavada a trado mecânico, d=25cm, h≤8m",         un:"m",   preco:82.30,  cat:"3. FUNDAÇÕES" },
+  // 4. ESTRUTURA
+  { codigo:"94963",     descricao:"Pilar de concreto armado fck=25MPa (forma+armação+concretagem)",   un:"m³", preco:2180.60, cat:"4. ESTRUTURA" },
+  { codigo:"94964",     descricao:"Viga de concreto armado fck=25MPa (forma+armação+concretagem)",    un:"m³", preco:1985.30, cat:"4. ESTRUTURA" },
+  { codigo:"94966",     descricao:"Laje maciça de concreto armado fck=25MPa, e=12cm",        un:"m²",  preco:198.70, cat:"4. ESTRUTURA" },
+  { codigo:"94972",     descricao:"Laje pré-moldada com tavela cerâmica, sobrecarga 200 kg/m²", un:"m²", preco:112.40, cat:"4. ESTRUTURA" },
+  { codigo:"74155/003", descricao:"Escada de concreto armado fck=25MPa (forma+armação+concretagem)",  un:"m³", preco:2340.80, cat:"4. ESTRUTURA" },
+  // 5. ALVENARIA
+  { codigo:"87451",     descricao:"Alvenaria de vedação — blocos vazados de concreto 14×19×39cm, esp=14cm", un:"m²", preco:68.30, cat:"5. ALVENARIA" },
+  { codigo:"87452",     descricao:"Alvenaria de vedação — blocos vazados de concreto 19×19×39cm, esp=19cm", un:"m²", preco:78.90, cat:"5. ALVENARIA" },
+  { codigo:"87453",     descricao:"Alvenaria de vedação — tijolos cerâmicos 6 furos 9×14×19cm, esp=9cm",    un:"m²", preco:56.45, cat:"5. ALVENARIA" },
+  { codigo:"87455",     descricao:"Alvenaria de vedação — tijolos cerâmicos 8 furos 9×19×19cm, esp=9cm",    un:"m²", preco:62.10, cat:"5. ALVENARIA" },
+  { codigo:"87456",     descricao:"Alvenaria de vedação — tijolos cerâmicos 8 furos 14×19×19cm, esp=14cm",  un:"m²", preco:74.80, cat:"5. ALVENARIA" },
+  { codigo:"87704",     descricao:"Verga moldada no local para vão até 1,5m, concreto fck=15MPa",            un:"m",  preco:38.20, cat:"5. ALVENARIA" },
+  { codigo:"87705",     descricao:"Contraverga moldada no local, concreto fck=15MPa",                        un:"m",  preco:30.60, cat:"5. ALVENARIA" },
+  // 6. COBERTURA
+  { codigo:"74209/002", descricao:"Estrutura de madeira para telhado, vão até 5m",          un:"m²",  preco:98.60,  cat:"6. COBERTURA" },
+  { codigo:"87251",     descricao:"Telhamento com telha cerâmica colonial, incl. cumeeira", un:"m²",  preco:76.40,  cat:"6. COBERTURA" },
+  { codigo:"87266",     descricao:"Telhamento com telha de fibrocimento e=6mm, incl. cumeeira", un:"m²", preco:48.70, cat:"6. COBERTURA" },
+  { codigo:"87293",     descricao:"Calha em chapa galvanizada nº26, larg=33cm",             un:"m",   preco:55.30,  cat:"6. COBERTURA" },
+  // 7. REVESTIMENTOS INTERNOS
+  { codigo:"87529",     descricao:"Chapisco aplicado em alvenaria/concreto, traço 1:3",     un:"m²",  preco:5.80,   cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87528",     descricao:"Emboço paulista em argamassa mista, e=20mm, traço 1:2:8", un:"m²", preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87527",     descricao:"Reboco em argamassa cal/areia, e=5mm, traço 1:4",        un:"m²",  preco:14.50,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"88489",     descricao:"Revestimento de gesso projetado em parede/teto, e=10mm", un:"m²",  preco:22.10,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87879",     descricao:"Revestimento cerâmico — azulejo branco 20×20cm, AC-I",  un:"m²",  preco:58.90,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87875",     descricao:"Revestimento cerâmico — porcelanato 60×60cm, AC-III",   un:"m²",  preco:142.30, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87876",     descricao:"Revestimento cerâmico — piso 30×30cm, AC-II",           un:"m²",  preco:72.40,  cat:"7. REVESTIMENTOS INTERNOS" },
+  // 8. REVESTIMENTOS EXTERNOS
+  { codigo:"87523",     descricao:"Sistema monocamada de fachada (chapisco+reboco+emboço)", un:"m²",  preco:52.30,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"88497",     descricao:"Revestimento de fachada com argamassa texturizada",      un:"m²",  preco:38.70,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  // 9. PINTURA
+  { codigo:"88487",     descricao:"Pintura látex PVA interna, 2 demãos c/ massa corrida",  un:"m²",  preco:18.40,  cat:"9. PINTURA" },
+  { codigo:"88488",     descricao:"Pintura látex acrílica interna, 2 demãos c/ massa corrida", un:"m²", preco:24.60, cat:"9. PINTURA" },
+  { codigo:"88484",     descricao:"Pintura acrílica em fachada, 2 demãos c/ selador",      un:"m²",  preco:19.80,  cat:"9. PINTURA" },
+  { codigo:"88485",     descricao:"Pintura esmalte sintético em esquadrias, 2 demãos",     un:"m²",  preco:22.10,  cat:"9. PINTURA" },
+  // 10. ESQUADRIAS
+  { codigo:"74209/003", descricao:"Porta de madeira maciça 0,80×2,10m, incl. batente e ferragens", un:"un", preco:890.40, cat:"10. ESQUADRIAS" },
+  { codigo:"74209/004", descricao:"Porta de madeira entamborada 0,70×2,10m, incl. batente", un:"un", preco:620.30, cat:"10. ESQUADRIAS" },
+  { codigo:"74209/005", descricao:"Janela em alumínio anodizado 1,20×1,20m c/ vidro 4mm",  un:"un", preco:1240.60, cat:"10. ESQUADRIAS" },
+  { codigo:"74209/006", descricao:"Janela em alumínio anodizado 2,00×1,20m c/ vidro 4mm",  un:"un", preco:1840.20, cat:"10. ESQUADRIAS" },
+  { codigo:"74209/007", descricao:"Portão metálico de correr 3,00×2,10m",                  un:"un", preco:2380.00, cat:"10. ESQUADRIAS" },
+  // 11. PISOS
+  { codigo:"87880",     descricao:"Contrapiso em argamassa de cimento e areia, e=4cm",     un:"m²",  preco:24.80,  cat:"11. PISOS" },
+  { codigo:"74155/004", descricao:"Piso de concreto simples fck=20MPa, e=8cm (ext.)",      un:"m²",  preco:48.60,  cat:"11. PISOS" },
+  { codigo:"87875b",    descricao:"Piso porcelanato 60×60cm, argamassa AC-III",            un:"m²",  preco:142.30, cat:"11. PISOS" },
+  { codigo:"87876b",    descricao:"Piso cerâmico tipo A 30×30cm, argamassa AC-II",         un:"m²",  preco:72.40,  cat:"11. PISOS" },
+  { codigo:"74209/008", descricao:"Piso laminado de madeira (click), e=7mm, incl. regularização", un:"m²", preco:98.70, cat:"11. PISOS" },
+  { codigo:"87877",     descricao:"Rodapé cerâmico h=10cm",                                un:"m",   preco:18.40,  cat:"11. PISOS" },
+  // 12. INSTALAÇÕES HIDROSSANITÁRIAS
+  { codigo:"89769",     descricao:"Tubo PVC soldável 25mm água fria, incl. conexões e suportes", un:"m", preco:18.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89770",     descricao:"Tubo PVC esgoto 100mm, incl. conexões e cola",          un:"m",   preco:28.90,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89643",     descricao:"Bacia sanitária com caixa acoplada, incl. instalação",  un:"un",  preco:520.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89645",     descricao:"Lavatório de louça branca 45×32cm, incl. sifão",        un:"un",  preco:310.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89644",     descricao:"Tanque de louça 40L, incl. suporte e instalação",       un:"un",  preco:280.30, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89777",     descricao:"Chuveiro elétrico ABS, incl. instalação",               un:"un",  preco:195.80, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89783",     descricao:"Caixa d'água polietileno 1000L, incl. acessórios",      un:"un",  preco:890.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  // 13. INSTALAÇÕES ELÉTRICAS
+  { codigo:"91878",     descricao:"Eletroduto PVC rígido d=20mm, incl. conexões e fixação", un:"m",  preco:14.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91888",     descricao:"Cabo de cobre flexível 2,5mm²",                          un:"m",   preco:8.40,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91914",     descricao:"Tomada 2P+T 10A embutida, incl. caixa e placa",         un:"un",  preco:68.40,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91915",     descricao:"Interruptor simples 10A embutido, incl. caixa e placa", un:"un",  preco:54.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91912",     descricao:"Luminária de embutir (sem lâmpada), incl. instalação",  un:"un",  preco:148.60, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91921",     descricao:"Quadro de distribuição embutir 12 disjuntores",          un:"un",  preco:420.80, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  // 14. IMPERMEABILIZAÇÃO
+  { codigo:"95237",     descricao:"Impermeabilização — manta asfáltica APP 3mm em laje",   un:"m²",  preco:98.40,  cat:"14. IMPERMEABILIZAÇÃO" },
+  { codigo:"95239",     descricao:"Impermeabilização — membrana de poliuretano em banheiros", un:"m²", preco:64.30, cat:"14. IMPERMEABILIZAÇÃO" },
+  // 15. SERVIÇOS COMPLEMENTARES
+  { codigo:"73942/001", descricao:"Limpeza final de obra",                                  un:"m²",  preco:8.70,   cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"73942/002", descricao:"Remoção de entulho com caçamba metálica 4m³",           un:"un",  preco:580.40, cat:"15. SERVIÇOS COMPLEMENTARES" },
+];
+
+// Fatores regionais relativos a SP (base = 1.000)
+const FATORES_ESTADO = {
+  SP:1.000, RJ:1.062, MG:0.963, RS:0.972, PR:0.978,
+  SC:0.981, BA:0.952, PE:0.940, CE:0.935, GO:0.968,
+  DF:1.042, MT:0.982, MS:0.975, PA:0.988, AM:1.028,
+  ES:0.991, MA:0.928, PB:0.935, RN:0.941, AL:0.930,
+  SE:0.948, PI:0.922, TO:0.961, RO:0.955, AC:0.945,
+  RR:0.952, AP:0.938
+};
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════
+const APP = {
+  currentStep: 1,
+  pdfFile: null,
+  pdfDoc: null,
+  selectedPages: new Set(),
+  pageImages: {},   // pageNum → base64 JPEG string
+  analysisResult: null,
+  projectName: ""
+};
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function goTo(step) {
+  APP.currentStep = step;
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(`screen-${step}`).classList.add("active");
+
+  document.querySelectorAll(".step-tab").forEach(t => {
+    const n = +t.dataset.step;
+    t.className = "step-tab" + (n === step ? " active" : n < step ? " done" : "");
+  });
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════════════════════════
+(function initApiKeyUI() {
+  const stored = localStorage.getItem("anthropic_api_key") || "";
+  const banner = document.getElementById("apiKeyBanner");
+  const input  = document.getElementById("apiKeyInput");
+  if (stored) {
+    input.value = stored;
+    banner.style.borderLeftColor = "var(--green)";
+  }
+})();
+
+function saveApiKey() {
+  const key = document.getElementById("apiKeyInput").value.trim();
+  if (!key) { alert("Digite a chave antes de salvar."); return; }
+  localStorage.setItem("anthropic_api_key", key);
+  document.getElementById("apiKeyBanner").style.borderLeftColor = "var(--green)";
+  alert("✅ Chave salva no navegador!");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM PROMPT (para chamada direta à API)
+// ═══════════════════════════════════════════════════════════════
+const ANTHROPIC_SYSTEM_PROMPT = `Você é um engenheiro civil sênior especialista em levantamento de quantitativos de obras.
+Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quantitativos de serviços de construção civil.
+
+REGRAS OBRIGATÓRIAS:
+1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
+2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões.
+3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
+4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
+5. Organize por categorias SINAPI.
+6. Inclua SEMPRE a memória de cálculo resumida.
+7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
+
+CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
+- "1. SERVIÇOS PRELIMINARES"
+- "2. MOVIMENTO DE TERRA"
+- "3. FUNDAÇÕES"
+- "4. ESTRUTURA"
+- "5. ALVENARIA"
+- "6. COBERTURA"
+- "7. REVESTIMENTOS INTERNOS"
+- "8. REVESTIMENTOS EXTERNOS"
+- "9. PINTURA"
+- "10. ESQUADRIAS"
+- "11. PISOS"
+- "12. INSTALAÇÕES HIDROSSANITÁRIAS"
+- "13. INSTALAÇÕES ELÉTRICAS"
+- "14. IMPERMEABILIZAÇÃO"
+- "15. SERVIÇOS COMPLEMENTARES"
+
+FORMATO DE RESPOSTA (JSON puro):
+{
+  "projeto": "Nome ou tipo do projeto identificado",
+  "area_construida_m2": 0,
+  "pavimentos": 1,
+  "tipologia": "Residencial Unifamiliar / Comercial / etc",
+  "ambientes": [
+    { "nome": "Sala de Estar", "area_m2": 20.0, "pe_direito_m": 2.80 }
+  ],
+  "quantitativos": [
+    {
+      "sinapi_codigo": "87453",
+      "descricao": "Alvenaria de vedação de tijolos cerâmicos 6 furos 9x14x19cm, esp=9cm",
+      "unidade": "m²",
+      "quantidade": 0.0,
+      "categoria": "5. ALVENARIA",
+      "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
+    }
+  ]
+}`;
+
+// ═══════════════════════════════════════════════════════════════
+// PDF UPLOAD & RENDERING
+// ═══════════════════════════════════════════════════════════════
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+const uploadZone = document.getElementById("uploadZone");
+const fileInput  = document.getElementById("fileInput");
+
+// Clique é tratado pelo input transparente que cobre toda a zona (position:absolute;opacity:0)
+uploadZone.addEventListener("dragover",  e => { e.preventDefault(); uploadZone.classList.add("drag"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
+uploadZone.addEventListener("drop",      e => { e.preventDefault(); uploadZone.classList.remove("drag"); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener("change",     e => handleFile(e.target.files[0]));
+
+function setUploadStatus(msg, color) {
+  const el = document.getElementById("uploadStatus");
+  el.style.display = "block";
+  el.style.background = color === "red" ? "#fee2e2" : color === "green" ? "#dcfce7" : "#dbeafe";
+  el.style.color = color === "red" ? "#991b1b" : color === "green" ? "#166534" : "#1e40af";
+  el.textContent = msg;
+}
+
+async function handleFile(file) {
+  if (!file) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
+  setUploadStatus("📄 Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
+
+  const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf" || file.type === "";
+  if (!isPdf) {
+    setUploadStatus("❌ Arquivo inválido: selecione um PDF. Tipo detectado: " + (file.type || "desconhecido"), "red");
+    return;
+  }
+  APP.pdfFile = file;
+
+  document.getElementById("fileName").textContent = file.name;
+  document.getElementById("fileSize").textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+  document.getElementById("fileInfo").style.display = "flex";
+
+  setUploadStatus("⏳ Carregando PDF com PDF.js...", "blue");
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    APP.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    setUploadStatus("✅ PDF carregado com sucesso! " + APP.pdfDoc.numPages + " página(s) detectada(s).", "green");
+    renderThumbnails();
+  } catch (err) {
+    console.error("Erro ao carregar PDF:", err);
+    setUploadStatus("❌ Erro ao abrir PDF: " + (err.message || String(err)), "red");
+    document.getElementById("fileInfo").style.display = "none";
+    APP.pdfFile = null;
+  }
+}
+
+async function renderThumbnails() {
+  const pageCard = document.getElementById("pageCard");
+  const grid     = document.getElementById("pagesGrid");
+  pageCard.style.display = "block";
+  grid.innerHTML = "";
+  APP.selectedPages.clear();
+  updateSelectedCount();
+
+  for (let i = 1; i <= APP.pdfDoc.numPages; i++) {
+    const thumb = document.createElement("div");
+    thumb.className = "page-thumb";
+    thumb.dataset.page = i;
+    thumb.innerHTML = `<div class="check">✓</div><div class="page-num">Pág. ${i}</div>`;
+
+    const canvas = document.createElement("canvas");
+    thumb.insertBefore(canvas, thumb.firstChild);
+    grid.appendChild(thumb);
+
+    // Render thumbnail
+    const page = await APP.pdfDoc.getPage(i);
+    const viewport = page.getViewport({ scale: 0.4 });
+    canvas.width  = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+
+    thumb.addEventListener("click", () => togglePage(thumb, i));
+    // Auto-select all pages
+    togglePage(thumb, i, true);
+  }
+  document.getElementById("btnAnalyze").disabled = false;
+}
+
+function togglePage(el, num, forceSelect = false) {
+  if (forceSelect || !APP.selectedPages.has(num)) {
+    APP.selectedPages.add(num);
+    el.classList.add("selected");
+  } else {
+    APP.selectedPages.delete(num);
+    el.classList.remove("selected");
+  }
+  updateSelectedCount();
+  document.getElementById("btnAnalyze").disabled = APP.selectedPages.size === 0;
+}
+
+function updateSelectedCount() {
+  const n = APP.selectedPages.size;
+  document.getElementById("selectedCount").textContent = n;
+  const warn = document.getElementById("pageWarning");
+  if (warn) warn.style.display = n > 6 ? "inline" : "none";
+}
+
+document.getElementById("btnSelectAll").addEventListener("click", () => {
+  document.querySelectorAll(".page-thumb").forEach(el => {
+    const n = +el.dataset.page;
+    if (!APP.selectedPages.has(n)) togglePage(el, n, true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CONVERSION: PDF PAGE → JPEG BASE64
+// ═══════════════════════════════════════════════════════════════
+const MAX_PAGES_API = 6;      // máximo de páginas enviadas para a IA
+const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
+
+async function pageToBase64(pageNum) {
+  if (APP.pageImages[pageNum]) return APP.pageImages[pageNum];
+
+  const page = await APP.pdfDoc.getPage(pageNum);
+
+  // Calcula scale para que a largura não ultrapasse IMG_MAX_WIDTH
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = Math.min(1.0, IMG_MAX_WIDTH / baseViewport.width);
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+
+  // JPEG a 65% — legível para IA, payload reduzido
+  const base64 = canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
+  APP.pageImages[pageNum] = base64;
+  return base64;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════════════════════════════
+document.getElementById("btnAnalyze").addEventListener("click", startAnalysis);
+
+function setStep(stepId, done, msg) {
+  const el = document.getElementById(stepId);
+  el.style.display = "block";
+  el.className = done ? "alert alert-success" : "alert alert-info";
+  el.innerHTML = (done ? "✅ " : '<span class="spinner"></span>') + msg;
+}
+
+function setProgress(pct, msg) {
+  document.getElementById("progressFill").style.width = pct + "%";
+  document.getElementById("statusMsg").textContent = msg;
+}
+
+async function startAnalysis() {
+  APP.projectName = document.getElementById("projectName").value.trim() || APP.pdfFile?.name || "Projeto";
+  goTo(2);
+
+  try {
+    // ── Step 1: Convert pages ─────────────────────────────
+    setStep("pstep1", false, "Convertendo páginas PDF em imagens…");
+    setProgress(10, "Renderizando páginas…");
+
+    let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
+    if (sortedPages.length > MAX_PAGES_API) {
+      sortedPages = sortedPages.slice(0, MAX_PAGES_API);
+    }
+    const images = [];
+
+    for (let i = 0; i < sortedPages.length; i++) {
+      const p = sortedPages[i];
+      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
+      images.push(await pageToBase64(p));
+    }
+    setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
+
+    // ── Step 2: Send to AI ────────────────────────────────
+    setStep("pstep2", false, "Enviando para análise com Claude IA…");
+    setProgress(45, "Aguardando resposta da IA…");
+
+    const apiKey = localStorage.getItem("anthropic_api_key") || "";
+    if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
+
+    const aiContent = [
+      ...images.map(img => ({
+        type: "image",
+        source: { type: "base64", media_type: "image/jpeg", data: img }
+      })),
+      {
+        type: "text",
+        text: "Analise as imagens do projeto arquitetônico e faça o levantamento completo de quantitativos.\n\n" +
+              "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
+              "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
+              "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
+              (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+      }
+    ];
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 6000,
+        system: ANTHROPIC_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: aiContent }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Erro HTTP ${resp.status}`);
+    }
+
+    const apiData = await resp.json();
+    const rawText = apiData.content[0].text;
+    const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
+
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(jsonStr);
+    } catch {
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if (m) parsedResult = JSON.parse(m[0]);
+      else throw new Error("IA não retornou JSON válido. Raw: " + rawText.substring(0, 200));
+    }
+
+    setStep("pstep2", true, "Análise com IA concluída");
+    setProgress(75, "Processando quantitativos…");
+
+    // ── Step 3: Parse result ──────────────────────────────
+    setStep("pstep3", false, "Extraindo e organizando quantitativos…");
+    APP.analysisResult = parsedResult;
+    setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
+    setProgress(90, "Estruturando EAP…");
+
+    // ── Step 4: EAP ───────────────────────────────────────
+    setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
+    setTimeout(() => {
+      setStep("pstep4", true, "EAP gerada com sucesso");
+      setProgress(100, "Concluído!");
+      setTimeout(() => { buildEAP(); goTo(3); }, 600);
+    }, 500);
+
+  } catch (e) {
+    console.error(e);
+    setProgress(0, "");
+    document.getElementById("screen-2").innerHTML = `
+      <div class="card">
+        <div class="card-title"><span class="icon">❌</span> Erro na Análise</div>
+        <div class="alert alert-error">${e.message}</div>
+        <div class="btn-group">
+          <button class="btn btn-outline" onclick="goTo(1)">↩ Voltar</button>
+        </div>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EAP BUILD
+// ═══════════════════════════════════════════════════════════════
+function buildEAP() {
+  const r = APP.analysisResult;
+  if (!r) return;
+
+  // Project info cards
+  const grid = document.getElementById("projectInfoGrid");
+  grid.innerHTML = [
+    { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
+    { label: "Área Construída",value: `${(r.area_construida_m2||0).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
+    { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
+    { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
+  ].map(i => `
+    <div class="info-box">
+      <div class="label">${i.label}</div>
+      <div class="value">${i.value}</div>
+      <div class="sub">${i.sub}</div>
+    </div>`).join("");
+
+  // Group by category
+  const byCat = {};
+  (r.quantitativos || []).forEach(q => {
+    const c = q.categoria || "99. OUTROS";
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(q);
+  });
+
+  const tree = document.getElementById("eapTree");
+  tree.innerHTML = "";
+
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    const node = document.createElement("div");
+    node.className = "eap-node";
+
+    const header = document.createElement("div");
+    header.className = "eap-node-header";
+    header.innerHTML = `<span class="caret">▶</span> ${cat} <span class="badge">${itens.length} serv.</span>`;
+    header.addEventListener("click", () => {
+      header.classList.toggle("open");
+      children.classList.toggle("open");
+    });
+
+    const children = document.createElement("div");
+    children.className = "eap-children";
+
+    itens.forEach((q, idx) => {
+      const row = document.createElement("div");
+      row.className = "eap-item";
+      row.innerHTML = `
+        <span class="codigo">${q.sinapi_codigo || "—"}</span>
+        <span>${q.descricao}</span>
+        <span class="qtd">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})}</span>
+        <span class="un">${q.unidade}</span>`;
+
+      if (q.memoria_calculo) {
+        const memoToggle = document.createElement("span");
+        memoToggle.className = "memo-toggle";
+        memoToggle.textContent = "Ver memória de cálculo";
+        memoToggle.style.gridColumn = "1 / -1";
+
+        const memo = document.createElement("div");
+        memo.className = "eap-memo";
+        memo.textContent = q.memoria_calculo;
+
+        memoToggle.addEventListener("click", () => {
+          memo.classList.toggle("open");
+          memoToggle.textContent = memo.classList.contains("open") ? "Ocultar memória" : "Ver memória de cálculo";
+        });
+        row.appendChild(memoToggle);
+        row.appendChild(memo);
+      }
+      children.appendChild(row);
+    });
+
+    node.appendChild(header);
+    node.appendChild(children);
+    tree.appendChild(node);
+
+    // Expand first category by default
+    if (Object.keys(byCat).indexOf(cat) === 0) {
+      header.classList.add("open");
+      children.classList.add("open");
+    }
+  });
+}
+
+document.getElementById("btnGoToBudget").addEventListener("click", () => {
+  buildBudget();
+  goTo(4);
+});
+document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
+document.getElementById("btnRestart").addEventListener("click", () => {
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
+  document.getElementById("fileInfo").style.display = "none";
+  document.getElementById("pageCard").style.display = "none";
+  document.getElementById("pagesGrid").innerHTML = "";
+  document.getElementById("fileInput").value = "";
+  document.getElementById("projectName").value = "";
+  goTo(1);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// BUDGET BUILD
+// ═══════════════════════════════════════════════════════════════
+function findSinapiItem(codigo) {
+  return SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.startsWith(codigo));
+}
+
+function recalcBudget() { buildBudget(); }
+
+function buildBudget() {
+  const estado  = document.getElementById("stateSelect").value;
+  const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
+  const fator   = FATORES_ESTADO[estado] || 1;
+  const r       = APP.analysisResult;
+  if (!r) return;
+
+  // Group by category
+  const byCat = {};
+  (r.quantitativos || []).forEach(q => {
+    const c = q.categoria || "99. OUTROS";
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(q);
+  });
+
+  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0;
+  const tbody = document.getElementById("budgetBody");
+  tbody.innerHTML = "";
+
+  const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    // Category row
+    const catRow = document.createElement("tr");
+    catRow.className = "cat-row";
+    catRow.innerHTML = `<td colspan="9">📁 ${cat}</td>`;
+    tbody.appendChild(catRow);
+
+    let catTotal = 0;
+
+    itens.forEach(q => {
+      itemNum++;
+      const sinapiItem = findSinapiItem(q.sinapi_codigo || "");
+      const precoBase  = sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0);
+      const precoAdj   = precoBase * fator;
+      const qtd        = Number(q.quantidade) || 0;
+      const subtotal   = precoAdj * qtd;
+      const comBdi     = subtotal * (1 + bdi);
+
+      catTotal    += comBdi;
+      totalSemBdi += subtotal;
+      totalComBdi += comBdi;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${itemNum}</td>
+        <td style="font-family:monospace;font-size:11px">${q.sinapi_codigo || "—"}</td>
+        <td>${sinapiItem ? sinapiItem.descricao : q.descricao} ${!sinapiItem && precoBase === 0 ? '<span class="warn">⚠ verificar preço</span>' : ''}</td>
+        <td>${q.unidade}</td>
+        <td class="num">${fmt(qtd)}</td>
+        <td class="num">R$ ${fmt(precoAdj)}</td>
+        <td class="num">R$ ${fmt(subtotal)}</td>
+        <td class="num">${(bdi*100).toFixed(2)}%</td>
+        <td class="num">R$ ${fmt(comBdi)}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Subtotal row
+    const subRow = document.createElement("tr");
+    subRow.className = "subtotal-row";
+    subRow.innerHTML = `
+      <td colspan="8" style="text-align:right">SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}</td>
+      <td class="num">R$ ${fmt(catTotal)}</td>`;
+    tbody.appendChild(subRow);
+  });
+
+  // Total row
+  const totalRow = document.createElement("tr");
+  totalRow.className = "total-row";
+  totalRow.innerHTML = `
+    <td colspan="6" style="text-align:right">TOTAL GERAL DA OBRA (s/ BDI)</td>
+    <td class="num">R$ ${fmt(totalSemBdi)}</td>
+    <td></td><td></td>`;
+  tbody.appendChild(totalRow);
+
+  const totalBdiRow = document.createElement("tr");
+  totalBdiRow.className = "total-row";
+  totalBdiRow.innerHTML = `
+    <td colspan="8" style="text-align:right;font-size:14px">✅ TOTAL GERAL DA OBRA (c/ BDI ${(bdi*100).toFixed(2)}%)</td>
+    <td class="num" style="font-size:14px;color:#FFD700">R$ ${fmt(totalComBdi)}</td>`;
+  tbody.appendChild(totalBdiRow);
+
+  // KPIs
+  const area = r.area_construida_m2 || 1;
+  document.getElementById("budgetKpis").innerHTML = [
+    { label: "Total s/ BDI",     value: `R$ ${fmt(totalSemBdi)}`,               sub: "" },
+    { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
+    { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
+    { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
+    { label: "Estado",           value: estado,                                  sub: `Fator SINAPI ${fator.toFixed(3)}` },
+  ].map(i => `
+    <div class="info-box">
+      <div class="label">${i.label}</div>
+      <div class="value" style="font-size:16px">${i.value}</div>
+      <div class="sub">${i.sub}</div>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ═══════════════════════════════════════════════════════════════
+document.getElementById("btnDownload").addEventListener("click", exportExcel);
+
+function exportExcel() {
+  const estado  = document.getElementById("stateSelect").value;
+  const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
+  const fator   = FATORES_ESTADO[estado] || 1;
+  const r       = APP.analysisResult;
+  if (!r) return;
+
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Orçamento ──────────────────────────────────────
+  const rows = [
+    [`ORÇAMENTO DE OBRA — ${APP.projectName}`],
+    [`Estado: ${estado} | SINAPI 05/2025 | BDI: ${(bdi*100).toFixed(2)}% | Data: ${new Date().toLocaleDateString("pt-BR")}`],
+    [],
+    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
+  ];
+
+  const byCat = {};
+  (r.quantitativos || []).forEach(q => {
+    const c = q.categoria || "99. OUTROS";
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(q);
+  });
+
+  let itemNum = 0, totalSemBdi = 0, totalComBdi = 0;
+  const fmt2 = v => Math.round(v * 100) / 100;
+
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    rows.push([cat, "", "", "", "", "", "", "", ""]);
+    let catTotal = 0;
+
+    itens.forEach(q => {
+      itemNum++;
+      const sinapiItem = findSinapiItem(q.sinapi_codigo || "");
+      const precoAdj   = (sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0)) * fator;
+      const qtd        = Number(q.quantidade) || 0;
+      const subtotal   = fmt2(precoAdj * qtd);
+      const comBdi     = fmt2(subtotal * (1 + bdi));
+      catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
+
+      rows.push([itemNum, q.sinapi_codigo||"—", sinapiItem ? sinapiItem.descricao : q.descricao,
+                 q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
+    });
+    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
+  });
+
+  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, "", fmt2(totalSemBdi)]);
+  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, "", fmt2(totalComBdi)]);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
+
+  // ── Sheet 2: EAP ───────────────────────────────────────────
+  const eapRows = [
+    [`EAP — ESTRUTURA ANALÍTICA DO PROJETO — ${APP.projectName}`],
+    [],
+    ["ID WBS","DESCRIÇÃO","NÍVEL","UN","QUANTIDADE","CÓDIGO SINAPI","MEMÓRIA DE CÁLCULO"],
+  ];
+  eapRows.push(["1", APP.projectName || "OBRA", "1", "", "", "", ""]);
+
+  let catIdx = 0;
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    catIdx++;
+    eapRows.push([`1.${catIdx}`, cat, "2", "", "", "", ""]);
+    itens.forEach((q, i) => {
+      eapRows.push([`1.${catIdx}.${i+1}`, q.descricao, "3", q.unidade, q.quantidade, q.sinapi_codigo||"", q.memoria_calculo||""]);
+    });
+  });
+
+  const ws2 = XLSX.utils.aoa_to_sheet(eapRows);
+  ws2["!cols"] = [10,55,8,6,12,16,60].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, "EAP");
+
+  // ── Sheet 3: Ambientes ──────────────────────────────────────
+  if (r.ambientes?.length) {
+    const ambRows = [["AMBIENTE","ÁREA (m²)","PÉ DIREITO (m)"]];
+    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "—"]));
+    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
+    const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
+    ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
+  }
+
+  const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+</script>
+</body>
+</html>
