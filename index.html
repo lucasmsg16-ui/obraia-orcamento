@@ -891,11 +891,12 @@ async function startAnalysis() {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
         "anthropic-dangerous-direct-browser-access": "true"
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 6000,
+        max_tokens: 16000,
         system: ANTHROPIC_SYSTEM_PROMPT,
         messages: [{ role: "user", content: aiContent }]
       })
@@ -913,10 +914,19 @@ async function startAnalysis() {
     let parsedResult;
     try {
       parsedResult = JSON.parse(jsonStr);
-    } catch {
+    } catch(e1) {
+      // Tenta extrair apenas o bloco JSON principal
       const m = rawText.match(/\{[\s\S]*\}/);
-      if (m) parsedResult = JSON.parse(m[0]);
-      else throw new Error("IA não retornou JSON válido. Raw: " + rawText.substring(0, 200));
+      if (m) {
+        try {
+          parsedResult = JSON.parse(m[0]);
+        } catch(e2) {
+          // Último recurso: mostra os primeiros 500 chars do raw para debug
+          throw new Error("JSON inválido ou truncado. Resposta parcial: " + rawText.substring(0, 500));
+        }
+      } else {
+        throw new Error("IA não retornou JSON. Resposta: " + rawText.substring(0, 500));
+      }
     }
 
     setStep("pstep2", true, "Análise com IA concluída");
