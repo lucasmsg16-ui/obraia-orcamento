@@ -494,87 +494,114 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 // ═══════════════════════════════════════════════════════════════
 const SINAPI_ITENS = [
   // 1. SERVIÇOS PRELIMINARES
-  { codigo:"73965/001", descricao:"Placa de obra em chapa de aço galvanizado",              un:"m²",  preco:233.48, cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"74155/001", descricao:"Tapume em chapa de madeira compensada resinada",          un:"m²",  preco:67.80,  cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"74209/001", descricao:"Ligação provisória de energia para canteiro de obras",    un:"un",  preco:812.30, cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"73965",     descricao:"Placa de obra em chapa galvanizada 2,0x1,0m",                 un:"un",  preco:420.00, cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"74209",     descricao:"Locação de obra com gabarito e marcação, terreno até 200m²",   un:"m²",  preco:11.20,  cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"73855",     descricao:"Ligação provisória de energia elétrica (canteiro de obras)",    un:"un",  preco:680.00, cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"73856",     descricao:"Ligação provisória de água (canteiro de obras)",                un:"un",  preco:350.00, cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"88309",     descricao:"Demolição e limpeza de terreno com remoção de entulho",        un:"m²",  preco:6.80,   cat:"1. SERVIÇOS PRELIMINARES" },
+  { codigo:"74155/001", descricao:"Tapume em chapa de madeira compensada resinada",               un:"m²",  preco:67.80,  cat:"1. SERVIÇOS PRELIMINARES" },
   // 2. MOVIMENTO DE TERRA
-  { codigo:"73961/001", descricao:"Locação de obra com gabarito",                            un:"m²",  preco:4.85,   cat:"2. MOVIMENTO DE TERRA" },
-  { codigo:"73583/001", descricao:"Escavação manual em solo 1ª categoria, h≤1,30m",         un:"m³",  preco:52.40,  cat:"2. MOVIMENTO DE TERRA" },
-  { codigo:"74136/001", descricao:"Reaterro manual soqueteado com material de jazida",       un:"m³",  preco:36.90,  cat:"2. MOVIMENTO DE TERRA" },
+  { codigo:"73583/001", descricao:"Escavação manual de vala até 1,5m — solo médio",              un:"m³",  preco:42.00,  cat:"2. MOVIMENTO DE TERRA" },
+  { codigo:"74136/001", descricao:"Reaterro e compactação manual",                                un:"m³",  preco:28.50,  cat:"2. MOVIMENTO DE TERRA" },
   // 3. FUNDAÇÕES
-  { codigo:"74119/001", descricao:"Lastro de concreto magro fck=15MPa, e=5cm",              un:"m²",  preco:28.70,  cat:"3. FUNDAÇÕES" },
-  { codigo:"94965",     descricao:"Radier em concreto armado fck=20MPa, e=10cm",             un:"m²",  preco:165.40, cat:"3. FUNDAÇÕES" },
-  { codigo:"74155/002", descricao:"Baldrame em concreto armado fck=20MPa (forma+armação+concretagem)", un:"m³", preco:1240.50, cat:"3. FUNDAÇÕES" },
-  { codigo:"96527",     descricao:"Estaca escavada a trado mecânico, d=25cm, h≤8m",         un:"m",   preco:82.30,  cat:"3. FUNDAÇÕES" },
+  { codigo:"74119/001", descricao:"Lastro de concreto magro fck=10MPa, e=5cm",                   un:"m³",  preco:498.00, cat:"3. FUNDAÇÕES" },
+  { codigo:"94965",     descricao:"Radier em concreto armado fck=20MPa, e=10cm",                  un:"m²",  preco:165.40, cat:"3. FUNDAÇÕES" },
+  { codigo:"83334",     descricao:"Concreto estrutural fck=25MPa — vigas baldrame — usinado",     un:"m³",  preco:698.00, cat:"3. FUNDAÇÕES" },
+  { codigo:"96527",     descricao:"Estaca escavada a trado mecânico, d=25cm, h≤8m",              un:"m",   preco:82.30,  cat:"3. FUNDAÇÕES" },
   // 4. ESTRUTURA
-  { codigo:"94963",     descricao:"Pilar de concreto armado fck=25MPa (forma+armação+concretagem)",   un:"m³", preco:2180.60, cat:"4. ESTRUTURA" },
-  { codigo:"94964",     descricao:"Viga de concreto armado fck=25MPa (forma+armação+concretagem)",    un:"m³", preco:1985.30, cat:"4. ESTRUTURA" },
-  { codigo:"94966",     descricao:"Laje maciça de concreto armado fck=25MPa, e=12cm",        un:"m²",  preco:198.70, cat:"4. ESTRUTURA" },
-  { codigo:"94972",     descricao:"Laje pré-moldada com tavela cerâmica, sobrecarga 200 kg/m²", un:"m²", preco:112.40, cat:"4. ESTRUTURA" },
-  { codigo:"74155/003", descricao:"Escada de concreto armado fck=25MPa (forma+armação+concretagem)",  un:"m³", preco:2340.80, cat:"4. ESTRUTURA" },
+  { codigo:"83334b",    descricao:"Concreto estrutural fck=25MPa — pilares e vigas — usinado",   un:"m³",  preco:698.00, cat:"4. ESTRUTURA" },
+  { codigo:"83334c",    descricao:"Concreto estrutural fck=25MPa — laje/caixa d'água/vergas",    un:"m³",  preco:698.00, cat:"4. ESTRUTURA" },
+  { codigo:"94228",     descricao:"Forma em madeira para estruturas — reutilização até 3x",      un:"m²",  preco:68.50,  cat:"4. ESTRUTURA" },
+  { codigo:"94237",     descricao:"Armação em aço CA-50/CA-60 — corte, dobramento e montagem",  un:"kg",  preco:9.85,   cat:"4. ESTRUTURA" },
+  { codigo:"94966",     descricao:"Laje maciça de concreto armado fck=25MPa, e=12cm",            un:"m²",  preco:198.70, cat:"4. ESTRUTURA" },
+  { codigo:"94972",     descricao:"Laje pré-moldada com tavela cerâmica, sobrecarga 200 kg/m²", un:"m²",  preco:112.40, cat:"4. ESTRUTURA" },
+  { codigo:"74155/003", descricao:"Escada de concreto armado fck=25MPa (forma+armação+concreto)",un:"m³",  preco:2340.80,cat:"4. ESTRUTURA" },
   // 5. ALVENARIA
   { codigo:"87451",     descricao:"Alvenaria de vedação — blocos vazados de concreto 14×19×39cm, esp=14cm", un:"m²", preco:68.30, cat:"5. ALVENARIA" },
-  { codigo:"87452",     descricao:"Alvenaria de vedação — blocos vazados de concreto 19×19×39cm, esp=19cm", un:"m²", preco:78.90, cat:"5. ALVENARIA" },
   { codigo:"87453",     descricao:"Alvenaria de vedação — tijolos cerâmicos 6 furos 9×14×19cm, esp=9cm",    un:"m²", preco:56.45, cat:"5. ALVENARIA" },
-  { codigo:"87455",     descricao:"Alvenaria de vedação — tijolos cerâmicos 8 furos 9×19×19cm, esp=9cm",    un:"m²", preco:62.10, cat:"5. ALVENARIA" },
-  { codigo:"87456",     descricao:"Alvenaria de vedação — tijolos cerâmicos 8 furos 14×19×19cm, esp=14cm",  un:"m²", preco:74.80, cat:"5. ALVENARIA" },
-  { codigo:"87704",     descricao:"Verga moldada no local para vão até 1,5m, concreto fck=15MPa",            un:"m",  preco:38.20, cat:"5. ALVENARIA" },
-  { codigo:"87705",     descricao:"Contraverga moldada no local, concreto fck=15MPa",                        un:"m",  preco:30.60, cat:"5. ALVENARIA" },
+  { codigo:"87456",     descricao:"Alvenaria de tijolo cerâmico furado 9x14x19 — e=14cm — argamassa 1:2:8", un:"m²", preco:62.50, cat:"5. ALVENARIA" },
+  { codigo:"87704",     descricao:"Verga e contraverga em concreto — seção 8×10cm",              un:"m",   preco:32.00,  cat:"5. ALVENARIA" },
+  { codigo:"87705",     descricao:"Contraverga moldada no local, concreto fck=15MPa",             un:"m",   preco:30.60,  cat:"5. ALVENARIA" },
   // 6. COBERTURA
-  { codigo:"74209/002", descricao:"Estrutura de madeira para telhado, vão até 5m",          un:"m²",  preco:98.60,  cat:"6. COBERTURA" },
-  { codigo:"87251",     descricao:"Telhamento com telha cerâmica colonial, incl. cumeeira", un:"m²",  preco:76.40,  cat:"6. COBERTURA" },
-  { codigo:"87266",     descricao:"Telhamento com telha de fibrocimento e=6mm, incl. cumeeira", un:"m²", preco:48.70, cat:"6. COBERTURA" },
-  { codigo:"87293",     descricao:"Calha em chapa galvanizada nº26, larg=33cm",             un:"m",   preco:55.30,  cat:"6. COBERTURA" },
+  { codigo:"91010",     descricao:"Estrutura de madeira para telhado — caibros, ripas e terças", un:"m²",  preco:78.00,  cat:"6. COBERTURA" },
+  { codigo:"87266",     descricao:"Telha ondulada de fibrocimento e=6mm — incl. parafusos e cumeeira", un:"m²", preco:48.50, cat:"6. COBERTURA" },
+  { codigo:"87251",     descricao:"Telhamento com telha cerâmica colonial, incl. cumeeira",      un:"m²",  preco:76.40,  cat:"6. COBERTURA" },
+  { codigo:"96548",     descricao:"Rufo de chapa galvanizada nº26 — L=25cm (perímetro telhado)", un:"m",   preco:32.00,  cat:"6. COBERTURA" },
+  { codigo:"87293",     descricao:"Calha em chapa galvanizada nº26, larg=33cm",                  un:"m",   preco:55.30,  cat:"6. COBERTURA" },
   // 7. REVESTIMENTOS INTERNOS
-  { codigo:"87529",     descricao:"Chapisco aplicado em alvenaria/concreto, traço 1:3",     un:"m²",  preco:5.80,   cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87528",     descricao:"Emboço paulista em argamassa mista, e=20mm, traço 1:2:8", un:"m²", preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87527",     descricao:"Reboco em argamassa cal/areia, e=5mm, traço 1:4",        un:"m²",  preco:14.50,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"88489",     descricao:"Revestimento de gesso projetado em parede/teto, e=10mm", un:"m²",  preco:22.10,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87879",     descricao:"Revestimento cerâmico — azulejo branco 20×20cm, AC-I",  un:"m²",  preco:58.90,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87875",     descricao:"Revestimento cerâmico — porcelanato 60×60cm, AC-III",   un:"m²",  preco:142.30, cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87876",     descricao:"Revestimento cerâmico — piso 30×30cm, AC-II",           un:"m²",  preco:72.40,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87251b",    descricao:"Chapisco argamassa cimento:areia 1:3 — paredes internas e externas", un:"m²", preco:8.20, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87262",     descricao:"Reboco massa única desempenada — paredes internas, e=2,5cm",  un:"m²",  preco:32.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87528",     descricao:"Emboço paulista em argamassa mista, e=20mm, traço 1:2:8",    un:"m²",  preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87556",     descricao:"Gesso liso em paredes internas, e=1,5cm",                    un:"m²",  preco:28.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87556b",    descricao:"Forro de gesso em placas 60×60cm — inclusive estrutura metálica", un:"m²", preco:65.00, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87529",     descricao:"Revestimento cerâmico piso interno PEI-4 (40×40cm)",         un:"m²",  preco:62.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87879",     descricao:"Revestimento cerâmico — azulejo 20×20cm, banheiro/cozinha",  un:"m²",  preco:58.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87875",     descricao:"Revestimento cerâmico — porcelanato 60×60cm, AC-III",        un:"m²",  preco:142.30, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"73890",     descricao:"Soleira de granito e=2cm — portas externas",                  un:"m",   preco:185.00, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"73891",     descricao:"Peitoril de granito e=2cm — janelas externas",               un:"m",   preco:175.00, cat:"7. REVESTIMENTOS INTERNOS" },
   // 8. REVESTIMENTOS EXTERNOS
-  { codigo:"87523",     descricao:"Sistema monocamada de fachada (chapisco+reboco+emboço)", un:"m²",  preco:52.30,  cat:"8. REVESTIMENTOS EXTERNOS" },
-  { codigo:"88497",     descricao:"Revestimento de fachada com argamassa texturizada",      un:"m²",  preco:38.70,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"87262b",    descricao:"Reboco massa única desempenada — paredes externas, e=2,5cm", un:"m²",  preco:35.00,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"87523",     descricao:"Sistema monocamada de fachada (chapisco+reboco+emboço)",      un:"m²",  preco:52.30,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"88497",     descricao:"Revestimento de fachada com argamassa texturizada",           un:"m²",  preco:38.70,  cat:"8. REVESTIMENTOS EXTERNOS" },
   // 9. PINTURA
-  { codigo:"88487",     descricao:"Pintura látex PVA interna, 2 demãos c/ massa corrida",  un:"m²",  preco:18.40,  cat:"9. PINTURA" },
-  { codigo:"88488",     descricao:"Pintura látex acrílica interna, 2 demãos c/ massa corrida", un:"m²", preco:24.60, cat:"9. PINTURA" },
-  { codigo:"88484",     descricao:"Pintura acrílica em fachada, 2 demãos c/ selador",      un:"m²",  preco:19.80,  cat:"9. PINTURA" },
-  { codigo:"88485",     descricao:"Pintura esmalte sintético em esquadrias, 2 demãos",     un:"m²",  preco:22.10,  cat:"9. PINTURA" },
+  { codigo:"88484",     descricao:"Massa corrida PVA — paredes internas (2 demãos)",             un:"m²",  preco:14.50,  cat:"9. PINTURA" },
+  { codigo:"88487",     descricao:"Tinta látex PVA — paredes internas (2 demãos)",              un:"m²",  preco:18.00,  cat:"9. PINTURA" },
+  { codigo:"88490",     descricao:"Selador acrílico + tinta acrílica — fachada/externo (2 dem)", un:"m²", preco:32.00,  cat:"9. PINTURA" },
+  { codigo:"88485",     descricao:"Tinta esmalte sintético em esquadrias de madeira — 2 demãos", un:"m²", preco:22.00,  cat:"9. PINTURA" },
+  { codigo:"88488",     descricao:"Pintura látex acrílica interna, 2 demãos c/ massa corrida",  un:"m²",  preco:24.60,  cat:"9. PINTURA" },
   // 10. ESQUADRIAS
-  { codigo:"74209/003", descricao:"Porta de madeira maciça 0,80×2,10m, incl. batente e ferragens", un:"un", preco:890.40, cat:"10. ESQUADRIAS" },
-  { codigo:"74209/004", descricao:"Porta de madeira entamborada 0,70×2,10m, incl. batente", un:"un", preco:620.30, cat:"10. ESQUADRIAS" },
-  { codigo:"74209/005", descricao:"Janela em alumínio anodizado 1,20×1,20m c/ vidro 4mm",  un:"un", preco:1240.60, cat:"10. ESQUADRIAS" },
-  { codigo:"74209/006", descricao:"Janela em alumínio anodizado 2,00×1,20m c/ vidro 4mm",  un:"un", preco:1840.20, cat:"10. ESQUADRIAS" },
-  { codigo:"74209/007", descricao:"Portão metálico de correr 3,00×2,10m",                  un:"un", preco:2380.00, cat:"10. ESQUADRIAS" },
+  { codigo:"73943",     descricao:"Porta de alumínio (1 folha) 0,88×2,10m — c/ fechadura e dobradiças", un:"un", preco:1250.00, cat:"10. ESQUADRIAS" },
+  { codigo:"73943b",    descricao:"Porta compensada 0,80×2,10m — c/ batente, fechadura e dobradiças",    un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73943c",    descricao:"Porta de abrir 0,90×2,10m — varanda/área de serviço",                 un:"un", preco:820.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936",     descricao:"Janela alumínio correr 2 folhas 0,60×0,40m — banheiro",               un:"un", preco:420.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936b",    descricao:"Janela alumínio correr 2 folhas 1,00×1,00m — quartos/sala",           un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936c",    descricao:"Janela alumínio correr 2 folhas 1,00×0,40m — cozinha",                un:"un", preco:450.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73939",     descricao:"Gradil metálico em ferro chato para janelas (proteção)",              un:"m²", preco:320.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"74209/007", descricao:"Portão metálico de correr 3,00×2,10m",                               un:"un", preco:2380.00, cat:"10. ESQUADRIAS" },
   // 11. PISOS
-  { codigo:"87880",     descricao:"Contrapiso em argamassa de cimento e areia, e=4cm",     un:"m²",  preco:24.80,  cat:"11. PISOS" },
-  { codigo:"74155/004", descricao:"Piso de concreto simples fck=20MPa, e=8cm (ext.)",      un:"m²",  preco:48.60,  cat:"11. PISOS" },
-  { codigo:"87875b",    descricao:"Piso porcelanato 60×60cm, argamassa AC-III",            un:"m²",  preco:142.30, cat:"11. PISOS" },
-  { codigo:"87876b",    descricao:"Piso cerâmico tipo A 30×30cm, argamassa AC-II",         un:"m²",  preco:72.40,  cat:"11. PISOS" },
-  { codigo:"74209/008", descricao:"Piso laminado de madeira (click), e=7mm, incl. regularização", un:"m²", preco:98.70, cat:"11. PISOS" },
-  { codigo:"87877",     descricao:"Rodapé cerâmico h=10cm",                                un:"m",   preco:18.40,  cat:"11. PISOS" },
+  { codigo:"87241",     descricao:"Contrapiso argamassa cimento:areia 1:4 — e=4cm sobre lastro", un:"m²",  preco:32.50,  cat:"11. PISOS" },
+  { codigo:"87880",     descricao:"Contrapiso em argamassa de cimento e areia, e=4cm",           un:"m²",  preco:24.80,  cat:"11. PISOS" },
+  { codigo:"74155/004", descricao:"Calçada perimetral de concreto fck=15MPa, e=6cm",             un:"m²",  preco:95.00,  cat:"11. PISOS" },
+  { codigo:"87875b",    descricao:"Piso porcelanato 60×60cm, argamassa AC-III",                  un:"m²",  preco:142.30, cat:"11. PISOS" },
+  { codigo:"87876b",    descricao:"Piso cerâmico PEI-4 40×40cm, argamassa AC-II",               un:"m²",  preco:62.00,  cat:"11. PISOS" },
+  { codigo:"74209/008", descricao:"Piso laminado de madeira (click), e=7mm, incl. regularização",un:"m²",  preco:98.70,  cat:"11. PISOS" },
+  { codigo:"87877",     descricao:"Rodapé cerâmico h=10cm",                                      un:"m",   preco:18.40,  cat:"11. PISOS" },
   // 12. INSTALAÇÕES HIDROSSANITÁRIAS
-  { codigo:"89769",     descricao:"Tubo PVC soldável 25mm água fria, incl. conexões e suportes", un:"m", preco:18.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89770",     descricao:"Tubo PVC esgoto 100mm, incl. conexões e cola",          un:"m",   preco:28.90,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89643",     descricao:"Bacia sanitária com caixa acoplada, incl. instalação",  un:"un",  preco:520.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89645",     descricao:"Lavatório de louça branca 45×32cm, incl. sifão",        un:"un",  preco:310.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89644",     descricao:"Tanque de louça 40L, incl. suporte e instalação",       un:"un",  preco:280.30, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89777",     descricao:"Chuveiro elétrico ABS, incl. instalação",               un:"un",  preco:195.80, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89783",     descricao:"Caixa d'água polietileno 1000L, incl. acessórios",      un:"un",  preco:890.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89809",     descricao:"Ramal de água fria — PVC soldável 25mm — incluindo conexões", un:"m",   preco:38.50,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89769",     descricao:"Tubo PVC soldável 25mm água fria, incl. conexões e suportes", un:"m",   preco:18.60,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89684",     descricao:"Esgoto primário PVC série normal 100mm — incluindo conexões", un:"m",   preco:35.00,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89770",     descricao:"Tubo PVC esgoto 50mm — esgoto secundário — incl. conexões",  un:"m",   preco:28.00,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89656",     descricao:"Caixa de inspeção em concreto pré-moldado 40×40cm — com tampa",un:"un", preco:280.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89679",     descricao:"Fossa séptica + sumidouro — dimensionamento para 4 pessoas",  un:"un",  preco:3200.00,cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89643",     descricao:"Bacia sanitária com caixa acoplada, incl. instalação",        un:"un",  preco:520.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89645",     descricao:"Lavatório de louça branca 45×32cm, incl. sifão",             un:"un",  preco:310.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89644",     descricao:"Tanque de louça 40L, incl. suporte e instalação",            un:"un",  preco:280.30, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89777",     descricao:"Chuveiro elétrico ABS, incl. instalação",                    un:"un",  preco:195.80, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89812",     descricao:"Caixa d'água 500L fibrocimento — incluindo suporte",          un:"un",  preco:620.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89783",     descricao:"Caixa d'água polietileno 1000L, incl. acessórios",           un:"un",  preco:890.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
+  { codigo:"89481",     descricao:"Kit louças e metais básico (bacia, lavatório, tanque, chuveiro)", un:"cj", preco:1850.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
   // 13. INSTALAÇÕES ELÉTRICAS
-  { codigo:"91878",     descricao:"Eletroduto PVC rígido d=20mm, incl. conexões e fixação", un:"m",  preco:14.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91888",     descricao:"Cabo de cobre flexível 2,5mm²",                          un:"m",   preco:8.40,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91914",     descricao:"Tomada 2P+T 10A embutida, incl. caixa e placa",         un:"un",  preco:68.40,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91915",     descricao:"Interruptor simples 10A embutido, incl. caixa e placa", un:"un",  preco:54.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91912",     descricao:"Luminária de embutir (sem lâmpada), incl. instalação",  un:"un",  preco:148.60, cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91921",     descricao:"Quadro de distribuição embutir 12 disjuntores",          un:"un",  preco:420.80, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91926",     descricao:"Eletroduto PVC rígido 3/4pol — embutido em alvenaria",        un:"m",   preco:7.80,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91878",     descricao:"Eletroduto PVC rígido d=20mm, incl. conexões e fixação",      un:"m",   preco:14.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91930",     descricao:"Cabo de cobre flexível 2,5mm² — fiação interna",              un:"m",   preco:5.20,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91888",     descricao:"Cabo de cobre flexível 4,0mm² — circuito de chuveiro",        un:"m",   preco:7.60,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91948",     descricao:"Quadro de distribuição 12 disjuntores — embutir",             un:"un",  preco:420.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91950",     descricao:"Disjuntor monopolar 10A/20A/30A",                             un:"un",  preco:32.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91968",     descricao:"Ponto de tomada 2P+T 10A — incl. caixa, placa e material",   un:"un",  preco:88.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91914",     descricao:"Tomada 2P+T 20A — chuveiro/ar-condicionado",                  un:"un",  preco:105.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91970",     descricao:"Ponto de interruptor simples — incl. caixa, placa e material",un:"un",  preco:78.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91915",     descricao:"Ponto de interruptor duplo — incl. caixa, placa e material",  un:"un",  preco:98.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91912",     descricao:"Luminária de embutir (sem lâmpada), incl. instalação",        un:"un",  preco:148.60, cat:"13. INSTALAÇÕES ELÉTRICAS" },
+  { codigo:"91976",     descricao:"Aterramento — cabo PP 16mm² e haste de cobre 2,4m",          un:"un",  preco:380.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
   // 14. IMPERMEABILIZAÇÃO
-  { codigo:"95237",     descricao:"Impermeabilização — manta asfáltica APP 3mm em laje",   un:"m²",  preco:98.40,  cat:"14. IMPERMEABILIZAÇÃO" },
-  { codigo:"95239",     descricao:"Impermeabilização — membrana de poliuretano em banheiros", un:"m²", preco:64.30, cat:"14. IMPERMEABILIZAÇÃO" },
+  { codigo:"73888",     descricao:"Impermeabilização de laje com manta asfáltica 3mm",           un:"m²",  preco:68.00,  cat:"14. IMPERMEABILIZAÇÃO" },
+  { codigo:"95237",     descricao:"Impermeabilização — manta asfáltica APP 3mm em laje",         un:"m²",  preco:98.40,  cat:"14. IMPERMEABILIZAÇÃO" },
+  { codigo:"95239",     descricao:"Impermeabilização — membrana de poliuretano em banheiros",    un:"m²",  preco:64.30,  cat:"14. IMPERMEABILIZAÇÃO" },
   // 15. SERVIÇOS COMPLEMENTARES
-  { codigo:"73942/001", descricao:"Limpeza final de obra",                                  un:"m²",  preco:8.70,   cat:"15. SERVIÇOS COMPLEMENTARES" },
-  { codigo:"73942/002", descricao:"Remoção de entulho com caçamba metálica 4m³",           un:"un",  preco:580.40, cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"73955",     descricao:"Calçada/área externa — concreto fck=15MPa, e=6cm",           un:"m²",  preco:95.00,  cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"73958",     descricao:"Limpeza final da obra",                                        un:"m²",  preco:9.50,   cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"73942/001", descricao:"Limpeza final de obra",                                        un:"m²",  preco:8.70,   cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"73942/002", descricao:"Remoção de entulho com caçamba metálica 4m³",                un:"un",  preco:580.40, cat:"15. SERVIÇOS COMPLEMENTARES" },
 ];
 
 // Fatores regionais relativos a SP (base = 1.000)
@@ -652,44 +679,97 @@ REGRAS OBRIGATÓRIAS:
 7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
 8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
-10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965/001, 74155/001, 74209/001, 73961/001, 73583/001, 74136/001, 74119/001, 94965, 74155/002, 96527, 94963, 94964, 94966, 94972, 87451, 87452, 87453, 87455, 87456, 87704, 87705, 74209/002, 87251, 87266, 87293, 87529, 87528, 87527, 88489, 87879, 87875, 87876, 87523, 88497, 88487, 88488, 88484, 88485, 74209/003, 74209/004, 74209/005, 74209/006, 74209/007, 87880, 74155/004, 87875b, 87876b, 74209/008, 87877, 89769, 89770, 89643, 89645, 89644, 89777, 89783, 91878, 91888, 91914, 91915, 91912, 91921, 95237, 95239, 73942/001, 73942/002. Se usar outro código, inclua o preco_unitario correto.
+10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro código, inclua o preco_unitario correto.
 
-REGRAS DE QUANTITATIVOS POR CATEGORIA (CRÍTICO — siga rigorosamente):
+REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
 1. SERVIÇOS PRELIMINARES:
-   - Placa de obra (73965/001): unidade = m², quantidade FIXA = 2.40 (dimensão padrão 2,00m × 1,20m). NUNCA use a área do projeto.
-   - Ligação provisória de energia (74209/001): unidade = un, quantidade FIXA = 1 (uma ligação por canteiro). NUNCA em m².
-   - Tapume (74155/001): unidade = m², calcule pelo perímetro da obra × altura (2,20m).
-   - Locação de obra (73961/001): unidade = m², use a área de projeção da obra.
-   - NÃO repita o mesmo item com unidades diferentes.
+   - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
+   - Locação de obra (74209): unidade = M², use a área CONSTRUÍDA (não do terreno).
+   - Ligação provisória de energia (73855): unidade = UN, quantidade = 1.
+   - Ligação provisória de água (73856): unidade = UN, quantidade = 1.
+   - Demolição/limpeza terreno (88309): unidade = M², use a área do TERRENO (não construída).
+   - Tapume (74155/001): unidade = M², calcule pelo perímetro × altura (2,20m). Incluir somente se houver tapume.
 
 2. MOVIMENTO DE TERRA:
-   - Escavação (73583/001): unidade = m³ (volume = área × profundidade estimada).
-   - Reaterro (74136/001): unidade = m³.
+   - Escavação (73583/001): unidade = M³ (área × profundidade estimada 1,0~1,5m).
+   - Reaterro (74136/001): unidade = M³ (≈ 50% do volume escavado).
 
-3. FUNDAÇÕES: unidades em m² (lastro, radier) ou m³ (vigas, baldrame).
+3. FUNDAÇÕES:
+   - Lastro concreto (74119/001): unidade = M³ (volume = área × espessura 0,05m).
+   - Radier (94965): unidade = M².
+   - Vigas baldrame/pilares (83334): unidade = M³ (volume de concreto).
+   - Estacas (96527): unidade = M (metros lineares de estaca).
 
-4. ESTRUTURA: unidades em m² (lajes) ou m³ (pilares, vigas — volume de concreto).
+4. ESTRUTURA:
+   - Concreto estrutural (83334b): unidade = M³ (volume de concreto de pilares e vigas).
+   - Lajes (94966/94972): unidade = M² (área da laje).
+   - Forma em madeira (94228): unidade = M² (área de contato da fôrma).
+   - Armação aço CA-50/CA-60 (94237): unidade = KG (estimativa: 80~120 kg/m³ de concreto estrutural).
 
-5. ALVENARIA: unidade = m² (descontar vãos de portas e janelas).
+5. ALVENARIA:
+   - Alvenaria (87456): unidade = M² (descontar TODOS os vãos de portas e janelas).
+   - Vergas e contravergas (87704): unidade = M (metro linear, soma dos vãos de portas e janelas).
 
-6. COBERTURA: unidade = m² (área do telhado, não planta).
+6. COBERTURA:
+   - Estrutura madeira (91010): unidade = M² (área do telhado com inclinação, não planta).
+   - Telha (87266): unidade = M² (mesma área da estrutura).
+   - Rufo/calha (96548): unidade = M (metros lineares do perímetro do beiral).
 
-7/8. REVESTIMENTOS INTERNOS/EXTERNOS: unidade = m² (área das paredes ou pisos).
+7. REVESTIMENTOS INTERNOS:
+   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas).
+   - Reboco interno (87262): unidade = M² (área de paredes internas).
+   - Gesso liso (87556): unidade = M² (área de paredes internas).
+   - Forro de gesso (87556b): unidade = M² (área do teto = área construída por pavimento).
+   - Contrapiso (87241): unidade = M² (área construída).
+   - Piso cerâmico (87529): unidade = M² (área de piso interno).
+   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m).
+   - Soleira (73890): unidade = M (metro linear, largura das portas externas).
+   - Peitoril (73891): unidade = M (metro linear, largura das janelas externas).
 
-9. PINTURA: unidade = m² (área pintada).
+8. REVESTIMENTOS EXTERNOS:
+   - Reboco externo (87262b): unidade = M² (área das fachadas externas).
 
-10. ESQUADRIAS: unidade = un (NUNCA m²). Contar individualmente cada porta e janela identificada na planta. Ex: 3 portas = 3 un.
+9. PINTURA:
+   - Massa corrida PVA (88484): unidade = M² (paredes internas).
+   - Tinta látex PVA interna (88487): unidade = M² (paredes internas).
+   - Tinta acrílica fachada (88490): unidade = M² (fachadas externas).
+   - Tinta esmalte esquadrias (88485): unidade = M² (área das esquadrias de madeira × 2 faces).
 
-11. PISOS: unidade = m² para pisos/contrapiso; unidade = m para rodapés.
+10. ESQUADRIAS: unidade = UN para TODAS. Contar individualmente cada porta e janela.
+    - Gradil metálico (73939): unidade = M² (área dos gradis — se houver na planta).
 
-12. INSTALAÇÕES HIDROSSANITÁRIAS: tubulações em m (metros lineares); aparelhos (vasos, pias, tanques, chuveiros, caixas d'água) em un.
+11. PISOS:
+    - Contrapiso (87241): unidade = M².
+    - Calçada externa/área serviço (74155/004): unidade = M².
+    - Rodapé (87877): unidade = M (metros lineares do perímetro dos ambientes).
 
-13. INSTALAÇÕES ELÉTRICAS: eletrodutos e cabos em m; tomadas, interruptores, luminárias, quadros em un.
+12. INSTALAÇÕES HIDROSSANITÁRIAS:
+    - Tubulações água fria (89809): unidade = M.
+    - Tubulações esgoto 100mm (89684): unidade = M.
+    - Tubulações esgoto 50mm (89770): unidade = M.
+    - Caixa de inspeção (89656): unidade = UN.
+    - Fossa séptica (89679): unidade = UN (incluir somente se não houver rede pública).
+    - Caixa d'água (89812/89783): unidade = UN.
+    - Aparelhos sanitários — bacia, lavatório, tanque, chuveiro: unidade = UN cada.
+    - Kit completo de louças (89481): unidade = CJ (conjunto), se optar por kit.
 
-14. IMPERMEABILIZAÇÃO: unidade = m².
+13. INSTALAÇÕES ELÉTRICAS:
+    - Eletrodutos (91926): unidade = M (metros lineares).
+    - Cabos de cobre (91930/91888): unidade = M (metros lineares, separar por bitola).
+    - Quadro de distribuição (91948): unidade = UN.
+    - Disjuntores (91950): unidade = UN.
+    - Tomadas (91968/91914): unidade = UN (contar cada ponto).
+    - Interruptores (91970/91915): unidade = UN (contar cada ponto).
+    - Aterramento (91976): unidade = UN.
 
-15. SERVIÇOS COMPLEMENTARES: limpeza em m²; caçamba em un.
+14. IMPERMEABILIZAÇÃO: unidade = M² (área de lajes, calhas, banheiros).
+
+15. SERVIÇOS COMPLEMENTARES:
+    - Calçada perimetral (73955): unidade = M².
+    - Limpeza final (73958): unidade = M² (área construída).
+    - Ligação definitiva energia: unidade = UN, quantidade = 1.
+    - ART/projeto/aprovação: unidade = VB, quantidade = 1.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
