@@ -654,6 +654,43 @@ REGRAS OBRIGATÓRIAS:
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
 10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965/001, 74155/001, 74209/001, 73961/001, 73583/001, 74136/001, 74119/001, 94965, 74155/002, 96527, 94963, 94964, 94966, 94972, 87451, 87452, 87453, 87455, 87456, 87704, 87705, 74209/002, 87251, 87266, 87293, 87529, 87528, 87527, 88489, 87879, 87875, 87876, 87523, 88497, 88487, 88488, 88484, 88485, 74209/003, 74209/004, 74209/005, 74209/006, 74209/007, 87880, 74155/004, 87875b, 87876b, 74209/008, 87877, 89769, 89770, 89643, 89645, 89644, 89777, 89783, 91878, 91888, 91914, 91915, 91912, 91921, 95237, 95239, 73942/001, 73942/002. Se usar outro código, inclua o preco_unitario correto.
 
+REGRAS DE QUANTITATIVOS POR CATEGORIA (CRÍTICO — siga rigorosamente):
+
+1. SERVIÇOS PRELIMINARES:
+   - Placa de obra (73965/001): unidade = m², quantidade FIXA = 2.40 (dimensão padrão 2,00m × 1,20m). NUNCA use a área do projeto.
+   - Ligação provisória de energia (74209/001): unidade = un, quantidade FIXA = 1 (uma ligação por canteiro). NUNCA em m².
+   - Tapume (74155/001): unidade = m², calcule pelo perímetro da obra × altura (2,20m).
+   - Locação de obra (73961/001): unidade = m², use a área de projeção da obra.
+   - NÃO repita o mesmo item com unidades diferentes.
+
+2. MOVIMENTO DE TERRA:
+   - Escavação (73583/001): unidade = m³ (volume = área × profundidade estimada).
+   - Reaterro (74136/001): unidade = m³.
+
+3. FUNDAÇÕES: unidades em m² (lastro, radier) ou m³ (vigas, baldrame).
+
+4. ESTRUTURA: unidades em m² (lajes) ou m³ (pilares, vigas — volume de concreto).
+
+5. ALVENARIA: unidade = m² (descontar vãos de portas e janelas).
+
+6. COBERTURA: unidade = m² (área do telhado, não planta).
+
+7/8. REVESTIMENTOS INTERNOS/EXTERNOS: unidade = m² (área das paredes ou pisos).
+
+9. PINTURA: unidade = m² (área pintada).
+
+10. ESQUADRIAS: unidade = un (NUNCA m²). Contar individualmente cada porta e janela identificada na planta. Ex: 3 portas = 3 un.
+
+11. PISOS: unidade = m² para pisos/contrapiso; unidade = m para rodapés.
+
+12. INSTALAÇÕES HIDROSSANITÁRIAS: tubulações em m (metros lineares); aparelhos (vasos, pias, tanques, chuveiros, caixas d'água) em un.
+
+13. INSTALAÇÕES ELÉTRICAS: eletrodutos e cabos em m; tomadas, interruptores, luminárias, quadros em un.
+
+14. IMPERMEABILIZAÇÃO: unidade = m².
+
+15. SERVIÇOS COMPLEMENTARES: limpeza em m²; caçamba em un.
+
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
 - "2. MOVIMENTO DE TERRA"
