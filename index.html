@@ -1397,6 +1397,21 @@ function buildBudget() {
 // ═══════════════════════════════════════════════════════════════
 document.getElementById("btnDownload").addEventListener("click", () => exportExcel());
 
+// Step-tab navigation (click on any tab navigates if step already reached)
+document.querySelectorAll(".step-tab").forEach(t => {
+  t.addEventListener("click", () => {
+    const step = +t.dataset.step;
+    if (step <= APP.currentStep) goTo(step);
+  });
+});
+
+// Cronograma screen
+document.getElementById("btnGoCronograma").addEventListener("click", () => {
+  buildSchedule();
+  goTo(5);
+});
+document.getElementById("btnDownloadFull").addEventListener("click", () => exportExcel());
+
 async function exportExcel() {
   const estado = document.getElementById("stateSelect").value;
   const bdi    = parseFloat(document.getElementById("bdiInput").value) / 100;
