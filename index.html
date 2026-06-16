@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ObraIA — Sistema de Orçamento Arquitetônico</title>
+<title>ObraIA â Sistema de OrÃ§amento ArquitetÃ´nico</title>
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -13,7 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
 
 <style>
-/* ── Reset & Base ─────────────────────────────────────────── */
+/* ââ Reset & Base âââââââââââââââââââââââââââââââââââââââââââ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --navy:   #1a3c5e;
@@ -31,7 +31,7 @@
 }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-/* ── Header ───────────────────────────────────────────────── */
+/* ââ Header âââââââââââââââââââââââââââââââââââââââââââââââââ */
 header {
   background: linear-gradient(135deg, var(--navy) 0%, #1e5080 100%);
   color: #fff; padding: 0 24px;
@@ -43,7 +43,7 @@ header .logo span { color: var(--amber); }
 header .subtitle { font-size: 12px; color: rgba(255,255,255,.65); margin-top: 2px; }
 header .header-right { margin-left: auto; font-size: 12px; color: rgba(255,255,255,.5); }
 
-/* ── Steps ────────────────────────────────────────────────── */
+/* ââ Steps ââââââââââââââââââââââââââââââââââââââââââââââââââ */
 .steps-bar {
   background: var(--navy); padding: 0 24px 0;
   display: flex; gap: 0; overflow-x: auto;
@@ -64,12 +64,12 @@ header .header-right { margin-left: auto; font-size: 12px; color: rgba(255,255,2
 .step-tab.active .num { background: var(--amber); color: #fff; }
 .step-tab.done   .num { background: var(--green);  color: #fff; }
 
-/* ── Main container ───────────────────────────────────────── */
+/* ââ Main container âââââââââââââââââââââââââââââââââââââââââ */
 main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .screen { display: none; }
 .screen.active { display: block; }
 
-/* ── Cards ────────────────────────────────────────────────── */
+/* ââ Cards ââââââââââââââââââââââââââââââââââââââââââââââââââ */
 .card {
   background: var(--card); border-radius: 10px;
   box-shadow: var(--shadow); border: 1px solid var(--border);
@@ -81,7 +81,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 .card-title .icon { font-size: 18px; }
 
-/* ── Upload zone ──────────────────────────────────────────── */
+/* ââ Upload zone ââââââââââââââââââââââââââââââââââââââââââââ */
 .upload-zone {
   display: block; position: relative;
   border: 2.5px dashed var(--border); border-radius: 10px;
@@ -103,7 +103,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .upload-zone p  { font-size: 13px; color: var(--muted); }
 /* file input: estilizado inline no HTML */
 
-/* ── Inputs ───────────────────────────────────────────────── */
+/* ââ Inputs âââââââââââââââââââââââââââââââââââââââââââââââââ */
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
 .field input, .field select {
@@ -114,7 +114,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 .field input:focus, .field select:focus { border-color: var(--blue); }
 
-/* ── Buttons ──────────────────────────────────────────────── */
+/* ââ Buttons ââââââââââââââââââââââââââââââââââââââââââââââââ */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 10px 22px; border-radius: 6px; border: none;
@@ -132,7 +132,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .btn:disabled  { opacity: .5; cursor: not-allowed; }
 .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
 
-/* ── Page thumbnails ──────────────────────────────────────── */
+/* ââ Page thumbnails ââââââââââââââââââââââââââââââââââââââââ */
 .pages-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px; margin-top: 16px;
@@ -159,7 +159,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 .page-thumb.selected .check { display: flex; }
 
-/* ── Progress ─────────────────────────────────────────────── */
+/* ââ Progress âââââââââââââââââââââââââââââââââââââââââââââââ */
 .progress-wrap { margin: 20px 0; }
 .progress-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
 .progress-bar { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
@@ -171,7 +171,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── EAP Tree ─────────────────────────────────────────────── */
+/* ââ EAP Tree âââââââââââââââââââââââââââââââââââââââââââââââ */
 .eap-tree { margin-top: 12px; }
 .eap-node {
   border-radius: 6px; margin-bottom: 6px; overflow: hidden;
@@ -210,7 +210,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 .eap-memo.open { display: block; }
 
-/* ── Budget table ─────────────────────────────────────────── */
+/* ââ Budget table âââââââââââââââââââââââââââââââââââââââââââ */
 .budget-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .budget-table th {
   background: var(--navy); color: #fff; padding: 9px 10px;
@@ -231,7 +231,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .budget-table .num { text-align: right; }
 .budget-table .warn { color: var(--amber); font-style: italic; }
 
-/* ── Info boxes ───────────────────────────────────────────── */
+/* ââ Info boxes âââââââââââââââââââââââââââââââââââââââââââââ */
 .info-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px;
 }
@@ -243,7 +243,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .info-box .value { font-size: 22px; font-weight: 700; color: var(--navy); margin-top: 4px; }
 .info-box .sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
-/* ── State selector row ───────────────────────────────────── */
+/* ââ State selector row âââââââââââââââââââââââââââââââââââââ */
 .state-bar {
   background: var(--card); border: 1px solid var(--border); border-radius: 8px;
   padding: 14px 20px; margin-bottom: 20px;
@@ -262,7 +262,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 }
 .state-bar .ref-sinapi { font-size: 11px; color: var(--muted); margin-left: auto; }
 
-/* ── Alert / toast ────────────────────────────────────────── */
+/* ââ Alert / toast ââââââââââââââââââââââââââââââââââââââââââ */
 .alert {
   padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;
   display: flex; align-items: center; gap: 10px;
@@ -272,41 +272,69 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .alert-warn    { background: #fef9e7; color: var(--amber); border: 1px solid #f9e79f; }
 .alert-error   { background: #fdedec; color: var(--red);   border: 1px solid #f5b7b1; }
 
-/* ── Responsive tweaks ────────────────────────────────────── */
+/* ââ Responsive tweaks ââââââââââââââââââââââââââââââââââââââ */
 @media (max-width: 640px) {
   main { padding: 16px 12px 40px; }
   .budget-table { font-size: 11px; }
   .info-grid { grid-template-columns: 1fr 1fr; }
 }
+
+  /* ââ Schedule / Gantt âââââââââââââââââââââââââââ */
+  .sched-bar { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .sched-bar label { font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; }
+  .sched-bar input[type="date"] { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; outline: none; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-box  { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; }
+  .gantt-wrap { overflow-x: auto; margin-top: 4px; }
+  .gantt-table { border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+  .gantt-table th { background: var(--navy); color: #fff; padding: 5px 4px; text-align: center; font-size: 10px; min-width: 22px; }
+  .gantt-table th.act-col  { text-align: left; padding: 5px 12px; min-width: 190px; font-size:11px; }
+  .gantt-table th.info-col { min-width: 55px; }
+  .gantt-table th.month-hd { background: #1a3c5e; font-size: 9px; font-weight: 700; letter-spacing:.3px; }
+  .gantt-table td { padding: 2px 2px; border-bottom: 1px solid #eef0f3; }
+  .gantt-table td.act-name { padding: 5px 12px; font-size: 11.5px; font-weight: 500; background: #f8fafc; }
+  .gantt-table td.act-name.is-critical { color: var(--red); font-weight: 700; }
+  .gantt-table td.info-cell { text-align: center; font-size: 10px; color: var(--muted); padding: 5px 4px; background: #f8fafc; }
+  .gantt-cell { height: 18px; border-radius: 3px; margin: 0 1px; }
+  .gantt-cell.gactive   { background: var(--blue); }
+  .gantt-cell.gcritical { background: #e74c3c; }
+  .gantt-cell.gfloat    { background: #b8d9f5; border-radius: 2px; }
+  .scurve-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+  .scurve-table th { background: var(--navy); color: #fff; padding: 6px 8px; text-align: center; font-size: 10px; }
+  .scurve-table th:first-child { text-align: left; min-width: 130px; }
+  .scurve-table td { padding: 5px 8px; text-align: center; border-bottom: 1px solid var(--border); font-size: 11px; }
+  .scurve-table td:first-child { text-align: left; font-weight: 600; }
+  .scurve-table tr:nth-child(even) td { background: #f8fafc; }
 </style>
 </head>
 
 <body>
-<!-- ═══════════════════════════════════════════════════════ HEADER -->
+<!-- âââââââââââââââââââââââââââââââââââââââââââââââââââââââ HEADER -->
 <header>
   <div>
     <div class="logo">Obra<span>IA</span></div>
-    <div class="subtitle">Sistema de Orçamento Arquitetônico com Inteligência Artificial</div>
+    <div class="subtitle">Sistema de OrÃ§amento ArquitetÃ´nico com InteligÃªncia Artificial</div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal</div>
+  <div class="header-right">SINAPI Â· IBGE Â· Caixa EconÃ´mica Federal</div>
 </header>
 
-<!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
+<!-- âââââââââââââââââââââââââââââââââââââââââââââââââââââââ STEPS BAR -->
 <div class="steps-bar" id="stepsBar">
   <div class="step-tab active" data-step="1"><span class="num">1</span>Upload do Projeto</div>
-  <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
-  <div class="step-tab" data-step="3"><span class="num">3</span>EAP — Quantitativos</div>
-  <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
+  <div class="step-tab" data-step="2"><span class="num">2</span>AnÃ¡lise com IA</div>
+  <div class="step-tab" data-step="3"><span class="num">3</span>EAP â Quantitativos</div>
+  <div class="step-tab" data-step="4"><span class="num">4</span>OrÃ§amento SINAPI</div>
+  <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma FÃ­sico-Financeiro</div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ MAIN -->
+<!-- âââââââââââââââââââââââââââââââââââââââââââââââââââââââ MAIN -->
 <main>
 
-<!-- ─── SCREEN 1: Upload ──────────────────────────────────── -->
+<!-- âââ SCREEN 1: Upload ââââââââââââââââââââââââââââââââââââ -->
 <div class="screen active" id="screen-1">
   <!-- API Key banner -->
   <div id="apiKeyBanner" class="card" style="margin-bottom:16px; border-left:4px solid var(--amber);">
-    <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de API Anthropic</div>
+    <div class="card-title" style="margin-bottom:10px;"><span class="icon">ð</span> Chave de API Anthropic</div>
     <div style="display:flex; gap:10px; align-items:center;">
       <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..."
         style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace;">
@@ -316,27 +344,27 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="icon">📂</span> Envio do Projeto</div>
+    <div class="card-title"><span class="icon">ð</span> Envio do Projeto</div>
 
     <div class="field">
       <label>Nome do Projeto</label>
-      <input type="text" id="projectName" placeholder="Ex.: Residência Unifamiliar — Loteamento Jardins">
+      <input type="text" id="projectName" placeholder="Ex.: ResidÃªncia Unifamiliar â Loteamento Jardins">
     </div>
 
     <div class="upload-zone" id="uploadZone">
-      <div class="upload-icon">📄</div>
+      <div class="upload-icon">ð</div>
       <h3>Selecione o PDF do projeto</h3>
-      <p>Plantas, cortes e fachadas · Máximo 50 MB</p>
+      <p>Plantas, cortes e fachadas Â· MÃ¡ximo 50 MB</p>
       <div style="margin-top:18px;">
         <input type="file" id="fileInput" accept=".pdf,application/pdf"
           style="display:block; margin:0 auto; font-size:14px; cursor:pointer; padding:8px;">
       </div>
-      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste o arquivo para cá</p>
+      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste o arquivo para cÃ¡</p>
     </div>
     <div id="uploadStatus" style="display:none; margin-top:10px; padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500;"></div>
 
     <div id="fileInfo" style="display:none; margin-top:12px;" class="alert alert-success">
-      <span>📄</span>
+      <span>ð</span>
       <div>
         <strong id="fileName"></strong>
         <div id="fileSize" style="font-size:11px; opacity:.8;"></div>
@@ -346,103 +374,103 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 
   <!-- Page selector -->
   <div class="card" id="pageCard" style="display:none">
-    <div class="card-title"><span class="icon">🗂️</span> Selecionar Páginas para Análise</div>
+    <div class="card-title"><span class="icon">ðï¸</span> Selecionar PÃ¡ginas para AnÃ¡lise</div>
     <div class="alert alert-info">
-      <span>💡</span>
-      <span>Selecione as páginas com plantas baixas, cortes e fachadas. A IA analisará apenas as páginas marcadas.</span>
+      <span>ð¡</span>
+      <span>Selecione as pÃ¡ginas com plantas baixas, cortes e fachadas. A IA analisarÃ¡ apenas as pÃ¡ginas marcadas.</span>
     </div>
     <div class="pages-grid" id="pagesGrid"></div>
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
-      <span id="selectedCount">0</span> página(s) selecionada(s)
-      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 6 páginas enviadas para IA — selecione as plantas baixas principais.</span>
+      <span id="selectedCount">0</span> pÃ¡gina(s) selecionada(s)
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">â ï¸ MÃ¡x. 6 pÃ¡ginas enviadas para IA â selecione as plantas baixas principais.</span>
     </div>
 
     <div class="btn-group">
       <button class="btn btn-primary" id="btnAnalyze" disabled>
-        🤖 Analisar com IA
+        ð¤ Analisar com IA
       </button>
       <button class="btn btn-outline" id="btnSelectAll">Selecionar Todas</button>
     </div>
   </div>
 </div>
 
-<!-- ─── SCREEN 2: Processing ──────────────────────────────── -->
+<!-- âââ SCREEN 2: Processing ââââââââââââââââââââââââââââââââ -->
 <div class="screen" id="screen-2">
   <div class="card">
-    <div class="card-title"><span class="icon">🤖</span> Análise com Inteligência Artificial</div>
+    <div class="card-title"><span class="icon">ð¤</span> AnÃ¡lise com InteligÃªncia Artificial</div>
 
     <div class="alert alert-info" style="margin-bottom:20px">
       <span class="spinner"></span>
-      Claude está analisando as plantas e extraindo os quantitativos. Aguarde…
+      Claude estÃ¡ analisando as plantas e extraindo os quantitativos. Aguardeâ¦
     </div>
 
     <div class="progress-wrap">
-      <div class="progress-label">Processando o projeto…</div>
+      <div class="progress-label">Processando o projetoâ¦</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:5%"></div></div>
-      <div class="status-msg" id="statusMsg">Enviando imagens para análise…</div>
+      <div class="status-msg" id="statusMsg">Enviando imagens para anÃ¡liseâ¦</div>
     </div>
 
     <div id="processingSteps" style="margin-top:20px">
-      <div class="alert alert-info" id="pstep1">⏳ Convertendo páginas PDF em imagens…</div>
-      <div class="alert" id="pstep2" style="display:none">⏳ Enviando para análise com IA…</div>
-      <div class="alert" id="pstep3" style="display:none">⏳ Extraindo quantitativos…</div>
-      <div class="alert" id="pstep4" style="display:none">⏳ Estruturando EAP…</div>
+      <div class="alert alert-info" id="pstep1">â³ Convertendo pÃ¡ginas PDF em imagensâ¦</div>
+      <div class="alert" id="pstep2" style="display:none">â³ Enviando para anÃ¡lise com IAâ¦</div>
+      <div class="alert" id="pstep3" style="display:none">â³ Extraindo quantitativosâ¦</div>
+      <div class="alert" id="pstep4" style="display:none">â³ Estruturando EAPâ¦</div>
     </div>
   </div>
 </div>
 
-<!-- ─── SCREEN 3: EAP ─────────────────────────────────────── -->
+<!-- âââ SCREEN 3: EAP âââââââââââââââââââââââââââââââââââââââ -->
 <div class="screen" id="screen-3">
   <div class="info-grid" id="projectInfoGrid"></div>
 
   <div class="card">
-    <div class="card-title"><span class="icon">📋</span> EAP — Estrutura Analítica do Projeto</div>
+    <div class="card-title"><span class="icon">ð</span> EAP â Estrutura AnalÃ­tica do Projeto</div>
     <div class="alert alert-success" id="eapAlert">
-      <span>✅</span>
-      <span>Levantamento concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>
+      <span>â</span>
+      <span>Levantamento concluÃ­do. Revise os quantitativos abaixo antes de gerar o orÃ§amento.</span>
     </div>
     <div class="eap-tree" id="eapTree"></div>
 
     <div class="btn-group">
-      <button class="btn btn-primary" id="btnGoToBudget">📊 Gerar Orçamento SINAPI →</button>
-      <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
+      <button class="btn btn-primary" id="btnGoToBudget">ð Gerar OrÃ§amento SINAPI â</button>
+      <button class="btn btn-outline" id="btnRestart">â© Novo Projeto</button>
     </div>
   </div>
 </div>
 
-<!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
+<!-- âââ SCREEN 4: Budget ââââââââââââââââââââââââââââââââââââ -->
 <div class="screen" id="screen-4">
   <!-- State selector -->
   <div class="state-bar">
-    <label>🗺️ Estado do Projeto:</label>
+    <label>ðºï¸ Estado do Projeto:</label>
     <select id="stateSelect" onchange="recalcBudget()">
-      <option value="SP">SP — São Paulo</option>
-      <option value="RJ">RJ — Rio de Janeiro</option>
-      <option value="MG">MG — Minas Gerais</option>
-      <option value="RS">RS — Rio Grande do Sul</option>
-      <option value="PR">PR — Paraná</option>
-      <option value="SC">SC — Santa Catarina</option>
-      <option value="BA">BA — Bahia</option>
-      <option value="PE">PE — Pernambuco</option>
-      <option value="CE">CE — Ceará</option>
-      <option value="GO">GO — Goiás</option>
-      <option value="DF">DF — Distrito Federal</option>
-      <option value="MT">MT — Mato Grosso</option>
-      <option value="MS">MS — Mato Grosso do Sul</option>
-      <option value="PA">PA — Pará</option>
-      <option value="AM">AM — Amazonas</option>
-      <option value="ES">ES — Espírito Santo</option>
-      <option value="MA">MA — Maranhão</option>
-      <option value="PB">PB — Paraíba</option>
-      <option value="RN">RN — Rio Grande do Norte</option>
-      <option value="AL">AL — Alagoas</option>
-      <option value="SE">SE — Sergipe</option>
-      <option value="PI">PI — Piauí</option>
-      <option value="TO">TO — Tocantins</option>
-      <option value="RO">RO — Rondônia</option>
-      <option value="AC">AC — Acre</option>
-      <option value="RR">RR — Roraima</option>
-      <option value="AP">AP — Amapá</option>
+      <option value="SP">SP â SÃ£o Paulo</option>
+      <option value="RJ">RJ â Rio de Janeiro</option>
+      <option value="MG">MG â Minas Gerais</option>
+      <option value="RS">RS â Rio Grande do Sul</option>
+      <option value="PR">PR â ParanÃ¡</option>
+      <option value="SC">SC â Santa Catarina</option>
+      <option value="BA">BA â Bahia</option>
+      <option value="PE">PE â Pernambuco</option>
+      <option value="CE">CE â CearÃ¡</option>
+      <option value="GO">GO â GoiÃ¡s</option>
+      <option value="DF">DF â Distrito Federal</option>
+      <option value="MT">MT â Mato Grosso</option>
+      <option value="MS">MS â Mato Grosso do Sul</option>
+      <option value="PA">PA â ParÃ¡</option>
+      <option value="AM">AM â Amazonas</option>
+      <option value="ES">ES â EspÃ­rito Santo</option>
+      <option value="MA">MA â MaranhÃ£o</option>
+      <option value="PB">PB â ParaÃ­ba</option>
+      <option value="RN">RN â Rio Grande do Norte</option>
+      <option value="AL">AL â Alagoas</option>
+      <option value="SE">SE â Sergipe</option>
+      <option value="PI">PI â PiauÃ­</option>
+      <option value="TO">TO â Tocantins</option>
+      <option value="RO">RO â RondÃ´nia</option>
+      <option value="AC">AC â Acre</option>
+      <option value="RR">RR â Roraima</option>
+      <option value="AP">AP â AmapÃ¡</option>
     </select>
 
     <div class="bdi-field">
@@ -450,7 +478,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
       <input type="number" id="bdiInput" value="24.75" min="0" max="60" step="0.25" onchange="recalcBudget()">
     </div>
 
-    <div class="ref-sinapi">Referência: SINAPI 05/2025 · Preços sem desoneração</div>
+    <div class="ref-sinapi">ReferÃªncia: SINAPI 05/2025 Â· PreÃ§os sem desoneraÃ§Ã£o</div>
   </div>
 
   <!-- KPI cards -->
@@ -458,17 +486,17 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 
   <!-- Budget table -->
   <div class="card">
-    <div class="card-title"><span class="icon">💰</span> Planilha Orçamentária</div>
+    <div class="card-title"><span class="icon">ð°</span> Planilha OrÃ§amentÃ¡ria</div>
     <div style="overflow-x:auto">
       <table class="budget-table" id="budgetTable">
         <thead>
           <tr>
             <th>Item</th>
-            <th>Cód. SINAPI</th>
-            <th style="min-width:250px">Descrição do Serviço</th>
+            <th>CÃ³d. SINAPI</th>
+            <th style="min-width:250px">DescriÃ§Ã£o do ServiÃ§o</th>
             <th>UN</th>
             <th class="num">Qtd.</th>
-            <th class="num">Preço Unit. (R$)</th>
+            <th class="num">PreÃ§o Unit. (R$)</th>
             <th class="num">Total s/ BDI (R$)</th>
             <th class="num">BDI (%)</th>
             <th class="num">Total c/ BDI (R$)</th>
@@ -479,129 +507,163 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     </div>
 
     <div class="btn-group">
-      <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
-      <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
+      <button class="btn btn-primary" id="btnGoCronograma">ð Gerar Cronograma FÃ­sico-Financeiro â</button>
+      <button class="btn btn-success" id="btnDownload">â¬ Baixar Excel (.xlsx)</button>
+      <button class="btn btn-outline" id="btnGoEap">â© Voltar para EAP</button>
     </div>
+  </div>
+</div>
+
+
+<!-- âââ SCREEN 5: Cronograma ââââââââââââââââââââââââââââââââââââ -->
+<div class="screen" id="screen-5">
+  <div class="sched-bar">
+    <label>ð Data de InÃ­cio:</label>
+    <input type="date" id="startDateInput">
+    <button class="btn btn-primary" onclick="buildSchedule()" style="padding:9px 22px; font-size:13px;">âï¸ Calcular CPM</button>
+    <div style="margin-left:auto; display:flex; gap:14px; flex-wrap:wrap;">
+      <div class="legend-item"><div class="legend-box" style="background:#e74c3c;"></div> Caminho CrÃ­tico</div>
+      <div class="legend-item"><div class="legend-box" style="background:var(--blue);"></div> Atividade Normal</div>
+      <div class="legend-item"><div class="legend-box" style="background:#b8d9f5;"></div> Folga Total</div>
+    </div>
+  </div>
+  <div class="info-grid" id="schedKpis"></div>
+  <div class="card">
+    <div class="card-title"><span class="icon">ð</span> Cronograma FÃ­sico â Diagrama de Gantt (CPM)</div>
+    <div class="gantt-wrap" id="ganttWrap">
+      <p style="color:var(--muted); font-size:13px; padding:16px 0;">Selecione a data de inÃ­cio e clique em "Calcular CPM" para gerar o Gantt.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">ð</span> Cronograma Financeiro â Curva S de Desembolso</div>
+    <div id="scurveWrap">
+      <p style="color:var(--muted); font-size:13px; padding:16px 0;">O grÃ¡fico financeiro serÃ¡ gerado junto com o Gantt.</p>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-success" id="btnDownloadFull">â¬ Baixar Excel Completo (com Cronograma)</button>
+    <button class="btn btn-outline" onclick="goTo(4)">â© Voltar ao OrÃ§amento</button>
+    <button class="btn btn-outline" id="btnRestart2">âº Novo Projeto</button>
   </div>
 </div>
 
 </main>
 
-<!-- ═══════════════════════════════════════════════════════ SCRIPTS -->
+<!-- âââââââââââââââââââââââââââââââââââââââââââââââââââââââ SCRIPTS -->
 <script>
-// ═══════════════════════════════════════════════════════════════
-// SINAPI DATA — Preços referência SP Mai/2025
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// SINAPI DATA â PreÃ§os referÃªncia SP Mai/2025
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const SINAPI_ITENS = [
-  // 1. SERVIÇOS PRELIMINARES
-  { codigo:"73965",     descricao:"Placa de obra em chapa galvanizada 2,0x1,0m",                 un:"un",  preco:420.00, cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"74209",     descricao:"Locação de obra com gabarito e marcação, terreno até 200m²",   un:"m²",  preco:11.20,  cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"73855",     descricao:"Ligação provisória de energia elétrica (canteiro de obras)",    un:"un",  preco:680.00, cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"73856",     descricao:"Ligação provisória de água (canteiro de obras)",                un:"un",  preco:350.00, cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"88309",     descricao:"Demolição e limpeza de terreno com remoção de entulho",        un:"m²",  preco:6.80,   cat:"1. SERVIÇOS PRELIMINARES" },
-  { codigo:"74155/001", descricao:"Tapume em chapa de madeira compensada resinada",               un:"m²",  preco:67.80,  cat:"1. SERVIÇOS PRELIMINARES" },
+  // 1. SERVIÃOS PRELIMINARES
+  { codigo:"73965",     descricao:"Placa de obra em chapa galvanizada 2,0x1,0m",                 un:"un",  preco:420.00, cat:"1. SERVIÃOS PRELIMINARES" },
+  { codigo:"74209",     descricao:"LocaÃ§Ã£o de obra com gabarito e marcaÃ§Ã£o, terreno atÃ© 200mÂ²",   un:"mÂ²",  preco:11.20,  cat:"1. SERVIÃOS PRELIMINARES" },
+  { codigo:"73855",     descricao:"LigaÃ§Ã£o provisÃ³ria de energia elÃ©trica (canteiro de obras)",    un:"un",  preco:680.00, cat:"1. SERVIÃOS PRELIMINARES" },
+  { codigo:"73856",     descricao:"LigaÃ§Ã£o provisÃ³ria de Ã¡gua (canteiro de obras)",                un:"un",  preco:350.00, cat:"1. SERVIÃOS PRELIMINARES" },
+  { codigo:"88309",     descricao:"DemoliÃ§Ã£o e limpeza de terreno com remoÃ§Ã£o de entulho",        un:"mÂ²",  preco:6.80,   cat:"1. SERVIÃOS PRELIMINARES" },
+  { codigo:"74155/001", descricao:"Tapume em chapa de madeira compensada resinada",               un:"mÂ²",  preco:67.80,  cat:"1. SERVIÃOS PRELIMINARES" },
   // 2. MOVIMENTO DE TERRA
-  { codigo:"73583/001", descricao:"Escavação manual de vala até 1,5m — solo médio",              un:"m³",  preco:42.00,  cat:"2. MOVIMENTO DE TERRA" },
-  { codigo:"74136/001", descricao:"Reaterro e compactação manual",                                un:"m³",  preco:28.50,  cat:"2. MOVIMENTO DE TERRA" },
-  // 3. FUNDAÇÕES
-  { codigo:"74119/001", descricao:"Lastro de concreto magro fck=10MPa, e=5cm",                   un:"m³",  preco:498.00, cat:"3. FUNDAÇÕES" },
-  { codigo:"94965",     descricao:"Radier em concreto armado fck=20MPa, e=10cm",                  un:"m²",  preco:165.40, cat:"3. FUNDAÇÕES" },
-  { codigo:"83334",     descricao:"Concreto estrutural fck=25MPa — vigas baldrame — usinado",     un:"m³",  preco:698.00, cat:"3. FUNDAÇÕES" },
-  { codigo:"96527",     descricao:"Estaca escavada a trado mecânico, d=25cm, h≤8m",              un:"m",   preco:82.30,  cat:"3. FUNDAÇÕES" },
+  { codigo:"73583/001", descricao:"EscavaÃ§Ã£o manual de vala atÃ© 1,5m â solo mÃ©dio",              un:"mÂ³",  preco:42.00,  cat:"2. MOVIMENTO DE TERRA" },
+  { codigo:"74136/001", descricao:"Reaterro e compactaÃ§Ã£o manual",                                un:"mÂ³",  preco:28.50,  cat:"2. MOVIMENTO DE TERRA" },
+  // 3. FUNDAÃÃES
+  { codigo:"74119/001", descricao:"Lastro de concreto magro fck=10MPa, e=5cm",                   un:"mÂ³",  preco:498.00, cat:"3. FUNDAÃÃES" },
+  { codigo:"94965",     descricao:"Radier em concreto armado fck=20MPa, e=10cm",                  un:"mÂ²",  preco:165.40, cat:"3. FUNDAÃÃES" },
+  { codigo:"83334",     descricao:"Concreto estrutural fck=25MPa â vigas baldrame â usinado",     un:"mÂ³",  preco:698.00, cat:"3. FUNDAÃÃES" },
+  { codigo:"96527",     descricao:"Estaca escavada a trado mecÃ¢nico, d=25cm, hâ¤8m",              un:"m",   preco:82.30,  cat:"3. FUNDAÃÃES" },
   // 4. ESTRUTURA
-  { codigo:"83334b",    descricao:"Concreto estrutural fck=25MPa — pilares e vigas — usinado",   un:"m³",  preco:698.00, cat:"4. ESTRUTURA" },
-  { codigo:"83334c",    descricao:"Concreto estrutural fck=25MPa — laje/caixa d'água/vergas",    un:"m³",  preco:698.00, cat:"4. ESTRUTURA" },
-  { codigo:"94228",     descricao:"Forma em madeira para estruturas — reutilização até 3x",      un:"m²",  preco:68.50,  cat:"4. ESTRUTURA" },
-  { codigo:"94237",     descricao:"Armação em aço CA-50/CA-60 — corte, dobramento e montagem",  un:"kg",  preco:9.85,   cat:"4. ESTRUTURA" },
-  { codigo:"94966",     descricao:"Laje maciça de concreto armado fck=25MPa, e=12cm",            un:"m²",  preco:198.70, cat:"4. ESTRUTURA" },
-  { codigo:"94972",     descricao:"Laje pré-moldada com tavela cerâmica, sobrecarga 200 kg/m²", un:"m²",  preco:112.40, cat:"4. ESTRUTURA" },
-  { codigo:"74155/003", descricao:"Escada de concreto armado fck=25MPa (forma+armação+concreto)",un:"m³",  preco:2340.80,cat:"4. ESTRUTURA" },
+  { codigo:"83334b",    descricao:"Concreto estrutural fck=25MPa â pilares e vigas â usinado",   un:"mÂ³",  preco:698.00, cat:"4. ESTRUTURA" },
+  { codigo:"83334c",    descricao:"Concreto estrutural fck=25MPa â laje/caixa d'Ã¡gua/vergas",    un:"mÂ³",  preco:698.00, cat:"4. ESTRUTURA" },
+  { codigo:"94228",     descricao:"Forma em madeira para estruturas â reutilizaÃ§Ã£o atÃ© 3x",      un:"mÂ²",  preco:68.50,  cat:"4. ESTRUTURA" },
+  { codigo:"94237",     descricao:"ArmaÃ§Ã£o em aÃ§o CA-50/CA-60 â corte, dobramento e montagem",  un:"kg",  preco:9.85,   cat:"4. ESTRUTURA" },
+  { codigo:"94966",     descricao:"Laje maciÃ§a de concreto armado fck=25MPa, e=12cm",            un:"mÂ²",  preco:198.70, cat:"4. ESTRUTURA" },
+  { codigo:"94972",     descricao:"Laje prÃ©-moldada com tavela cerÃ¢mica, sobrecarga 200 kg/mÂ²", un:"mÂ²",  preco:112.40, cat:"4. ESTRUTURA" },
+  { codigo:"74155/003", descricao:"Escada de concreto armado fck=25MPa (forma+armaÃ§Ã£o+concreto)",un:"mÂ³",  preco:2340.80,cat:"4. ESTRUTURA" },
   // 5. ALVENARIA
-  { codigo:"87451",     descricao:"Alvenaria de vedação — blocos vazados de concreto 14×19×39cm, esp=14cm", un:"m²", preco:68.30, cat:"5. ALVENARIA" },
-  { codigo:"87453",     descricao:"Alvenaria de vedação — tijolos cerâmicos 6 furos 9×14×19cm, esp=9cm",    un:"m²", preco:56.45, cat:"5. ALVENARIA" },
-  { codigo:"87456",     descricao:"Alvenaria de tijolo cerâmico furado 9x14x19 — e=14cm — argamassa 1:2:8", un:"m²", preco:62.50, cat:"5. ALVENARIA" },
-  { codigo:"87704",     descricao:"Verga e contraverga em concreto — seção 8×10cm",              un:"m",   preco:32.00,  cat:"5. ALVENARIA" },
+  { codigo:"87451",     descricao:"Alvenaria de vedaÃ§Ã£o â blocos vazados de concreto 14Ã19Ã39cm, esp=14cm", un:"mÂ²", preco:68.30, cat:"5. ALVENARIA" },
+  { codigo:"87453",     descricao:"Alvenaria de vedaÃ§Ã£o â tijolos cerÃ¢micos 6 furos 9Ã14Ã19cm, esp=9cm",    un:"mÂ²", preco:56.45, cat:"5. ALVENARIA" },
+  { codigo:"87456",     descricao:"Alvenaria de tijolo cerÃ¢mico furado 9x14x19 â e=14cm â argamassa 1:2:8", un:"mÂ²", preco:62.50, cat:"5. ALVENARIA" },
+  { codigo:"87704",     descricao:"Verga e contraverga em concreto â seÃ§Ã£o 8Ã10cm",              un:"m",   preco:32.00,  cat:"5. ALVENARIA" },
   { codigo:"87705",     descricao:"Contraverga moldada no local, concreto fck=15MPa",             un:"m",   preco:30.60,  cat:"5. ALVENARIA" },
   // 6. COBERTURA
-  { codigo:"91010",     descricao:"Estrutura de madeira para telhado — caibros, ripas e terças", un:"m²",  preco:78.00,  cat:"6. COBERTURA" },
-  { codigo:"87266",     descricao:"Telha ondulada de fibrocimento e=6mm — incl. parafusos e cumeeira", un:"m²", preco:48.50, cat:"6. COBERTURA" },
-  { codigo:"87251",     descricao:"Telhamento com telha cerâmica colonial, incl. cumeeira",      un:"m²",  preco:76.40,  cat:"6. COBERTURA" },
-  { codigo:"96548",     descricao:"Rufo de chapa galvanizada nº26 — L=25cm (perímetro telhado)", un:"m",   preco:32.00,  cat:"6. COBERTURA" },
-  { codigo:"87293",     descricao:"Calha em chapa galvanizada nº26, larg=33cm",                  un:"m",   preco:55.30,  cat:"6. COBERTURA" },
+  { codigo:"91010",     descricao:"Estrutura de madeira para telhado â caibros, ripas e terÃ§as", un:"mÂ²",  preco:78.00,  cat:"6. COBERTURA" },
+  { codigo:"87266",     descricao:"Telha ondulada de fibrocimento e=6mm â incl. parafusos e cumeeira", un:"mÂ²", preco:48.50, cat:"6. COBERTURA" },
+  { codigo:"87251",     descricao:"Telhamento com telha cerÃ¢mica colonial, incl. cumeeira",      un:"mÂ²",  preco:76.40,  cat:"6. COBERTURA" },
+  { codigo:"96548",     descricao:"Rufo de chapa galvanizada nÂº26 â L=25cm (perÃ­metro telhado)", un:"m",   preco:32.00,  cat:"6. COBERTURA" },
+  { codigo:"87293",     descricao:"Calha em chapa galvanizada nÂº26, larg=33cm",                  un:"m",   preco:55.30,  cat:"6. COBERTURA" },
   // 7. REVESTIMENTOS INTERNOS
-  { codigo:"87251b",    descricao:"Chapisco argamassa cimento:areia 1:3 — paredes internas e externas", un:"m²", preco:8.20, cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87262",     descricao:"Reboco massa única desempenada — paredes internas, e=2,5cm",  un:"m²",  preco:32.00,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87528",     descricao:"Emboço paulista em argamassa mista, e=20mm, traço 1:2:8",    un:"m²",  preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87556",     descricao:"Gesso liso em paredes internas, e=1,5cm",                    un:"m²",  preco:28.00,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87556b",    descricao:"Forro de gesso em placas 60×60cm — inclusive estrutura metálica", un:"m²", preco:65.00, cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87529",     descricao:"Revestimento cerâmico piso interno PEI-4 (40×40cm)",         un:"m²",  preco:62.00,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87879",     descricao:"Revestimento cerâmico — azulejo 20×20cm, banheiro/cozinha",  un:"m²",  preco:58.00,  cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"87875",     descricao:"Revestimento cerâmico — porcelanato 60×60cm, AC-III",        un:"m²",  preco:142.30, cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"73890",     descricao:"Soleira de granito e=2cm — portas externas",                  un:"m",   preco:185.00, cat:"7. REVESTIMENTOS INTERNOS" },
-  { codigo:"73891",     descricao:"Peitoril de granito e=2cm — janelas externas",               un:"m",   preco:175.00, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87251b",    descricao:"Chapisco argamassa cimento:areia 1:3 â paredes internas e externas", un:"mÂ²", preco:8.20, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87262",     descricao:"Reboco massa Ãºnica desempenada â paredes internas, e=2,5cm",  un:"mÂ²",  preco:32.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87528",     descricao:"EmboÃ§o paulista em argamassa mista, e=20mm, traÃ§o 1:2:8",    un:"mÂ²",  preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87556",     descricao:"Gesso liso em paredes internas, e=1,5cm",                    un:"mÂ²",  preco:28.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87556b",    descricao:"Forro de gesso em placas 60Ã60cm â inclusive estrutura metÃ¡lica", un:"mÂ²", preco:65.00, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87529",     descricao:"Revestimento cerÃ¢mico piso interno PEI-4 (40Ã40cm)",         un:"mÂ²",  preco:62.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87879",     descricao:"Revestimento cerÃ¢mico â azulejo 20Ã20cm, banheiro/cozinha",  un:"mÂ²",  preco:58.00,  cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87875",     descricao:"Revestimento cerÃ¢mico â porcelanato 60Ã60cm, AC-III",        un:"mÂ²",  preco:142.30, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"73890",     descricao:"Soleira de granito e=2cm â portas externas",                  un:"m",   preco:185.00, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"73891",     descricao:"Peitoril de granito e=2cm â janelas externas",               un:"m",   preco:175.00, cat:"7. REVESTIMENTOS INTERNOS" },
   // 8. REVESTIMENTOS EXTERNOS
-  { codigo:"87262b",    descricao:"Reboco massa única desempenada — paredes externas, e=2,5cm", un:"m²",  preco:35.00,  cat:"8. REVESTIMENTOS EXTERNOS" },
-  { codigo:"87523",     descricao:"Sistema monocamada de fachada (chapisco+reboco+emboço)",      un:"m²",  preco:52.30,  cat:"8. REVESTIMENTOS EXTERNOS" },
-  { codigo:"88497",     descricao:"Revestimento de fachada com argamassa texturizada",           un:"m²",  preco:38.70,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"87262b",    descricao:"Reboco massa Ãºnica desempenada â paredes externas, e=2,5cm", un:"mÂ²",  preco:35.00,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"87523",     descricao:"Sistema monocamada de fachada (chapisco+reboco+emboÃ§o)",      un:"mÂ²",  preco:52.30,  cat:"8. REVESTIMENTOS EXTERNOS" },
+  { codigo:"88497",     descricao:"Revestimento de fachada com argamassa texturizada",           un:"mÂ²",  preco:38.70,  cat:"8. REVESTIMENTOS EXTERNOS" },
   // 9. PINTURA
-  { codigo:"88484",     descricao:"Massa corrida PVA — paredes internas (2 demãos)",             un:"m²",  preco:14.50,  cat:"9. PINTURA" },
-  { codigo:"88487",     descricao:"Tinta látex PVA — paredes internas (2 demãos)",              un:"m²",  preco:18.00,  cat:"9. PINTURA" },
-  { codigo:"88490",     descricao:"Selador acrílico + tinta acrílica — fachada/externo (2 dem)", un:"m²", preco:32.00,  cat:"9. PINTURA" },
-  { codigo:"88485",     descricao:"Tinta esmalte sintético em esquadrias de madeira — 2 demãos", un:"m²", preco:22.00,  cat:"9. PINTURA" },
-  { codigo:"88488",     descricao:"Pintura látex acrílica interna, 2 demãos c/ massa corrida",  un:"m²",  preco:24.60,  cat:"9. PINTURA" },
+  { codigo:"88484",     descricao:"Massa corrida PVA â paredes internas (2 demÃ£os)",             un:"mÂ²",  preco:14.50,  cat:"9. PINTURA" },
+  { codigo:"88487",     descricao:"Tinta lÃ¡tex PVA â paredes internas (2 demÃ£os)",              un:"mÂ²",  preco:18.00,  cat:"9. PINTURA" },
+  { codigo:"88490",     descricao:"Selador acrÃ­lico + tinta acrÃ­lica â fachada/externo (2 dem)", un:"mÂ²", preco:32.00,  cat:"9. PINTURA" },
+  { codigo:"88485",     descricao:"Tinta esmalte sintÃ©tico em esquadrias de madeira â 2 demÃ£os", un:"mÂ²", preco:22.00,  cat:"9. PINTURA" },
+  { codigo:"88488",     descricao:"Pintura lÃ¡tex acrÃ­lica interna, 2 demÃ£os c/ massa corrida",  un:"mÂ²",  preco:24.60,  cat:"9. PINTURA" },
   // 10. ESQUADRIAS
-  { codigo:"73943",     descricao:"Porta de alumínio (1 folha) 0,88×2,10m — c/ fechadura e dobradiças", un:"un", preco:1250.00, cat:"10. ESQUADRIAS" },
-  { codigo:"73943b",    descricao:"Porta compensada 0,80×2,10m — c/ batente, fechadura e dobradiças",    un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"73943c",    descricao:"Porta de abrir 0,90×2,10m — varanda/área de serviço",                 un:"un", preco:820.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"73936",     descricao:"Janela alumínio correr 2 folhas 0,60×0,40m — banheiro",               un:"un", preco:420.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"73936b",    descricao:"Janela alumínio correr 2 folhas 1,00×1,00m — quartos/sala",           un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"73936c",    descricao:"Janela alumínio correr 2 folhas 1,00×0,40m — cozinha",                un:"un", preco:450.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"73939",     descricao:"Gradil metálico em ferro chato para janelas (proteção)",              un:"m²", preco:320.00,  cat:"10. ESQUADRIAS" },
-  { codigo:"74209/007", descricao:"Portão metálico de correr 3,00×2,10m",                               un:"un", preco:2380.00, cat:"10. ESQUADRIAS" },
+  { codigo:"73943",     descricao:"Porta de alumÃ­nio (1 folha) 0,88Ã2,10m â c/ fechadura e dobradiÃ§as", un:"un", preco:1250.00, cat:"10. ESQUADRIAS" },
+  { codigo:"73943b",    descricao:"Porta compensada 0,80Ã2,10m â c/ batente, fechadura e dobradiÃ§as",    un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73943c",    descricao:"Porta de abrir 0,90Ã2,10m â varanda/Ã¡rea de serviÃ§o",                 un:"un", preco:820.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936",     descricao:"Janela alumÃ­nio correr 2 folhas 0,60Ã0,40m â banheiro",               un:"un", preco:420.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936b",    descricao:"Janela alumÃ­nio correr 2 folhas 1,00Ã1,00m â quartos/sala",           un:"un", preco:680.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73936c",    descricao:"Janela alumÃ­nio correr 2 folhas 1,00Ã0,40m â cozinha",                un:"un", preco:450.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"73939",     descricao:"Gradil metÃ¡lico em ferro chato para janelas (proteÃ§Ã£o)",              un:"mÂ²", preco:320.00,  cat:"10. ESQUADRIAS" },
+  { codigo:"74209/007", descricao:"PortÃ£o metÃ¡lico de correr 3,00Ã2,10m",                               un:"un", preco:2380.00, cat:"10. ESQUADRIAS" },
   // 11. PISOS
-  { codigo:"87241",     descricao:"Contrapiso argamassa cimento:areia 1:4 — e=4cm sobre lastro", un:"m²",  preco:32.50,  cat:"11. PISOS" },
-  { codigo:"87880",     descricao:"Contrapiso em argamassa de cimento e areia, e=4cm",           un:"m²",  preco:24.80,  cat:"11. PISOS" },
-  { codigo:"74155/004", descricao:"Calçada perimetral de concreto fck=15MPa, e=6cm",             un:"m²",  preco:95.00,  cat:"11. PISOS" },
-  { codigo:"87875b",    descricao:"Piso porcelanato 60×60cm, argamassa AC-III",                  un:"m²",  preco:142.30, cat:"11. PISOS" },
-  { codigo:"87876b",    descricao:"Piso cerâmico PEI-4 40×40cm, argamassa AC-II",               un:"m²",  preco:62.00,  cat:"11. PISOS" },
-  { codigo:"74209/008", descricao:"Piso laminado de madeira (click), e=7mm, incl. regularização",un:"m²",  preco:98.70,  cat:"11. PISOS" },
-  { codigo:"87877",     descricao:"Rodapé cerâmico h=10cm",                                      un:"m",   preco:18.40,  cat:"11. PISOS" },
-  // 12. INSTALAÇÕES HIDROSSANITÁRIAS
-  { codigo:"89809",     descricao:"Ramal de água fria — PVC soldável 25mm — incluindo conexões", un:"m",   preco:38.50,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89769",     descricao:"Tubo PVC soldável 25mm água fria, incl. conexões e suportes", un:"m",   preco:18.60,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89684",     descricao:"Esgoto primário PVC série normal 100mm — incluindo conexões", un:"m",   preco:35.00,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89770",     descricao:"Tubo PVC esgoto 50mm — esgoto secundário — incl. conexões",  un:"m",   preco:28.00,  cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89656",     descricao:"Caixa de inspeção em concreto pré-moldado 40×40cm — com tampa",un:"un", preco:280.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89679",     descricao:"Fossa séptica + sumidouro — dimensionamento para 4 pessoas",  un:"un",  preco:3200.00,cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89643",     descricao:"Bacia sanitária com caixa acoplada, incl. instalação",        un:"un",  preco:520.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89645",     descricao:"Lavatório de louça branca 45×32cm, incl. sifão",             un:"un",  preco:310.60, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89644",     descricao:"Tanque de louça 40L, incl. suporte e instalação",            un:"un",  preco:280.30, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89777",     descricao:"Chuveiro elétrico ABS, incl. instalação",                    un:"un",  preco:195.80, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89812",     descricao:"Caixa d'água 500L fibrocimento — incluindo suporte",          un:"un",  preco:620.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89783",     descricao:"Caixa d'água polietileno 1000L, incl. acessórios",           un:"un",  preco:890.40, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  { codigo:"89481",     descricao:"Kit louças e metais básico (bacia, lavatório, tanque, chuveiro)", un:"cj", preco:1850.00, cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS" },
-  // 13. INSTALAÇÕES ELÉTRICAS
-  { codigo:"91926",     descricao:"Eletroduto PVC rígido 3/4pol — embutido em alvenaria",        un:"m",   preco:7.80,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91878",     descricao:"Eletroduto PVC rígido d=20mm, incl. conexões e fixação",      un:"m",   preco:14.20,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91930",     descricao:"Cabo de cobre flexível 2,5mm² — fiação interna",              un:"m",   preco:5.20,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91888",     descricao:"Cabo de cobre flexível 4,0mm² — circuito de chuveiro",        un:"m",   preco:7.60,   cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91948",     descricao:"Quadro de distribuição 12 disjuntores — embutir",             un:"un",  preco:420.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91950",     descricao:"Disjuntor monopolar 10A/20A/30A",                             un:"un",  preco:32.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91968",     descricao:"Ponto de tomada 2P+T 10A — incl. caixa, placa e material",   un:"un",  preco:88.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91914",     descricao:"Tomada 2P+T 20A — chuveiro/ar-condicionado",                  un:"un",  preco:105.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91970",     descricao:"Ponto de interruptor simples — incl. caixa, placa e material",un:"un",  preco:78.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91915",     descricao:"Ponto de interruptor duplo — incl. caixa, placa e material",  un:"un",  preco:98.00,  cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91912",     descricao:"Luminária de embutir (sem lâmpada), incl. instalação",        un:"un",  preco:148.60, cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  { codigo:"91976",     descricao:"Aterramento — cabo PP 16mm² e haste de cobre 2,4m",          un:"un",  preco:380.00, cat:"13. INSTALAÇÕES ELÉTRICAS" },
-  // 14. IMPERMEABILIZAÇÃO
-  { codigo:"73888",     descricao:"Impermeabilização de laje com manta asfáltica 3mm",           un:"m²",  preco:68.00,  cat:"14. IMPERMEABILIZAÇÃO" },
-  { codigo:"95237",     descricao:"Impermeabilização — manta asfáltica APP 3mm em laje",         un:"m²",  preco:98.40,  cat:"14. IMPERMEABILIZAÇÃO" },
-  { codigo:"95239",     descricao:"Impermeabilização — membrana de poliuretano em banheiros",    un:"m²",  preco:64.30,  cat:"14. IMPERMEABILIZAÇÃO" },
-  // 15. SERVIÇOS COMPLEMENTARES
-  { codigo:"73955",     descricao:"Calçada/área externa — concreto fck=15MPa, e=6cm",           un:"m²",  preco:95.00,  cat:"15. SERVIÇOS COMPLEMENTARES" },
-  { codigo:"73958",     descricao:"Limpeza final da obra",                                        un:"m²",  preco:9.50,   cat:"15. SERVIÇOS COMPLEMENTARES" },
-  { codigo:"73942/001", descricao:"Limpeza final de obra",                                        un:"m²",  preco:8.70,   cat:"15. SERVIÇOS COMPLEMENTARES" },
-  { codigo:"73942/002", descricao:"Remoção de entulho com caçamba metálica 4m³",                un:"un",  preco:580.40, cat:"15. SERVIÇOS COMPLEMENTARES" },
+  { codigo:"87241",     descricao:"Contrapiso argamassa cimento:areia 1:4 â e=4cm sobre lastro", un:"mÂ²",  preco:32.50,  cat:"11. PISOS" },
+  { codigo:"87880",     descricao:"Contrapiso em argamassa de cimento e areia, e=4cm",           un:"mÂ²",  preco:24.80,  cat:"11. PISOS" },
+  { codigo:"74155/004", descricao:"CalÃ§ada perimetral de concreto fck=15MPa, e=6cm",             un:"mÂ²",  preco:95.00,  cat:"11. PISOS" },
+  { codigo:"87875b",    descricao:"Piso porcelanato 60Ã60cm, argamassa AC-III",                  un:"mÂ²",  preco:142.30, cat:"11. PISOS" },
+  { codigo:"87876b",    descricao:"Piso cerÃ¢mico PEI-4 40Ã40cm, argamassa AC-II",               un:"mÂ²",  preco:62.00,  cat:"11. PISOS" },
+  { codigo:"74209/008", descricao:"Piso laminado de madeira (click), e=7mm, incl. regularizaÃ§Ã£o",un:"mÂ²",  preco:98.70,  cat:"11. PISOS" },
+  { codigo:"87877",     descricao:"RodapÃ© cerÃ¢mico h=10cm",                                      un:"m",   preco:18.40,  cat:"11. PISOS" },
+  // 12. INSTALAÃÃES HIDROSSANITÃRIAS
+  { codigo:"89809",     descricao:"Ramal de Ã¡gua fria â PVC soldÃ¡vel 25mm â incluindo conexÃµes", un:"m",   preco:38.50,  cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89769",     descricao:"Tubo PVC soldÃ¡vel 25mm Ã¡gua fria, incl. conexÃµes e suportes", un:"m",   preco:18.60,  cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89684",     descricao:"Esgoto primÃ¡rio PVC sÃ©rie normal 100mm â incluindo conexÃµes", un:"m",   preco:35.00,  cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89770",     descricao:"Tubo PVC esgoto 50mm â esgoto secundÃ¡rio â incl. conexÃµes",  un:"m",   preco:28.00,  cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89656",     descricao:"Caixa de inspeÃ§Ã£o em concreto prÃ©-moldado 40Ã40cm â com tampa",un:"un", preco:280.00, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89679",     descricao:"Fossa sÃ©ptica + sumidouro â dimensionamento para 4 pessoas",  un:"un",  preco:3200.00,cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89643",     descricao:"Bacia sanitÃ¡ria com caixa acoplada, incl. instalaÃ§Ã£o",        un:"un",  preco:520.40, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89645",     descricao:"LavatÃ³rio de louÃ§a branca 45Ã32cm, incl. sifÃ£o",             un:"un",  preco:310.60, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89644",     descricao:"Tanque de louÃ§a 40L, incl. suporte e instalaÃ§Ã£o",            un:"un",  preco:280.30, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89777",     descricao:"Chuveiro elÃ©trico ABS, incl. instalaÃ§Ã£o",                    un:"un",  preco:195.80, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89812",     descricao:"Caixa d'Ã¡gua 500L fibrocimento â incluindo suporte",          un:"un",  preco:620.00, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89783",     descricao:"Caixa d'Ã¡gua polietileno 1000L, incl. acessÃ³rios",           un:"un",  preco:890.40, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  { codigo:"89481",     descricao:"Kit louÃ§as e metais bÃ¡sico (bacia, lavatÃ³rio, tanque, chuveiro)", un:"cj", preco:1850.00, cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS" },
+  // 13. INSTALAÃÃES ELÃTRICAS
+  { codigo:"91926",     descricao:"Eletroduto PVC rÃ­gido 3/4pol â embutido em alvenaria",        un:"m",   preco:7.80,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91878",     descricao:"Eletroduto PVC rÃ­gido d=20mm, incl. conexÃµes e fixaÃ§Ã£o",      un:"m",   preco:14.20,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91930",     descricao:"Cabo de cobre flexÃvel 2,5mmÂ² â fiaÃ§Ã£o interna",              un:"m",   preco:5.20,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91888",     descricao:"Cabo de cobre flexÃvel 4,0mmÂ² â circuito de chuveiro",        un:"m",   preco:7.60,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91948",     descricao:"Quadro de distribuiÃ§Ã£o 12 disjuntores â embutir",             un:"un",  preco:420.00, cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91950",     descricao:"Disjuntor monopolar 10A/20A/30A",                             un:"un",  preco:32.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91968",     descricao:"Ponto de tomada 2P+T 10A â incl. caixa, placa e material",   un:"un",  preco:88.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91914",     descricao:"Tomada 2P+T 20A â chuveiro/ar-condicionado",                  un:"un",  preco:105.00, cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91970",     descricao:"Ponto de interruptor simples â incl. caixa, placa e material",un:"un",  preco:78.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91915",     descricao:"Ponto de interruptor duplo â incl. caixa, placa e material",  un:"un",  preco:98.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91912",     descricao:"LuminÃ¡ria de embutir (sem lÃ¢mpada), incl. instalaÃ§Ã£o",        un:"un",  preco:148.60, cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91976",     descricao:"Aterramento â cabo PP 16mmÂ² e haste de cobre 2,4m",          un:"un",  preco:380.00, cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  // 14. IMPERMEABILIZAÃÃO
+  { codigo:"73888",     descricao:"ImpermeabilizaÃ§Ã£o de laje com manta asfÃ¡ltica 3mm",           un:"mÂ²",  preco:68.00,  cat:"14. IMPERMEABILIZAÃÃO" },
+  { codigo:"95237",     descricao:"ImpermeabilizaÃ§Ã£o â manta asfÃ¡ltica APP 3mm em laje",         un:"mÂ²",  preco:98.40,  cat:"14. IMPERMEABILIZAÃÃO" },
+  { codigo:"95239",     descricao:"ImpermeabilizaÃ§Ã£o â membrana de poliuretano em banheiros",    un:"mÂ²",  preco:64.30,  cat:"14. IMPERMEABILIZAÃÃO" },
+  // 15. SERVIÃOS COMPLEMENTARES
+  { codigo:"73955",     descricao:"CalÃ§ada/Ã¡rea externa â concreto fck=15MPa, e=6cm",           un:"mÂ²",  preco:95.00,  cat:"15. SERVIÃOS COMPLEMENTARES" },
+  { codigo:"73958",     descricao:"Limpeza final da obra",                                        un:"mÂ²",  preco:9.50,   cat:"15. SERVIÃOS COMPLEMENTARES" },
+  { codigo:"73942/001", descricao:"Limpeza final de obra",                                        un:"mÂ²",  preco:8.70,   cat:"15. SERVIÃOS COMPLEMENTARES" },
+  { codigo:"73942/002", descricao:"RemoÃ§Ã£o de entulho com caÃ§amba metÃ¡lica 4mÂ³",                un:"un",  preco:580.40, cat:"15. SERVIÃOS COMPLEMENTARES" },
 ];
 
 // Fatores regionais relativos a SP (base = 1.000)
@@ -614,22 +676,23 @@ const FATORES_ESTADO = {
   RR:0.952, AP:0.938
 };
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // APP STATE
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const APP = {
   currentStep: 1,
   pdfFile: null,
   pdfDoc: null,
   selectedPages: new Set(),
-  pageImages: {},   // pageNum → base64 JPEG string
+  pageImages: {},   // pageNum â base64 JPEG string
   analysisResult: null,
-  projectName: ""
+  projectName: "",
+  schedule: null
 };
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // NAVIGATION
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function goTo(step) {
   APP.currentStep = step;
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -642,9 +705,9 @@ function goTo(step) {
   window.scrollTo(0, 0);
 }
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // API KEY
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 (function initApiKeyUI() {
   const stored = localStorage.getItem("anthropic_api_key") || "";
   const banner = document.getElementById("apiKeyBanner");
@@ -660,121 +723,121 @@ function saveApiKey() {
   if (!key) { alert("Digite a chave antes de salvar."); return; }
   localStorage.setItem("anthropic_api_key", key);
   document.getElementById("apiKeyBanner").style.borderLeftColor = "var(--green)";
-  alert("✅ Chave salva no navegador!");
+  alert("â Chave salva no navegador!");
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SYSTEM PROMPT (para chamada direta à API)
-// ═══════════════════════════════════════════════════════════════
-const ANTHROPIC_SYSTEM_PROMPT = `Você é um engenheiro civil sênior especialista em levantamento de quantitativos de obras.
-Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quantitativos de serviços de construção civil.
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// SYSTEM PROMPT (para chamada direta Ã  API)
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+const ANTHROPIC_SYSTEM_PROMPT = `VocÃª Ã© um engenheiro civil sÃªnior especialista em levantamento de quantitativos de obras.
+Sua tarefa Ã© analisar plantas arquitetÃ´nicas e extrair com precisÃ£o os quantitativos de serviÃ§os de construÃ§Ã£o civil.
 
-REGRAS OBRIGATÓRIAS:
+REGRAS OBRIGATÃRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
-2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões.
-3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
-4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
+2. Identifique os ambientes (sala, quartos, banheiros, cozinha, Ã¡rea de serviÃ§o, etc.) e suas dimensÃµes.
+3. Calcule os quantitativos descontando vÃ£os de portas e janelas nas paredes.
+4. Use cotas visÃ­veis nas plantas; se nÃ£o visÃ­veis, estime com base em proporÃ§Ãµes e escala.
 5. Organize por categorias SINAPI.
-6. Inclua SEMPRE a memória de cálculo resumida, em UMA ÚNICA LINHA (sem quebras de linha dentro das strings).
-7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
-8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
-9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
-10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro código, inclua o preco_unitario correto.
+6. Inclua SEMPRE a memÃ³ria de cÃ¡lculo resumida, em UMA ÃNICA LINHA (sem quebras de linha dentro das strings).
+7. Retorne EXCLUSIVAMENTE um JSON vÃ¡lido, sem texto antes ou depois.
+8. CRÃTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vÃ­rgula (;) como separador se precisar listar itens em uma string.
+9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preÃ§o unitÃ¡rio SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo Ã© OBRIGATÃRIO.
+10. PREFIRA usar os seguintes cÃ³digos SINAPI (que jÃ¡ estÃ£o na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro cÃ³digo, inclua o preco_unitario correto.
 
-REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
+REGRAS DE QUANTITATIVOS POR CATEGORIA â baseadas em orÃ§amentos SINAPI reais (siga rigorosamente):
 
-1. SERVIÇOS PRELIMINARES:
-   - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
-   - Locação de obra (74209): unidade = M², use a área CONSTRUÍDA (não do terreno).
-   - Ligação provisória de energia (73855): unidade = UN, quantidade = 1.
-   - Ligação provisória de água (73856): unidade = UN, quantidade = 1.
-   - Demolição/limpeza terreno (88309): unidade = M², use a área do TERRENO (não construída).
-   - Tapume (74155/001): unidade = M², calcule pelo perímetro × altura (2,20m). Incluir somente se houver tapume.
+1. SERVIÃOS PRELIMINARES:
+   - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a Ã¡rea do projeto.
+   - LocaÃ§Ã£o de obra (74209): unidade = MÂ², use a Ã¡rea CONSTRUÃDA (nÃ£o do terreno).
+   - LigaÃ§Ã£o provisÃ³ria de energia (73855): unidade = UN, quantidade = 1.
+   - LigaÃ§Ã£o provisÃ³ria de Ã¡gua (73856): unidade = UN, quantidade = 1.
+   - DemoliÃ§Ã£o/limpeza terreno (88309): unidade = MÂ², use a Ã¡rea do TERRENO (nÃ£o construÃ­da).
+   - Tapume (74155/001): unidade = MÂ², calcule pelo perÃ­metro Ã altura (2,20m). Incluir somente se houver tapume.
 
 2. MOVIMENTO DE TERRA:
-   - Escavação (73583/001): unidade = M³ (área × profundidade estimada 1,0~1,5m).
-   - Reaterro (74136/001): unidade = M³ (≈ 50% do volume escavado).
+   - EscavaÃ§Ã£o (73583/001): unidade = MÂ³ (Ã¡rea Ã profundidade estimada 1,0~1,5m).
+   - Reaterro (74136/001): unidade = MÂ³ (â 50% do volume escavado).
 
-3. FUNDAÇÕES:
-   - Lastro concreto (74119/001): unidade = M³ (volume = área × espessura 0,05m).
-   - Radier (94965): unidade = M².
-   - Vigas baldrame/pilares (83334): unidade = M³ (volume de concreto).
+3. FUNDAÃÃES:
+   - Lastro concreto (74119/001): unidade = MÂ³ (volume = Ã¡rea Ã espessura 0,05m).
+   - Radier (94965): unidade = MÂ².
+   - Vigas baldrame/pilares (83334): unidade = MÂ³ (volume de concreto).
    - Estacas (96527): unidade = M (metros lineares de estaca).
 
 4. ESTRUTURA:
-   - Concreto estrutural (83334b): unidade = M³ (volume de concreto de pilares e vigas).
-   - Lajes (94966/94972): unidade = M² (área da laje).
-   - Forma em madeira (94228): unidade = M² (área de contato da fôrma).
-   - Armação aço CA-50/CA-60 (94237): unidade = KG (estimativa: 80~120 kg/m³ de concreto estrutural).
+   - Concreto estrutural (83334b): unidade = MÂ³ (volume de concreto de pilares e vigas).
+   - Lajes (94966/94972): unidade = MÂ² (Ã¡rea da laje).
+   - Forma em madeira (94228): unidade = MÂ² (Ã¡rea de contato da fÃ´rma).
+   - ArmaÃ§Ã£o aÃ§o CA-50/CA-60 (94237): unidade = KG (estimativa: 80~120 kg/mÂ³ de concreto estrutural).
 
 5. ALVENARIA:
-   - Alvenaria (87456): unidade = M² (descontar TODOS os vãos de portas e janelas).
-   - Vergas e contravergas (87704): unidade = M (metro linear, soma dos vãos de portas e janelas).
+   - Alvenaria (87456): unidade = MÂ² (descontar TODOS os vÃ£os de portas e janelas).
+   - Vergas e contravergas (87704): unidade = M (metro linear, soma dos vÃ£os de portas e janelas).
 
 6. COBERTURA:
-   - Estrutura madeira (91010): unidade = M² (área do telhado com inclinação, não planta).
-   - Telha (87266): unidade = M² (mesma área da estrutura).
-   - Rufo/calha (96548): unidade = M (metros lineares do perímetro do beiral).
+   - Estrutura madeira (91010): unidade = MÂ² (Ã¡rea do telhado com inclinaÃ§Ã£o, nÃ£o planta).
+   - Telha (87266): unidade = MÂ² (mesma Ã¡rea da estrutura).
+   - Rufo/calha (96548): unidade = M (metros lineares do perÃ­metro do beiral).
 
 7. REVESTIMENTOS INTERNOS:
-   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas).
-   - Reboco interno (87262): unidade = M² (área de paredes internas).
-   - Gesso liso (87556): unidade = M² (área de paredes internas).
-   - Forro de gesso (87556b): unidade = M² (área do teto = área construída por pavimento).
-   - Contrapiso (87241): unidade = M² (área construída).
-   - Piso cerâmico (87529): unidade = M² (área de piso interno).
-   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m).
+   - Chapisco (87251b): unidade = MÂ² (Ã¡rea total de paredes internas + externas).
+   - Reboco interno (87262): unidade = MÂ² (Ã¡rea de paredes internas).
+   - Gesso liso (87556): unidade = MÂ² (Ã¡rea de paredes internas).
+   - Forro de gesso (87556b): unidade = MÂ² (Ã¡rea do teto = Ã¡rea construÃ­da por pavimento).
+   - Contrapiso (87241): unidade = MÂ² (Ã¡rea construÃ­da).
+   - Piso cerÃ¢mico (87529): unidade = MÂ² (Ã¡rea de piso interno).
+   - Azulejo banheiro/cozinha (87879): unidade = MÂ² (Ã¡rea das paredes molhadas atÃ© h=2,0m).
    - Soleira (73890): unidade = M (metro linear, largura das portas externas).
    - Peitoril (73891): unidade = M (metro linear, largura das janelas externas).
 
 8. REVESTIMENTOS EXTERNOS:
-   - Reboco externo (87262b): unidade = M² (área das fachadas externas).
+   - Reboco externo (87262b): unidade = MÂ² (Ã¡rea das fachadas externas).
 
 9. PINTURA:
-   - Massa corrida PVA (88484): unidade = M² (paredes internas).
-   - Tinta látex PVA interna (88487): unidade = M² (paredes internas).
-   - Tinta acrílica fachada (88490): unidade = M² (fachadas externas).
-   - Tinta esmalte esquadrias (88485): unidade = M² (área das esquadrias de madeira × 2 faces).
+   - Massa corrida PVA (88484): unidade = MÂ² (paredes internas).
+   - Tinta lÃ¡tex PVA interna (88487): unidade = MÂ² (paredes internas).
+   - Tinta acrÃ­lica fachada (88490): unidade = MÂ² (fachadas externas).
+   - Tinta esmalte esquadrias (88485): unidade = MÂ² (Ã¡rea das esquadrias de madeira Ã 2 faces).
 
 10. ESQUADRIAS: unidade = UN para TODAS. Contar individualmente cada porta e janela.
-    - Gradil metálico (73939): unidade = M² (área dos gradis — se houver na planta).
+    - Gradil metÃ¡lico (73939): unidade = MÂ² (Ã¡rea dos gradis â se houver na planta).
 
 11. PISOS:
-    - Contrapiso (87241): unidade = M².
-    - Calçada externa/área serviço (74155/004): unidade = M².
-    - Rodapé (87877): unidade = M (metros lineares do perímetro dos ambientes).
+    - Contrapiso (87241): unidade = MÂ².
+    - CalÃ§ada externa/Ã¡rea serviÃ§o (74155/004): unidade = MÂ².
+    - RodapÃ© (87877): unidade = M (metros lineares do perÃ­metro dos ambientes).
 
-12. INSTALAÇÕES HIDROSSANITÁRIAS:
-    - Tubulações água fria (89809): unidade = M.
-    - Tubulações esgoto 100mm (89684): unidade = M.
-    - Tubulações esgoto 50mm (89770): unidade = M.
-    - Caixa de inspeção (89656): unidade = UN.
-    - Fossa séptica (89679): unidade = UN (incluir somente se não houver rede pública).
-    - Caixa d'água (89812/89783): unidade = UN.
-    - Aparelhos sanitários — bacia, lavatório, tanque, chuveiro: unidade = UN cada.
-    - Kit completo de louças (89481): unidade = CJ (conjunto), se optar por kit.
+12. INSTALAÃÃES HIDROSSANITÃRIAS:
+    - TubulaÃ§Ãµes Ã¡gua fria (89809): unidade = M.
+    - TubulaÃ§Ãµes esgoto 100mm (89684): unidade = M.
+    - TubulaÃ§Ãµes esgoto 50mm (89770): unidade = M.
+    - Caixa de inspeÃ§Ã£o (89656): unidade = UN.
+    - Fossa sÃ©ptica (89679): unidade = UN (incluir somente se nÃ£o houver rede pÃºblica).
+    - Caixa d'Ã¡gua (89812/89783): unidade = UN.
+    - Aparelhos sanitÃ¡rios â bacia, lavatÃ³rio, tanque, chuveiro: unidade = UN cada.
+    - Kit completo de louÃ§as (89481): unidade = CJ (conjunto), se optar por kit.
 
-13. INSTALAÇÕES ELÉTRICAS:
+13. INSTALAÃÃES ELÃTRICAS:
     - Eletrodutos (91926): unidade = M (metros lineares).
     - Cabos de cobre (91930/91888): unidade = M (metros lineares, separar por bitola).
-    - Quadro de distribuição (91948): unidade = UN.
+    - Quadro de distribuiÃ§Ã£o (91948): unidade = UN.
     - Disjuntores (91950): unidade = UN.
     - Tomadas (91968/91914): unidade = UN (contar cada ponto).
     - Interruptores (91970/91915): unidade = UN (contar cada ponto).
     - Aterramento (91976): unidade = UN.
 
-14. IMPERMEABILIZAÇÃO: unidade = M² (área de lajes, calhas, banheiros).
+14. IMPERMEABILIZAÃÃO: unidade = MÂ² (Ã¡rea de lajes, calhas, banheiros).
 
-15. SERVIÇOS COMPLEMENTARES:
-    - Calçada perimetral (73955): unidade = M².
-    - Limpeza final (73958): unidade = M² (área construída).
-    - Ligação definitiva energia: unidade = UN, quantidade = 1.
-    - ART/projeto/aprovação: unidade = VB, quantidade = 1.
+15. SERVIÃOS COMPLEMENTARES:
+    - CalÃ§ada perimetral (73955): unidade = MÂ².
+    - Limpeza final (73958): unidade = MÂ² (Ã¡rea construÃ­da).
+    - LigaÃ§Ã£o definitiva energia: unidade = UN, quantidade = 1.
+    - ART/projeto/aprovaÃ§Ã£o: unidade = VB, quantidade = 1.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
-- "1. SERVIÇOS PRELIMINARES"
+- "1. SERVIÃOS PRELIMINARES"
 - "2. MOVIMENTO DE TERRA"
-- "3. FUNDAÇÕES"
+- "3. FUNDAÃÃES"
 - "4. ESTRUTURA"
 - "5. ALVENARIA"
 - "6. COBERTURA"
@@ -783,10 +846,10 @@ CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "9. PINTURA"
 - "10. ESQUADRIAS"
 - "11. PISOS"
-- "12. INSTALAÇÕES HIDROSSANITÁRIAS"
-- "13. INSTALAÇÕES ELÉTRICAS"
-- "14. IMPERMEABILIZAÇÃO"
-- "15. SERVIÇOS COMPLEMENTARES"
+- "12. INSTALAÃÃES HIDROSSANITÃRIAS"
+- "13. INSTALAÃÃES ELÃTRICAS"
+- "14. IMPERMEABILIZAÃÃO"
+- "15. SERVIÃOS COMPLEMENTARES"
 
 FORMATO DE RESPOSTA (JSON puro):
 {
@@ -800,26 +863,26 @@ FORMATO DE RESPOSTA (JSON puro):
   "quantitativos": [
     {
       "sinapi_codigo": "87453",
-      "descricao": "Alvenaria de vedação de tijolos cerâmicos 6 furos 9x14x19cm, esp=9cm",
-      "unidade": "m²",
+      "descricao": "Alvenaria de vedaÃ§Ã£o de tijolos cerÃ¢micos 6 furos 9x14x19cm, esp=9cm",
+      "unidade": "mÂ²",
       "quantidade": 0.0,
       "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
-      "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
+      "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4mÂ² - vÃ£os(1por+2jan)=8.4mÂ² = 42.0mÂ²; ..."
     }
   ]
 }`;
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // PDF UPLOAD & RENDERING
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const uploadZone = document.getElementById("uploadZone");
 const fileInput  = document.getElementById("fileInput");
 
-// Clique é tratado pelo input transparente que cobre toda a zona (position:absolute;opacity:0)
+// Clique Ã© tratado pelo input transparente que cobre toda a zona (position:absolute;opacity:0)
 uploadZone.addEventListener("dragover",  e => { e.preventDefault(); uploadZone.classList.add("drag"); });
 uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
 uploadZone.addEventListener("drop",      e => { e.preventDefault(); uploadZone.classList.remove("drag"); handleFile(e.dataTransfer.files[0]); });
@@ -834,12 +897,12 @@ function setUploadStatus(msg, color) {
 }
 
 async function handleFile(file) {
-  if (!file) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
-  setUploadStatus("📄 Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
+  if (!file) { setUploadStatus("â ï¸ Nenhum arquivo recebido pelo sistema.", "red"); return; }
+  setUploadStatus("ð Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
 
   const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf" || file.type === "";
   if (!isPdf) {
-    setUploadStatus("❌ Arquivo inválido: selecione um PDF. Tipo detectado: " + (file.type || "desconhecido"), "red");
+    setUploadStatus("â Arquivo invÃ¡lido: selecione um PDF. Tipo detectado: " + (file.type || "desconhecido"), "red");
     return;
   }
   APP.pdfFile = file;
@@ -848,15 +911,15 @@ async function handleFile(file) {
   document.getElementById("fileSize").textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
   document.getElementById("fileInfo").style.display = "flex";
 
-  setUploadStatus("⏳ Carregando PDF com PDF.js...", "blue");
+  setUploadStatus("â³ Carregando PDF com PDF.js...", "blue");
   try {
     const arrayBuffer = await file.arrayBuffer();
     APP.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    setUploadStatus("✅ PDF carregado com sucesso! " + APP.pdfDoc.numPages + " página(s) detectada(s).", "green");
+    setUploadStatus("â PDF carregado com sucesso! " + APP.pdfDoc.numPages + " pÃ¡gina(s) detectada(s).", "green");
     renderThumbnails();
   } catch (err) {
     console.error("Erro ao carregar PDF:", err);
-    setUploadStatus("❌ Erro ao abrir PDF: " + (err.message || String(err)), "red");
+    setUploadStatus("â Erro ao abrir PDF: " + (err.message || String(err)), "red");
     document.getElementById("fileInfo").style.display = "none";
     APP.pdfFile = null;
   }
@@ -874,7 +937,7 @@ async function renderThumbnails() {
     const thumb = document.createElement("div");
     thumb.className = "page-thumb";
     thumb.dataset.page = i;
-    thumb.innerHTML = `<div class="check">✓</div><div class="page-num">Pág. ${i}</div>`;
+    thumb.innerHTML = `<div class="check">â</div><div class="page-num">PÃ¡g. ${i}</div>`;
 
     const canvas = document.createElement("canvas");
     thumb.insertBefore(canvas, thumb.firstChild);
@@ -920,18 +983,18 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════
-// CONVERSION: PDF PAGE → JPEG BASE64
-// ═══════════════════════════════════════════════════════════════
-const MAX_PAGES_API = 6;      // máximo de páginas enviadas para a IA
-const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// CONVERSION: PDF PAGE â JPEG BASE64
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+const MAX_PAGES_API = 6;      // mÃ¡ximo de pÃ¡ginas enviadas para a IA
+const IMG_MAX_WIDTH = 1024;   // largura mÃ¡xima â suficiente para a IA ler cotas
 
 async function pageToBase64(pageNum) {
   if (APP.pageImages[pageNum]) return APP.pageImages[pageNum];
 
   const page = await APP.pdfDoc.getPage(pageNum);
 
-  // Calcula scale para que a largura não ultrapasse IMG_MAX_WIDTH
+  // Calcula scale para que a largura nÃ£o ultrapasse IMG_MAX_WIDTH
   const baseViewport = page.getViewport({ scale: 1 });
   const scale = Math.min(1.0, IMG_MAX_WIDTH / baseViewport.width);
   const viewport = page.getViewport({ scale });
@@ -941,22 +1004,22 @@ async function pageToBase64(pageNum) {
   canvas.height = viewport.height;
   await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
 
-  // JPEG a 65% — legível para IA, payload reduzido
+  // JPEG a 65% â legÃ­vel para IA, payload reduzido
   const base64 = canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
   APP.pageImages[pageNum] = base64;
   return base64;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // ANALYSIS
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 document.getElementById("btnAnalyze").addEventListener("click", startAnalysis);
 
 function setStep(stepId, done, msg) {
   const el = document.getElementById(stepId);
   el.style.display = "block";
   el.className = done ? "alert alert-success" : "alert alert-info";
-  el.innerHTML = (done ? "✅ " : '<span class="spinner"></span>') + msg;
+  el.innerHTML = (done ? "â " : '<span class="spinner"></span>') + msg;
 }
 
 function setProgress(pct, msg) {
@@ -969,9 +1032,9 @@ async function startAnalysis() {
   goTo(2);
 
   try {
-    // ── Step 1: Convert pages ─────────────────────────────
-    setStep("pstep1", false, "Convertendo páginas PDF em imagens…");
-    setProgress(10, "Renderizando páginas…");
+    // ââ Step 1: Convert pages âââââââââââââââââââââââââââââ
+    setStep("pstep1", false, "Convertendo pÃ¡ginas PDF em imagensâ¦");
+    setProgress(10, "Renderizando pÃ¡ginasâ¦");
 
     let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
     if (sortedPages.length > MAX_PAGES_API) {
@@ -981,17 +1044,17 @@ async function startAnalysis() {
 
     for (let i = 0; i < sortedPages.length; i++) {
       const p = sortedPages[i];
-      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
+      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando pÃ¡gina ${p}â¦`);
       images.push(await pageToBase64(p));
     }
-    setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
+    setStep("pstep1", true, `${sortedPages.length} pÃ¡gina(s) convertida(s)`);
 
-    // ── Step 2: Send to AI ────────────────────────────────
-    setStep("pstep2", false, "Enviando para análise com Claude IA…");
-    setProgress(45, "Aguardando resposta da IA…");
+    // ââ Step 2: Send to AI ââââââââââââââââââââââââââââââââ
+    setStep("pstep2", false, "Enviando para anÃ¡lise com Claude IAâ¦");
+    setProgress(45, "Aguardando resposta da IAâ¦");
 
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
-    if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
+    if (!apiKey) throw new Error("Chave de API nÃ£o configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
     const aiContent = [
       ...images.map(img => ({
@@ -1000,10 +1063,10 @@ async function startAnalysis() {
       })),
       {
         type: "text",
-        text: "Analise as imagens do projeto arquitetônico e faça o levantamento completo de quantitativos.\n\n" +
-              "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
-              "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
-              "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
+        text: "Analise as imagens do projeto arquitetÃ´nico e faÃ§a o levantamento completo de quantitativos.\n\n" +
+              "Retorne o JSON conforme especificado. Seja preciso â os valores serÃ£o usados para gerar um orÃ§amento real.\n\n" +
+              "Foque em: alvenaria (Ã¡reas de parede por ambiente menos vÃ£os), estrutura (pilares/vigas/lajes), " +
+              "cobertura (Ã¡rea do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensÃµes)." +
               (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
       }
     ];
@@ -1038,7 +1101,7 @@ async function startAnalysis() {
     const tryParse = (str) => {
       // Tenta direto
       try { return JSON.parse(str); } catch(_) {}
-      // Tenta com jsonrepair (corrige newlines literais em strings, vírgulas extras, etc.)
+      // Tenta com jsonrepair (corrige newlines literais em strings, vÃ­rgulas extras, etc.)
       if (typeof jsonrepair !== "undefined") {
         try { return JSON.parse(jsonrepair(str)); } catch(_) {}
       }
@@ -1052,23 +1115,23 @@ async function startAnalysis() {
       if (m) parsedResult = tryParse(m[0]);
     }
     if (!parsedResult) {
-      throw new Error("JSON inválido após tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
+      throw new Error("JSON invÃ¡lido apÃ³s tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
     }
 
-    setStep("pstep2", true, "Análise com IA concluída");
-    setProgress(75, "Processando quantitativos…");
+    setStep("pstep2", true, "AnÃ¡lise com IA concluÃ­da");
+    setProgress(75, "Processando quantitativosâ¦");
 
-    // ── Step 3: Parse result ──────────────────────────────
-    setStep("pstep3", false, "Extraindo e organizando quantitativos…");
+    // ââ Step 3: Parse result ââââââââââââââââââââââââââââââ
+    setStep("pstep3", false, "Extraindo e organizando quantitativosâ¦");
     APP.analysisResult = parsedResult;
-    setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
-    setProgress(90, "Estruturando EAP…");
+    setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviÃ§os identificados`);
+    setProgress(90, "Estruturando EAPâ¦");
 
-    // ── Step 4: EAP ───────────────────────────────────────
-    setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
+    // ââ Step 4: EAP âââââââââââââââââââââââââââââââââââââââ
+    setStep("pstep4", false, "Montando Estrutura AnalÃ­tica do Projetoâ¦");
     setTimeout(() => {
       setStep("pstep4", true, "EAP gerada com sucesso");
-      setProgress(100, "Concluído!");
+      setProgress(100, "ConcluÃ­do!");
       setTimeout(() => { buildEAP(); goTo(3); }, 600);
     }, 500);
 
@@ -1077,18 +1140,18 @@ async function startAnalysis() {
     setProgress(0, "");
     document.getElementById("screen-2").innerHTML = `
       <div class="card">
-        <div class="card-title"><span class="icon">❌</span> Erro na Análise</div>
+        <div class="card-title"><span class="icon">â</span> Erro na AnÃ¡lise</div>
         <div class="alert alert-error">${e.message}</div>
         <div class="btn-group">
-          <button class="btn btn-outline" onclick="goTo(1)">↩ Voltar</button>
+          <button class="btn btn-outline" onclick="goTo(1)">â© Voltar</button>
         </div>
       </div>`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // EAP BUILD
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1097,9 +1160,9 @@ function buildEAP() {
   const grid = document.getElementById("projectInfoGrid");
   grid.innerHTML = [
     { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
-    { label: "Área Construída",value: `${(r.area_construida_m2||0).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
-    { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
-    { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
+    { label: "Ãrea ConstruÃ­da",value: `${(r.area_construida_m2||0).toFixed(1)} mÂ²`, sub: `${r.pavimentos||1} pavimento(s)` },
+    { label: "Ambientes",      value: r.ambientes?.length || "â",       sub: "identificados" },
+    { label: "ServiÃ§os",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
   ].map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
@@ -1124,7 +1187,7 @@ function buildEAP() {
 
     const header = document.createElement("div");
     header.className = "eap-node-header";
-    header.innerHTML = `<span class="caret">▶</span> ${cat} <span class="badge">${itens.length} serv.</span>`;
+    header.innerHTML = `<span class="caret">â¶</span> ${cat} <span class="badge">${itens.length} serv.</span>`;
     header.addEventListener("click", () => {
       header.classList.toggle("open");
       children.classList.toggle("open");
@@ -1137,7 +1200,7 @@ function buildEAP() {
       const row = document.createElement("div");
       row.className = "eap-item";
       row.innerHTML = `
-        <span class="codigo">${q.sinapi_codigo || "—"}</span>
+        <span class="codigo">${q.sinapi_codigo || "â"}</span>
         <span>${q.descricao}</span>
         <span class="qtd">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})}</span>
         <span class="un">${q.unidade}</span>`;
@@ -1145,7 +1208,7 @@ function buildEAP() {
       if (q.memoria_calculo) {
         const memoToggle = document.createElement("span");
         memoToggle.className = "memo-toggle";
-        memoToggle.textContent = "Ver memória de cálculo";
+        memoToggle.textContent = "Ver memÃ³ria de cÃ¡lculo";
         memoToggle.style.gridColumn = "1 / -1";
 
         const memo = document.createElement("div");
@@ -1154,7 +1217,7 @@ function buildEAP() {
 
         memoToggle.addEventListener("click", () => {
           memo.classList.toggle("open");
-          memoToggle.textContent = memo.classList.contains("open") ? "Ocultar memória" : "Ver memória de cálculo";
+          memoToggle.textContent = memo.classList.contains("open") ? "Ocultar memÃ³ria" : "Ver memÃ³ria de cÃ¡lculo";
         });
         row.appendChild(memoToggle);
         row.appendChild(memo);
@@ -1189,22 +1252,22 @@ document.getElementById("btnRestart").addEventListener("click", () => {
   goTo(1);
 });
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // BUDGET BUILD
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function findSinapiItem(codigo, descricao, categoria) {
-  // 1. Match exato de código
+  // 1. Match exato de cÃ³digo
   let item = SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.replace(/\/.*/,"") === codigo);
   if (item) return item;
 
-  // 2. Match parcial: código começa com o valor buscado ou vice-versa
+  // 2. Match parcial: cÃ³digo comeÃ§a com o valor buscado ou vice-versa
   item = SINAPI_ITENS.find(i => i.codigo.startsWith(codigo) || codigo.startsWith(i.codigo.replace(/\/.*/,"")));
   if (item) return item;
 
-  // 3. Fallback: similaridade por palavras na descrição
+  // 3. Fallback: similaridade por palavras na descriÃ§Ã£o
   if (!descricao) return null;
   const STOP = new Set(["de","da","do","das","dos","em","para","com","e","a","o","as","os","no","na","nos","nas","um","uma","incl","mm","cm","m2","m3"]);
-  const tok  = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g," ").split(/\s+/).filter(w => w.length > 2 && !STOP.has(w));
+  const tok  = s => s.toLowerCase().normalize("NFD").replace(/[Ì-Í¯]/g,"").replace(/[^a-z0-9]/g," ").split(/\s+/).filter(w => w.length > 2 && !STOP.has(w));
   const qw   = tok(descricao);
   if (!qw.length) return null;
 
@@ -1216,7 +1279,7 @@ function findSinapiItem(codigo, descricao, categoria) {
     const score   = matches + bonus;
     if (score > bestScore && matches >= 2) { bestScore = score; best = s; }
   });
-  return best; // null se não encontrar
+  return best; // null se nÃ£o encontrar
 }
 
 function recalcBudget() { buildBudget(); }
@@ -1246,7 +1309,7 @@ function buildBudget() {
     // Category row
     const catRow = document.createElement("tr");
     catRow.className = "cat-row";
-    catRow.innerHTML = `<td colspan="9">📁 ${cat}</td>`;
+    catRow.innerHTML = `<td colspan="9">ð ${cat}</td>`;
     tbody.appendChild(catRow);
 
     let catTotal = 0;
@@ -1267,8 +1330,8 @@ function buildBudget() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${itemNum}</td>
-        <td style="font-family:monospace;font-size:11px">${q.sinapi_codigo || "—"}</td>
-        <td>${sinapiItem ? sinapiItem.descricao : q.descricao} ${!sinapiItem && precoBase === 0 ? '<span class="warn">⚠ verificar preço</span>' : ''}</td>
+        <td style="font-family:monospace;font-size:11px">${q.sinapi_codigo || "â"}</td>
+        <td>${sinapiItem ? sinapiItem.descricao : q.descricao} ${!sinapiItem && precoBase === 0 ? '<span class="warn">â  verificar preÃ§o</span>' : ''}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
@@ -1282,7 +1345,7 @@ function buildBudget() {
     const subRow = document.createElement("tr");
     subRow.className = "subtotal-row";
     subRow.innerHTML = `
-      <td colspan="8" style="text-align:right">SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}</td>
+      <td colspan="8" style="text-align:right">SUBTOTAL â ${cat.replace(/^\d+\.\s*/,"")}</td>
       <td class="num">R$ ${fmt(catTotal)}</td>`;
     tbody.appendChild(subRow);
   });
@@ -1299,7 +1362,7 @@ function buildBudget() {
   const totalBdiRow = document.createElement("tr");
   totalBdiRow.className = "total-row";
   totalBdiRow.innerHTML = `
-    <td colspan="8" style="text-align:right;font-size:14px">✅ TOTAL GERAL DA OBRA (c/ BDI ${(bdi*100).toFixed(2)}%)</td>
+    <td colspan="8" style="text-align:right;font-size:14px">â TOTAL GERAL DA OBRA (c/ BDI ${(bdi*100).toFixed(2)}%)</td>
     <td class="num" style="font-size:14px;color:#FFD700">R$ ${fmt(totalComBdi)}</td>`;
   tbody.appendChild(totalBdiRow);
 
@@ -1309,7 +1372,7 @@ function buildBudget() {
     { label: "Total s/ BDI",     value: `R$ ${fmt(totalSemBdi)}`,               sub: "" },
     { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
-    { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
+    { label: "Custo / mÂ²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} mÂ²` },
     { label: "Estado",           value: estado,                                  sub: `Fator SINAPI ${fator.toFixed(3)}` },
   ].map(i => `
     <div class="info-box">
@@ -1319,9 +1382,9 @@ function buildBudget() {
     </div>`).join("");
 }
 
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 // EXCEL EXPORT
-// ═══════════════════════════════════════════════════════════════
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 document.getElementById("btnDownload").addEventListener("click", exportExcel);
 
 function exportExcel() {
@@ -1333,12 +1396,12 @@ function exportExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // ── Sheet 1: Orçamento ──────────────────────────────────────
+  // ââ Sheet 1: OrÃ§amento ââââââââââââââââââââââââââââââââââââââ
   const rows = [
-    [`ORÇAMENTO DE OBRA — ${APP.projectName}`],
+    [`ORÃAMENTO DE OBRA â ${APP.projectName}`],
     [`Estado: ${estado} | SINAPI 05/2025 | BDI: ${(bdi*100).toFixed(2)}% | Data: ${new Date().toLocaleDateString("pt-BR")}`],
     [],
-    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
+    ["ITEM","CÃDIGO SINAPI","DESCRIÃÃO","UN","QUANTIDADE","PREÃO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
   ];
 
   const byCat = {};
@@ -1364,10 +1427,10 @@ function exportExcel() {
       const comBdi     = fmt2(subtotal * (1 + bdi));
       catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
 
-      rows.push([itemNum, q.sinapi_codigo||"—", sinapiItem ? sinapiItem.descricao : q.descricao,
+      rows.push([itemNum, q.sinapi_codigo||"â", sinapiItem ? sinapiItem.descricao : q.descricao,
                  q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
     });
-    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
+    rows.push(["", "", `SUBTOTAL â ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
   });
 
   rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, "", fmt2(totalSemBdi)]);
@@ -1375,13 +1438,13 @@ function exportExcel() {
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
+  XLSX.utils.book_append_sheet(wb, ws1, "ORÃAMENTO");
 
-  // ── Sheet 2: EAP ───────────────────────────────────────────
+  // ââ Sheet 2: EAP âââââââââââââââââââââââââââââââââââââââââââ
   const eapRows = [
-    [`EAP — ESTRUTURA ANALÍTICA DO PROJETO — ${APP.projectName}`],
+    [`EAP â ESTRUTURA ANALÃTICA DO PROJETO â ${APP.projectName}`],
     [],
-    ["ID WBS","DESCRIÇÃO","NÍVEL","UN","QUANTIDADE","CÓDIGO SINAPI","MEMÓRIA DE CÁLCULO"],
+    ["ID WBS","DESCRIÃÃO","NÃVEL","UN","QUANTIDADE","CÃDIGO SINAPI","MEMÃRIA DE CÃLCULO"],
   ];
   eapRows.push(["1", APP.projectName || "OBRA", "1", "", "", "", ""]);
 
@@ -1398,19 +1461,334 @@ function exportExcel() {
   ws2["!cols"] = [10,55,8,6,12,16,60].map(w => ({wch:w}));
   XLSX.utils.book_append_sheet(wb, ws2, "EAP");
 
-  // ── Sheet 3: Ambientes ──────────────────────────────────────
+  // ââ Sheet 3: Ambientes ââââââââââââââââââââââââââââââââââââââ
   if (r.ambientes?.length) {
-    const ambRows = [["AMBIENTE","ÁREA (m²)","PÉ DIREITO (m)"]];
-    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "—"]));
+    const ambRows = [["AMBIENTE","ÃREA (mÂ²)","PÃ DIREITO (m)"]];
+    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "â"]));
     ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
     const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
     ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
   }
 
+
+  // Sheet 4: CRONOGRAMA (if generated)
+  if (APP.schedule) {
+    const { acts, totalWeeks, startDate } = APP.schedule;
+    const totalCost = acts.reduce((s,a) => s + a.total, 0);
+
+    // Activity table
+    const schedRows = [
+      ["ID","Atividade","Dur. (sem)","InÃ­cio (sem)","Fim (sem)","Folga Total","CrÃ­tico","Data InÃ­cio","Data Fim","Custo (R$)","% do Total"]
+    ];
+    acts.forEach(a => {
+      const dI = a.active ? _fmtDate(_schedDate(startDate, a.ES)) : "";
+      const dF = a.active ? _fmtDate(_schedDate(startDate, a.EF)) : "";
+      const pct = totalCost > 0 && a.total > 0 ? (a.total/totalCost*100).toFixed(1)+"%" : "0%";
+      schedRows.push([a.id, a.label, a.active?a.dur:"", a.active?a.ES:"", a.active?a.EF:"", a.active?a.TF:"", a.critical?"SIM":"NÃO", dI, dF, a.active?a.total.toFixed(2):"0,00", pct]);
+    });
+
+    // Monthly financial breakdown
+    const weekCost = new Array(totalWeeks).fill(0);
+    acts.forEach(a => {
+      if (!a.active || a.dur === 0) return;
+      const wkCost = a.total / a.dur;
+      for (let ww = a.ES; ww < a.EF && ww < totalWeeks; ww++) weekCost[ww] += wkCost;
+    });
+    const monthData2 = {};
+    const monthOrder2 = [];
+    for (let ww = 0; ww < totalWeeks; ww++) {
+      const d2 = _schedDate(startDate, ww);
+      const key2 = d2.getFullYear() + "-" + String(d2.getMonth()+1).padStart(2,"0");
+      const lbl2 = _fmtMonthYear(d2);
+      if (!monthData2[key2]) { monthData2[key2] = {lbl:lbl2, val:0}; monthOrder2.push(key2); }
+      monthData2[key2].val += weekCost[ww];
+    }
+
+    schedRows.push([]);
+    schedRows.push(["DESEMBOLSO MENSAL"]);
+    schedRows.push(["MÃªs","Desembolso (R$)","Acumulado (R$)","Acumulado (%)"]);
+    let accR2 = 0;
+    monthOrder2.forEach(k2 => {
+      accR2 += monthData2[k2].val;
+      const pct2 = totalCost > 0 ? (accR2/totalCost*100).toFixed(1)+"%" : "0%";
+      schedRows.push([monthData2[k2].lbl, monthData2[k2].val.toFixed(2), accR2.toFixed(2), pct2]);
+    });
+    schedRows.push(["TOTAL", totalCost.toFixed(2), totalCost.toFixed(2), "100,0%"]);
+
+    // Gantt grid (numeric: 2=critico, 1=normal, 0.5=folga, ""=vazio)
+    schedRows.push([]);
+    schedRows.push(["GANTT â Grade Semanal (2=CrÃ­tico, 1=Normal, 0.5=Folga)"]);
+    const ganttHeader = ["Atividade"]; for (let wg=1; wg<=totalWeeks; wg++) ganttHeader.push("S"+wg);
+    schedRows.push(ganttHeader);
+    acts.forEach(a => {
+      const row = [a.label];
+      for (let wg=0; wg<totalWeeks; wg++) {
+        if (a.active && wg >= a.ES && wg < a.EF) row.push(a.critical ? 2 : 1);
+        else if (a.active && a.TF > 0 && wg >= a.EF && wg < a.EF + a.TF) row.push(0.5);
+        else row.push("");
+      }
+      schedRows.push(row);
+    });
+
+    const wsCron = XLSX.utils.aoa_to_sheet(schedRows);
+    XLSX.utils.book_append_sheet(wb, wsCron, "CRONOGRAMA");
+  }
+
   const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
+
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// SCHEDULE â CPM / GANTT / S-CURVE
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+const SCHED_DEF = [
+  { id:"1",  label:"ServiÃ§os Preliminares",        cat:"1. SERVIÃOS PRELIMINARES",          baseDur:1, preds:[] },
+  { id:"2",  label:"Movimento de Terra",            cat:"2. MOVIMENTO DE TERRA",              baseDur:1, preds:[{id:"1",req:1.0}] },
+  { id:"3",  label:"FundaÃ§Ãµes",                     cat:"3. FUNDAÃÃES",                       baseDur:2, preds:[{id:"2",req:1.0}] },
+  { id:"4",  label:"Estrutura",                     cat:"4. ESTRUTURA",                       baseDur:4, preds:[{id:"3",req:1.0}] },
+  { id:"5",  label:"Alvenaria",                     cat:"5. ALVENARIA",                       baseDur:3, preds:[{id:"4",req:0.80}] },
+  { id:"6",  label:"Cobertura",                     cat:"6. COBERTURA",                       baseDur:2, preds:[{id:"4",req:0.85}] },
+  { id:"7",  label:"Revestimentos Internos",        cat:"7. REVESTIMENTOS INTERNOS",          baseDur:3, preds:[{id:"5",req:1.0},{id:"6",req:1.0}] },
+  { id:"8",  label:"Revestimentos Externos",        cat:"8. REVESTIMENTOS EXTERNOS",          baseDur:2, preds:[{id:"5",req:0.80},{id:"6",req:1.0}] },
+  { id:"9",  label:"Pintura",                       cat:"9. PINTURA",                         baseDur:2, preds:[{id:"7",req:0.90},{id:"8",req:1.0}] },
+  { id:"10", label:"Esquadrias",                    cat:"10. ESQUADRIAS",                     baseDur:1, preds:[{id:"5",req:0.80}] },
+  { id:"11", label:"Pisos",                         cat:"11. PISOS",                          baseDur:2, preds:[{id:"7",req:0.70}] },
+  { id:"12", label:"Inst. HidrossanitÃ¡rias",        cat:"12. INSTALAÃÃES HIDROSSANITÃRIAS",   baseDur:3, preds:[{id:"5",req:0.30}] },
+  { id:"13", label:"Inst. ElÃ©tricas",               cat:"13. INSTALAÃÃES ELÃTRICAS",          baseDur:3, preds:[{id:"5",req:0.30}] },
+  { id:"14", label:"ImpermeabilizaÃ§Ã£o",             cat:"14. IMPERMEABILIZAÃÃO",              baseDur:1, preds:[{id:"4",req:1.0},{id:"6",req:1.0}] },
+  { id:"15", label:"ServiÃ§os Complementares",       cat:"15. SERVIÃOS COMPLEMENTARES",        baseDur:2, preds:[{id:"9",req:1.0},{id:"10",req:1.0},{id:"11",req:1.0},{id:"12",req:1.0},{id:"13",req:1.0}] },
+];
+
+function _schedDate(base, weeks) {
+  const d = new Date(base); d.setDate(d.getDate() + weeks * 7); return d;
+}
+function _fmtDate(d) { return d.toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric" }); }
+function _fmtMonthYear(d) { return d.toLocaleDateString("pt-BR", { month:"short", year:"2-digit" }); }
+function _fmtCur(v) { return v.toLocaleString("pt-BR", { style:"currency", currency:"BRL", minimumFractionDigits:2 }); }
+
+function buildSchedule() {
+  const r = APP.analysisResult; if (!r) return;
+  const estado = document.getElementById("stateSelect").value;
+  const bdi    = parseFloat(document.getElementById("bdiInput").value) / 100 || 0.2475;
+  const fator  = FATORES_ESTADO[estado] || 1;
+  const area   = parseFloat(r.area_total_construida) || (r.ambientes||[]).reduce((s,a)=>s+(parseFloat(a.area_m2)||0),0) || 50;
+  const scale  = Math.max(0.7, Math.min(3.0, Math.sqrt(area / 50)));
+
+  // Budget totals per category number
+  const catTotals = {};
+  (r.quantitativos||[]).forEach(q => {
+    const num = (q.categoria||"15. SERVIÃOS COMPLEMENTARES").split(".")[0].trim();
+    const si  = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", q.categoria);
+    const tot = (si ? si.preco : (q.preco_unitario||0)) * fator * (parseFloat(q.quantidade)||0) * (1+bdi);
+    catTotals[num] = (catTotals[num]||0) + tot;
+  });
+
+  const acts = SCHED_DEF.map(def => ({
+    ...def,
+    dur: Math.max(1, Math.round(def.baseDur * scale)),
+    total: catTotals[def.id] || 0,
+    active: !!(catTotals[def.id] && catTotals[def.id] > 0),
+    ES:0, EF:0, LS:0, LF:0, TF:0, critical:false,
+  }));
+  const byId = {}; acts.forEach(a => byId[a.id] = a);
+
+  // Forward pass: ES_s = max over preds of (ES_p + round(req * dur_p))
+  acts.forEach(a => {
+    let es = 0;
+    a.preds.forEach(({id:pid, req}) => {
+      const p = byId[pid]; if (!p) return;
+      es = Math.max(es, p.ES + Math.round(req * p.dur));
+    });
+    a.ES = es; a.EF = es + (a.active ? a.dur : 0);
+  });
+  const totalWeeks = Math.max(1, ...acts.map(a => a.EF));
+
+  // Build successors map
+  const succs = {};
+  acts.forEach(a => a.preds.forEach(({id:pid,req}) => {
+    (succs[pid] = succs[pid]||[]).push({id:a.id, req});
+  }));
+
+  // Initialize LF for backward pass
+  acts.forEach(a => { a.LF = totalWeeks; });
+
+  // Backward pass
+  [...acts].reverse().forEach(a => {
+    (succs[a.id]||[]).forEach(({id:sid, req}) => {
+      const s = byId[sid]; if (!s) return;
+      const ls_s  = s.LF - s.dur;
+      const maxLF = ls_s + (1 - req) * a.dur;
+      if (maxLF < a.LF) a.LF = maxLF;
+    });
+    a.LS = a.LF - a.dur;
+    a.TF = Math.round(a.LS - a.ES);
+    a.critical = a.active && a.TF <= 0;
+  });
+
+  const startDateStr = document.getElementById("startDateInput").value;
+  const startDate = startDateStr ? new Date(startDateStr + "T00:00:00") : new Date();
+
+  APP.schedule = { acts, totalWeeks, catTotals, startDate };
+  _renderSchedKpis();
+  _renderGantt();
+  _renderScurve();
+}
+
+function _renderSchedKpis() {
+  const { acts, totalWeeks, startDate } = APP.schedule;
+  const totalCost = acts.reduce((s,a) => s + a.total, 0);
+  const criticalPath = acts.filter(a => a.critical).map(a => a.label).join(" â ");
+  const endDate = _schedDate(startDate, totalWeeks);
+  const kpis = [
+    { label:"Prazo Total", value: totalWeeks + " semanas", icon:"â±" },
+    { label:"Data de InÃ­cio", value: _fmtDate(startDate), icon:"ð" },
+    { label:"Data de TÃ©rmino", value: _fmtDate(endDate), icon:"ð" },
+    { label:"Custo Total (c/ BDI)", value: _fmtCur(totalCost), icon:"ð°" },
+  ];
+  document.getElementById("schedKpis").innerHTML = kpis.map(k =>
+    `<div class="info-box"><div class="info-icon">${k.icon}</div><div class="info-label">${k.label}</div><div class="info-value">${k.value}</div></div>`
+  ).join("") + (criticalPath ? `<div class="info-box" style="grid-column:1/-1"><div class="info-icon">ð´</div><div class="info-label">Caminho CrÃ­tico</div><div class="info-value" style="font-size:11px;word-break:break-word">${criticalPath}</div></div>` : "");
+}
+
+function _renderGantt() {
+  const { acts, totalWeeks, startDate } = APP.schedule;
+
+  // Build month header spans
+  const monthSpans = [];
+  let curMonth = null, curSpan = 0, curStart = 0;
+  for (let w = 0; w < totalWeeks; w++) {
+    const d = _schedDate(startDate, w);
+    const mo = d.getMonth() + "-" + d.getFullYear();
+    if (mo !== curMonth) {
+      if (curMonth !== null) monthSpans.push({ label: _fmtMonthYear(_schedDate(startDate, curStart)), span: curSpan });
+      curMonth = mo; curSpan = 1; curStart = w;
+    } else { curSpan++; }
+  }
+  if (curMonth !== null) monthSpans.push({ label: _fmtMonthYear(_schedDate(startDate, curStart)), span: curSpan });
+
+  let html = `<table class="gantt-table"><thead>`;
+  // Row 1: month headers
+  html += `<tr><th class="act-col" rowspan="2">Atividade</th><th class="info-col month-hd" rowspan="2">Dur.<br>(sem)</th><th class="info-col month-hd" rowspan="2">InÃ­cio</th><th class="info-col month-hd" rowspan="2">Fim</th><th class="info-col month-hd" rowspan="2">Folga</th>`;
+  monthSpans.forEach(ms => { html += `<th class="month-hd" colspan="${ms.span}">${ms.label}</th>`; });
+  html += `</tr>`;
+  // Row 2: week numbers
+  html += `<tr>`;
+  for (let w = 1; w <= totalWeeks; w++) html += `<th>${w}</th>`;
+  html += `</tr></thead><tbody>`;
+
+  acts.forEach(a => {
+    const crit = a.critical ? " is-critical" : "";
+    const startD = _fmtDate(_schedDate(startDate, a.ES));
+    const endD   = a.active ? _fmtDate(_schedDate(startDate, a.EF)) : "â";
+    html += `<tr><td class="act-name${crit}">${a.label}</td>`;
+    html += `<td class="info-cell">${a.active ? a.dur : "â"}</td>`;
+    html += `<td class="info-cell" style="font-size:9.5px">${a.active ? startD : "â"}</td>`;
+    html += `<td class="info-cell" style="font-size:9.5px">${endD}</td>`;
+    html += `<td class="info-cell">${a.active ? a.TF : "â"}</td>`;
+    for (let w = 0; w < totalWeeks; w++) {
+      let cls = "";
+      if (a.active && w >= a.ES && w < a.EF) {
+        cls = a.critical ? "gantt-cell gcritical" : "gantt-cell gactive";
+      } else if (a.active && a.TF > 0 && w >= a.EF && w < a.EF + a.TF) {
+        cls = "gantt-cell gfloat";
+      }
+      html += `<td><div class="${cls}"></div></td>`;
+    }
+    html += `</tr>`;
+  });
+  html += `</tbody></table>`;
+  document.getElementById("ganttWrap").innerHTML = html;
+}
+
+function _renderScurve() {
+  const { acts, totalWeeks, startDate } = APP.schedule;
+  const totalCost = acts.reduce((s,a) => s + a.total, 0);
+  if (totalCost === 0) return;
+
+  // Build weekly cost array
+  const weekCost = new Array(totalWeeks).fill(0);
+  acts.forEach(a => {
+    if (!a.active || a.dur === 0) return;
+    const wkCost = a.total / a.dur;
+    for (let w = a.ES; w < a.EF && w < totalWeeks; w++) weekCost[w] += wkCost;
+  });
+
+  // Aggregate by month for table
+  const monthData = {};
+  const monthOrder = [];
+  for (let w = 0; w < totalWeeks; w++) {
+    const d  = _schedDate(startDate, w);
+    const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+    const lbl = _fmtMonthYear(d);
+    if (!monthData[key]) { monthData[key] = {lbl, val:0}; monthOrder.push(key); }
+    monthData[key].val += weekCost[w];
+  }
+
+  // SVG S-curve
+  const W = 700, H = 180, PAD = 40;
+  const pts = [];
+  let accum = 0;
+  monthOrder.forEach((k,i) => {
+    accum += monthData[k].val;
+    const x = PAD + (i / (monthOrder.length-1||1)) * (W - 2*PAD);
+    const y = H - PAD - ((accum/totalCost) * (H - 2*PAD));
+    pts.push([x,y]);
+  });
+  const pathD = pts.map((p,i) => (i===0?"M":"L") + p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const areaD = pathD + ` L${pts[pts.length-1][0].toFixed(1)},${H-PAD} L${pts[0][0].toFixed(1)},${H-PAD} Z`;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:${H}px;" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563eb" stop-opacity="0.2"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0.02"/></linearGradient></defs>`;
+  // Grid lines
+  [0,25,50,75,100].forEach(pct => {
+    const y = H - PAD - (pct/100)*(H-2*PAD);
+    svg += `<line x1="${PAD}" y1="${y.toFixed(1)}" x2="${W-PAD}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>`;
+    svg += `<text x="${PAD-5}" y="${y+4}" text-anchor="end" font-size="9" fill="#6b7280">${pct}%</text>`;
+  });
+  // Month labels
+  monthOrder.forEach((k,i) => {
+    const x = PAD + (i/(monthOrder.length-1||1))*(W-2*PAD);
+    svg += `<text x="${x.toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="8.5" fill="#6b7280">${monthData[k].lbl}</text>`;
+  });
+  svg += `<path d="${areaD}" fill="url(#sg)"/>`;
+  svg += `<path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>`;
+  pts.forEach(p => svg += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#2563eb"/>`);
+  svg += `</svg>`;
+
+  // Table
+  let accR = 0;
+  let tableHtml = `<table class="scurve-table"><thead><tr><th>MÃªs</th><th>Desembolso (R$)</th><th>Acumulado (R$)</th><th>Acumulado (%)</th></tr></thead><tbody>`;
+  monthOrder.forEach(k => {
+    accR += monthData[k].val;
+    const pct = totalCost > 0 ? (accR/totalCost*100).toFixed(1) : "0.0";
+    tableHtml += `<tr><td>${monthData[k].lbl}</td><td>${_fmtCur(monthData[k].val)}</td><td>${_fmtCur(accR)}</td><td>${pct}%</td></tr>`;
+  });
+  tableHtml += `<tr style="font-weight:700; background:var(--navy); color:#fff"><td>TOTAL</td><td>${_fmtCur(totalCost)}</td><td>${_fmtCur(totalCost)}</td><td>100,0%</td></tr>`;
+  tableHtml += `</tbody></table>`;
+
+  document.getElementById("scurveWrap").innerHTML = svg + tableHtml;
+}
+
+// Schedule event listeners
+document.getElementById("btnGoCronograma").addEventListener("click", () => {
+  const di = document.getElementById("startDateInput");
+  if (!di.value) { const today = new Date(); di.value = today.toISOString().split("T")[0]; }
+  goTo(5); buildSchedule();
+});
+
+document.getElementById("btnDownloadFull").addEventListener("click", () => exportExcel());
+
+document.getElementById("btnRestart2").addEventListener("click", () => {
+  Object.assign(APP, {currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", schedule:null});
+  document.getElementById("fileInfo").style.display = "none";
+  document.getElementById("pageCard").style.display = "none";
+  document.getElementById("uploadStatus").style.display = "none";
+  document.getElementById("fileInput").value = "";
+  document.getElementById("projectName").value = "";
+  goTo(1);
+});
+
 </script>
 </body>
 </html>
