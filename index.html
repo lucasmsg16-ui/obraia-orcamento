@@ -382,7 +382,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div class="pages-grid" id="pagesGrid"></div>
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
       <span id="selectedCount">0</span> página(s) selecionada(s)
-      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 6 páginas enviadas para IA — selecione as plantas baixas principais.</span>
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Muitas páginas selecionadas — a análise será feita em lotes automáticos, o que pode demorar mais.</span>
     </div>
 
     <div class="btn-group">
@@ -983,7 +983,7 @@ function updateSelectedCount() {
   const n = APP.selectedPages.size;
   document.getElementById("selectedCount").textContent = n;
   const warn = document.getElementById("pageWarning");
-  if (warn) warn.style.display = n > 6 ? "inline" : "none";
+  if (warn) warn.style.display = n > 15 ? "inline" : "none";
 }
 
 document.getElementById("btnSelectAll").addEventListener("click", () => {
@@ -996,7 +996,7 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // CONVERSION: PDF PAGE → JPEG BASE64
 // ═══════════════════════════════════════════════════════════════
-const MAX_PAGES_API = 6;      // máximo de páginas enviadas para a IA
+const BATCH_SIZE = 5;       // máximo de páginas enviadas para a IA
 const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
 
 async function pageToBase64(pageNum) {
@@ -1044,96 +1044,105 @@ async function startAnalysis() {
   try {
     // ── Step 1: Convert pages ─────────────────────────────
     setStep("pstep1", false, "Convertendo páginas PDF em imagens…");
-    setProgress(10, "Renderizando páginas…");
+    setProgress(5, "Renderizando páginas…");
 
-    let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
-    if (sortedPages.length > MAX_PAGES_API) {
-      sortedPages = sortedPages.slice(0, MAX_PAGES_API);
-    }
+    const sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
     const images = [];
 
     for (let i = 0; i < sortedPages.length; i++) {
       const p = sortedPages[i];
-      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
+      setProgress(5 + (i / sortedPages.length) * 25, `Renderizando página ${p}…`);
       images.push(await pageToBase64(p));
     }
     setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
 
-    // ── Step 2: Send to AI ────────────────────────────────
+    // ── Step 2: Send to AI in batches ─────────────────────
     setStep("pstep2", false, "Enviando para análise com Claude IA…");
-    setProgress(45, "Aguardando resposta da IA…");
 
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
     if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
-    const aiContent = [
-      ...images.map(img => ({
-        type: "image",
-        source: { type: "base64", media_type: "image/jpeg", data: img }
-      })),
-      {
-        type: "text",
-        text: "Analise as imagens do projeto arquitetônico e faça o levantamento completo de quantitativos.\n\n" +
-              "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
-              "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
-              "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
-              (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+    // Split into batches of BATCH_SIZE pages
+    const batches = [];
+    for (let i = 0; i < images.length; i += BATCH_SIZE) {
+      batches.push(images.slice(i, i + BATCH_SIZE));
+    }
+
+    const batchResults = [];
+
+    for (let b = 0; b < batches.length; b++) {
+      const batchImgs = batches[b];
+      const pct = 30 + (b / batches.length) * 40;
+      setProgress(pct, `Analisando lote ${b + 1} de ${batches.length}…`);
+
+      const aiContent = [
+        ...batchImgs.map(img => ({
+          type: "image",
+          source: { type: "base64", media_type: "image/jpeg", data: img }
+        })),
+        {
+          type: "text",
+          text: `Este é o lote ${b + 1} de ${batches.length} de imagens do projeto arquitetônico.\n` +
+                "Analise estas imagens e faça o levantamento completo de quantitativos.\n\n" +
+                "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
+                "Foque em: alvenaria (áreas de parede por ambiente menos vão), estrutura (pilares/vigas/lajes), " +
+                "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
+                (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+        }
+      ];
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 16000,
+          system: ANTHOPIC_SYSTEM_PROMPT,
+          messages: [{ role: "user", content: aiContent }]
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(`Lote ${b + 1}: ${err.error?.message || `Erro HTTP ${resp.status}`}`);
       }
-    ];
 
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        system: ANTHROPIC_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: aiContent }]
-      })
-    });
+      const apiData = await resp.json();
+      const rawText = apiData.content[0].text;
+      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Erro HTTP ${resp.status}`);
-    }
+      const tryParse = (str) => {
+        try { return JSON.parse(str); } catch(_) {}
+        if (typeof jsonrepair !== "undefined") {
+          try { return JSON.parse(jsonrepair(str)); } catch(_) {}
+        }
+        return null;
+      };
 
-    const apiData = await resp.json();
-    const rawText = apiData.content[0].text;
-    const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
-
-    let parsedResult;
-    const tryParse = (str) => {
-      // Tenta direto
-      try { return JSON.parse(str); } catch(_) {}
-      // Tenta com jsonrepair (corrige newlines literais em strings, vírgulas extras, etc.)
-      if (typeof jsonrepair !== "undefined") {
-        try { return JSON.parse(jsonrepair(str)); } catch(_) {}
+      let parsed = tryParse(jsonStr);
+      if (!parsed) {
+        const m = rawText.match(/\{[\s\S]*\}/);
+        if (m) parsed = tryParse(m[0]);
       }
-      return null;
-    };
+      if (!parsed) {
+        throw new Error(`Lote ${b + 1}: JSON inválido. Primeiros 400 chars:\n` + rawText.substring(0, 400));
+      }
 
-    parsedResult = tryParse(jsonStr);
-    if (!parsedResult) {
-      // Extrai bloco {} do texto bruto e tenta novamente
-      const m = rawText.match(/\{[\s\S]*\}/);
-      if (m) parsedResult = tryParse(m[0]);
-    }
-    if (!parsedResult) {
-      throw new Error("JSON inválido após tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
+      batchResults.push(parsed);
     }
 
-    setStep("pstep2", true, "Análise com IA concluída");
-    setProgress(75, "Processando quantitativos…");
+    setStep("pstep2", true, `Análise com IA concluída (${batches.length} lote(s))`);
+    setProgress(75, "Consolidando quantitativos…");
 
-    // ── Step 3: Parse result ──────────────────────────────
-    setStep("pstep3", false, "Extraindo e organizando quantitativos…");
-    APP.analysisResult = parsedResult;
+    // ── Step 3: Merge batch results ───────────────────────
+    setStep("pstep3", false, "Consolidando e organizando quantitativos…");
+    APP.analysisResult = mergeBatchResults(batchResults);
     setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
     setProgress(90, "Estruturando EAP…");
 
@@ -1153,10 +1162,60 @@ async function startAnalysis() {
         <div class="card-title"><span class="icon">❌</span> Erro na Análise</div>
         <div class="alert alert-error">${e.message}</div>
         <div class="btn-group">
-          <button class="btn btn-outline" onclick="goTo(1)">↩ Voltar</button>
+          <button class="btn btn-outline" onclick="goTo(1)">↪ Voltar</button>
         </div>
       </div>`;
   }
+}
+
+function mergeBatchResults(results) {
+  if (!results || results.length === 0) return {};
+  if (results.length === 1) return results[0];
+
+  const merged = {
+    projeto: null,
+    tipologia: null,
+    pavimentos: null,
+    area_construida_m2: 0,
+    ambientes: [],
+    quantitativos: []
+  };
+
+  const qtMap = {};
+  const ambMap = {};
+
+  for (const r of results) {
+    if (!merged.projeto    && r.projeto)    merged.projeto    = r.projeto;
+    if (!merged.tipologia  && r.tipologia)  merged.tipologia  = r.tipologia;
+    if (!merged.pavimentos && r.pavimentos) merged.pavimentos = r.pavimentos;
+
+    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2) {
+      merged.area_construida_m2 = r.area_construida_m2;
+    }
+
+    if (Array.isArray(r.ambientes)) {
+      for (const a of r.ambientes) {
+        const k = (a.nome || "").toLowerCase().trim();
+        if (k && !ambMap[k]) { ambMap[k] = true; merged.ambientes.push(a); }
+      }
+    }
+
+    if (Array.isArray(r.quantitativos)) {
+      for (const q of r.quantitativos) {
+        const code = (q.sinapi_codigo || q.descricao || "").toString().trim();
+        const cat  = (q.categoria || "").toString().trim();
+        const key  = code + "|" + cat;
+        if (qtMap[key]) {
+          qtMap[key].quantidade = (parseFloat(qtMap[key].quantidade) || 0) + (parseFloat(q.quantidade) || 0);
+        } else {
+          qtMap[key] = { ...q };
+        }
+      }
+    }
+  }
+
+  merged.quantitativos = Object.values(qtMap);
+  return merged;
 }
 
 // ═══════════════════════════════════════════════════════════════
