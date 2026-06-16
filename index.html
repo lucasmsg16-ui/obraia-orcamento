@@ -7,8 +7,8 @@
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- SheetJS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- ExcelJS â planilhas estilizadas -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <!-- jsonrepair: corrige JSON malformado gerado por IA -->
 <script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
 
@@ -645,8 +645,8 @@ const SINAPI_ITENS = [
   // 13. INSTALAÃÃES ELÃTRICAS
   { codigo:"91926",     descricao:"Eletroduto PVC rÃ­gido 3/4pol â embutido em alvenaria",        un:"m",   preco:7.80,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
   { codigo:"91878",     descricao:"Eletroduto PVC rÃ­gido d=20mm, incl. conexÃµes e fixaÃ§Ã£o",      un:"m",   preco:14.20,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
-  { codigo:"91930",     descricao:"Cabo de cobre flexÃvel 2,5mmÂ² â fiaÃ§Ã£o interna",              un:"m",   preco:5.20,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
-  { codigo:"91888",     descricao:"Cabo de cobre flexÃvel 4,0mmÂ² â circuito de chuveiro",        un:"m",   preco:7.60,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91930",     descricao:"Cabo de cobre flexÃ­vel 2,5mmÂ² â fiaÃ§Ã£o interna",              un:"m",   preco:5.20,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
+  { codigo:"91888",     descricao:"Cabo de cobre flexÃ­vel 4,0mmÂ² â circuito de chuveiro",        un:"m",   preco:7.60,   cat:"13. INSTALAÃÃES ELÃTRICAS" },
   { codigo:"91948",     descricao:"Quadro de distribuiÃ§Ã£o 12 disjuntores â embutir",             un:"un",  preco:420.00, cat:"13. INSTALAÃÃES ELÃTRICAS" },
   { codigo:"91950",     descricao:"Disjuntor monopolar 10A/20A/30A",                             un:"un",  preco:32.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
   { codigo:"91968",     descricao:"Ponto de tomada 2P+T 10A â incl. caixa, placa e material",   un:"un",  preco:88.00,  cat:"13. INSTALAÃÃES ELÃTRICAS" },
@@ -795,17 +795,27 @@ REGRAS DE QUANTITATIVOS POR CATEGORIA â baseadas em orÃ§amentos SINAPI re
 
 9. PINTURA:
    - Massa corrida PVA (88484): unidade = MÂ² (paredes internas).
-   - Tinta lÃ¡tex PVA interna (88487): unidade = MÂ² (paredes internas).
-   - Tinta acrÃ­lica fachada (88490): unidade = MÂ² (fachadas externas).
-   - Tinta esmalte esquadrias (88485): unidade = MÂ² (Ã¡rea das esquadrias de madeira Ã 2 faces).
+   - Tinta lÃ¡tex PVA interna (88487): unidade = MÂ² (\Y\È[\\ÊKH[HXÜ°ë[XØHXÚYH
+
+L
+N[YYHHp¬
+XÚY\È^\\ÊKH[H\ÛX[H\Ü]XYX\È
+
+
+JN[YYHHp¬
+0è\XH\È\Ü]XYX\ÈHXYZ\H0åÈXÙ\ÊKLTÔUPQPTÎ[YYHHS\HÑTËÛÛ\[]YX[Y[HØYHÜHH[[KHÜY[Y]0è[XÛÈ
 
-10. ESQUADRIAS: unidade = UN para TODAS. Contar individualmente cada porta e janela.
-    - Gradil metÃ¡lico (73939): unidade = MÂ² (Ã¡rea dos gradis â se houver na planta).
+ÌÎLÎJN[YYHHp¬
+0è\XHÜÈÜY\È8 %ÙHÝ]\H[JKLKTÓÔÎHÛÛ\\ÛÈ
+
+ÌJN[YYHHp¬HØ[0éØYH^\Kðè\XHÙ\péÛÈ
 
-11. PISOS:
-    - Contrapiso (87241): unidade = MÂ².
-    - CalÃ§ada externa/Ã¡rea serviÃ§o (74155/004): unidade = MÂ².
-    - RodapÃ© (87877): unidade = M (metros lineares do perÃ­metro dos ambientes).
+ÍMMKÌ
+N[YYHHp¬HÙ\0êH
+
+Î
+ÍÊN[YYHHH
+Y]Üàlineares do perÃ­metro dos ambientes).
 
 12. INSTALAÃÃES HIDROSSANITÃRIAS:
     - TubulaÃ§Ãµes Ã¡gua fria (89809): unidade = M.
@@ -1383,160 +1393,325 @@ function buildBudget() {
 }
 
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// EXCEL EXPORT
+// EXCEL EXPORT â ExcelJS (estilizado)
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-document.getElementById("btnDownload").addEventListener("click", exportExcel);
+document.getElementById("btnDownload").addEventListener("click", () => exportExcel());
 
-function exportExcel() {
-  const estado  = document.getElementById("stateSelect").value;
-  const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
-  const fator   = FATORES_ESTADO[estado] || 1;
-  const r       = APP.analysisResult;
+async function exportExcel() {
+  const estado = document.getElementById("stateSelect").value;
+  const bdi    = parseFloat(document.getElementById("bdiInput").value) / 100;
+  const fator  = FATORES_ESTADO[estado] || 1;
+  const r      = APP.analysisResult;
   if (!r) return;
 
-  const wb = XLSX.utils.book_new();
+  // Auto-gera cronograma se ainda nÃ£o foi calculado
+  if (!APP.schedule) {
+    const di = document.getElementById("startDateInput");
+    if (!di.value) di.value = new Date().toISOString().split("T")[0];
+    buildSchedule();
+  }
 
-  // ââ Sheet 1: OrÃ§amento ââââââââââââââââââââââââââââââââââââââ
-  const rows = [
-    [`ORÃAMENTO DE OBRA â ${APP.projectName}`],
-    [`Estado: ${estado} | SINAPI 05/2025 | BDI: ${(bdi*100).toFixed(2)}% | Data: ${new Date().toLocaleDateString("pt-BR")}`],
-    [],
-    ["ITEM","CÃDIGO SINAPI","DESCRIÃÃO","UN","QUANTIDADE","PREÃO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
-  ];
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "ObraIA"; wb.created = new Date();
+
+  // ââ Paleta ââââââââââââââââââââââââââââââââââââââââââââââââââ
+  const C = {
+    navy:"FF1A3C5E", blue:"FF2E75B6", sky:"FF5BA3D9",
+    amber:"FFE67E22", green:"FF27AE60", red:"FFE74C3C",
+    white:"FFFFFFFF", gold:"FFFFD700",
+    light:"FFE8F2FB", gray:"FFF0F4F8", subtot:"FFD6E4F0",
+    blueFloat:"FFB8D9F5",
+  };
+  const brd = (c="FFB8CDD9") => ({
+    top:{style:"thin",color:{argb:c}}, left:{style:"thin",color:{argb:c}},
+    bottom:{style:"thin",color:{argb:c}}, right:{style:"thin",color:{argb:c}},
+  });
+  const fillSolid = (argb) => ({type:"pattern",pattern:"solid",fgColor:{argb}});
+  const font = (opts={}) => ({name:"Calibri",size:10,...opts});
+
+  function fillRow(row, bg, fgArgb=C.white, bold=false, sz=10) {
+    row.eachCell({includeEmpty:true}, cell => {
+      cell.fill   = fillSolid(bg);
+      cell.font   = font({bold,color:{argb:fgArgb},size:sz});
+      cell.border = brd();
+      cell.alignment = {vertical:"middle"};
+    });
+  }
 
   const byCat = {};
-  (r.quantitativos || []).forEach(q => {
-    const c = q.categoria || "99. OUTROS";
+  (r.quantitativos||[]).forEach(q => {
+    const c = q.categoria||"99. OUTROS";
     if (!byCat[c]) byCat[c] = [];
     byCat[c].push(q);
   });
+  const fmt2 = v => Math.round(v*100)/100;
+  const brlFmt = '"R$ "#,##0.00';
 
-  let itemNum = 0, totalSemBdi = 0, totalComBdi = 0;
-  const fmt2 = v => Math.round(v * 100) / 100;
-
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
-    rows.push([cat, "", "", "", "", "", "", "", ""]);
-    let catTotal = 0;
-
-    itens.forEach(q => {
-      itemNum++;
-      const sinapiItem = findSinapiItem(q.sinapi_codigo || "", q.descricao || "", cat);
-      const precoAdj   = (sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0)) * fator;
-      const qtd        = Number(q.quantidade) || 0;
-      const subtotal   = fmt2(precoAdj * qtd);
-      const comBdi     = fmt2(subtotal * (1 + bdi));
-      catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
-
-      rows.push([itemNum, q.sinapi_codigo||"â", sinapiItem ? sinapiItem.descricao : q.descricao,
-                 q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
-    });
-    rows.push(["", "", `SUBTOTAL â ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
-  });
-
-  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, "", fmt2(totalSemBdi)]);
-  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, "", fmt2(totalComBdi)]);
-
-  const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws1, "ORÃAMENTO");
-
-  // ââ Sheet 2: EAP âââââââââââââââââââââââââââââââââââââââââââ
-  const eapRows = [
-    [`EAP â ESTRUTURA ANALÃTICA DO PROJETO â ${APP.projectName}`],
-    [],
-    ["ID WBS","DESCRIÃÃO","NÃVEL","UN","QUANTIDADE","CÃDIGO SINAPI","MEMÃRIA DE CÃLCULO"],
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // SHEET 1 â ORÃAMENTO
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  const ws1 = wb.addWorksheet("ORÃAMENTO");
+  ws1.columns = [
+    {width:6},{width:17},{width:54},{width:7},{width:12},
+    {width:18},{width:20},{width:10},{width:22}
   ];
-  eapRows.push(["1", APP.projectName || "OBRA", "1", "", "", "", ""]);
 
-  let catIdx = 0;
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
-    catIdx++;
-    eapRows.push([`1.${catIdx}`, cat, "2", "", "", "", ""]);
-    itens.forEach((q, i) => {
-      eapRows.push([`1.${catIdx}.${i+1}`, q.descricao, "3", q.unidade, q.quantidade, q.sinapi_codigo||"", q.memoria_calculo||""]);
+  // TÃ­tulo
+  const t1 = ws1.addRow([`ORÃAMENTO DE OBRA â ${APP.projectName}`]);
+  ws1.mergeCells(`A${t1.number}:I${t1.number}`);
+  t1.height = 32;
+  t1.getCell(1).fill  = fillSolid(C.navy);
+  t1.getCell(1).font  = font({bold:true,color:{argb:C.white},size:14});
+  t1.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
+
+  // SubtÃ­tulo
+  const t2 = ws1.addRow([`Estado: ${estado}  Â·  SINAPI 05/2025  Â·  BDI: ${(bdi*100).toFixed(2)}%  Â·  ${new Date().toLocaleDateString("pt-BR")}`]);
+  ws1.mergeCells(`A${t2.number}:I${t2.number}`);
+  t2.height = 18;
+  t2.getCell(1).fill  = fillSolid(C.blue);
+  t2.getCell(1).font  = font({color:{argb:C.white},size:9});
+  t2.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
+
+  ws1.addRow([]);
+
+  // CabeÃ§alho
+  const hdr1 = ws1.addRow(["ITEM","CÃD. SINAPI","DESCRIÃÃO DO SERVIÃO","UN","QTDE",
+    "PREÃO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"]);
+  hdr1.height = 22;
+  fillRow(hdr1, C.navy, C.white, true, 10);
+  hdr1.eachCell(cell => { cell.alignment = {vertical:"middle",horizontal:"center",wrapText:true}; });
+
+  let itemN=0, totSem=0, totCom=0;
+
+  Object.entries(byCat).sort(([a],[b])=>a.localeCompare(b)).forEach(([cat,itens]) => {
+    // Linha de categoria
+    const rCat = ws1.addRow([cat,"","","","","","","",""]);
+    ws1.mergeCells(`A${rCat.number}:I${rCat.number}`);
+    rCat.height = 20;
+    rCat.getCell(1).fill  = fillSolid(C.blue);
+    rCat.getCell(1).font  = font({bold:true,color:{argb:C.white},size:10});
+    rCat.getCell(1).alignment = {vertical:"middle",horizontal:"left",indent:1};
+
+    let catTot=0;
+    itens.forEach((q,qi) => {
+      itemN++;
+      const si = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", cat);
+      const prAdj = (si?si.preco:(q.preco_unitario||0))*fator;
+      const qtd   = Number(q.quantidade)||0;
+      const sub   = fmt2(prAdj*qtd);
+      const cBdi  = fmt2(sub*(1+bdi));
+      catTot += cBdi; totSem += sub; totCom += cBdi;
+
+      const rI = ws1.addRow([itemN, q.sinapi_codigo||"â",
+        si?si.descricao:q.descricao, q.unidade, qtd, prAdj, sub, (bdi*100).toFixed(2)+"%", cBdi]);
+      rI.height = 16;
+      const bg = qi%2===0 ? C.gray : C.white;
+      rI.eachCell({includeEmpty:true}, cell => {
+        cell.fill   = fillSolid(bg);
+        cell.font   = font({size:9});
+        cell.border = brd("FFE0E8EF");
+        cell.alignment = {vertical:"middle"};
+      });
+      [5,6,7,9].forEach(c => { rI.getCell(c).alignment = {vertical:"middle",horizontal:"right"}; });
+      rI.getCell(6).numFmt = brlFmt;
+      rI.getCell(7).numFmt = brlFmt;
+      rI.getCell(9).numFmt = brlFmt;
+      rI.getCell(5).numFmt = "#,##0.00";
+    });
+
+    // Subtotal
+    const rSub = ws1.addRow(["","",`SUBTOTAL â ${cat.replace(/^\d+\.\s*/,"")}`,"","","","","",catTot]);
+    ws1.mergeCells(`A${rSub.number}:H${rSub.number}`);
+    rSub.height = 18;
+    rSub.getCell(1).fill = fillSolid(C.subtot);
+    rSub.getCell(1).font = font({bold:true,color:{argb:C.navy},size:9});
+    rSub.getCell(1).alignment = {vertical:"middle",horizontal:"right"};
+    rSub.getCell(9).fill   = fillSolid(C.subtot);
+    rSub.getCell(9).font   = font({bold:true,color:{argb:C.navy},size:9});
+    rSub.getCell(9).numFmt = brlFmt;
+    rSub.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
+    rSub.getCell(9).border = brd();
+  });
+
+  // Total s/ BDI
+  const rT1 = ws1.addRow(["","","","","","",`TOTAL GERAL S/ BDI`,"",totSem]);
+  ws1.mergeCells(`A${rT1.number}:F${rT1.number}`);
+  rT1.height = 22; fillRow(rT1, C.navy, C.white, true, 10);
+  rT1.getCell(7).fill = fillSolid(C.navy); rT1.getCell(7).font = font({bold:true,color:{argb:C.white},size:10});
+  rT1.getCell(7).alignment = {vertical:"middle",horizontal:"right"};
+  rT1.getCell(9).numFmt = brlFmt;
+  rT1.getCell(9).fill = fillSolid(C.navy); rT1.getCell(9).font = font({bold:true,color:{argb:C.white},size:10});
+  rT1.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
+
+  // Total c/ BDI
+  const rT2 = ws1.addRow(["","","","","","",`â TOTAL GERAL C/ BDI (${(bdi*100).toFixed(2)}%)`,"",totCom]);
+  ws1.mergeCells(`A${rT2.number}:F${rT2.number}`);
+  rT2.height = 28; fillRow(rT2, C.navy, C.gold, true, 12);
+  rT2.getCell(7).fill = fillSolid(C.navy); rT2.getCell(7).font = font({bold:true,color:{argb:C.gold},size:12});
+  rT2.getCell(7).alignment = {vertical:"middle",horizontal:"right"};
+  rT2.getCell(9).numFmt = brlFmt;
+  rT2.getCell(9).fill = fillSolid(C.navy); rT2.getCell(9).font = font({bold:true,color:{argb:C.gold},size:14});
+  rT2.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
+  rT2.getCell(9).border = brd(C.gold);
+
+  ws1.views = [{state:"frozen",xSplit:0,ySplit:4,activeCell:"A5"}];
+
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // SHEET 2 â EAP
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  const ws2 = wb.addWorksheet("EAP");
+  ws2.columns = [{width:12},{width:55},{width:8},{width:7},{width:12},{width:16},{width:55}];
+
+  const eT = ws2.addRow([`EAP â ESTRUTURA ANALÃTICA â ${APP.projectName}`]);
+  ws2.mergeCells(`A${eT.number}:G${eT.number}`);
+  eT.height = 26;
+  eT.getCell(1).fill = fillSolid(C.navy); eT.getCell(1).font = font({bold:true,color:{argb:C.white},size:12});
+  eT.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
+
+  ws2.addRow([]);
+  const eH = ws2.addRow(["ID WBS","DESCRIÃÃO","NÃV.","UN","QTDE","CÃD. SINAPI","MEMÃRIA DE CÃLCULO"]);
+  eH.height = 20; fillRow(eH, C.navy, C.white, true, 10);
+  ws2.addRow(["1", APP.projectName||"OBRA","1","","","",""]);
+
+  let cIdx=0;
+  Object.entries(byCat).sort(([a],[b])=>a.localeCompare(b)).forEach(([cat,itens])=>{
+    cIdx++;
+    const cR = ws2.addRow([`1.${cIdx}`,cat,"2","","","",""]);
+    [1,2].forEach(i => {
+      cR.getCell(i).fill = fillSolid(C.light);
+      cR.getCell(i).font = font({bold:true,color:{argb:C.navy},size:9});
+    });
+    itens.forEach((q,i) => {
+      const iR = ws2.addRow([`1.${cIdx}.${i+1}`,q.descricao,"3",q.unidade,q.quantidade,q.sinapi_codigo||"",q.memoria_calculo||""]);
+      iR.eachCell({includeEmpty:true}, cell => { cell.font = font({size:9}); cell.border = brd("FFE0E8EF"); });
     });
   });
 
-  const ws2 = XLSX.utils.aoa_to_sheet(eapRows);
-  ws2["!cols"] = [10,55,8,6,12,16,60].map(w => ({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws2, "EAP");
-
-  // ââ Sheet 3: Ambientes ââââââââââââââââââââââââââââââââââââââ
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // SHEET 3 â AMBIENTES
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (r.ambientes?.length) {
-    const ambRows = [["AMBIENTE","ÃREA (mÂ²)","PÃ DIREITO (m)"]];
-    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "â"]));
-    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
-    const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
-    ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
-    XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
+    const ws3 = wb.addWorksheet("AMBIENTES");
+    ws3.columns = [{width:32},{width:15},{width:16}];
+    const aH = ws3.addRow(["AMBIENTE","ÃREA (mÂ²)","PÃ DIREITO (m)"]);
+    aH.height=20; fillRow(aH,C.navy,C.white,true,10);
+    r.ambientes.forEach(a => {
+      const row = ws3.addRow([a.nome,a.area_m2,a.pe_direito_m||"â"]);
+      row.eachCell(cell=>{cell.font=font({size:9});cell.border=brd("FFE0E8EF");});
+    });
+    const aTot = ws3.addRow(["TOTAL", r.ambientes.reduce((s,a)=>s+(a.area_m2||0),0).toFixed(2),""]);
+    aTot.height=20; fillRow(aTot,C.blue,C.white,true,10);
   }
 
-
-  // Sheet 4: CRONOGRAMA (if generated)
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  // SHEET 4 â CRONOGRAMA
+  // ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (APP.schedule) {
+    const ws4 = wb.addWorksheet("CRONOGRAMA");
     const { acts, totalWeeks, startDate } = APP.schedule;
-    const totalCost = acts.reduce((s,a) => s + a.total, 0);
+    const totC = acts.reduce((s,a)=>s+a.total,0);
 
-    // Activity table
-    const schedRows = [
-      ["ID","Atividade","Dur. (sem)","InÃ­cio (sem)","Fim (sem)","Folga Total","CrÃ­tico","Data InÃ­cio","Data Fim","Custo (R$)","% do Total"]
-    ];
+    ws4.columns = [{width:6},{width:32},{width:11},{width:12},{width:10},{width:8},{width:9},{width:14},{width:14},{width:18},{width:12}];
+
+    const cT = ws4.addRow([`CRONOGRAMA FÃSICO-FINANCEIRO â ${APP.projectName}`]);
+    ws4.mergeCells(`A${cT.number}:K${cT.number}`);
+    cT.height=28; cT.getCell(1).fill=fillSolid(C.navy); cT.getCell(1).font=font({bold:true,color:{argb:C.white},size:13});
+    cT.getCell(1).alignment={vertical:"middle",horizontal:"center"};
+    ws4.addRow([]);
+
+    const cH = ws4.addRow(["ID","ATIVIDADE","DUR.(sem)","INÃCIO","FIM","FOLGA","CRÃTICO","DT INÃCIO","DT FIM","CUSTO (R$)","% TOTAL"]);
+    cH.height=20; fillRow(cH,C.navy,C.white,true,10);
+
     acts.forEach(a => {
-      const dI = a.active ? _fmtDate(_schedDate(startDate, a.ES)) : "";
-      const dF = a.active ? _fmtDate(_schedDate(startDate, a.EF)) : "";
-      const pct = totalCost > 0 && a.total > 0 ? (a.total/totalCost*100).toFixed(1)+"%" : "0%";
-      schedRows.push([a.id, a.label, a.active?a.dur:"", a.active?a.ES:"", a.active?a.EF:"", a.active?a.TF:"", a.critical?"SIM":"NÃO", dI, dF, a.active?a.total.toFixed(2):"0,00", pct]);
+      const dI = a.active ? _fmtDate(_schedDate(startDate,a.ES)) : "";
+      const dF = a.active ? _fmtDate(_schedDate(startDate,a.EF)) : "";
+      const pct = totC>0&&a.total>0 ? (a.total/totC*100).toFixed(1)+"%" : "0%";
+      const rA = ws4.addRow([a.id,a.label,a.active?a.dur:"",a.active?a.ES:"",a.active?a.EF:"",
+        a.active?a.TF:"",a.critical?"SIM":"NÃO",dI,dF,a.active?a.total:0,pct]);
+      rA.height=16;
+      const bg = a.critical?"FFFDE8E8":(a.active?C.gray:C.white);
+      rA.eachCell({includeEmpty:true},cell=>{
+        cell.fill=fillSolid(bg);
+        cell.font=font({size:9,...(a.critical?{color:{argb:C.red},bold:true}:{})});
+        cell.border=brd("FFE0E8EF"); cell.alignment={vertical:"middle"};
+      });
+      rA.getCell(10).numFmt=brlFmt; rA.getCell(10).alignment={vertical:"middle",horizontal:"right"};
     });
 
-    // Monthly financial breakdown
-    const weekCost = new Array(totalWeeks).fill(0);
-    acts.forEach(a => {
-      if (!a.active || a.dur === 0) return;
-      const wkCost = a.total / a.dur;
-      for (let ww = a.ES; ww < a.EF && ww < totalWeeks; ww++) weekCost[ww] += wkCost;
+    // Desembolso mensal
+    ws4.addRow([]);
+    const mTitle = ws4.addRow(["DESEMBOLSO MENSAL"]);
+    ws4.mergeCells(`A${mTitle.number}:D${mTitle.number}`);
+    mTitle.getCell(1).fill=fillSolid(C.blue); mTitle.getCell(1).font=font({bold:true,color:{argb:C.white},size:10});
+
+    const mH = ws4.addRow(["MÃS","DESEMBOLSO (R$)","ACUMULADO (R$)","ACUMULADO (%)"]);
+    mH.height=18; fillRow(mH,C.navy,C.white,true,10);
+
+    const wkCost = new Array(totalWeeks).fill(0);
+    acts.forEach(a=>{
+      if(!a.active||a.dur===0)return;
+      const wc=a.total/a.dur;
+      for(let w=a.ES;w<a.EF&&w<totalWeeks;w++) wkCost[w]+=wc;
     });
-    const monthData2 = {};
-    const monthOrder2 = [];
-    for (let ww = 0; ww < totalWeeks; ww++) {
-      const d2 = _schedDate(startDate, ww);
-      const key2 = d2.getFullYear() + "-" + String(d2.getMonth()+1).padStart(2,"0");
-      const lbl2 = _fmtMonthYear(d2);
-      if (!monthData2[key2]) { monthData2[key2] = {lbl:lbl2, val:0}; monthOrder2.push(key2); }
-      monthData2[key2].val += weekCost[ww];
+    const mData={},mOrder=[];
+    for(let w=0;w<totalWeeks;w++){
+      const d=_schedDate(startDate,w);
+      const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      if(!mData[k]){mData[k]={lbl:_fmtMonthYear(d),val:0};mOrder.push(k);}
+      mData[k].val+=wkCost[w];
     }
-
-    schedRows.push([]);
-    schedRows.push(["DESEMBOLSO MENSAL"]);
-    schedRows.push(["MÃªs","Desembolso (R$)","Acumulado (R$)","Acumulado (%)"]);
-    let accR2 = 0;
-    monthOrder2.forEach(k2 => {
-      accR2 += monthData2[k2].val;
-      const pct2 = totalCost > 0 ? (accR2/totalCost*100).toFixed(1)+"%" : "0%";
-      schedRows.push([monthData2[k2].lbl, monthData2[k2].val.toFixed(2), accR2.toFixed(2), pct2]);
+    let acc=0;
+    mOrder.forEach(k=>{
+      acc+=mData[k].val;
+      const pct=totC>0?(acc/totC*100).toFixed(1)+"%":"0%";
+      const mR=ws4.addRow([mData[k].lbl,mData[k].val,acc,pct]);
+      mR.height=16;
+      mR.getCell(2).numFmt=brlFmt; mR.getCell(3).numFmt=brlFmt;
+      mR.eachCell({includeEmpty:true},cell=>{cell.font=font({size:9});cell.border=brd("FFE0E8EF");});
     });
-    schedRows.push(["TOTAL", totalCost.toFixed(2), totalCost.toFixed(2), "100,0%"]);
+    const mTot=ws4.addRow(["TOTAL",totC,totC,"100,0%"]);
+    mTot.height=20; fillRow(mTot,C.navy,C.white,true,10);
+    mTot.getCell(2).numFmt=brlFmt; mTot.getCell(3).numFmt=brlFmt;
 
-    // Gantt grid (numeric: 2=critico, 1=normal, 0.5=folga, ""=vazio)
-    schedRows.push([]);
-    schedRows.push(["GANTT â Grade Semanal (2=CrÃ­tico, 1=Normal, 0.5=Folga)"]);
-    const ganttHeader = ["Atividade"]; for (let wg=1; wg<=totalWeeks; wg++) ganttHeader.push("S"+wg);
-    schedRows.push(ganttHeader);
-    acts.forEach(a => {
-      const row = [a.label];
-      for (let wg=0; wg<totalWeeks; wg++) {
-        if (a.active && wg >= a.ES && wg < a.EF) row.push(a.critical ? 2 : 1);
-        else if (a.active && a.TF > 0 && wg >= a.EF && wg < a.EF + a.TF) row.push(0.5);
-        else row.push("");
+    // Gantt (grade colorida)
+    ws4.addRow([]);
+    const gTitle=ws4.addRow(["GANTT â DIAGRAMA SEMANAL"]);
+    ws4.mergeCells(`A${gTitle.number}:${String.fromCharCode(65+totalWeeks)}${gTitle.number}`);
+    gTitle.getCell(1).fill=fillSolid(C.navy); gTitle.getCell(1).font=font({bold:true,color:{argb:C.white},size:10});
+
+    const gH=ws4.addRow(["ATIVIDADE",...Array.from({length:totalWeeks},(_,i)=>"S"+(i+1))]);
+    gH.height=18;
+    gH.eachCell({includeEmpty:true},cell=>{
+      cell.fill=fillSolid(C.navy); cell.font=font({bold:true,color:{argb:C.white},size:8});
+      cell.alignment={vertical:"middle",horizontal:"center"};
+    });
+
+    acts.forEach(a=>{
+      const gR=ws4.addRow([a.label,...new Array(totalWeeks).fill("")]);
+      gR.height=14;
+      gR.getCell(1).fill=fillSolid("FFF8FAFC");
+      gR.getCell(1).font=font({size:9,...(a.critical?{color:{argb:C.red},bold:true}:{})});
+      for(let w=0;w<totalWeeks;w++){
+        const cell=gR.getCell(w+2);
+        if(a.active&&w>=a.ES&&w<a.EF){
+          cell.fill=fillSolid(a.critical?"FFE74C3C":"FF2E75B6");
+        } else if(a.active&&a.TF>0&&w>=a.EF&&w<a.EF+a.TF){
+          cell.fill=fillSolid(C.blueFloat);
+        } else {
+          cell.fill=fillSolid(C.white);
+        }
+        cell.border=brd("FFF0F4F8");
       }
-      schedRows.push(row);
     });
-
-    const wsCron = XLSX.utils.aoa_to_sheet(schedRows);
-    XLSX.utils.book_append_sheet(wb, wsCron, "CRONOGRAMA");
   }
 
-  const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
-  XLSX.writeFile(wb, fname);
+  // ââ Download ââââââââââââââââââââââââââââââââââââââââââââââââ
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download=`Orcamento_${(APP.projectName||"Obra").replace(/\s+/g,"_")}_${estado}.xlsx`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -1604,191 +1779,128 @@ function buildSchedule() {
   });
   const totalWeeks = Math.max(1, ...acts.map(a => a.EF));
 
-  // Build successors map
-  const succs = {};
-  acts.forEach(a => a.preds.forEach(({id:pid,req}) => {
-    (succs[pid] = succs[pid]||[]).push({id:a.id, req});
-  }));
-
-  // Initialize LF for backward pass
-  acts.forEach(a => { a.LF = totalWeeks; });
-
-  // Backward pass
+  // Build schedule: backward pass + critical path
+  const maxEF = totalWeeks;
   [...acts].reverse().forEach(a => {
-    (succs[a.id]||[]).forEach(({id:sid, req}) => {
-      const s = byId[sid]; if (!s) return;
-      const ls_s  = s.LF - s.dur;
-      const maxLF = ls_s + (1 - req) * a.dur;
-      if (maxLF < a.LF) a.LF = maxLF;
-    });
-    a.LS = a.LF - a.dur;
-    a.TF = Math.round(a.LS - a.ES);
-    a.critical = a.active && a.TF <= 0;
+    const succs = acts.filter(b => b.preds.some(p => p.id === a.id));
+    a.LF = succs.length > 0 ? Math.min(...succs.map(b => b.LS)) : maxEF;
+    a.LS = a.LF - (a.active ? a.dur : 0);
+    a.TF = a.LS - a.ES;
+    a.critical = a.TF === 0 && a.active;
   });
 
-  const startDateStr = document.getElementById("startDateInput").value;
-  const startDate = startDateStr ? new Date(startDateStr + "T00:00:00") : new Date();
+  const startDateEl = document.getElementById("startDateInput");
+  if (!startDateEl.value) startDateEl.value = new Date().toISOString().split("T")[0];
+  const startDate = new Date(startDateEl.value + "T00:00:00");
 
-  APP.schedule = { acts, totalWeeks, catTotals, startDate };
-  _renderSchedKpis();
-  _renderGantt();
-  _renderScurve();
+  APP.schedule = { acts, totalWeeks, startDate };
+  renderSchedule(acts, totalWeeks, startDate);
+  return { acts, totalWeeks };
 }
 
-function _renderSchedKpis() {
-  const { acts, totalWeeks, startDate } = APP.schedule;
-  const totalCost = acts.reduce((s,a) => s + a.total, 0);
-  const criticalPath = acts.filter(a => a.critical).map(a => a.label).join(" â ");
-  const endDate = _schedDate(startDate, totalWeeks);
-  const kpis = [
-    { label:"Prazo Total", value: totalWeeks + " semanas", icon:"â±" },
-    { label:"Data de InÃ­cio", value: _fmtDate(startDate), icon:"ð" },
-    { label:"Data de TÃ©rmino", value: _fmtDate(endDate), icon:"ð" },
-    { label:"Custo Total (c/ BDI)", value: _fmtCur(totalCost), icon:"ð°" },
-  ];
-  document.getElementById("schedKpis").innerHTML = kpis.map(k =>
-    `<div class="info-box"><div class="info-icon">${k.icon}</div><div class="info-label">${k.label}</div><div class="info-value">${k.value}</div></div>`
-  ).join("") + (criticalPath ? `<div class="info-box" style="grid-column:1/-1"><div class="info-icon">ð´</div><div class="info-label">Caminho CrÃ­tico</div><div class="info-value" style="font-size:11px;word-break:break-word">${criticalPath}</div></div>` : "");
-}
+function renderSchedule(acts, totalWeeks, startDate) {
+  if (!startDate) {
+    const el = document.getElementById("startDateInput");
+    startDate = el && el.value ? new Date(el.value+"T00:00:00") : new Date();
+  }
+  const r = APP.analysisResult; if (!r) return;
+  const estado = document.getElementById("stateSelect").value;
+  const bdi = parseFloat(document.getElementById("bdiInput").value) / 100 || 0.2475;
+  const fator = FATORES_ESTADO[estado] || 1;
+  const totC = (r.quantitativos||[]).reduce((s,q) => {
+    const si = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", q.categoria);
+    return s + (si ? si.preco : (q.preco_unitario||0)) * fator * (parseFloat(q.quantidade)||0) * (1+bdi);
+  }, 0);
 
-function _renderGantt() {
-  const { acts, totalWeeks, startDate } = APP.schedule;
+  const critActs  = acts.filter(a => a.critical);
+  const activActs = acts.filter(a => a.active);
 
-  // Build month header spans
-  const monthSpans = [];
-  let curMonth = null, curSpan = 0, curStart = 0;
+  // KPI cards
+  const kpiEl = document.getElementById("schedKpis");
+  if (kpiEl) kpiEl.innerHTML = [
+    { label:"â± DuraÃ§Ã£o Total",    val:totalWeeks+" semanas",         sub:"Prazo CPM do projeto" },
+    { label:"â  Caminho CrÃ­tico",  val:critActs.length+" atividades", sub:critActs.slice(0,3).map(a=>a.label).join(", ")+(critActs.length>3?"...":"") },
+    { label:"ð InÃ­cio Previsto", val:_fmtDate(startDate),            sub:"Data de inÃ­cio da obra" },
+    { label:"ð TÃ©rmino Previsto",val:_fmtDate(_schedDate(startDate,totalWeeks)), sub:"Data prevista de entrega" },
+  ].map(k=>`<div class="info-box"><div class="label">${k.label}</div><div class="value">${k.val}</div><div class="sublabel">${k.sub}</div></div>`).join('');
+
+  // Month header groups
+  const weekDates = Array.from({length:totalWeeks}, (_,i) => _schedDate(startDate, i));
+  const months = []; let lastM = -1, mStart = 0;
+  weekDates.forEach((d,i) => {
+    const m = d.getFullYear()*12 + d.getMonth();
+    if (m !== lastM) {
+      if (lastM >= 0) months[months.length-1].span = i - mStart;
+      months.push({label:_fmtMonthYear(d), span:1}); mStart = i; lastM = m;
+    }
+  });
+  if (months.length) months[months.length-1].span = totalWeeks - mStart;
+
+  // Gantt
+  let gt = `<table class="gantt-table"><thead><tr>
+    <th class="act-col" rowspan="2">ATIVIDADE</th>
+    <th class="info-col" rowspan="2">INÃCIO</th>
+    <th class="info-col" rowspan="2">TÃRMINO</th>
+    <th class="info-col" rowspan="2">DUR.</th>
+    ${months.map(m=>`<th class="month-hd" colspan="${m.span}">${m.label}</th>`).join('')}
+  </tr><tr>${weekDates.map((_,i)=>`<th>S${i+1}</th>`).join('')}</tr></thead><tbody>`;
+  activActs.forEach(a => {
+    gt += `<tr>
+      <td class="act-name${a.critical?' is-critical':''}">${a.critical?'â¶ ':'â¢ '}${a.label}</td>
+      <td class="info-cell">${_fmtDate(_schedDate(startDate,a.ES))}</td>
+      <td class="info-cell">${_fmtDate(_schedDate(startDate,a.EF))}</td>
+      <td class="info-cell">${a.dur}s</td>
+      ${Array.from({length:totalWeeks},(_,w) => {
+        if (w >= a.ES && w < a.EF)
+          return `<td><div class="gantt-cell ${a.critical?'gcritical':'gactive'}"></div></td>`;
+        if (a.TF > 0 && w >= a.EF && w < a.EF+a.TF)
+          return '<td><div class="gantt-cell gfloat"></div></td>';
+        return '<td></td>';
+      }).join('')}
+    </tr>`;
+  });
+  gt += '</tbody></table>';
+  const gw = document.getElementById("ganttWrap");
+  if (gw) gw.innerHTML = gt;
+
+  // S-Curve table
+  const wkCost = new Array(totalWeeks).fill(0);
+  activActs.forEach(a => {
+    if (a.dur === 0) return;
+    const wc = a.total / a.dur;
+    for(let w = a.ES; w < a.EF && w < totalWeeks; w++) wkCost[w] += wc;
+  });
+  const mData = {}, mOrder = [];
   for (let w = 0; w < totalWeeks; w++) {
     const d = _schedDate(startDate, w);
-    const mo = d.getMonth() + "-" + d.getFullYear();
-    if (mo !== curMonth) {
-      if (curMonth !== null) monthSpans.push({ label: _fmtMonthYear(_schedDate(startDate, curStart)), span: curSpan });
-      curMonth = mo; curSpan = 1; curStart = w;
-    } else { curSpan++; }
+    const k = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    if (!mData[k]) { mData[k] = {lbl:_fmtMonthYear(d), val:0}; mOrder.push(k); }
+    mData[k].val += wkCost[w];
   }
-  if (curMonth !== null) monthSpans.push({ label: _fmtMonthYear(_schedDate(startDate, curStart)), span: curSpan });
-
-  let html = `<table class="gantt-table"><thead>`;
-  // Row 1: month headers
-  html += `<tr><th class="act-col" rowspan="2">Atividade</th><th class="info-col month-hd" rowspan="2">Dur.<br>(sem)</th><th class="info-col month-hd" rowspan="2">InÃ­cio</th><th class="info-col month-hd" rowspan="2">Fim</th><th class="info-col month-hd" rowspan="2">Folga</th>`;
-  monthSpans.forEach(ms => { html += `<th class="month-hd" colspan="${ms.span}">${ms.label}</th>`; });
-  html += `</tr>`;
-  // Row 2: week numbers
-  html += `<tr>`;
-  for (let w = 1; w <= totalWeeks; w++) html += `<th>${w}</th>`;
-  html += `</tr></thead><tbody>`;
-
-  acts.forEach(a => {
-    const crit = a.critical ? " is-critical" : "";
-    const startD = _fmtDate(_schedDate(startDate, a.ES));
-    const endD   = a.active ? _fmtDate(_schedDate(startDate, a.EF)) : "â";
-    html += `<tr><td class="act-name${crit}">${a.label}</td>`;
-    html += `<td class="info-cell">${a.active ? a.dur : "â"}</td>`;
-    html += `<td class="info-cell" style="font-size:9.5px">${a.active ? startD : "â"}</td>`;
-    html += `<td class="info-cell" style="font-size:9.5px">${endD}</td>`;
-    html += `<td class="info-cell">${a.active ? a.TF : "â"}</td>`;
-    for (let w = 0; w < totalWeeks; w++) {
-      let cls = "";
-      if (a.active && w >= a.ES && w < a.EF) {
-        cls = a.critical ? "gantt-cell gcritical" : "gantt-cell gactive";
-      } else if (a.active && a.TF > 0 && w >= a.EF && w < a.EF + a.TF) {
-        cls = "gantt-cell gfloat";
-      }
-      html += `<td><div class="${cls}"></div></td>`;
-    }
-    html += `</tr>`;
+  let cumA = 0;
+  let sc = `<table class="scurve-table"><thead><tr>
+    <th>MÃS</th><th>DESEMBOLSO</th><th>ACUMULADO</v><th style="min-width:200px">CURVA S</th>
+  </tr></thead><tbody>`;
+  mOrder.forEach(k => {
+    cumA += mData[k].val;
+    const pct = totC > 0 ? (cumA/totC*100).toFixed(1) : "0.0";
+    const bw  = totC > 0 ? Math.round(cumA/totC*100) : 0;
+    sc += `<tr><td>${mData[k].lbl}</td>
+      <td style="text-align:right">${_fmtCur(mData[k].val)}</td>
+      <td style="text-align:right">${_fmtCur(cumA)}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;background:#e8f2fb;border-radius:4px;height:10px">
+          <div style="width:${bw}%;background:var(--blue);border-radius:4px;height:10px"></div>
+        </div><span style="min-width:40px;text-align:right;font-weight:600">${pct}%</span>
+      </div></td></tr>`;
   });
-  html += `</tbody></table>`;
-  document.getElementById("ganttWrap").innerHTML = html;
+  sc += `<tr style="background:var(--navy);color:#fff;font-weight:700">
+    <td>TOTAL</td><td style="text-align:right">${_fmtCur(totC)}</td>
+    <td style="text-align:right">${_fmtCur(totC)}</td><td style="text-align:right">100,0%</td>
+  </tr></tbody></table>`;
+  const sw = document.getElementById("scurveWrap");
+  if (sw) sw.innerHTML = sc;
 }
-
-function _renderScurve() {
-  const { acts, totalWeeks, startDate } = APP.schedule;
-  const totalCost = acts.reduce((s,a) => s + a.total, 0);
-  if (totalCost === 0) return;
-
-  // Build weekly cost array
-  const weekCost = new Array(totalWeeks).fill(0);
-  acts.forEach(a => {
-    if (!a.active || a.dur === 0) return;
-    const wkCost = a.total / a.dur;
-    for (let w = a.ES; w < a.EF && w < totalWeeks; w++) weekCost[w] += wkCost;
-  });
-
-  // Aggregate by month for table
-  const monthData = {};
-  const monthOrder = [];
-  for (let w = 0; w < totalWeeks; w++) {
-    const d  = _schedDate(startDate, w);
-    const key = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-    const lbl = _fmtMonthYear(d);
-    if (!monthData[key]) { monthData[key] = {lbl, val:0}; monthOrder.push(key); }
-    monthData[key].val += weekCost[w];
-  }
-
-  // SVG S-curve
-  const W = 700, H = 180, PAD = 40;
-  const pts = [];
-  let accum = 0;
-  monthOrder.forEach((k,i) => {
-    accum += monthData[k].val;
-    const x = PAD + (i / (monthOrder.length-1||1)) * (W - 2*PAD);
-    const y = H - PAD - ((accum/totalCost) * (H - 2*PAD));
-    pts.push([x,y]);
-  });
-  const pathD = pts.map((p,i) => (i===0?"M":"L") + p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
-  const areaD = pathD + ` L${pts[pts.length-1][0].toFixed(1)},${H-PAD} L${pts[0][0].toFixed(1)},${H-PAD} Z`;
-
-  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:${H}px;" xmlns="http://www.w3.org/2000/svg">`;
-  svg += `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2563eb" stop-opacity="0.2"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0.02"/></linearGradient></defs>`;
-  // Grid lines
-  [0,25,50,75,100].forEach(pct => {
-    const y = H - PAD - (pct/100)*(H-2*PAD);
-    svg += `<line x1="${PAD}" y1="${y.toFixed(1)}" x2="${W-PAD}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="1"/>`;
-    svg += `<text x="${PAD-5}" y="${y+4}" text-anchor="end" font-size="9" fill="#6b7280">${pct}%</text>`;
-  });
-  // Month labels
-  monthOrder.forEach((k,i) => {
-    const x = PAD + (i/(monthOrder.length-1||1))*(W-2*PAD);
-    svg += `<text x="${x.toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="8.5" fill="#6b7280">${monthData[k].lbl}</text>`;
-  });
-  svg += `<path d="${areaD}" fill="url(#sg)"/>`;
-  svg += `<path d="${pathD}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>`;
-  pts.forEach(p => svg += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#2563eb"/>`);
-  svg += `</svg>`;
-
-  // Table
-  let accR = 0;
-  let tableHtml = `<table class="scurve-table"><thead><tr><th>MÃªs</th><th>Desembolso (R$)</th><th>Acumulado (R$)</th><th>Acumulado (%)</th></tr></thead><tbody>`;
-  monthOrder.forEach(k => {
-    accR += monthData[k].val;
-    const pct = totalCost > 0 ? (accR/totalCost*100).toFixed(1) : "0.0";
-    tableHtml += `<tr><td>${monthData[k].lbl}</td><td>${_fmtCur(monthData[k].val)}</td><td>${_fmtCur(accR)}</td><td>${pct}%</td></tr>`;
-  });
-  tableHtml += `<tr style="font-weight:700; background:var(--navy); color:#fff"><td>TOTAL</td><td>${_fmtCur(totalCost)}</td><td>${_fmtCur(totalCost)}</td><td>100,0%</td></tr>`;
-  tableHtml += `</tbody></table>`;
-
-  document.getElementById("scurveWrap").innerHTML = svg + tableHtml;
-}
-
-// Schedule event listeners
-document.getElementById("btnGoCronograma").addEventListener("click", () => {
-  const di = document.getElementById("startDateInput");
-  if (!di.value) { const today = new Date(); di.value = today.toISOString().split("T")[0]; }
-  goTo(5); buildSchedule();
-});
-
-document.getElementById("btnDownloadFull").addEventListener("click", () => exportExcel());
-
-document.getElementById("btnRestart2").addEventListener("click", () => {
-  Object.assign(APP, {currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", schedule:null});
-  document.getElementById("fileInfo").style.display = "none";
-  document.getElementById("pageCard").style.display = "none";
-  document.getElementById("uploadStatus").style.display = "none";
-  document.getElementById("fileInput").value = "";
-  document.getElementById("projectName").value = "";
-  goTo(1);
-});
-
 </script>
 </body>
 </html>
