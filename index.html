@@ -651,6 +651,8 @@ REGRAS OBRIGATÓRIAS:
 6. Inclua SEMPRE a memória de cálculo resumida, em UMA ÚNICA LINHA (sem quebras de linha dentro das strings).
 7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
 8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
+9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
+10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965/001, 74155/001, 74209/001, 73961/001, 73583/001, 74136/001, 74119/001, 94965, 74155/002, 96527, 94963, 94964, 94966, 94972, 87451, 87452, 87453, 87455, 87456, 87704, 87705, 74209/002, 87251, 87266, 87293, 87529, 87528, 87527, 88489, 87879, 87875, 87876, 87523, 88497, 88487, 88488, 88484, 88485, 74209/003, 74209/004, 74209/005, 74209/006, 74209/007, 87880, 74155/004, 87875b, 87876b, 74209/008, 87877, 89769, 89770, 89643, 89645, 89644, 89777, 89783, 91878, 91888, 91914, 91915, 91912, 91921, 95237, 95239, 73942/001, 73942/002. Se usar outro código, inclua o preco_unitario correto.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
@@ -684,6 +686,7 @@ FORMATO DE RESPOSTA (JSON puro):
       "descricao": "Alvenaria de vedação de tijolos cerâmicos 6 furos 9x14x19cm, esp=9cm",
       "unidade": "m²",
       "quantidade": 0.0,
+      "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
       "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
     }
@@ -1072,8 +1075,31 @@ document.getElementById("btnRestart").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // BUDGET BUILD
 // ═══════════════════════════════════════════════════════════════
-function findSinapiItem(codigo) {
-  return SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.startsWith(codigo));
+function findSinapiItem(codigo, descricao, categoria) {
+  // 1. Match exato de código
+  let item = SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.replace(/\/.*/,"") === codigo);
+  if (item) return item;
+
+  // 2. Match parcial: código começa com o valor buscado ou vice-versa
+  item = SINAPI_ITENS.find(i => i.codigo.startsWith(codigo) || codigo.startsWith(i.codigo.replace(/\/.*/,"")));
+  if (item) return item;
+
+  // 3. Fallback: similaridade por palavras na descrição
+  if (!descricao) return null;
+  const STOP = new Set(["de","da","do","das","dos","em","para","com","e","a","o","as","os","no","na","nos","nas","um","uma","incl","mm","cm","m2","m3"]);
+  const tok  = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g," ").split(/\s+/).filter(w => w.length > 2 && !STOP.has(w));
+  const qw   = tok(descricao);
+  if (!qw.length) return null;
+
+  let best = null, bestScore = 0;
+  SINAPI_ITENS.forEach(s => {
+    const sw      = tok(s.descricao);
+    const matches = qw.filter(w => sw.some(sw2 => sw2.startsWith(w) || w.startsWith(sw2))).length;
+    const bonus   = (categoria && s.cat === categoria) ? 3 : 0;
+    const score   = matches + bonus;
+    if (score > bestScore && matches >= 2) { bestScore = score; best = s; }
+  });
+  return best; // null se não encontrar
 }
 
 function recalcBudget() { buildBudget(); }
@@ -1110,7 +1136,7 @@ function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const sinapiItem = findSinapiItem(q.sinapi_codigo || "");
+      const sinapiItem = findSinapiItem(q.sinapi_codigo || "", q.descricao || "", cat);
       const precoBase  = sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0);
       const precoAdj   = precoBase * fator;
       const qtd        = Number(q.quantidade) || 0;
@@ -1214,7 +1240,7 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const sinapiItem = findSinapiItem(q.sinapi_codigo || "");
+      const sinapiItem = findSinapiItem(q.sinapi_codigo || "", q.descricao || "", cat);
       const precoAdj   = (sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0)) * fator;
       const qtd        = Number(q.quantidade) || 0;
       const subtotal   = fmt2(precoAdj * qtd);
