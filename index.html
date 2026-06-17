@@ -1269,6 +1269,24 @@ async function startAnalysis() {
             "\n\nRetorne o JSON conforme especificado no system prompt. Seja preciso — os valores serão usados para orçamento real." +
             (APP.projectName ? "\n\nNome do projeto: " + APP.projectName : "");
         })()
+        }
+      ];
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 16000,
+          system: ANTHROPIC_SYSTEM_PROMPT,
+          messages: [{ role: "user", content: aiContent }]
+        })
       });
 
       if (!resp.ok) {
