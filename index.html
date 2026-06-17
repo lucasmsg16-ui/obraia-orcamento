@@ -751,7 +751,7 @@ SERVIÇOS QUE OCORREM UMA ÚNICA VEZ EM TODA A OBRA (não repita por pavimento n
 - Placa de obra (73965): quantidade = 1 SEMPRE.
 - Ligações provisórias energia (73855) e água (73856): quantidade = 1 SEMPRE.
 - Limpeza/demolição do terreno (88309): calcule pela área do TERRENO 1 única vez. Se estiver analisando planta do 2° pavimento ou superior, NÃO inclua este item.
-- Locação de obra (74209): calcule 1 única vez pela área construída total (soma de todos os pavimentos).
+- Locação de obra (74209): calcule 1 única vez pela área do TÉRREO (projeção no solo). NUNCA some pavimentos superiores.
 - Fundações — lastro (74119/001), radier (94965), vigas baldrame/blocos (83334), estacas (96527): calcule SOMENTE pela projeção do térreo. NUNCA multiplique por número de pavimentos.
 - Cobertura — estrutura madeira (91010), telhas (87266), rufos/calhas (96548): calcule SOMENTE no último pavimento. Se estiver analisando planta do térreo de uma edificação com 2+ andares, NÃO inclua cobertura.
 - Fossa séptica (89679): quantidade = 1. Caixa d'água (89812/89783): quantidade = 1.
@@ -769,7 +769,7 @@ REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (
 
 1. SERVIÇOS PRELIMINARES:
    - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
-   - Locação de obra (74209): unidade = M², use a área CONSTRUÍDA (não do terreno).
+   - Locação de obra (74209): unidade = M², use a área do TÉRREO (projeção no solo). NÃO multiplique por número de pavimentos — locação é executada uma única vez no chão.
    - Ligação provisória de energia (73855): unidade = UN, quantidade = 1.
    - Ligação provisória de água (73856): unidade = UN, quantidade = 1.
    - Demolição/limpeza terreno (88309): unidade = M², use a área do TERRENO (não construída).
@@ -806,8 +806,8 @@ REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (
    - Gesso liso (87556): unidade = M² (área de paredes internas).
    - Forro de gesso (87556b): unidade = M² (área do teto = área construída por pavimento).
    - Contrapiso (87241): unidade = M² (área construída).
-   - Piso cerâmico (87529): unidade = M² (área de piso interno).
-   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m).
+   - Piso cerâmico (87529): unidade = M² (área LÍQUIDA do piso = área bruta do pavimento − ~10% de paredes. NÃO some pavimentos no mesmo item).
+   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m). CATEGORIA: "7. REVESTIMENTOS INTERNOS" SOMENTE.
    - Soleira (73890): unidade = M (metro linear, largura das portas externas).
    - Peitoril (73891): unidade = M (metro linear, largura das janelas externas).
 
@@ -864,6 +864,14 @@ N�[�YYHHp����H��\0�H
     - Limpeza final (73958): unidade = M² (área construída).
     - Ligação definitiva energia: unidade = UN, quantidade = 1.
     - ART/projeto/aprovação: unidade = VB, quantidade = 1.
+
+REGRAS DE CATEGORIA — OBRIGATÓRIO:
+- Cada item de quantitativo pertence a UMA ÚNICA categoria. NUNCA misture itens de categorias diferentes.
+- Revestimentos (chapisco, reboco, gesso, piso, azulejo, pintura) → categorias 7, 8 ou 9. NUNCA em 10. ESQUADRIAS.
+- Esquadrias (portas, janelas, gradis) → apenas categoria 10. NUNCA em revestimentos.
+- Instalações hidráulicas (tubos, conexões, louças, torneiras, caixa d'água, fossa) → apenas categoria 12.
+- Instalações elétricas (fiação, tomadas, disjuntores, QDC) → apenas categoria 13.
+- Retorne o array "quantitativos" ORDENADO pela sequência de execução: 1 → 2 → 3 → ... → 15.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
@@ -1164,6 +1172,13 @@ async function startAnalysis() {
     // ── Step 3: Merge batch results ───────────────────────
     setStep("pstep3", false, "Consolidando e organizando quantitativos…");
     APP.analysisResult = mergeBatchResults(batchResults);
+        // Sort quantitativos by construction execution phase order
+        if (APP.analysisResult && Array.isArray(APP.analysisResult.quantitativos)) {
+          APP.analysisResult.quantitativos.sort((a, b) => {
+            const phaseNum = c => { const m = (c.categoria || '').match(/^(\d+)\./); return m ? parseInt(m[1]) : 99; };
+            return phaseNum(a) - phaseNum(b);
+          });
+        }
     setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
     setProgress(90, "Estruturando EAP…");
 
