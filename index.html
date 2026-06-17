@@ -744,6 +744,27 @@ REGRAS OBRIGATÓRIAS:
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
 10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro código, inclua o preco_unitario correto.
 
+
+REGRAS CRÍTICAS ANTI-DUPLICAÇÃO — LEIA ANTES DE CALCULAR QUALQUER QUANTITATIVO:
+
+SERVIÇOS QUE OCORREM UMA ÚNICA VEZ EM TODA A OBRA (não repita por pavimento nem por planta):
+- Placa de obra (73965): quantidade = 1 SEMPRE.
+- Ligações provisórias energia (73855) e água (73856): quantidade = 1 SEMPRE.
+- Limpeza/demolição do terreno (88309): calcule pela área do TERRENO 1 única vez. Se estiver analisando planta do 2° pavimento ou superior, NÃO inclua este item.
+- Locação de obra (74209): calcule 1 única vez pela área construída total (soma de todos os pavimentos).
+- Fundações — lastro (74119/001), radier (94965), vigas baldrame/blocos (83334), estacas (96527): calcule SOMENTE pela projeção do térreo. NUNCA multiplique por número de pavimentos.
+- Cobertura — estrutura madeira (91010), telhas (87266), rufos/calhas (96548): calcule SOMENTE no último pavimento. Se estiver analisando planta do térreo de uma edificação com 2+ andares, NÃO inclua cobertura.
+- Fossa séptica (89679): quantidade = 1. Caixa d'água (89812/89783): quantidade = 1.
+- Quadro de distribuição (91948) e aterramento (91976): quantidade = 1 por edificação.
+- ART/projeto (95237/95239): quantidade = 1.
+
+SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
+- Alvenaria (87456): calcule APENAS pelas paredes visíveis na PLANTA BAIXA. NUNCA calcule paredes vistas em cortes ou fachadas.
+- Revestimentos, pisos, forro, contrapiso, instalações: calcule para o pavimento em análise.
+- Esquadrias: conte APENAS as da planta em análise. Não repita esquadrias do corte ou fachada.
+
+ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a SOMA DE TODOS OS PAVIMENTOS da edificação (ex: edifício de 2 pavimentos de 80m² cada = 160m²).
+
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
 1. SERVIÇOS PRELIMINARES:
@@ -1172,13 +1193,19 @@ function mergeBatchResults(results) {
   if (!results || results.length === 0) return {};
   if (results.length === 1) return results[0];
 
+  // Codes and categories that represent ONE-TIME work — use MAX, not SUM
+  const ONE_TIME_CODES = new Set([
+    '73965','73855','73856','88309','74209','74209/007',
+    '74119/001','94965','96527','83334','89679','89812','89783',
+    '91948','91976','95237','95239'
+  ]);
+  const ONE_TIME_CATS = new Set([
+    '3. FUNDAÇÕES', '6. COBERTURA'
+  ]);
+
   const merged = {
-    projeto: null,
-    tipologia: null,
-    pavimentos: null,
-    area_construida_m2: 0,
-    ambientes: [],
-    quantitativos: []
+    projeto: null, tipologia: null, pavimentos: null,
+    area_construida_m2: 0, ambientes: [], quantitativos: []
   };
 
   const qtMap = {};
@@ -1189,24 +1216,32 @@ function mergeBatchResults(results) {
     if (!merged.tipologia  && r.tipologia)  merged.tipologia  = r.tipologia;
     if (!merged.pavimentos && r.pavimentos) merged.pavimentos = r.pavimentos;
 
-    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2) {
+    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2)
       merged.area_construida_m2 = r.area_construida_m2;
-    }
 
     if (Array.isArray(r.ambientes)) {
       for (const a of r.ambientes) {
-        const k = (a.nome || "").toLowerCase().trim();
+        const k = (a.nome || '').toLowerCase().trim();
         if (k && !ambMap[k]) { ambMap[k] = true; merged.ambientes.push(a); }
       }
     }
 
     if (Array.isArray(r.quantitativos)) {
       for (const q of r.quantitativos) {
-        const code = (q.sinapi_codigo || q.descricao || "").toString().trim();
-        const cat  = (q.categoria || "").toString().trim();
-        const key  = code + "|" + cat;
+        const code = (q.sinapi_codigo || q.descricao || '').toString().trim();
+        const cat  = (q.categoria || '').toString().trim();
+        const key  = code + '|' + cat;
+
         if (qtMap[key]) {
-          qtMap[key].quantidade = (parseFloat(qtMap[key].quantidade) || 0) + (parseFloat(q.quantidade) || 0);
+          const isOneTime = ONE_TIME_CODES.has(code) || ONE_TIME_CATS.has(cat);
+          const existingQty = parseFloat(qtMap[key].quantidade) || 0;
+          const newQty = parseFloat(q.quantidade) || 0;
+          if (isOneTime) {
+            // One-time services: take the largest value across batches, never sum
+            if (newQty > existingQty) qtMap[key].quantidade = newQty;
+          } else {
+            qtMap[key].quantidade = existingQty + newQty;
+          }
         } else {
           qtMap[key] = { ...q };
         }
