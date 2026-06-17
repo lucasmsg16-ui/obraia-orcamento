@@ -1279,7 +1279,7 @@ function buildEAP() {
   const grid = document.getElementById("projectInfoGrid");
   grid.innerHTML = [
     { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
-    { label: "Área Construída",value: `${(r.area_construida_m2||0).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
+    { label: "Área Construída ✏", value: `<input id="areaOverride" type="number" min="1" step="0.5" value="${(r.area_construida_m2||0).toFixed(1)}" style="width:90px;font-size:18px;font-weight:700;color:var(--navy);border:1.5px dashed var(--accent);border-radius:6px;padding:2px 6px;background:transparent;text-align:center" title="Corrija a área se necessário" onchange="APP.analysisResult.area_construida_m2=parseFloat(this.value)||1;recalcBudget()">`, sub: `✏ edite se incorreto · ${r.pavimentos||1} pav.` },
     { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
     { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
   ].map(i => `
@@ -1300,7 +1300,7 @@ function buildEAP() {
   const tree = document.getElementById("eapTree");
   tree.innerHTML = "";
 
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat, itens]) => {
     const node = document.createElement("div");
     node.className = "eap-node";
 
@@ -1424,7 +1424,7 @@ function buildBudget() {
 
   const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat, itens]) => {
     // Category row
     const catRow = document.createElement("tr");
     catRow.className = "cat-row";
@@ -1487,7 +1487,8 @@ function buildBudget() {
   tbody.appendChild(totalBdiRow);
 
   // KPIs
-  const area = r.area_construida_m2 || 1;
+  const areaInput = document.getElementById("areaOverride");
+  const area = (areaInput ? parseFloat(areaInput.value) : 0) || r.area_construida_m2 || 1;
   document.getElementById("budgetKpis").innerHTML = [
     { label: "Total s/ BDI",     value: `R$ ${fmt(totalSemBdi)}`,               sub: "" },
     { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
@@ -1609,7 +1610,7 @@ async function exportExcel() {
 
   let itemN=0, totSem=0, totCom=0;
 
-  Object.entries(byCat).sort(([a],[b])=>a.localeCompare(b)).forEach(([cat,itens]) => {
+  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat,itens]) => {
     // Linha de categoria
     const rCat = ws1.addRow([cat,"","","","","","","",""]);
     ws1.mergeCells(`A${rCat.number}:I${rCat.number}`);
@@ -1700,7 +1701,7 @@ async function exportExcel() {
   ws2.addRow(["1", APP.projectName||"OBRA","1","","","",""]);
 
   let cIdx=0;
-  Object.entries(byCat).sort(([a],[b])=>a.localeCompare(b)).forEach(([cat,itens])=>{
+  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat,itens])=>{
     cIdx++;
     const cR = ws2.addRow([`1.${cIdx}`,cat,"2","","","",""]);
     [1,2].forEach(i => {
