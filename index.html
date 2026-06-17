@@ -1233,7 +1233,7 @@ async function startAnalysis() {
 
     // ── Step 3: Merge batch results ───────────────────────
     setStep("pstep3", false, "Consolidando e organizando quantitativos…");
-    APP.analysisResult = mergeBatchResults(batchResults);
+    APP.analysisResult = sanitizeQuantitativos(mergeBatchResults(batchResults));
     if (APP.pdfHash) setCachedResult(APP.pdfHash, APP.analysisResult, APP.pdfFile?.name || "projeto");
         // Sort quantitativos by construction execution phase order
         if (APP.analysisResult && Array.isArray(APP.analysisResult.quantitativos)) {
@@ -1334,6 +1334,51 @@ function mergeBatchResults(results) {
 // ═══════════════════════════════════════════════════════════════
 // EAP BUILD
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// SANITIZAÇÃO DE QUANTITATIVOS — guarda matematica contra inflação de vistas
+// ═══════════════════════════════════════════════════════════════
+function sanitizeQuantitativos(result) {
+  const area = parseFloat(result.area_construida_m2) || 150;
+  const pavimentos = parseInt(result.pavimentos) || 1;
+
+  // Caps por tipo de serviço: múltiplo da área construída total
+  // Valores generosos para não cortar itens legítimos de multi-pavimento
+  const CAPS = [
+    { keys: ['alvenaria','bloco cerâmico','tijolo','bloco de concreto'], mult: 4.5, unit: 'm2', label: 'Alvenaria' },
+    { keys: ['chapisco'],                                                 mult: 7.0, unit: 'm2', label: 'Chapisco' },
+    { keys: ['reboco','emboço','argamassa de revestimento'],              mult: 6.0, unit: 'm2', label: 'Reboco' },
+    { keys: ['gesso liso','gesso projetado','gesso'],                     mult: 5.0, unit: 'm2', label: 'Gesso' },
+    { keys: ['forro de gesso','forro'],                                   mult: 1.5, unit: 'm2', label: 'Forro' },
+    { keys: ['contrapiso','regularização de piso'],                       mult: 2.2, unit: 'm2', label: 'Contrapiso' },
+    { keys: ['piso cerâmico','porcelanato','revestimento de piso','piso vinílico'], mult: 2.2, unit: 'm2', label: 'Piso' },
+    { keys: ['azulejo','revestimento cerâmico de parede'],                mult: 2.0, unit: 'm2', label: 'Azulejo' },
+    { keys: ['pintura','tinta','látex'],                                  mult: 8.0, unit: 'm2', label: 'Pintura' },
+    { keys: ['telhamento','telha','cobertura'],                           mult: 1.4, unit: 'm2', label: 'Cobertura/Telhamento' },
+    { keys: ['impermeabilização','manta asfáltica'],                      mult: 1.5, unit: 'm2', label: 'Impermeabilização' },
+  ];
+
+  const warnings = [];
+  result.quantitativos = (result.quantitativos || []).map(q => {
+    const unit = (q.unidade || '').toUpperCase().trim();
+    if (unit !== 'M2' && unit !== 'M²') return q; // só aplica a áreas
+    const desc = (q.descricao || '').toLowerCase();
+    for (const cap of CAPS) {
+      if (cap.keys.some(k => desc.includes(k))) {
+        const maxQty = parseFloat((area * cap.mult).toFixed(2));
+        if (q.quantidade > maxQty) {
+          warnings.push(`[Sanitize] ${cap.label}: ${q.quantidade.toFixed(1)}m² → ${maxQty}m² (cap=${cap.mult}×${area}m²)`);
+          return { ...q, quantidade: maxQty, _sanitized: true };
+        }
+        break;
+      }
+    }
+    return q;
+  });
+
+  if (warnings.length > 0) console.warn('ObraIA Sanity Caps aplicados:\n' + warnings.join('\n'));
+  return result;
+}
+
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
