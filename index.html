@@ -801,15 +801,15 @@ REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (
    - Rufo/calha (96548): unidade = M (metros lineares do perímetro do beiral).
 
 7. REVESTIMENTOS INTERNOS:
-   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas).
-   - Reboco interno (87262): unidade = M² (área de paredes internas).
-   - Gesso liso (87556): unidade = M² (área de paredes internas).
+   ⚠️ ATENÇÃO: 87251/87251b = CHAPISCO DE PAREDES (argamassa de aderência para reboco). NUNCA use este código para telhamento, cobertura ou qualquer serviço de telhado.
+   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas). LIMITE: quantidade máxima = 3 × area_construida_m2.
+   - Reboco interno (87262): unidade = M² (área de paredes internas). LIMITE: quantidade máxima = 2,5 × area_construida_m2.
+   - Gesso liso (87556): unidade = M² (área de paredes internas). LIMITE: quantidade máxima = 2,5 × area_construida_m2.
    - Forro de gesso (87556b): unidade = M² (área do teto = área construída por pavimento).
-   - Contrapiso (87241): unidade = M² (área construída).
-   - Piso cerâmico (87529): unidade = M² (área LÍQUIDA do piso = área bruta do pavimento − ~10% de paredes. NÃO some pavimentos no mesmo item).
    - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m). CATEGORIA: "7. REVESTIMENTOS INTERNOS" SOMENTE.
    - Soleira (73890): unidade = M (metro linear, largura das portas externas).
    - Peitoril (73891): unidade = M (metro linear, largura das janelas externas).
+   ❌ NÃO INCLUIR AQUI: Contrapiso (87241), Piso cerâmico (87529), Porcelanato (87875, 87876) → use "11. PISOS".
 
 8. REVESTIMENTOS EXTERNOS:
    - Reboco externo (87262b): unidade = M² (área das fachadas externas).
@@ -866,12 +866,14 @@ N�[�YYHHp����H��\0�H
     - ART/projeto/aprovação: unidade = VB, quantidade = 1.
 
 REGRAS DE CATEGORIA — OBRIGATÓRIO:
-- Cada item de quantitativo pertence a UMA ÚNICA categoria. NUNCA misture itens de categorias diferentes.
-- Revestimentos (chapisco, reboco, gesso, piso, azulejo, pintura) → categorias 7, 8 ou 9. NUNCA em 10. ESQUADRIAS.
-- Esquadrias (portas, janelas, gradis) → apenas categoria 10. NUNCA em revestimentos.
-- Instalações hidráulicas (tubos, conexões, louças, torneiras, caixa d'água, fossa) → apenas categoria 12.
-- Instalações elétricas (fiação, tomadas, disjuntores, QDC) → apenas categoria 13.
-- Retorne o array "quantitativos" ORDENADO pela sequência de execução: 1 → 2 → 3 → ... → 15.
+- Cada item pertence a UMA ÚNICA categoria. NUNCA misture.
+- CHAPISCO/REBOCO/GESSO/PINTURA → cat. 7, 8 ou 9. PROIBIDO em 10. ESQUADRIAS.
+- PISO/CONTRAPISO (87241, 87529, 87527, 87875, 87876) → SOMENTE "11. PISOS". NUNCA em "7. REVESTIMENTOS INTERNOS" nem em "10. ESQUADRIAS" nem em "14. IMPERMEABILIZAÇÃO".
+- ESQUADRIAS (portas, janelas, gradis, portões) → SOMENTE "10. ESQUADRIAS". NUNCA inclua pisos ou revestimentos aqui.
+- IMPERMEABILIZAÇÃO (manta asfáltica, membrana poliuretano, primer) → "14. IMPERMEABILIZAÇÃO". NUNCA inclua piso cerâmico ou pintura aqui.
+- COBERTURA (telhas, estrutura madeira, rufo, calha) → "6. COBERTURA". NUNCA em "7. REVESTIMENTOS INTERNOS".
+- INSTALAÇÕES HIDROSSANITÁRIAS → "12." apenas. INSTALAÇÕES ELÉTRICAS → "13." apenas.
+- Retorne "quantitativos" ORDENADO: 1 → 2 → 3 → ... → 15.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
