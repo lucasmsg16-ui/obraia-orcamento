@@ -1103,7 +1103,7 @@ async function startAnalysis() {
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 16000,
-          system: ANTHOPIC_SYSTEM_PROMPT,
+          system: ANTHROPIC_SYSTEM_PROMPT,
           messages: [{ role: "user", content: aiContent }]
         })
       });
