@@ -733,7 +733,7 @@ const ANTHROPIC_SYSTEM_PROMPT = `Você é um engenheiro civil sênior especialis
 Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quantitativos de serviços de construção civil.
 
 REGRAS OBRIGATÓRIAS:
-1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
+1. Identifique o tipo de cada imagem. Use APENAS as PLANTAS BAIXAS para calcular áreas e quantidades de serviços. Cortes e fachadas são REFERÊNCIA apenas para alturas de pé-direito e detalhes construtivos — NUNCA extraia quantitativos de área a partir de cortes ou fachadas.
 2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões.
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
@@ -764,6 +764,12 @@ SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
 - Esquadrias: conte APENAS as da planta em análise. Não repita esquadrias do corte ou fachada.
 
 ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a ÁREA TOTAL DA EDIFICAÇÃO (soma de TODOS os pavimentos), mesmo que estas imagens mostrem apenas um pavimento. Baseie-se no número de pavimentos e na área do térreo para estimar o total (ex: 2 pavimentos × 80m² = 160m²).
+11. REGRA ANTI-DUPLICAÇÃO — REVESTIMENTOS (obrigatório):
+   - Paredes INTERNAS: use chapisco (87251b) + reboco/massa única (87262). NÃO adicione também emboço (87528) nem gesso (87556) — escolha apenas um sistema por parede.
+   - Paredes EXTERNAS: chapisco (já contabilizado no interno) + reboco externo (87262b) OU monocamada (87523). NUNCA os dois.
+   - Emboço paulista (87528): OMITIR em residências simples. Incluir SOMENTE se especificado no projeto.
+   - Gesso liso (87556): incluir SOMENTE em projetos de padrão médio-alto ou se especificado.
+12. BENCHMARK DE CUSTO: Para residência unifamiliar até 300m² em SP, custo direto s/BDI típico = R$1.800 a R$2.800/m². Se sua estimativa ultrapassar R$3.500/m², há provável duplicação — revise antes de retornar o JSON.
 
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
@@ -912,7 +918,7 @@ FORMATO DE RESPOSTA (JSON puro):
   ],
   "quantitativos": [
     {
-      "sinapi_codigo": "87453",
+      "sinapi_codigo": "87456",
       "descricao": "Alvenaria de vedação de tijolos cerâmicos 6 furos 9x14x19cm, esp=9cm",
       "unidade": "m²",
       "quantidade": 0.0,
