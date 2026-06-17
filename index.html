@@ -763,7 +763,7 @@ SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
 - Revestimentos, pisos, forro, contrapiso, instalações: calcule para o pavimento em análise.
 - Esquadrias: conte APENAS as da planta em análise. Não repita esquadrias do corte ou fachada.
 
-ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a SOMA DE TODOS OS PAVIMENTOS da edificação (ex: edifício de 2 pavimentos de 80m² cada = 160m²).
+ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a área dos pavimentos VISÍVEIS NESTAS IMAGENS (ex: se estas imagens mostram só o térreo de 80m², retorne 80m²; se mostram térreo + superior, retorne 160m²). O sistema somará as áreas de todos os lotes automaticamente.
 
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
@@ -1231,8 +1231,8 @@ function mergeBatchResults(results) {
     if (!merged.tipologia  && r.tipologia)  merged.tipologia  = r.tipologia;
     if (!merged.pavimentos && r.pavimentos) merged.pavimentos = r.pavimentos;
 
-    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2)
-      merged.area_construida_m2 = r.area_construida_m2;
+    if (r.area_construida_m2)
+      merged.area_construida_m2 += r.area_construida_m2; // SUM: each batch reports its floor(s) area
 
     if (Array.isArray(r.ambientes)) {
       for (const a of r.ambientes) {
@@ -1418,7 +1418,7 @@ function buildBudget() {
     byCat[c].push(q);
   });
 
-  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0;
+  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, semSinapi = 0;
   const tbody = document.getElementById("budgetBody");
   tbody.innerHTML = "";
 
@@ -1436,6 +1436,7 @@ function buildBudget() {
     itens.forEach(q => {
       itemNum++;
       const sinapiItem = findSinapiItem(q.sinapi_codigo || "", q.descricao || "", cat);
+      if (!sinapiItem) semSinapi++;
       const precoBase  = sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0);
       const precoAdj   = precoBase * fator;
       const qtd        = Number(q.quantidade) || 0;
@@ -1493,6 +1494,7 @@ function buildBudget() {
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
     { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
     { label: "Estado",           value: estado,                                  sub: `Fator SINAPI ${fator.toFixed(3)}` },
+    { label: "Itens sem SINAPI", value: `${semSinapi} item(s)`,                           sub: semSinapi > 0 ? "⚠ preço estimado pela IA" : "✅ todos com SINAPI" },
   ].map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
