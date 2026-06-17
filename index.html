@@ -767,6 +767,15 @@ SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
 
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
+⚠️ REGRA ANTI-DUPLA CONTAGEM DE VISTAS — OBRIGATÓRIO:
+O PDF contém MÚLTIPLAS REPRESENTAÇÕES da mesma edificação: planta baixa, cortes, fachadas, perspectivas, detalhes.
+CADA elemento físico deve ser quantificado UMA ÚNICA VEZ:
+- ALVENARIA/PAREDES: extraia SOMENTE da planta baixa. Cálculo: (perímetro de paredes × pé-direito) − área dos vãos. NUNCA some paredes visíveis em cortes + fachadas + elevações separadamente.
+- ESTRUTURA (pilares, vigas, lajes): conte UMA VEZ na planta estrutural. NÃO duplique por aparecerem em cortes ou detalhes.
+- REVESTIMENTOS (chapisco, reboco, gesso): derive diretamente da área de alvenaria calculada. NÃO extraia de cada vista/folha individualmente.
+- FACHADAS/CORTES/ELEVAÇÕES: use APENAS para verificar alturas, pé-direito e identificar esquadrias. NUNCA para medir m² de serviços.
+- REFERÊNCIA DE SANIDADE: edificação residencial 200–300m² tipicamente tem alvenaria total 400–700m². Se ultrapassar 900m², há dupla contagem — revise antes de retornar.
+
 1. SERVIÇOS PRELIMINARES:
    - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
    - Locação de obra (74209): unidade = M², use a área do TÉRREO (projeção no solo). NÃO multiplique por número de pavimentos — locação é executada uma única vez no chão.
@@ -937,6 +946,44 @@ function setUploadStatus(msg, color) {
   el.textContent = msg;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PDF CACHE — evita re-análise e economiza créditos de API
+// ═══════════════════════════════════════════════════════════════
+const CACHE_PREFIX = "obraia_v1_";
+const MAX_CACHE_ENTRIES = 15;
+
+async function computePdfHash(file) {
+  const buf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+function getCachedResult(hash) {
+  try { return JSON.parse(localStorage.getItem(CACHE_PREFIX + hash) || "null"); } catch { return null; }
+}
+
+function setCachedResult(hash, result, filename) {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
+    if (keys.length >= MAX_CACHE_ENTRIES) {
+      keys.sort((a,b) => {
+        const da = JSON.parse(localStorage.getItem(a)||"{}").saved||0;
+        const db = JSON.parse(localStorage.getItem(b)||"{}").saved||0;
+        return da - db;
+      });
+      localStorage.removeItem(keys[0]);
+    }
+    localStorage.setItem(CACHE_PREFIX + hash, JSON.stringify({ result, filename, saved: Date.now() }));
+  } catch(e) { console.warn("Cache cheio, ignorando:", e); }
+}
+
+function listCachedProjects() {
+  return Object.keys(localStorage)
+    .filter(k => k.startsWith(CACHE_PREFIX))
+    .map(k => { try { const v = JSON.parse(localStorage.getItem(k)); return { hash: k.replace(CACHE_PREFIX,""), filename: v.filename, saved: new Date(v.saved).toLocaleString("pt-BR") }; } catch { return null; } })
+    .filter(Boolean);
+}
+
 async function handleFile(file) {
   if (!file) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
   setUploadStatus("📄 Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
@@ -955,6 +1002,7 @@ async function handleFile(file) {
   setUploadStatus("⏳ Carregando PDF com PDF.js...", "blue");
   try {
     const arrayBuffer = await file.arrayBuffer();
+    computePdfHash(file).then(h => { APP.pdfHash = h; });
     APP.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     setUploadStatus("✅ PDF carregado com sucesso! " + APP.pdfDoc.numPages + " página(s) detectada(s).", "green");
     renderThumbnails();
@@ -1070,6 +1118,18 @@ function setProgress(pct, msg) {
 
 async function startAnalysis() {
   APP.projectName = document.getElementById("projectName").value.trim() || APP.pdfFile?.name || "Projeto";
+
+  // ── Cache check ───────────────────────────────────────────────────
+  if (APP.pdfHash) {
+    const _cached = getCachedResult(APP.pdfHash);
+    if (_cached) {
+      const _dt = new Date(_cached.saved).toLocaleDateString("pt-BR");
+      setUploadStatus("\u26A1 Cache encontrado: \"" + _cached.filename + "\" (" + _dt + "). Resultado salvo — nenhum crédito consumido!", "green");
+      APP.analysisResult = _cached.result;
+      buildEAP(); goTo(3);
+      return;
+    }
+  }
   goTo(2);
 
   try {
@@ -1174,6 +1234,7 @@ async function startAnalysis() {
     // ── Step 3: Merge batch results ───────────────────────
     setStep("pstep3", false, "Consolidando e organizando quantitativos…");
     APP.analysisResult = mergeBatchResults(batchResults);
+    if (APP.pdfHash) setCachedResult(APP.pdfHash, APP.analysisResult, APP.pdfFile?.name || "projeto");
         // Sort quantitativos by construction execution phase order
         if (APP.analysisResult && Array.isArray(APP.analysisResult.quantitativos)) {
           APP.analysisResult.quantitativos.sort((a, b) => {
@@ -1364,7 +1425,7 @@ document.getElementById("btnGoToBudget").addEventListener("click", () => {
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", pdfHash:null });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("pagesGrid").innerHTML = "";
