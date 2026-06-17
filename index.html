@@ -763,7 +763,7 @@ SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
 - Revestimentos, pisos, forro, contrapiso, instalações: calcule para o pavimento em análise.
 - Esquadrias: conte APENAS as da planta em análise. Não repita esquadrias do corte ou fachada.
 
-ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a área dos pavimentos VISÍVEIS NESTAS IMAGENS (ex: se estas imagens mostram só o térreo de 80m², retorne 80m²; se mostram térreo + superior, retorne 160m²). O sistema somará as áreas de todos os lotes automaticamente.
+ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a ÁREA TOTAL DA EDIFICAÇÃO (soma de TODOS os pavimentos), mesmo que estas imagens mostrem apenas um pavimento. Baseie-se no número de pavimentos e na área do térreo para estimar o total (ex: 2 pavimentos × 80m² = 160m²).
 
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
@@ -1231,8 +1231,8 @@ function mergeBatchResults(results) {
     if (!merged.tipologia  && r.tipologia)  merged.tipologia  = r.tipologia;
     if (!merged.pavimentos && r.pavimentos) merged.pavimentos = r.pavimentos;
 
-    if (r.area_construida_m2)
-      merged.area_construida_m2 += r.area_construida_m2; // SUM: each batch reports its floor(s) area
+    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2)
+      merged.area_construida_m2 = r.area_construida_m2; // MAX: use the highest reported total area
 
     if (Array.isArray(r.ambientes)) {
       for (const a of r.ambientes) {
