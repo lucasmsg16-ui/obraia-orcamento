@@ -947,6 +947,77 @@ function setUploadStatus(msg, color) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CLASSIFICADOR DE PRANCHAS — identifica tipo de cada página do PDF
+// Usa claude-haiku (barato ~$0.01/projeto) para classificar automaticamente
+// ═══════════════════════════════════════════════════════════════
+
+const PAGE_TYPES = {
+  planta_baixa:         { label: 'Planta Baixa',       badge: '🏠', extract: 'COMPLETO' },
+  planta_executiva:     { label: 'Planta Executiva',    badge: '📐', extract: 'COMPLETO' },
+  planta_cobertura:     { label: 'Cobertura',           badge: '🏚️', extract: 'COBERTURA' },
+  instalacao_eletrica:  { label: 'Elétrica',            badge: '⚡', extract: 'ELETRICA' },
+  instalacao_hidraulica:{ label: 'Hidráulica',          badge: '💧', extract: 'HIDRAULICA' },
+  revestimento:         { label: 'Revestimentos',       badge: '🎨', extract: 'ACABAMENTOS' },
+  corte:                { label: 'Corte',               badge: '✂️', extract: 'REFERENCIA' },
+  fachada:              { label: 'Fachada',             badge: '🏛️', extract: 'REFERENCIA' },
+  situacao:             { label: 'Situação',            badge: '📍', extract: 'IGNORAR' },
+  detalhe:              { label: 'Detalhe',             badge: '🔍', extract: 'IGNORAR' },
+  outro:                { label: 'Outro',               badge: '📄', extract: 'CAUTELA' },
+};
+
+const PAGE_EXTRACT_RULES = {
+  COMPLETO:     'EXTRAIA TODOS os quantitativos: alvenaria, estrutura, pisos, esquadrias, revestimentos.',
+  COBERTURA:    'EXTRAIA: estrutura de telhado, tipo de telha, área de cobertura. NÃO extraia alvenaria.',
+  ELETRICA:     'EXTRAIA APENAS: instalações elétricas (tomadas, interruptores, pontos de luz, QDC). NÃO extraia alvenaria nem estrutura.',
+  HIDRAULICA:   'EXTRAIA APENAS: instalações hidráulicas (tubulações, pontos de água, esgoto, caixa d\'água). NÃO extraia alvenaria.',
+  ACABAMENTOS:  'EXTRAIA APENAS: especificações de piso, azulejo, tinta, revestimento cerâmico. NÃO extraia alvenaria nem estrutura.',
+  REFERENCIA:   '⛔ USE APENAS para verificar pé-direito e alturas. PROIBIDO extrair alvenaria, chapisco, reboco, pisos ou qualquer m² desta prancha.',
+  IGNORAR:      '⛔ IGNORE COMPLETAMENTE esta prancha. Não extraia nenhum quantitativo.',
+  CAUTELA:      'EXTRAIA com cautela apenas elementos específicos do detalhe, sem generalizar para o projeto inteiro.',
+};
+
+async function classifyPagesWithHaiku(thumbnails, pageNums, apiKey) {
+  try {
+    const content = [];
+    for (let i = 0; i < thumbnails.length; i++) {
+      content.push({ type: 'text', text: '=== PRANCHA ' + pageNums[i] + ' ===' });
+      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: thumbnails[i] } });
+    }
+    content.push({
+      type: 'text',
+      text: 'Classifique cada prancha arquitetônica pelo seu tipo. Retorne SOMENTE JSON sem markdown:\n' +
+            '{"1":"planta_baixa","2":"corte",...}\n' +
+            'Tipos válidos: planta_baixa | planta_executiva | planta_cobertura | corte | fachada | ' +
+            'instalacao_eletrica | instalacao_hidraulica | revestimento | situacao | detalhe | outro'
+    });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content }]
+      })
+    });
+
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const text = (data.content[0].text || '').trim();
+    const cleaned = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
+    return JSON.parse(cleaned);
+  } catch(e) {
+    console.warn('Classificação de pranchas falhou:', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PDF CACHE — evita re-análise e economiza créditos de API
 // ═══════════════════════════════════════════════════════════════
 const CACHE_PREFIX = "obraia_v1_";
@@ -1147,6 +1218,16 @@ async function startAnalysis() {
     }
     setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
 
+
+    // ── Step 1.5: Classify pages with Haiku ──────────────────
+    setStep("pstep1", false, "Identificando tipo de cada prancha...");
+    const _classApiKey = localStorage.getItem("anthropic_api_key") || "";
+    APP.pageClasses = (await classifyPagesWithHaiku(images, sortedPages, _classApiKey)) || {};
+    const _classInfo = sortedPages.map(p => {
+      const t = APP.pageClasses[p] || "outro";
+      return (PAGE_TYPES[t]?.badge || "📄") + "P" + p + ":" + (PAGE_TYPES[t]?.label || t);
+    }).join("  ");
+    setStep("pstep1", true, "Pranchas classificadas: " + _classInfo);
     // ── Step 2: Send to AI in batches ─────────────────────
     setStep("pstep2", false, "Enviando para análise com Claude IA…");
 
@@ -1155,14 +1236,17 @@ async function startAnalysis() {
 
     // Split into batches of BATCH_SIZE pages
     const batches = [];
+    const batchPageNumsArr = [];
     for (let i = 0; i < images.length; i += BATCH_SIZE) {
       batches.push(images.slice(i, i + BATCH_SIZE));
+      batchPageNumsArr.push(sortedPages.slice(i, i + BATCH_SIZE));
     }
 
     const batchResults = [];
 
     for (let b = 0; b < batches.length; b++) {
       const batchImgs = batches[b];
+      const batchPageNums = batchPageNumsArr[b] || [];
       const pct = 30 + (b / batches.length) * 40;
       setProgress(pct, `Analisando lote ${b + 1} de ${batches.length}…`);
 
@@ -1173,30 +1257,18 @@ async function startAnalysis() {
         })),
         {
           type: "text",
-          text: `Este é o lote ${b + 1} de ${batches.length} de imagens do projeto arquitetônico.\n` +
-                "Analise estas imagens e faça o levantamento completo de quantitativos.\n\n" +
-                "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
-                "Foque em: alvenaria (áreas de parede por ambiente menos vão), estrutura (pilares/vigas/lajes), " +
-                "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
-                (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
-        }
-      ];
-
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 16000,
-          system: ANTHROPIC_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: aiContent }]
-        })
+          text: (() => {
+          // Gera contexto de tipo para cada prancha do batch
+          const _pgCtx = batchPageNums.map((pn, idx) => {
+            const _cls = APP.pageClasses[pn] || 'outro';
+            const _rule = PAGE_EXTRACT_RULES[PAGE_TYPES[_cls]?.extract || 'CAUTELA'] || '';
+            return 'PRANCHA ' + (idx + 1) + ' (página ' + pn + ' — ' + (PAGE_TYPES[_cls]?.label || _cls) + '):\n' + _rule;
+          }).join('\n\n');
+          return "Analise as pranchas do projeto arquitetônico abaixo. Cada prancha tem instruções específicas de extração:\n\n" +
+            _pgCtx +
+            "\n\nRetorne o JSON conforme especificado no system prompt. Seja preciso — os valores serão usados para orçamento real." +
+            (APP.projectName ? "\n\nNome do projeto: " + APP.projectName : "");
+        })()
       });
 
       if (!resp.ok) {
@@ -1470,7 +1542,7 @@ document.getElementById("btnGoToBudget").addEventListener("click", () => {
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", pdfHash:null });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", pdfHash:null, pageClasses:{} });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("pagesGrid").innerHTML = "";
