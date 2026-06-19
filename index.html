@@ -690,7 +690,8 @@ const APP = {
   estado: "PE",
   desoneracao: false,  // false = sem, true = com
   sinapiDB: null,      // loaded per-state SINAPI data
-  sinapiDBState: null  // which state is currently loaded
+  sinapiDBState: null, // which state is currently loaded
+  descricoesDB: undefined  // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1268,44 +1269,159 @@ document.getElementById("btnRestart").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // BUDGET BUILD
 // ═══════════════════════════════════════════════════════════════
+// ── Normalização / tokenização compartilhada ──────────────────
+const STOP_SINAPI = new Set(["de","da","do","das","dos","em","para","com","e","a","o","as","os",
+  "no","na","nos","nas","um","uma","ou","ao","aos","incl","inclusive","tipo","ref","und","un",
+  "mm","cm","m2","m3","ml","fck","mpa","af","ps","pe"]);
+
+// Stemmer leve PT-BR (plural/gênero) p/ casar "compensada"≈"compensado", "vigas"≈"viga"
+function stemSinapi(w) {
+  if (w.length > 5 && w.endsWith("oes")) w = w.slice(0, -3) + "ao";
+  else if (w.length > 4 && w.endsWith("s")) w = w.slice(0, -1);
+  if (w.length > 5 && "aoe".includes(w[w.length - 1])) w = w.slice(0, -1);
+  return w;
+}
+
+function tokenizeSinapi(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !STOP_SINAPI.has(w))
+    .map(stemSinapi);
+}
+
+// Verbos de "ação destrutiva/conserto": penalizam o candidato se a query não os pede
+const NEG_SINAPI = new Set(["demolicao","demolir","remocao","retirada","limpeza","reparo",
+  "recomposicao","recuperacao","reaterro"].map(stemSinapi));
+
+// Limpa o código: remove sufixo de composição ("74155/001" → "74155") e não-dígitos ("83334b" → "83334")
+function baseCodigo(codigo) {
+  return String(codigo || "").split("/")[0].replace(/[^0-9]/g, "");
+}
+
+// Preço do código na tabela do estado p/ a coluna informada (0=sem,1=com); null se ausente/sem coleta
+function precoEstado(codigo, col) {
+  if (!APP.sinapiDB) return null;
+  const entry = APP.sinapiDB[codigo] || APP.sinapiDB[baseCodigo(codigo)];
+  return (entry && entry[col] != null) ? entry[col] : null;
+}
+
+// Um código tem preço efetivo (não-nulo) na tabela do estado para a coluna selecionada?
+function codigoExisteNoEstado(codigo, col) {
+  return precoEstado(codigo, (col == null ? (APP.desoneracao ? 1 : 0) : col)) != null;
+}
+
 function findSinapiItemHardcoded(codigo, descricao, categoria) {
-  // 1. Match exato de código
-  let item = SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.replace(/\/.*/,"") === codigo);
-  if (item) return item;
-
-  // 2. Match parcial: código começa com o valor buscado ou vice-versa
-  item = SINAPI_ITENS.find(i => i.codigo.startsWith(codigo) || codigo.startsWith(i.codigo.replace(/\/.*/,"")));
-  if (item) return item;
-
+  if (codigo) {
+    // 1. Match exato de código
+    let item = SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.replace(/\/.*/,"") === codigo);
+    if (item) return item;
+    // 2. Match parcial: código começa com o valor buscado ou vice-versa
+    item = SINAPI_ITENS.find(i => i.codigo.startsWith(codigo) || codigo.startsWith(i.codigo.replace(/\/.*/,"")));
+    if (item) return item;
+  }
   // 3. Fallback: similaridade por palavras na descrição
   if (!descricao) return null;
-  const STOP = new Set(["de","da","do","das","dos","em","para","com","e","a","o","as","os","no","na","nos","nas","um","uma","incl","mm","cm","m2","m3"]);
-  const tok  = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g," ").split(/\s+/).filter(w => w.length > 2 && !STOP.has(w));
-  const qw   = tok(descricao);
+  const qw = tokenizeSinapi(descricao);
   if (!qw.length) return null;
-
   let best = null, bestScore = 0;
   SINAPI_ITENS.forEach(s => {
-    const sw      = tok(s.descricao);
+    const sw      = tokenizeSinapi(s.descricao);
     const matches = qw.filter(w => sw.some(sw2 => sw2.startsWith(w) || w.startsWith(sw2))).length;
     const bonus   = (categoria && s.cat === categoria) ? 3 : 0;
     const score   = matches + bonus;
     if (score > bestScore && matches >= 2) { bestScore = score; best = s; }
   });
-  return best; // null se não encontrar
+  return best;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BUSCA TEXTUAL no catálogo SINAPI (descricoes.json) com pesos IDF
+// ═══════════════════════════════════════════════════════════════
+let _descIndex = null;   // [{codigo, tokens:Set, descricao}]
+let _idf = null;         // token -> peso idf
+
+function buildDescIndex() {
+  if (_descIndex) return _descIndex;
+  _descIndex = [];
+  _idf = Object.create(null);
+  const db = APP.descricoesDB;
+  if (!db) return _descIndex;
+  const df = Object.create(null);
+  for (const cod in db) {
+    const toks = tokenizeSinapi(db[cod]);
+    const set  = new Set(toks);
+    _descIndex.push({ codigo: cod, tokens: set, descricao: db[cod] });
+    set.forEach(t => { df[t] = (df[t] || 0) + 1; });
+  }
+  const N = _descIndex.length || 1;
+  for (const t in df) _idf[t] = Math.log(1 + N / df[t]);
+  return _descIndex;
+}
+
+// Procura o código SINAPI pela descrição textual, restrito a códigos que
+// EXISTEM (com preço) na tabela do estado. Retorna {codigo, descricao, score} ou null.
+function buscarCodigoPorDescricao(descricao, categoria) {
+  const qw = tokenizeSinapi(descricao);
+  if (!qw.length) return null;
+  const qset = new Set(qw);
+  const idx = buildDescIndex();
+  const col = APP.desoneracao ? 1 : 0;
+
+  let best = null, bestScore = 0;
+  if (idx.length) {
+    // peso total da query (para normalizar)
+    let qWeight = 0; qset.forEach(t => { qWeight += (_idf[t] || 1); });
+    qWeight = qWeight || 1;
+    for (let k = 0; k < idx.length; k++) {
+      const e = idx[k];
+      // só sugere código que tenha PREÇO (não-nulo) na coluna selecionada da tabela do estado
+      if (APP.sinapiDB && !codigoExisteNoEstado(e.codigo, col)) continue;
+      let inter = 0;
+      qset.forEach(t => { if (e.tokens.has(t)) inter += (_idf[t] || 1); });
+      if (inter <= 0) continue;
+      // cobertura da query (recall ponderado) penalizando descrições muito genéricas
+      const cobertura = inter / qWeight;
+      let score = inter * (0.5 + 0.5 * cobertura);
+      // penaliza serviços de demolição/remoção/limpeza quando a query não os pede
+      let temNeg = false; e.tokens.forEach(t => { if (NEG_SINAPI.has(t)) temNeg = true; });
+      let qNeg = false; qset.forEach(t => { if (NEG_SINAPI.has(t)) qNeg = true; });
+      if (temNeg && !qNeg) score *= 0.4;
+      if (score > bestScore && cobertura >= 0.34) { bestScore = score; best = e; }
+    }
+  }
+
+  // Fallback: catálogo interno (SINAPI_ITENS) caso descricoes.json não cubra
+  if (!best) {
+    const item = findSinapiItemHardcoded(null, descricao, categoria);
+    if (item) return { codigo: item.codigo, descricao: item.descricao, score: 1 };
+    return null;
+  }
+  return { codigo: best.codigo, descricao: best.descricao, score: bestScore };
 }
 
 // ═══════════════════════════════════════════════════════════════
 // SINAPI DATABASE LOADING
 // ═══════════════════════════════════════════════════════════════
-async function loadSinapiDB(estado) {
-  if (APP.sinapiDB && APP.sinapiDBState === estado) return true;
-  if (estado === "SP") {
-    // For SP use hardcoded SINAPI_ITENS (fallback)
-    APP.sinapiDB = null;
-    APP.sinapiDBState = "SP";
-    return true;
+// Carrega (uma vez) o catálogo de descrições compartilhado p/ busca textual
+async function loadDescricoes() {
+  if (APP.descricoesDB !== undefined) return;  // já tentou carregar
+  try {
+    const r = await fetch("data/descricoes.json");
+    APP.descricoesDB = r.ok ? await r.json() : null;
+    if (!r.ok) console.warn("descricoes.json indisponível (HTTP " + r.status + ") — busca textual limitada ao catálogo interno.");
+  } catch(e) {
+    console.warn("descricoes.json não encontrado — busca textual limitada ao catálogo interno.", e.message);
+    APP.descricoesDB = null;
   }
+  _descIndex = null;  // força reconstrução do índice
+}
+
+async function loadSinapiDB(estado) {
+  await loadDescricoes();
+  if (APP.sinapiDB && APP.sinapiDBState === estado) return true;
   try {
     const r = await fetch(`data/sinapi_${estado}.json`);
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -1314,32 +1430,67 @@ async function loadSinapiDB(estado) {
     return true;
   } catch(e) {
     console.warn("Não foi possível carregar SINAPI para", estado, e.message);
-    APP.sinapiDB = null;
+    APP.sinapiDB = null;     // cairá no catálogo interno (SINAPI_ITENS)
     APP.sinapiDBState = estado;
     return false;
   }
 }
 
-function getSinapiPrice(codigo, preco_unitario_ia) {
+// Resolve preço + código final + procedência para um serviço.
+// Retorna { preco, codigoFinal, fonte, sugerido }
+//   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
+function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
-  
-  // 1. Look up in loaded state SINAPI DB
+  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", sugerido: false };
+
+  // 1. Busca direta por código na tabela do estado (trata sufixos /001 e letras)
   if (APP.sinapiDB) {
-    const clean = String(codigo).replace(/[^0-9]/g, "");
-    let entry = APP.sinapiDB[codigo] || APP.sinapiDB[clean];
-    if (entry && entry[col] != null) return entry[col];
-    // Try prefix match (e.g. "74155/001" → "74155")
-    const prefix = clean.substring(0, 6);
-    entry = APP.sinapiDB[prefix];
-    if (entry && entry[col] != null) return entry[col];
+    const precoCod = precoEstado(codigo, col);
+    if (precoCod != null) {
+      res.preco = precoCod;
+      res.fonte = "estado";
+      res.codigoFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
+      return res;
+    }
   }
-  
-  // 2. Fallback to hardcoded SINAPI_ITENS (SP prices, no adjustment)
+
+  // 2. Código não bateu → busca o serviço pelo NOME e sugere o código correto
+  const sug = buscarCodigoPorDescricao(descricao, categoria);
+  if (sug) {
+    if (APP.sinapiDB) {
+      const precoSug = precoEstado(sug.codigo, col);
+      if (precoSug != null) {
+        res.preco = precoSug;
+        res.fonte = "estado-desc";
+        res.codigoFinal = sug.codigo;
+        res.sugerido = String(sug.codigo) !== String(codigo || "");
+        return res;
+      }
+    }
+    // Sem tabela de estado: usa o item interno correspondente ao código sugerido
+    const itemSug = findSinapiItemHardcoded(sug.codigo);
+    if (itemSug) {
+      res.preco = itemSug.preco;
+      res.fonte = "interno-desc";
+      res.codigoFinal = sug.codigo;
+      res.sugerido = String(sug.codigo) !== String(codigo || "");
+      return res;
+    }
+  }
+
+  // 3. Fallback: catálogo interno por código (preços SP de referência)
   const item = findSinapiItemHardcoded(codigo);
-  if (item) return item.preco;
-  
-  // 3. Final fallback: AI-provided price
-  return preco_unitario_ia || 0;
+  if (item) { res.preco = item.preco; res.fonte = "interno"; res.codigoFinal = item.codigo; return res; }
+
+  // 4. Fallback final: preço informado pela IA
+  res.preco = preco_unitario_ia || 0;
+  res.fonte = res.preco ? "ia" : "none";
+  return res;
+}
+
+// Compat: mantém a assinatura antiga retornando apenas o preço.
+function getSinapiPrice(codigo, preco_unitario_ia) {
+  return resolveSinapi(codigo, "", "", preco_unitario_ia).preco;
 }
 
 function updateRefLabel() {
@@ -1398,7 +1549,10 @@ async function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const precoAdj = getSinapiPrice(q.sinapi_codigo || "", q.preco_unitario || 0);
+      const info     = resolveSinapi(q.sinapi_codigo || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const precoAdj = info.preco;
+      q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
+      q._fontePreco      = info.fonte;
       const qtd      = Number(q.quantidade) || 0;
       const subtotal   = precoAdj * qtd;
       const comBdi     = subtotal * (1 + bdi);
@@ -1407,12 +1561,21 @@ async function buildBudget() {
       totalSemBdi += subtotal;
       totalComBdi += comBdi;
 
-      const warnPrice = precoAdj === 0 ? '<span class="warn">⚠ verificar preço</span>' : '';
+      const warnPrice = precoAdj === 0
+        ? '<span class="warn">⚠ verificar preço</span>'
+        : (info.fonte === "ia" ? '<span class="warn" title="Código não encontrado na tabela do estado — preço estimado pela IA">⚠ preço estimado</span>'
+        : (info.fonte === "interno" || info.fonte === "interno-desc" ? '<span class="warn" title="Preço de referência interno (SP) — código ausente na tabela do estado">⚠ ref. SP</span>' : ''));
+
+      // Código corrigido pela busca textual
+      const codOrig = q.sinapi_codigo || "—";
+      const codCell = info.sugerido
+        ? `<span style="color:var(--blue)" title="Código corrigido pela busca textual (IA sugeriu: ${codOrig})">${info.codigoFinal} ✎</span>`
+        : codOrig;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${itemNum}</td>
-        <td style="font-family:monospace;font-size:11px">${q.sinapi_codigo || "—"}</td>
+        <td style="font-family:monospace;font-size:11px">${codCell}</td>
         <td>${q.descricao} ${warnPrice}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
@@ -1503,13 +1666,15 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const precoAdj = getSinapiPrice(q.sinapi_codigo || "", q.preco_unitario || 0);
+      const info       = resolveSinapi(q.sinapi_codigo || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const precoAdj   = info.preco;
+      const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
       const qtd        = Number(q.quantidade) || 0;
       const subtotal   = fmt2(precoAdj * qtd);
       const comBdi     = fmt2(subtotal * (1 + bdi));
       catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
 
-      rows.push([itemNum, q.sinapi_codigo||"—", q.descricao,
+      rows.push([itemNum, codExcel, q.descricao,
                  q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
     });
     rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
