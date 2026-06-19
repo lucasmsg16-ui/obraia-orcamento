@@ -284,6 +284,19 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .banco-ia{background:#fee2e2;color:#991b1b}
 .edit-cod{cursor:pointer;margin-left:4px;opacity:.55;user-select:none}
 .edit-cod:hover{opacity:1}
+.gantt{font-size:12px;margin-top:8px}
+.gantt-row,.gantt-head{display:flex;align-items:center;margin-bottom:4px}
+.gantt-lbl{flex:0 0 200px;padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--navy);font-size:12px}
+.gantt-track{position:relative;flex:1;height:20px;background:#f1f5f9;border-radius:4px}
+.gantt-scale{position:relative;height:14px}
+.gantt-scale span{position:absolute;font-size:9px;color:#94a3b8;transform:translateX(-50%)}
+.gantt-bar{position:absolute;top:2px;height:16px;background:var(--blue);border-radius:3px;color:#fff;font-size:9px;line-height:16px;text-align:center;overflow:hidden;min-width:14px}
+.gantt-bar.crit{background:#dc2626}
+.crono-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.crono-tbl th,.crono-tbl td{border:1px solid var(--border);padding:5px 7px;text-align:left}
+.crono-tbl th{background:var(--navy);color:#fff;font-size:11px}
+.crono-tbl .num{text-align:right}
+.crono-tbl .crit-row{background:#fef2f2}
 </style>
 </head>
 
@@ -303,6 +316,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
   <div class="step-tab" data-step="3"><span class="num">3</span>EAP — Quantitativos</div>
   <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
+  <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ MAIN -->
@@ -548,7 +562,32 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 
     <div class="btn-group">
       <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
+      <button class="btn btn-primary" id="btnGoCrono">📅 Gerar Cronograma →</button>
       <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── SCREEN 5: Cronograma ──────────────────────────────── -->
+<div class="screen" id="screen-5">
+  <div class="card">
+    <div class="card-title"><span class="icon">📅</span> Cronograma Físico-Financeiro & Caminho Crítico</div>
+    <div class="state-bar" style="flex-wrap:wrap;gap:12px">
+      <label>⏱️ Prazo de execução (meses):</label>
+      <input type="number" id="cronoPrazo" min="1" max="48" step="1" style="width:90px;padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
+      <span class="ref-sinapi">Durações estimadas pelo peso de custo de cada fase · método CPM</span>
+    </div>
+    <div class="info-grid" id="cronoKpis" style="margin:16px 0"></div>
+    <div id="cronoCritico" class="alert" style="background:#fff7ed;border-left:4px solid #ea580c;margin-bottom:16px"></div>
+    <h3 style="margin:10px 0 6px;font-size:15px;color:var(--navy)">Gráfico de Gantt</h3>
+    <div id="cronoGantt"></div>
+    <h3 style="margin:18px 0 6px;font-size:15px;color:var(--navy)">Curva S</h3>
+    <div id="cronoCurvaS"></div>
+    <h3 style="margin:18px 0 6px;font-size:15px;color:var(--navy)">Rede CPM — Atividades</h3>
+    <div style="overflow-x:auto"><div id="cronoTabela"></div></div>
+    <div class="btn-group" style="margin-top:18px">
+      <button class="btn btn-success" id="btnDownload2">⬇ Baixar Excel (com cronograma)</button>
+      <button class="btn btn-outline" id="btnGoBudget">↩ Voltar para Orçamento</button>
     </div>
   </div>
 </div>
@@ -1316,6 +1355,174 @@ function editarCodigo(id) {
   recalcBudget();
 }
 
+// ═══════════════════════════════════════════════════════════════
+// CRONOGRAMA FÍSICO-FINANCEIRO + CAMINHO CRÍTICO (CPM)
+// ═══════════════════════════════════════════════════════════════
+// Sequenciamento real de obra de edificação (precedências por categoria)
+const PRECEDENCIA_CAT = {
+  1: [], 2: [1], 3: [2], 4: [3], 5: [4], 6: [5],
+  7: [12, 13, 6], 8: [5, 6], 9: [7, 8], 10: [5], 11: [7],
+  12: [5], 13: [5], 14: [4], 15: [9, 11, 10, 8]
+};
+const NOME_FASE = {
+  1: "Serviços Preliminares", 2: "Movimento de Terra", 3: "Fundações", 4: "Estrutura",
+  5: "Alvenaria", 6: "Cobertura", 7: "Revestimentos Internos", 8: "Revestimentos Externos",
+  9: "Pintura", 10: "Esquadrias", 11: "Pisos", 12: "Instalações Hidrossanitárias",
+  13: "Instalações Elétricas", 14: "Impermeabilização", 15: "Serviços Complementares"
+};
+function numCat(cat) { const m = String(cat || "").match(/^\d+/); return m ? parseInt(m[0], 10) : 99; }
+
+// Calcula a rede CPM a partir dos quantitativos + orçamento, para um prazo (meses)
+function computeCronograma(prazoMeses) {
+  const r = APP.analysisResult; if (!r) return null;
+  const bdi = (parseFloat(document.getElementById("bdiInput").value) / 100) || 0;
+
+  // custo (c/ BDI) por categoria
+  const custoCat = {};
+  (r.quantitativos || []).forEach(q => {
+    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0);
+    const tot = info.preco * (Number(q.quantidade) || 0) * (1 + bdi);
+    const c = numCat(q.categoria || "99");
+    if (NOME_FASE[c]) custoCat[c] = (custoCat[c] || 0) + tot;
+  });
+  const cats = Object.keys(custoCat).map(Number).filter(c => custoCat[c] > 0).sort((a, b) => a - b);
+  if (!cats.length) return null;
+  const presentes = new Set(cats);
+  const totalCusto = cats.reduce((s, c) => s + custoCat[c], 0) || 1;
+
+  // predecessores presentes (resolve transitivamente categorias ausentes)
+  function predsPresentes(c, seen) {
+    seen = seen || new Set(); const out = new Set();
+    (PRECEDENCIA_CAT[c] || []).forEach(p => {
+      if (presentes.has(p)) out.add(p);
+      else if (!seen.has(p)) { seen.add(p); predsPresentes(p, seen).forEach(x => out.add(x)); }
+    });
+    return out;
+  }
+  const preds = {}; cats.forEach(c => preds[c] = [...predsPresentes(c)]);
+
+  // ordem topológica (precedências podem apontar p/ categorias de nº maior)
+  const succ = {}; cats.forEach(c => succ[c] = []);
+  cats.forEach(c => preds[c].forEach(p => succ[p].push(c)));
+  const indeg = {}; cats.forEach(c => indeg[c] = preds[c].length);
+  const fila = cats.filter(c => indeg[c] === 0); const ordem = [];
+  while (fila.length) { const c = fila.shift(); ordem.push(c); succ[c].forEach(s => { if (--indeg[s] === 0) fila.push(s); }); }
+  if (ordem.length !== cats.length) ordem.splice(0, ordem.length, ...cats); // fallback anti-ciclo
+
+  // durações proporcionais ao custo, escaladas p/ caminho crítico = prazo
+  const durProv = {}; cats.forEach(c => durProv[c] = Math.max(0.0001, custoCat[c] / totalCusto));
+  const efp = {}; ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(p => efp[p])) : 0; efp[c] = es + durProv[c]; });
+  const cpLen = Math.max(...cats.map(c => efp[c])) || 1;
+  const prazoDias = Math.max(1, Math.round((prazoMeses || 6) * 30));
+  const factor = prazoDias / cpLen;
+  const dur = {}; cats.forEach(c => dur[c] = Math.max(1, Math.round(durProv[c] * factor)));
+
+  // forward pass
+  const ES = {}, EF = {};
+  ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(p => EF[p])) : 0; ES[c] = es; EF[c] = es + dur[c]; });
+  const projDur = Math.max(...cats.map(c => EF[c]));
+  // backward pass
+  const LF = {}, LS = {};
+  [...ordem].reverse().forEach(c => { LF[c] = succ[c].length ? Math.min(...succ[c].map(s => LS[s])) : projDur; LS[c] = LF[c] - dur[c]; });
+
+  const ativ = ordem.map(c => ({
+    cat: c, nome: NOME_FASE[c] || ("Categoria " + c), custo: custoCat[c],
+    peso: custoCat[c] / totalCusto * 100,
+    es: ES[c], ef: EF[c], ls: LS[c], lf: LF[c], dur: dur[c],
+    folga: Math.round(LS[c] - ES[c]), critico: Math.round(LS[c] - ES[c]) <= 0,
+    preds: preds[c].map(p => NOME_FASE[p] || ("Cat " + p))
+  })).sort((a, b) => a.es - b.es || a.cat - b.cat);
+
+  return { ativ, projDur, totalCusto, prazoMeses: prazoMeses || 6, prazoDias };
+}
+
+function prazoPadrao() {
+  const d = computeCronograma(6);
+  const custo = d ? d.totalCusto : 0;
+  return Math.max(4, Math.min(24, Math.round(custo / 200000) || 6));
+}
+
+function buildCronograma() {
+  const inp = document.getElementById("cronoPrazo");
+  if (inp && !inp.value) inp.value = prazoPadrao();
+  const prazo = inp ? (parseFloat(inp.value) || 6) : 6;
+  const d = computeCronograma(prazo);
+  const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (!d) { document.getElementById("cronoGantt").innerHTML = "<p>Gere o orçamento primeiro.</p>"; return; }
+
+  const criticas = d.ativ.filter(a => a.critico);
+  // KPIs
+  document.getElementById("cronoKpis").innerHTML = [
+    { label: "Prazo total", value: `${d.projDur} dias`, sub: `≈ ${(d.projDur / 30).toFixed(1)} meses` },
+    { label: "Fases", value: d.ativ.length, sub: "no cronograma" },
+    { label: "Caminho crítico", value: criticas.length, sub: "fase(s) crítica(s)" },
+    { label: "Custo total (c/ BDI)", value: `R$ ${fmt(d.totalCusto)}`, sub: "" },
+  ].map(i => `<div class="info-box"><div class="label">${i.label}</div><div class="value" style="font-size:16px">${i.value}</div><div class="sub">${i.sub}</div></div>`).join("");
+
+  // Gantt
+  const sem = Math.ceil(d.projDur / 7);
+  let gantt = `<div class="gantt"><div class="gantt-head"><div class="gantt-lbl">Fase</div><div class="gantt-track"><div class="gantt-scale">`;
+  for (let s = 0; s <= sem; s += Math.max(1, Math.ceil(sem / 12))) gantt += `<span style="left:${s * 7 / d.projDur * 100}%">S${s}</span>`;
+  gantt += `</div></div></div>`;
+  d.ativ.forEach(a => {
+    const left = a.es / d.projDur * 100, w = Math.max(1.2, a.dur / d.projDur * 100);
+    gantt += `<div class="gantt-row"><div class="gantt-lbl">${a.cat}. ${a.nome}</div><div class="gantt-track">
+      <div class="gantt-bar ${a.critico ? "crit" : ""}" style="left:${left}%;width:${w}%" title="${a.nome}: dia ${a.es}–${a.ef} (${a.dur}d)${a.critico ? " · CRÍTICA" : " · folga " + a.folga + "d"}">${a.dur}d</div></div></div>`;
+  });
+  gantt += `</div>`;
+  document.getElementById("cronoGantt").innerHTML = gantt;
+
+  // Caminho crítico
+  document.getElementById("cronoCritico").innerHTML =
+    `<strong>🔴 Caminho crítico:</strong> ${criticas.map(a => a.nome).join(" → ")}<br>
+     <span style="font-size:12px;color:var(--muted)">Qualquer atraso nessas fases atrasa a obra inteira. Concentre fiscalização e recursos aqui.</span>`;
+
+  // Tabela CPM
+  let tab = `<table class="crono-tbl"><thead><tr><th>#</th><th>Fase</th><th class="num">Peso %</th><th class="num">Início (dia)</th><th class="num">Duração</th><th class="num">Fim (dia)</th><th>Predecessoras</th><th class="num">Folga</th><th>Crítico</th></tr></thead><tbody>`;
+  d.ativ.forEach((a, i) => {
+    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num">${a.es}</td><td class="num">${a.dur}d</td><td class="num">${a.ef}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
+  });
+  tab += `</tbody></table>`;
+  document.getElementById("cronoTabela").innerHTML = tab;
+
+  // Curva S (SVG)
+  document.getElementById("cronoCurvaS").innerHTML = curvaS_SVG(d);
+}
+
+function curvaS_SVG(d) {
+  const meses = Math.max(1, Math.ceil(d.projDur / 30));
+  const W = 640, H = 240, pad = 38;
+  const total = d.totalCusto || 1;
+  const cum = t => d.ativ.reduce((s, a) => {
+    const dur = (a.ef - a.es) || 1;
+    const frac = Math.max(0, Math.min(1, (t - a.es) / dur));
+    return s + a.custo * frac;
+  }, 0);
+  let pts = [], labels = [];
+  for (let m = 0; m <= meses; m++) {
+    const t = Math.min(d.projDur, m * 30);
+    const x = pad + (m / meses) * (W - 2 * pad);
+    const y = (H - pad) - (cum(t) / total) * (H - 2 * pad);
+    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    labels.push({ x, m, pct: (cum(t) / total * 100) });
+  }
+  let grid = "";
+  for (let g = 0; g <= 100; g += 25) {
+    const y = (H - pad) - (g / 100) * (H - 2 * pad);
+    grid += `<line x1="${pad}" y1="${y}" x2="${W - pad}" y2="${y}" stroke="#e5e7eb"/><text x="${pad - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#888">${g}%</text>`;
+  }
+  let xlab = labels.map(l => `<text x="${l.x}" y="${H - pad + 14}" text-anchor="middle" font-size="10" fill="#888">M${l.m}</text>`).join("");
+  let dots = labels.map(l => { const y = (H - pad) - (l.pct / 100) * (H - 2 * pad); return `<circle cx="${l.x}" cy="${y}" r="3" fill="#1e40af"/>`; }).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:680px">${grid}
+    <polyline points="${pts.join(" ")}" fill="none" stroke="#1e40af" stroke-width="2.5"/>
+    ${dots}${xlab}
+    <text x="${W / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2747">Curva S — Avanço Físico-Financeiro Previsto (%)</text></svg>`;
+}
+
+document.getElementById("btnGoCrono").addEventListener("click", () => { goTo(5); buildCronograma(); });
+document.getElementById("btnGoBudget").addEventListener("click", () => goTo(4));
+document.getElementById("btnDownload2").addEventListener("click", exportExcel);
+
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1903,6 +2110,44 @@ function exportExcel() {
     const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
     ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
+  }
+
+  // ── Sheet 4: Cronograma físico-financeiro + Caminho Crítico ─
+  const cronoPrazoEl = document.getElementById("cronoPrazo");
+  const prazoX = (cronoPrazoEl && cronoPrazoEl.value) ? parseFloat(cronoPrazoEl.value) : prazoPadrao();
+  const dc = computeCronograma(prazoX);
+  if (dc) {
+    const nMeses = Math.max(1, Math.ceil(dc.projDur / 30));
+    const head = ["FASE","PESO %","INÍCIO (dia)","DURAÇÃO (dias)","FIM (dia)","FOLGA (dias)","CRÍTICO"];
+    for (let m = 1; m <= nMeses; m++) head.push(`MÊS ${m} (R$)`);
+    const crows = [
+      [`CRONOGRAMA FÍSICO-FINANCEIRO — ${APP.projectName}`],
+      [`Prazo: ${dc.projDur} dias (~${(dc.projDur/30).toFixed(1)} meses) | SINAPI 05/2026 | BDI: ${(bdi*100).toFixed(2)}%`],
+      [],
+      head
+    ];
+    const desemb = new Array(nMeses).fill(0);
+    dc.ativ.forEach(a => {
+      const dur = (a.ef - a.es) || 1;
+      const row = [a.nome, +a.peso.toFixed(2), a.es, a.dur, a.ef, a.folga, a.critico ? "SIM" : ""];
+      for (let m = 1; m <= nMeses; m++) {
+        const ini = (m-1)*30, fim = m*30;
+        const ov = Math.max(0, Math.min(a.ef, fim) - Math.max(a.es, ini));
+        const val = a.custo * (ov / dur);
+        desemb[m-1] += val;
+        row.push(+val.toFixed(2));
+      }
+      crows.push(row);
+    });
+    const linhaMes = ["DESEMBOLSO MENSAL (R$)","","","","","",""];
+    const linhaAc  = ["ACUMULADO (R$)","","","","","",""];
+    const linhaPct = ["CURVA S (% acum.)","","","","","",""];
+    let ac = 0;
+    desemb.forEach(v => { ac += v; linhaMes.push(+v.toFixed(2)); linhaAc.push(+ac.toFixed(2)); linhaPct.push(+((ac/dc.totalCusto)*100).toFixed(1)); });
+    crows.push([], linhaMes, linhaAc, linhaPct);
+    const ws4 = XLSX.utils.aoa_to_sheet(crows);
+    ws4["!cols"] = [{wch:26},{wch:9},{wch:12},{wch:14},{wch:11},{wch:12},{wch:9}].concat(Array(nMeses).fill({wch:14}));
+    XLSX.utils.book_append_sheet(wb, ws4, "CRONOGRAMA");
   }
 
   const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
