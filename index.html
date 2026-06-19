@@ -7,8 +7,8 @@
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- ExcelJS — planilhas estilizadas -->
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<!-- SheetJS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- jsonrepair: corrige JSON malformado gerado por IA -->
 <script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
 
@@ -278,33 +278,6 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   .budget-table { font-size: 11px; }
   .info-grid { grid-template-columns: 1fr 1fr; }
 }
-
-  /* ── Schedule / Gantt ─────────────────────────── */
-  .sched-bar { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .sched-bar label { font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; }
-  .sched-bar input[type="date"] { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; outline: none; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-  .legend-box  { width: 13px; height: 13px; border-radius: 2px; flex-shrink: 0; }
-  .gantt-wrap { overflow-x: auto; margin-top: 4px; }
-  .gantt-table { border-collapse: collapse; font-size: 11px; white-space: nowrap; }
-  .gantt-table th { background: var(--navy); color: #fff; padding: 5px 4px; text-align: center; font-size: 10px; min-width: 22px; }
-  .gantt-table th.act-col  { text-align: left; padding: 5px 12px; min-width: 190px; font-size:11px; }
-  .gantt-table th.info-col { min-width: 55px; }
-  .gantt-table th.month-hd { background: #1a3c5e; font-size: 9px; font-weight: 700; letter-spacing:.3px; }
-  .gantt-table td { padding: 2px 2px; border-bottom: 1px solid #eef0f3; }
-  .gantt-table td.act-name { padding: 5px 12px; font-size: 11.5px; font-weight: 500; background: #f8fafc; }
-  .gantt-table td.act-name.is-critical { color: var(--red); font-weight: 700; }
-  .gantt-table td.info-cell { text-align: center; font-size: 10px; color: var(--muted); padding: 5px 4px; background: #f8fafc; }
-  .gantt-cell { height: 18px; border-radius: 3px; margin: 0 1px; }
-  .gantt-cell.gactive   { background: var(--blue); }
-  .gantt-cell.gcritical { background: #e74c3c; }
-  .gantt-cell.gfloat    { background: #b8d9f5; border-radius: 2px; }
-  .scurve-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
-  .scurve-table th { background: var(--navy); color: #fff; padding: 6px 8px; text-align: center; font-size: 10px; }
-  .scurve-table th:first-child { text-align: left; min-width: 130px; }
-  .scurve-table td { padding: 5px 8px; text-align: center; border-bottom: 1px solid var(--border); font-size: 11px; }
-  .scurve-table td:first-child { text-align: left; font-weight: 600; }
-  .scurve-table tr:nth-child(even) td { background: #f8fafc; }
 </style>
 </head>
 
@@ -324,7 +297,6 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
   <div class="step-tab" data-step="3"><span class="num">3</span>EAP — Quantitativos</div>
   <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
-  <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma Físico-Financeiro</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ MAIN -->
@@ -372,6 +344,62 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     </div>
   </div>
 
+  <!-- Configurações do orçamento (aparece ao carregar PDF) -->
+  <div class="card" id="configCard" style="display:none">
+    <div class="card-title"><span class="icon">⚙️</span> Configurações do Orçamento</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap">
+      <div class="field">
+        <label>Estado da Obra</label>
+        <select id="estadoSelect1" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;outline:none">
+          <option value="AC">AC — Acre</option>
+          <option value="AL">AL — Alagoas</option>
+          <option value="AM">AM — Amazonas</option>
+          <option value="AP">AP — Amapá</option>
+          <option value="BA">BA — Bahia</option>
+          <option value="CE">CE — Ceará</option>
+          <option value="DF">DF — Distrito Federal</option>
+          <option value="ES">ES — Espírito Santo</option>
+          <option value="GO">GO — Goiás</option>
+          <option value="MA">MA — Maranhão</option>
+          <option value="MG">MG — Minas Gerais</option>
+          <option value="MS">MS — Mato Grosso do Sul</option>
+          <option value="MT">MT — Mato Grosso</option>
+          <option value="PA">PA — Pará</option>
+          <option value="PB">PB — Paraíba</option>
+          <option value="PE" selected>PE — Pernambuco</option>
+          <option value="PI">PI — Piauí</option>
+          <option value="PR">PR — Paraná</option>
+          <option value="RJ">RJ — Rio de Janeiro</option>
+          <option value="RN">RN — Rio Grande do Norte</option>
+          <option value="RO">RO — Rondônia</option>
+          <option value="RR">RR — Roraima</option>
+          <option value="RS">RS — Rio Grande do Sul</option>
+          <option value="SC">SC — Santa Catarina</option>
+          <option value="SE">SE — Sergipe</option>
+          <option value="SP">SP — São Paulo</option>
+          <option value="TO">TO — Tocantins</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Regime de Desoneração</label>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;text-transform:none;font-weight:400;letter-spacing:0">
+            <input type="radio" name="desonerado" id="desSem" value="sem" checked style="width:16px;height:16px;accent-color:var(--blue)">
+            <span><strong>Sem desoneração</strong> — encargos horistas padrão</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;text-transform:none;font-weight:400;letter-spacing:0">
+            <input type="radio" name="desonerado" id="desCom" value="com" style="width:16px;height:16px;accent-color:var(--blue)">
+            <span><strong>Com desoneração</strong> — desoneração da folha de pagamento</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="alert alert-info" style="margin-top:12px;font-size:12px">
+      <span>📋</span>
+      <span>Tabela SINAPI 05/2026 · Os preços serão buscados na tabela do estado selecionado.</span>
+    </div>
+  </div>
+
   <!-- Page selector -->
   <div class="card" id="pageCard" style="display:none">
     <div class="card-title"><span class="icon">🗂️</span> Selecionar Páginas para Análise</div>
@@ -382,7 +410,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div class="pages-grid" id="pagesGrid"></div>
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
       <span id="selectedCount">0</span> página(s) selecionada(s)
-      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Muitas páginas selecionadas — a análise será feita em lotes automáticos, o que pode demorar mais.</span>
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 6 páginas enviadas para IA — selecione as plantas baixas principais.</span>
     </div>
 
     <div class="btn-group">
@@ -441,36 +469,42 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 <!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
 <div class="screen" id="screen-4">
   <!-- State selector -->
-  <div class="state-bar">
-    <label>🗺️ Estado do Projeto:</label>
-    <select id="stateSelect" onchange="recalcBudget()">
-      <option value="SP">SP — São Paulo</option>
-      <option value="RJ">RJ — Rio de Janeiro</option>
-      <option value="MG">MG — Minas Gerais</option>
-      <option value="RS">RS — Rio Grande do Sul</option>
-      <option value="PR">PR — Paraná</option>
-      <option value="SC">SC — Santa Catarina</option>
-      <option value="BA">BA — Bahia</option>
-      <option value="PE">PE — Pernambuco</option>
-      <option value="CE">CE — Ceará</option>
-      <option value="GO">GO — Goiás</option>
-      <option value="DF">DF — Distrito Federal</option>
-      <option value="MT">MT — Mato Grosso</option>
-      <option value="MS">MS — Mato Grosso do Sul</option>
-      <option value="PA">PA — Pará</option>
-      <option value="AM">AM — Amazonas</option>
-      <option value="ES">ES — Espírito Santo</option>
-      <option value="MA">MA — Maranhão</option>
-      <option value="PB">PB — Paraíba</option>
-      <option value="RN">RN — Rio Grande do Norte</option>
-      <option value="AL">AL — Alagoas</option>
-      <option value="SE">SE — Sergipe</option>
-      <option value="PI">PI — Piauí</option>
-      <option value="TO">TO — Tocantins</option>
-      <option value="RO">RO — Rondônia</option>
+  <div class="state-bar" style="flex-wrap:wrap;gap:12px">
+    <label>🗺️ Estado:</label>
+    <select id="stateSelect" onchange="syncStateFromScreen4()">
       <option value="AC">AC — Acre</option>
-      <option value="RR">RR — Roraima</option>
+      <option value="AL">AL — Alagoas</option>
+      <option value="AM">AM — Amazonas</option>
       <option value="AP">AP — Amapá</option>
+      <option value="BA">BA — Bahia</option>
+      <option value="CE">CE — Ceará</option>
+      <option value="DF">DF — Distrito Federal</option>
+      <option value="ES">ES — Espírito Santo</option>
+      <option value="GO">GO — Goiás</option>
+      <option value="MA">MA — Maranhão</option>
+      <option value="MG">MG — Minas Gerais</option>
+      <option value="MS">MS — Mato Grosso do Sul</option>
+      <option value="MT">MT — Mato Grosso</option>
+      <option value="PA">PA — Pará</option>
+      <option value="PB">PB — Paraíba</option>
+      <option value="PE" selected>PE — Pernambuco</option>
+      <option value="PI">PI — Piauí</option>
+      <option value="PR">PR — Paraná</option>
+      <option value="RJ">RJ — Rio de Janeiro</option>
+      <option value="RN">RN — Rio Grande do Norte</option>
+      <option value="RO">RO — Rondônia</option>
+      <option value="RR">RR — Roraima</option>
+      <option value="RS">RS — Rio Grande do Sul</option>
+      <option value="SC">SC — Santa Catarina</option>
+      <option value="SE">SE — Sergipe</option>
+      <option value="SP">SP — São Paulo</option>
+      <option value="TO">TO — Tocantins</option>
+    </select>
+
+    <label>💰 Desoneração:</label>
+    <select id="desonerSelect" onchange="syncStateFromScreen4()">
+      <option value="sem">Sem desoneração</option>
+      <option value="com">Com desoneração</option>
     </select>
 
     <div class="bdi-field">
@@ -478,7 +512,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
       <input type="number" id="bdiInput" value="24.75" min="0" max="60" step="0.25" onchange="recalcBudget()">
     </div>
 
-    <div class="ref-sinapi">Referência: SINAPI 05/2025 · Preços sem desoneração</div>
+    <div class="ref-sinapi" id="refSinapi">Referência: SINAPI 05/2026 · Sem desoneração</div>
   </div>
 
   <!-- KPI cards -->
@@ -507,43 +541,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     </div>
 
     <div class="btn-group">
-      <button class="btn btn-primary" id="btnGoCronograma">📅 Gerar Cronograma Físico-Financeiro →</button>
       <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
       <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
     </div>
-  </div>
-</div>
-
-
-<!-- ─── SCREEN 5: Cronograma ──────────────────────────────────── -->
-<div class="screen" id="screen-5">
-  <div class="sched-bar">
-    <label>📅 Data de Início:</label>
-    <input type="date" id="startDateInput">
-    <button class="btn btn-primary" onclick="buildSchedule()" style="padding:9px 22px; font-size:13px;">⚙️ Calcular CPM</button>
-    <div style="margin-left:auto; display:flex; gap:14px; flex-wrap:wrap;">
-      <div class="legend-item"><div class="legend-box" style="background:#e74c3c;"></div> Caminho Crítico</div>
-      <div class="legend-item"><div class="legend-box" style="background:var(--blue);"></div> Atividade Normal</div>
-      <div class="legend-item"><div class="legend-box" style="background:#b8d9f5;"></div> Folga Total</div>
-    </div>
-  </div>
-  <div class="info-grid" id="schedKpis"></div>
-  <div class="card">
-    <div class="card-title"><span class="icon">📊</span> Cronograma Físico — Diagrama de Gantt (CPM)</div>
-    <div class="gantt-wrap" id="ganttWrap">
-      <p style="color:var(--muted); font-size:13px; padding:16px 0;">Selecione a data de início e clique em "Calcular CPM" para gerar o Gantt.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title"><span class="icon">📈</span> Cronograma Financeiro — Curva S de Desembolso</div>
-    <div id="scurveWrap">
-      <p style="color:var(--muted); font-size:13px; padding:16px 0;">O gráfico financeiro será gerado junto com o Gantt.</p>
-    </div>
-  </div>
-  <div class="btn-group">
-    <button class="btn btn-success" id="btnDownloadFull">⬇ Baixar Excel Completo (com Cronograma)</button>
-    <button class="btn btn-outline" onclick="goTo(4)">↩ Voltar ao Orçamento</button>
-    <button class="btn btn-outline" id="btnRestart2">↺ Novo Projeto</button>
   </div>
 </div>
 
@@ -591,7 +591,7 @@ const SINAPI_ITENS = [
   { codigo:"96548",     descricao:"Rufo de chapa galvanizada nº26 — L=25cm (perímetro telhado)", un:"m",   preco:32.00,  cat:"6. COBERTURA" },
   { codigo:"87293",     descricao:"Calha em chapa galvanizada nº26, larg=33cm",                  un:"m",   preco:55.30,  cat:"6. COBERTURA" },
   // 7. REVESTIMENTOS INTERNOS
-  { codigo:"87251b",    descricao:"Chapisco argamassa cimento:areia 1:3 — paredes internas e externas", un:"m²", preco:5.20, cat:"7. REVESTIMENTOS INTERNOS" },
+  { codigo:"87251b",    descricao:"Chapisco argamassa cimento:areia 1:3 — paredes internas e externas", un:"m²", preco:8.20, cat:"7. REVESTIMENTOS INTERNOS" },
   { codigo:"87262",     descricao:"Reboco massa única desempenada — paredes internas, e=2,5cm",  un:"m²",  preco:32.00,  cat:"7. REVESTIMENTOS INTERNOS" },
   { codigo:"87528",     descricao:"Emboço paulista em argamassa mista, e=20mm, traço 1:2:8",    un:"m²",  preco:28.70,  cat:"7. REVESTIMENTOS INTERNOS" },
   { codigo:"87556",     descricao:"Gesso liso em paredes internas, e=1,5cm",                    un:"m²",  preco:28.00,  cat:"7. REVESTIMENTOS INTERNOS" },
@@ -668,12 +668,12 @@ const SINAPI_ITENS = [
 
 // Fatores regionais relativos a SP (base = 1.000)
 const FATORES_ESTADO = {
-  SP:1.000, RJ:1.045, MG:0.920, RS:0.955, PR:0.945,
-  SC:0.950, BA:0.870, PE:0.840, CE:0.820, GO:0.940,
-  DF:0.985, MT:0.935, MS:0.945, PA:0.890, AM:0.930,
-  ES:0.935, MA:0.800, PB:0.820, RN:0.825, AL:0.815,
-  SE:0.825, PI:0.810, TO:0.890, RO:0.905, AC:0.905,
-  RR:0.905, AP:0.900
+  SP:1.000, RJ:1.062, MG:0.963, RS:0.972, PR:0.978,
+  SC:0.981, BA:0.952, PE:0.940, CE:0.935, GO:0.968,
+  DF:1.042, MT:0.982, MS:0.975, PA:0.988, AM:1.028,
+  ES:0.991, MA:0.928, PB:0.935, RN:0.941, AL:0.930,
+  SE:0.948, PI:0.922, TO:0.961, RO:0.955, AC:0.945,
+  RR:0.952, AP:0.938
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -687,7 +687,10 @@ const APP = {
   pageImages: {},   // pageNum → base64 JPEG string
   analysisResult: null,
   projectName: "",
-  schedule: null
+  estado: "PE",
+  desoneracao: false,  // false = sem, true = com
+  sinapiDB: null,      // loaded per-state SINAPI data
+  sinapiDBState: null  // which state is currently loaded
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -733,7 +736,7 @@ const ANTHROPIC_SYSTEM_PROMPT = `Você é um engenheiro civil sênior especialis
 Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quantitativos de serviços de construção civil.
 
 REGRAS OBRIGATÓRIAS:
-1. Identifique o tipo de cada imagem. Use APENAS as PLANTAS BAIXAS para calcular áreas e quantidades de serviços. Cortes e fachadas são REFERÊNCIA apenas para alturas de pé-direito e detalhes construtivos — NUNCA extraia quantitativos de área a partir de cortes ou fachadas.
+1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
 2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões.
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
@@ -744,47 +747,11 @@ REGRAS OBRIGATÓRIAS:
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
 10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro código, inclua o preco_unitario correto.
 
-
-REGRAS CRÍTICAS ANTI-DUPLICAÇÃO — LEIA ANTES DE CALCULAR QUALQUER QUANTITATIVO:
-
-SERVIÇOS QUE OCORREM UMA ÚNICA VEZ EM TODA A OBRA (não repita por pavimento nem por planta):
-- Placa de obra (73965): quantidade = 1 SEMPRE.
-- Ligações provisórias energia (73855) e água (73856): quantidade = 1 SEMPRE.
-- Limpeza/demolição do terreno (88309): calcule pela área do TERRENO 1 única vez. Se estiver analisando planta do 2° pavimento ou superior, NÃO inclua este item.
-- Locação de obra (74209): calcule 1 única vez pela área do TÉRREO (projeção no solo). NUNCA some pavimentos superiores.
-- Fundações — lastro (74119/001), radier (94965), vigas baldrame/blocos (83334), estacas (96527): calcule SOMENTE pela projeção do térreo. NUNCA multiplique por número de pavimentos.
-- Cobertura — estrutura madeira (91010), telhas (87266), rufos/calhas (96548): calcule SOMENTE no último pavimento. Se estiver analisando planta do térreo de uma edificação com 2+ andares, NÃO inclua cobertura.
-- Fossa séptica (89679): quantidade = 1. Caixa d'água (89812/89783): quantidade = 1.
-- Quadro de distribuição (91948) e aterramento (91976): quantidade = 1 por edificação.
-- ART/projeto (95237/95239): quantidade = 1.
-
-SERVIÇOS CALCULADOS POR PAVIMENTO (calcule SOMENTE para a planta em análise):
-- Alvenaria (87456): calcule APENAS pelas paredes visíveis na PLANTA BAIXA. NUNCA calcule paredes vistas em cortes ou fachadas.
-- Revestimentos, pisos, forro, contrapiso, instalações: calcule para o pavimento em análise.
-- Esquadrias: conte APENAS as da planta em análise. Não repita esquadrias do corte ou fachada.
-
-ÁREA CONSTRUÍDA: o campo area_construida_m2 deve ser a ÁREA TOTAL DA EDIFICAÇÃO (soma de TODOS os pavimentos), mesmo que estas imagens mostrem apenas um pavimento. Baseie-se no número de pavimentos e na área do térreo para estimar o total (ex: 2 pavimentos × 80m² = 160m²).
-11. REGRA ANTI-DUPLICAÇÃO — REVESTIMENTOS (obrigatório):
-   - Paredes INTERNAS: use chapisco (87251b) + reboco/massa única (87262). NÃO adicione também emboço (87528) nem gesso (87556) — escolha apenas um sistema por parede.
-   - Paredes EXTERNAS: chapisco (já contabilizado no interno) + reboco externo (87262b) OU monocamada (87523). NUNCA os dois.
-   - Emboço paulista (87528): OMITIR em residências simples. Incluir SOMENTE se especificado no projeto.
-   - Gesso liso (87556): incluir SOMENTE em projetos de padrão médio-alto ou se especificado.
-12. BENCHMARK DE CUSTO: Para residência unifamiliar até 300m² em SP, custo direto s/BDI típico = R$1.800 a R$2.800/m². Se sua estimativa ultrapassar R$3.500/m², há provável duplicação — revise antes de retornar o JSON.
-
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
-
-⚠️ REGRA ANTI-DUPLA CONTAGEM DE VISTAS — OBRIGATÓRIO:
-O PDF contém MÚLTIPLAS REPRESENTAÇÕES da mesma edificação: planta baixa, cortes, fachadas, perspectivas, detalhes.
-CADA elemento físico deve ser quantificado UMA ÚNICA VEZ:
-- ALVENARIA/PAREDES: extraia SOMENTE da planta baixa. Cálculo: (perímetro de paredes × pé-direito) − área dos vãos. NUNCA some paredes visíveis em cortes + fachadas + elevações separadamente.
-- ESTRUTURA (pilares, vigas, lajes): conte UMA VEZ na planta estrutural. NÃO duplique por aparecerem em cortes ou detalhes.
-- REVESTIMENTOS (chapisco, reboco, gesso): derive diretamente da área de alvenaria calculada. NÃO extraia de cada vista/folha individualmente.
-- FACHADAS/CORTES/ELEVAÇÕES: use APENAS para verificar alturas, pé-direito e identificar esquadrias. NUNCA para medir m² de serviços.
-- REFERÊNCIA DE SANIDADE: edificação residencial 200–300m² tipicamente tem alvenaria total 400–700m². Se ultrapassar 900m², há dupla contagem — revise antes de retornar.
 
 1. SERVIÇOS PRELIMINARES:
    - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
-   - Locação de obra (74209): unidade = M², use a área do TÉRREO (projeção no solo). NÃO multiplique por número de pavimentos — locação é executada uma única vez no chão.
+   - Locação de obra (74209): unidade = M², use a área CONSTRUÍDA (não do terreno).
    - Ligação provisória de energia (73855): unidade = UN, quantidade = 1.
    - Ligação provisória de água (73856): unidade = UN, quantidade = 1.
    - Demolição/limpeza terreno (88309): unidade = M², use a área do TERRENO (não construída).
@@ -816,42 +783,32 @@ CADA elemento físico deve ser quantificado UMA ÚNICA VEZ:
    - Rufo/calha (96548): unidade = M (metros lineares do perímetro do beiral).
 
 7. REVESTIMENTOS INTERNOS:
-   ⚠️ ATENÇÃO: 87251/87251b = CHAPISCO DE PAREDES (argamassa de aderência para reboco). NUNCA use este código para telhamento, cobertura ou qualquer serviço de telhado.
-   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas). LIMITE: quantidade máxima = 3 × area_construida_m2.
-   - Reboco interno (87262): unidade = M² (área de paredes internas). LIMITE: quantidade máxima = 2,5 × area_construida_m2.
-   - Gesso liso (87556): unidade = M² (área de paredes internas). LIMITE: quantidade máxima = 2,5 × area_construida_m2.
+   - Chapisco (87251b): unidade = M² (área total de paredes internas + externas).
+   - Reboco interno (87262): unidade = M² (área de paredes internas).
+   - Gesso liso (87556): unidade = M² (área de paredes internas).
    - Forro de gesso (87556b): unidade = M² (área do teto = área construída por pavimento).
-   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m). CATEGORIA: "7. REVESTIMENTOS INTERNOS" SOMENTE.
+   - Contrapiso (87241): unidade = M² (área construída).
+   - Piso cerâmico (87529): unidade = M² (área de piso interno).
+   - Azulejo banheiro/cozinha (87879): unidade = M² (área das paredes molhadas até h=2,0m).
    - Soleira (73890): unidade = M (metro linear, largura das portas externas).
    - Peitoril (73891): unidade = M (metro linear, largura das janelas externas).
-   ❌ NÃO INCLUIR AQUI: Contrapiso (87241), Piso cerâmico (87529), Porcelanato (87875, 87876) → use "11. PISOS".
 
 8. REVESTIMENTOS EXTERNOS:
    - Reboco externo (87262b): unidade = M² (área das fachadas externas).
 
 9. PINTURA:
    - Massa corrida PVA (88484): unidade = M² (paredes internas).
-   - Tinta látex PVA interna (88487): unidade = M² (\�Y\�[�\��\�K��H[�HXܰ�[X�H�X�YH
-
-L
-N�[�YYHHp��
-�X�Y\�^\��\�K��H[�H\�X[H\�]XY�X\�
-
-
-JN�[�YYHHp��
-0�\�XH\�\�]XY�X\�HXYZ\�H0����X�\�K���L�T�UPQ�PTΈ[�YYHHS�\�H�Tˈ�۝\�[�]�YX[Y[�H�YHܝHH�[�[K��HܘY[Y]0�[X��
+   - Tinta látex PVA interna (88487): unidade = M² (paredes internas).
+   - Tinta acrílica fachada (88490): unidade = M² (fachadas externas).
+   - Tinta esmalte esquadrias (88485): unidade = M² (área das esquadrias de madeira × 2 faces).
 
-��L�JN�[�YYHHp��
-0�\�XH��ܘY\�8�%�H�]�\��H[�JK���LK�T��΂�H�۝�\\��
-
-̍JN�[�YYHHp����H�[0��YH^\��K��\�XH�\��p���
+10. ESQUADRIAS: unidade = UN para TODAS. Contar individualmente cada porta e janela.
+    - Gradil metálico (73939): unidade = M² (área dos gradis — se houver na planta).
 
-�MMK�
-N�[�YYHHp����H��\0�H
-
-�
-��N�[�YYHHH
-Y]���lineares do perímetro dos ambientes).
+11. PISOS:
+    - Contrapiso (87241): unidade = M².
+    - Calçada externa/área serviço (74155/004): unidade = M².
+    - Rodapé (87877): unidade = M (metros lineares do perímetro dos ambientes).
 
 12. INSTALAÇÕES HIDROSSANITÁRIAS:
     - Tubulações água fria (89809): unidade = M.
@@ -879,16 +836,6 @@ N�[�YYHHp����H��\0�H
     - Limpeza final (73958): unidade = M² (área construída).
     - Ligação definitiva energia: unidade = UN, quantidade = 1.
     - ART/projeto/aprovação: unidade = VB, quantidade = 1.
-
-REGRAS DE CATEGORIA — OBRIGATÓRIO:
-- Cada item pertence a UMA ÚNICA categoria. NUNCA misture.
-- CHAPISCO/REBOCO/GESSO/PINTURA → cat. 7, 8 ou 9. PROIBIDO em 10. ESQUADRIAS.
-- PISO/CONTRAPISO (87241, 87529, 87527, 87875, 87876) → SOMENTE "11. PISOS". NUNCA em "7. REVESTIMENTOS INTERNOS" nem em "10. ESQUADRIAS" nem em "14. IMPERMEABILIZAÇÃO".
-- ESQUADRIAS (portas, janelas, gradis, portões) → SOMENTE "10. ESQUADRIAS". NUNCA inclua pisos ou revestimentos aqui.
-- IMPERMEABILIZAÇÃO (manta asfáltica, membrana poliuretano, primer) → "14. IMPERMEABILIZAÇÃO". NUNCA inclua piso cerâmico ou pintura aqui.
-- COBERTURA (telhas, estrutura madeira, rufo, calha) → "6. COBERTURA". NUNCA em "7. REVESTIMENTOS INTERNOS".
-- INSTALAÇÕES HIDROSSANITÁRIAS → "12." apenas. INSTALAÇÕES ELÉTRICAS → "13." apenas.
-- Retorne "quantitativos" ORDENADO: 1 → 2 → 3 → ... → 15.
 
 CATEGORIAS SINAPI ACEITAS (use exatamente estes nomes):
 - "1. SERVIÇOS PRELIMINARES"
@@ -918,7 +865,7 @@ FORMATO DE RESPOSTA (JSON puro):
   ],
   "quantitativos": [
     {
-      "sinapi_codigo": "87456",
+      "sinapi_codigo": "87453",
       "descricao": "Alvenaria de vedação de tijolos cerâmicos 6 furos 9x14x19cm, esp=9cm",
       "unidade": "m²",
       "quantidade": 0.0,
@@ -952,115 +899,6 @@ function setUploadStatus(msg, color) {
   el.textContent = msg;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CLASSIFICADOR DE PRANCHAS — identifica tipo de cada página do PDF
-// Usa claude-haiku (barato ~$0.01/projeto) para classificar automaticamente
-// ═══════════════════════════════════════════════════════════════
-
-const PAGE_TYPES = {
-  planta_baixa:         { label: 'Planta Baixa',       badge: '🏠', extract: 'COMPLETO' },
-  planta_executiva:     { label: 'Planta Executiva',    badge: '📐', extract: 'COMPLETO' },
-  planta_cobertura:     { label: 'Cobertura',           badge: '🏚️', extract: 'COBERTURA' },
-  instalacao_eletrica:  { label: 'Elétrica',            badge: '⚡', extract: 'ELETRICA' },
-  instalacao_hidraulica:{ label: 'Hidráulica',          badge: '💧', extract: 'HIDRAULICA' },
-  revestimento:         { label: 'Revestimentos',       badge: '🎨', extract: 'ACABAMENTOS' },
-  corte:                { label: 'Corte',               badge: '✂️', extract: 'REFERENCIA' },
-  fachada:              { label: 'Fachada',             badge: '🏛️', extract: 'REFERENCIA' },
-  situacao:             { label: 'Situação',            badge: '📍', extract: 'IGNORAR' },
-  detalhe:              { label: 'Detalhe',             badge: '🔍', extract: 'IGNORAR' },
-  outro:                { label: 'Outro',               badge: '📄', extract: 'CAUTELA' },
-};
-
-const PAGE_EXTRACT_RULES = {
-  COMPLETO:     'EXTRAIA TODOS os quantitativos: alvenaria, estrutura, pisos, esquadrias, revestimentos.',
-  COBERTURA:    'EXTRAIA: estrutura de telhado, tipo de telha, área de cobertura. NÃO extraia alvenaria.',
-  ELETRICA:     'EXTRAIA APENAS: instalações elétricas (tomadas, interruptores, pontos de luz, QDC). NÃO extraia alvenaria nem estrutura.',
-  HIDRAULICA:   'EXTRAIA APENAS: instalações hidráulicas (tubulações, pontos de água, esgoto, caixa d\'água). NÃO extraia alvenaria.',
-  ACABAMENTOS:  'EXTRAIA APENAS: especificações de piso, azulejo, tinta, revestimento cerâmico. NÃO extraia alvenaria nem estrutura.',
-  REFERENCIA:   '⛔ USE APENAS para verificar pé-direito e alturas. PROIBIDO extrair alvenaria, chapisco, reboco, pisos ou qualquer m² desta prancha.',
-  IGNORAR:      '⛔ IGNORE COMPLETAMENTE esta prancha. Não extraia nenhum quantitativo.',
-  CAUTELA:      'EXTRAIA com cautela apenas elementos específicos do detalhe, sem generalizar para o projeto inteiro.',
-};
-
-async function classifyPagesWithHaiku(thumbnails, pageNums, apiKey) {
-  try {
-    const content = [];
-    for (let i = 0; i < thumbnails.length; i++) {
-      content.push({ type: 'text', text: '=== PRANCHA ' + pageNums[i] + ' ===' });
-      content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: thumbnails[i] } });
-    }
-    content.push({
-      type: 'text',
-      text: 'Classifique cada prancha arquitetônica pelo seu tipo. Retorne SOMENTE JSON sem markdown:\n' +
-            '{"1":"planta_baixa","2":"corte",...}\n' +
-            'Tipos válidos: planta_baixa | planta_executiva | planta_cobertura | corte | fachada | ' +
-            'instalacao_eletrica | instalacao_hidraulica | revestimento | situacao | detalhe | outro'
-    });
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [{ role: 'user', content }]
-      })
-    });
-
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    const text = (data.content[0].text || '').trim();
-    const cleaned = text.replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/i,'').trim();
-    return JSON.parse(cleaned);
-  } catch(e) {
-    console.warn('Classificação de pranchas falhou:', e);
-    return null;
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// PDF CACHE — evita re-análise e economiza créditos de API
-// ═══════════════════════════════════════════════════════════════
-const CACHE_PREFIX = "obraia_v1_";
-const MAX_CACHE_ENTRIES = 15;
-
-async function computePdfHash(file) {
-  const buf = await file.arrayBuffer();
-  const hashBuf = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
-
-function getCachedResult(hash) {
-  try { return JSON.parse(localStorage.getItem(CACHE_PREFIX + hash) || "null"); } catch { return null; }
-}
-
-function setCachedResult(hash, result, filename) {
-  try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
-    if (keys.length >= MAX_CACHE_ENTRIES) {
-      keys.sort((a,b) => {
-        const da = JSON.parse(localStorage.getItem(a)||"{}").saved||0;
-        const db = JSON.parse(localStorage.getItem(b)||"{}").saved||0;
-        return da - db;
-      });
-      localStorage.removeItem(keys[0]);
-    }
-    localStorage.setItem(CACHE_PREFIX + hash, JSON.stringify({ result, filename, saved: Date.now() }));
-  } catch(e) { console.warn("Cache cheio, ignorando:", e); }
-}
-
-function listCachedProjects() {
-  return Object.keys(localStorage)
-    .filter(k => k.startsWith(CACHE_PREFIX))
-    .map(k => { try { const v = JSON.parse(localStorage.getItem(k)); return { hash: k.replace(CACHE_PREFIX,""), filename: v.filename, saved: new Date(v.saved).toLocaleString("pt-BR") }; } catch { return null; } })
-    .filter(Boolean);
-}
-
 async function handleFile(file) {
   if (!file) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
   setUploadStatus("📄 Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
@@ -1079,7 +917,6 @@ async function handleFile(file) {
   setUploadStatus("⏳ Carregando PDF com PDF.js...", "blue");
   try {
     const arrayBuffer = await file.arrayBuffer();
-    computePdfHash(file).then(h => { APP.pdfHash = h; });
     APP.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     setUploadStatus("✅ PDF carregado com sucesso! " + APP.pdfDoc.numPages + " página(s) detectada(s).", "green");
     renderThumbnails();
@@ -1092,9 +929,11 @@ async function handleFile(file) {
 }
 
 async function renderThumbnails() {
-  const pageCard = document.getElementById("pageCard");
-  const grid     = document.getElementById("pagesGrid");
-  pageCard.style.display = "block";
+  const pageCard  = document.getElementById("pageCard");
+  const configCard = document.getElementById("configCard");
+  const grid      = document.getElementById("pagesGrid");
+  pageCard.style.display  = "block";
+  configCard.style.display = "block";
   grid.innerHTML = "";
   APP.selectedPages.clear();
   updateSelectedCount();
@@ -1139,7 +978,7 @@ function updateSelectedCount() {
   const n = APP.selectedPages.size;
   document.getElementById("selectedCount").textContent = n;
   const warn = document.getElementById("pageWarning");
-  if (warn) warn.style.display = n > 15 ? "inline" : "none";
+  if (warn) warn.style.display = n > 6 ? "inline" : "none";
 }
 
 document.getElementById("btnSelectAll").addEventListener("click", () => {
@@ -1152,7 +991,7 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // CONVERSION: PDF PAGE → JPEG BASE64
 // ═══════════════════════════════════════════════════════════════
-const BATCH_SIZE = 5;       // máximo de páginas enviadas para a IA
+const MAX_PAGES_API = 6;      // máximo de páginas enviadas para a IA
 const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
 
 async function pageToBase64(pageNum) {
@@ -1195,149 +1034,108 @@ function setProgress(pct, msg) {
 
 async function startAnalysis() {
   APP.projectName = document.getElementById("projectName").value.trim() || APP.pdfFile?.name || "Projeto";
-
-  // ── Cache check ───────────────────────────────────────────────────
-  if (APP.pdfHash) {
-    const _cached = getCachedResult(APP.pdfHash);
-    if (_cached) {
-      const _dt = new Date(_cached.saved).toLocaleDateString("pt-BR");
-      setUploadStatus("\u26A1 Cache encontrado: \"" + _cached.filename + "\" (" + _dt + "). Resultado salvo — nenhum crédito consumido!", "green");
-      APP.analysisResult = _cached.result;
-      buildEAP(); goTo(3);
-      return;
-    }
-  }
+  // Capture state and desoneração from Screen 1 selectors
+  APP.estado = document.getElementById("estadoSelect1").value;
+  APP.desoneracao = document.querySelector('input[name="desonerado"]:checked')?.value === "com";
+  // Sync to Screen 4 selectors
+  document.getElementById("stateSelect").value = APP.estado;
+  document.getElementById("desonerSelect").value = APP.desoneracao ? "com" : "sem";
+  updateRefLabel();
   goTo(2);
 
   try {
     // ── Step 1: Convert pages ─────────────────────────────
     setStep("pstep1", false, "Convertendo páginas PDF em imagens…");
-    setProgress(5, "Renderizando páginas…");
+    setProgress(10, "Renderizando páginas…");
 
-    const sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
+    let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
+    if (sortedPages.length > MAX_PAGES_API) {
+      sortedPages = sortedPages.slice(0, MAX_PAGES_API);
+    }
     const images = [];
 
     for (let i = 0; i < sortedPages.length; i++) {
       const p = sortedPages[i];
-      setProgress(5 + (i / sortedPages.length) * 25, `Renderizando página ${p}…`);
+      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
       images.push(await pageToBase64(p));
     }
     setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
 
-
-    // ── Step 1.5: Classify pages with Haiku ──────────────────
-    setStep("pstep1", false, "Identificando tipo de cada prancha...");
-    const _classApiKey = localStorage.getItem("anthropic_api_key") || "";
-    APP.pageClasses = (await classifyPagesWithHaiku(images, sortedPages, _classApiKey)) || {};
-    const _classInfo = sortedPages.map(p => {
-      const t = APP.pageClasses[p] || "outro";
-      return (PAGE_TYPES[t]?.badge || "📄") + "P" + p + ":" + (PAGE_TYPES[t]?.label || t);
-    }).join("  ");
-    setStep("pstep1", true, "Pranchas classificadas: " + _classInfo);
-    // ── Step 2: Send to AI in batches ─────────────────────
+    // ── Step 2: Send to AI ────────────────────────────────
     setStep("pstep2", false, "Enviando para análise com Claude IA…");
+    setProgress(45, "Aguardando resposta da IA…");
 
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
     if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
-    // Split into batches of BATCH_SIZE pages
-    const batches = [];
-    const batchPageNumsArr = [];
-    for (let i = 0; i < images.length; i += BATCH_SIZE) {
-      batches.push(images.slice(i, i + BATCH_SIZE));
-      batchPageNumsArr.push(sortedPages.slice(i, i + BATCH_SIZE));
+    const aiContent = [
+      ...images.map(img => ({
+        type: "image",
+        source: { type: "base64", media_type: "image/jpeg", data: img }
+      })),
+      {
+        type: "text",
+        text: "Analise as imagens do projeto arquitetônico e faça o levantamento completo de quantitativos.\n\n" +
+              "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
+              "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
+              "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
+              (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+      }
+    ];
+
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 16000,
+        system: ANTHROPIC_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: aiContent }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Erro HTTP ${resp.status}`);
     }
 
-    const batchResults = [];
+    const apiData = await resp.json();
+    const rawText = apiData.content[0].text;
+    const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
 
-    for (let b = 0; b < batches.length; b++) {
-      const batchImgs = batches[b];
-      const batchPageNums = batchPageNumsArr[b] || [];
-      const pct = 30 + (b / batches.length) * 40;
-      setProgress(pct, `Analisando lote ${b + 1} de ${batches.length}…`);
-
-      const aiContent = [
-        ...batchImgs.map(img => ({
-          type: "image",
-          source: { type: "base64", media_type: "image/jpeg", data: img }
-        })),
-        {
-          type: "text",
-          text: (() => {
-          // Gera contexto de tipo para cada prancha do batch
-          const _pgCtx = batchPageNums.map((pn, idx) => {
-            const _cls = APP.pageClasses[pn] || 'outro';
-            const _rule = PAGE_EXTRACT_RULES[PAGE_TYPES[_cls]?.extract || 'CAUTELA'] || '';
-            return 'PRANCHA ' + (idx + 1) + ' (página ' + pn + ' — ' + (PAGE_TYPES[_cls]?.label || _cls) + '):\n' + _rule;
-          }).join('\n\n');
-          return "Analise as pranchas do projeto arquitetônico abaixo. Cada prancha tem instruções específicas de extração:\n\n" +
-            _pgCtx +
-            "\n\nRetorne o JSON conforme especificado no system prompt. Seja preciso — os valores serão usados para orçamento real." +
-            (APP.projectName ? "\n\nNome do projeto: " + APP.projectName : "");
-        })()
-        }
-      ];
-
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 16000,
-          system: ANTHROPIC_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: aiContent }]
-        })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(`Lote ${b + 1}: ${err.error?.message || `Erro HTTP ${resp.status}`}`);
+    let parsedResult;
+    const tryParse = (str) => {
+      // Tenta direto
+      try { return JSON.parse(str); } catch(_) {}
+      // Tenta com jsonrepair (corrige newlines literais em strings, vírgulas extras, etc.)
+      if (typeof jsonrepair !== "undefined") {
+        try { return JSON.parse(jsonrepair(str)); } catch(_) {}
       }
+      return null;
+    };
 
-      const apiData = await resp.json();
-      const rawText = apiData.content[0].text;
-      const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-
-      const tryParse = (str) => {
-        try { return JSON.parse(str); } catch(_) {}
-        if (typeof jsonrepair !== "undefined") {
-          try { return JSON.parse(jsonrepair(str)); } catch(_) {}
-        }
-        return null;
-      };
-
-      let parsed = tryParse(jsonStr);
-      if (!parsed) {
-        const m = rawText.match(/\{[\s\S]*\}/);
-        if (m) parsed = tryParse(m[0]);
-      }
-      if (!parsed) {
-        throw new Error(`Lote ${b + 1}: JSON inválido. Primeiros 400 chars:\n` + rawText.substring(0, 400));
-      }
-
-      batchResults.push(parsed);
+    parsedResult = tryParse(jsonStr);
+    if (!parsedResult) {
+      // Extrai bloco {} do texto bruto e tenta novamente
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if (m) parsedResult = tryParse(m[0]);
+    }
+    if (!parsedResult) {
+      throw new Error("JSON inválido após tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
     }
 
-    setStep("pstep2", true, `Análise com IA concluída (${batches.length} lote(s))`);
-    setProgress(75, "Consolidando quantitativos…");
+    setStep("pstep2", true, "Análise com IA concluída");
+    setProgress(75, "Processando quantitativos…");
 
-    // ── Step 3: Merge batch results ───────────────────────
-    setStep("pstep3", false, "Consolidando e organizando quantitativos…");
-    APP.analysisResult = sanitizeQuantitativos(mergeBatchResults(batchResults));
-    if (APP.pdfHash) setCachedResult(APP.pdfHash, APP.analysisResult, APP.pdfFile?.name || "projeto");
-        // Sort quantitativos by construction execution phase order
-        if (APP.analysisResult && Array.isArray(APP.analysisResult.quantitativos)) {
-          APP.analysisResult.quantitativos.sort((a, b) => {
-            const phaseNum = c => { const m = (c.categoria || '').match(/^(\d+)\./); return m ? parseInt(m[1]) : 99; };
-            return phaseNum(a) - phaseNum(b);
-          });
-        }
+    // ── Step 3: Parse result ──────────────────────────────
+    setStep("pstep3", false, "Extraindo e organizando quantitativos…");
+    APP.analysisResult = parsedResult;
     setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
     setProgress(90, "Estruturando EAP…");
 
@@ -1357,124 +1155,15 @@ async function startAnalysis() {
         <div class="card-title"><span class="icon">❌</span> Erro na Análise</div>
         <div class="alert alert-error">${e.message}</div>
         <div class="btn-group">
-          <button class="btn btn-outline" onclick="goTo(1)">↪ Voltar</button>
+          <button class="btn btn-outline" onclick="goTo(1)">↩ Voltar</button>
         </div>
       </div>`;
   }
 }
 
-function mergeBatchResults(results) {
-  if (!results || results.length === 0) return {};
-  if (results.length === 1) return results[0];
-
-  // Codes and categories that represent ONE-TIME work — use MAX, not SUM
-  const ONE_TIME_CODES = new Set([
-    '73965','73855','73856','88309','74209','74209/007',
-    '74119/001','94965','96527','83334','89679','89812','89783',
-    '91948','91976','95237','95239'
-  ]);
-  const ONE_TIME_CATS = new Set([
-    '3. FUNDAÇÕES', '6. COBERTURA'
-  ]);
-
-  const merged = {
-    projeto: null, tipologia: null, pavimentos: null,
-    area_construida_m2: 0, ambientes: [], quantitativos: []
-  };
-
-  const qtMap = {};
-  const ambMap = {};
-
-  for (const r of results) {
-    if (!merged.projeto    && r.projeto)    merged.projeto    = r.projeto;
-    if (!merged.tipologia  && r.tipologia)  merged.tipologia  = r.tipologia;
-    if (!merged.pavimentos && r.pavimentos) merged.pavimentos = r.pavimentos;
-
-    if (r.area_construida_m2 && r.area_construida_m2 > merged.area_construida_m2)
-      merged.area_construida_m2 = r.area_construida_m2; // MAX: use the highest reported total area
-
-    if (Array.isArray(r.ambientes)) {
-      for (const a of r.ambientes) {
-        const k = (a.nome || '').toLowerCase().trim();
-        if (k && !ambMap[k]) { ambMap[k] = true; merged.ambientes.push(a); }
-      }
-    }
-
-    if (Array.isArray(r.quantitativos)) {
-      for (const q of r.quantitativos) {
-        const code = (q.sinapi_codigo || q.descricao || '').toString().trim();
-        const cat  = (q.categoria || '').toString().trim();
-        const key  = code + '|' + cat;
-
-        if (qtMap[key]) {
-          const isOneTime = ONE_TIME_CODES.has(code) || ONE_TIME_CATS.has(cat);
-          const existingQty = parseFloat(qtMap[key].quantidade) || 0;
-          const newQty = parseFloat(q.quantidade) || 0;
-          if (isOneTime) {
-            // One-time services: take the largest value across batches, never sum
-            if (newQty > existingQty) qtMap[key].quantidade = newQty;
-          } else {
-            qtMap[key].quantidade = existingQty + newQty;
-          }
-        } else {
-          qtMap[key] = { ...q };
-        }
-      }
-    }
-  }
-
-  merged.quantitativos = Object.values(qtMap);
-  return merged;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // EAP BUILD
 // ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
-// SANITIZAÇÃO DE QUANTITATIVOS — guarda matematica contra inflação de vistas
-// ═══════════════════════════════════════════════════════════════
-function sanitizeQuantitativos(result) {
-  const area = parseFloat(result.area_construida_m2) || 150;
-  const pavimentos = parseInt(result.pavimentos) || 1;
-
-  // Caps por tipo de serviço: múltiplo da área construída total
-  // Valores generosos para não cortar itens legítimos de multi-pavimento
-  const CAPS = [
-    { keys: ['alvenaria','bloco cerâmico','tijolo','bloco de concreto'], mult: 4.5, unit: 'm2', label: 'Alvenaria' },
-    { keys: ['chapisco'],                                                 mult: 7.0, unit: 'm2', label: 'Chapisco' },
-    { keys: ['reboco','emboço','argamassa de revestimento'],              mult: 6.0, unit: 'm2', label: 'Reboco' },
-    { keys: ['gesso liso','gesso projetado','gesso'],                     mult: 5.0, unit: 'm2', label: 'Gesso' },
-    { keys: ['forro de gesso','forro'],                                   mult: 1.5, unit: 'm2', label: 'Forro' },
-    { keys: ['contrapiso','regularização de piso'],                       mult: 2.2, unit: 'm2', label: 'Contrapiso' },
-    { keys: ['piso cerâmico','porcelanato','revestimento de piso','piso vinílico'], mult: 2.2, unit: 'm2', label: 'Piso' },
-    { keys: ['azulejo','revestimento cerâmico de parede'],                mult: 2.0, unit: 'm2', label: 'Azulejo' },
-    { keys: ['pintura','tinta','látex'],                                  mult: 8.0, unit: 'm2', label: 'Pintura' },
-    { keys: ['telhamento','telha','cobertura'],                           mult: 1.4, unit: 'm2', label: 'Cobertura/Telhamento' },
-    { keys: ['impermeabilização','manta asfáltica'],                      mult: 1.5, unit: 'm2', label: 'Impermeabilização' },
-  ];
-
-  const warnings = [];
-  result.quantitativos = (result.quantitativos || []).map(q => {
-    const unit = (q.unidade || '').toUpperCase().trim();
-    if (unit !== 'M2' && unit !== 'M²') return q; // só aplica a áreas
-    const desc = (q.descricao || '').toLowerCase();
-    for (const cap of CAPS) {
-      if (cap.keys.some(k => desc.includes(k))) {
-        const maxQty = parseFloat((area * cap.mult).toFixed(2));
-        if (q.quantidade > maxQty) {
-          warnings.push(`[Sanitize] ${cap.label}: ${q.quantidade.toFixed(1)}m² → ${maxQty}m² (cap=${cap.mult}×${area}m²)`);
-          return { ...q, quantidade: maxQty, _sanitized: true };
-        }
-        break;
-      }
-    }
-    return q;
-  });
-
-  if (warnings.length > 0) console.warn('ObraIA Sanity Caps aplicados:\n' + warnings.join('\n'));
-  return result;
-}
-
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1483,7 +1172,7 @@ function buildEAP() {
   const grid = document.getElementById("projectInfoGrid");
   grid.innerHTML = [
     { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
-    { label: "Área Construída ✏", value: `<input id="areaOverride" type="number" min="1" step="0.5" value="${(r.area_construida_m2||0).toFixed(1)}" style="width:90px;font-size:18px;font-weight:700;color:var(--navy);border:1.5px dashed var(--accent);border-radius:6px;padding:2px 6px;background:transparent;text-align:center" title="Corrija a área se necessário" onchange="APP.analysisResult.area_construida_m2=parseFloat(this.value)||1;recalcBudget()">`, sub: `✏ edite se incorreto · ${r.pavimentos||1} pav.` },
+    { label: "Área Construída",value: `${(r.area_construida_m2||0).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
     { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
     { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
   ].map(i => `
@@ -1504,7 +1193,7 @@ function buildEAP() {
   const tree = document.getElementById("eapTree");
   tree.innerHTML = "";
 
-  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat, itens]) => {
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
     const node = document.createElement("div");
     node.className = "eap-node";
 
@@ -1560,15 +1249,16 @@ function buildEAP() {
   });
 }
 
-document.getElementById("btnGoToBudget").addEventListener("click", () => {
-  buildBudget();
+document.getElementById("btnGoToBudget").addEventListener("click", async () => {
   goTo(4);
+  await buildBudget();
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"", pdfHash:null, pageClasses:{} });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
+  document.getElementById("configCard").style.display = "none";
   document.getElementById("pagesGrid").innerHTML = "";
   document.getElementById("fileInput").value = "";
   document.getElementById("projectName").value = "";
@@ -1578,7 +1268,7 @@ document.getElementById("btnRestart").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // BUDGET BUILD
 // ═══════════════════════════════════════════════════════════════
-function findSinapiItem(codigo, descricao, categoria) {
+function findSinapiItemHardcoded(codigo, descricao, categoria) {
   // 1. Match exato de código
   let item = SINAPI_ITENS.find(i => i.codigo === codigo || i.codigo.replace(/\/.*/,"") === codigo);
   if (item) return item;
@@ -1605,12 +1295,78 @@ function findSinapiItem(codigo, descricao, categoria) {
   return best; // null se não encontrar
 }
 
-function recalcBudget() { buildBudget(); }
+// ═══════════════════════════════════════════════════════════════
+// SINAPI DATABASE LOADING
+// ═══════════════════════════════════════════════════════════════
+async function loadSinapiDB(estado) {
+  if (APP.sinapiDB && APP.sinapiDBState === estado) return true;
+  if (estado === "SP") {
+    // For SP use hardcoded SINAPI_ITENS (fallback)
+    APP.sinapiDB = null;
+    APP.sinapiDBState = "SP";
+    return true;
+  }
+  try {
+    const r = await fetch(`data/sinapi_${estado}.json`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    APP.sinapiDB = await r.json();
+    APP.sinapiDBState = estado;
+    return true;
+  } catch(e) {
+    console.warn("Não foi possível carregar SINAPI para", estado, e.message);
+    APP.sinapiDB = null;
+    APP.sinapiDBState = estado;
+    return false;
+  }
+}
 
-function buildBudget() {
-  const estado  = document.getElementById("stateSelect").value;
+function getSinapiPrice(codigo, preco_unitario_ia) {
+  const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
+  
+  // 1. Look up in loaded state SINAPI DB
+  if (APP.sinapiDB) {
+    const clean = String(codigo).replace(/[^0-9]/g, "");
+    let entry = APP.sinapiDB[codigo] || APP.sinapiDB[clean];
+    if (entry && entry[col] != null) return entry[col];
+    // Try prefix match (e.g. "74155/001" → "74155")
+    const prefix = clean.substring(0, 6);
+    entry = APP.sinapiDB[prefix];
+    if (entry && entry[col] != null) return entry[col];
+  }
+  
+  // 2. Fallback to hardcoded SINAPI_ITENS (SP prices, no adjustment)
+  const item = findSinapiItemHardcoded(codigo);
+  if (item) return item.preco;
+  
+  // 3. Final fallback: AI-provided price
+  return preco_unitario_ia || 0;
+}
+
+function updateRefLabel() {
+  const el = document.getElementById("refSinapi");
+  if (el) {
+    const des = APP.desoneracao ? "Com desoneração" : "Sem desoneração";
+    el.textContent = `Referência: SINAPI 05/2026 · ${APP.estado} · ${des}`;
+  }
+}
+
+function syncStateFromScreen4() {
+  APP.estado = document.getElementById("stateSelect").value;
+  APP.desoneracao = document.getElementById("desonerSelect").value === "com";
+  // Sync back to Screen 1
+  const s1 = document.getElementById("estadoSelect1");
+  if (s1) s1.value = APP.estado;
+  const radio = document.querySelector(`input[name="desonerado"][value="${APP.desoneracao ? "com" : "sem"}"]`);
+  if (radio) radio.checked = true;
+  updateRefLabel();
+  recalcBudget();
+}
+
+function recalcBudget() { buildBudget(); }  // calls async buildBudget, promise not awaited (fire-and-forget)
+
+async function buildBudget() {
+  const estado  = APP.estado || document.getElementById("stateSelect").value;
   const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
-  const fator   = FATORES_ESTADO[estado] || 1;
   const r       = APP.analysisResult;
   if (!r) return;
 
@@ -1622,13 +1378,16 @@ function buildBudget() {
     byCat[c].push(q);
   });
 
-  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, semSinapi = 0;
+  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0;
   const tbody = document.getElementById("budgetBody");
   tbody.innerHTML = "";
 
   const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat, itens]) => {
+  // Load SINAPI DB for this state (async, non-blocking if already loaded)
+  await loadSinapiDB(estado);
+
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
     // Category row
     const catRow = document.createElement("tr");
     catRow.className = "cat-row";
@@ -1639,11 +1398,8 @@ function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const sinapiItem = findSinapiItem(q.sinapi_codigo || "", q.descricao || "", cat);
-      if (!sinapiItem) semSinapi++;
-      const precoBase  = sinapiItem ? sinapiItem.preco : (q.preco_unitario || 0);
-      const precoAdj   = precoBase * fator;
-      const qtd        = Number(q.quantidade) || 0;
+      const precoAdj = getSinapiPrice(q.sinapi_codigo || "", q.preco_unitario || 0);
+      const qtd      = Number(q.quantidade) || 0;
       const subtotal   = precoAdj * qtd;
       const comBdi     = subtotal * (1 + bdi);
 
@@ -1651,11 +1407,13 @@ function buildBudget() {
       totalSemBdi += subtotal;
       totalComBdi += comBdi;
 
+      const warnPrice = precoAdj === 0 ? '<span class="warn">⚠ verificar preço</span>' : '';
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${itemNum}</td>
         <td style="font-family:monospace;font-size:11px">${q.sinapi_codigo || "—"}</td>
-        <td>${sinapiItem ? sinapiItem.descricao : q.descricao} ${!sinapiItem && precoBase === 0 ? '<span class="warn">⚠ verificar preço</span>' : ''}</td>
+        <td>${q.descricao} ${warnPrice}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
@@ -1691,15 +1449,14 @@ function buildBudget() {
   tbody.appendChild(totalBdiRow);
 
   // KPIs
-  const areaInput = document.getElementById("areaOverride");
-  const area = (areaInput ? parseFloat(areaInput.value) : 0) || r.area_construida_m2 || 1;
+  const area = r.area_construida_m2 || 1;
+  const desSuffix = APP.desoneracao ? "c/ desoneração" : "s/ desoneração";
   document.getElementById("budgetKpis").innerHTML = [
     { label: "Total s/ BDI",     value: `R$ ${fmt(totalSemBdi)}`,               sub: "" },
     { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
     { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
-    { label: "Estado",           value: estado,                                  sub: `Fator SINAPI ${fator.toFixed(3)}` },
-    { label: "Itens sem SINAPI", value: `${semSinapi} item(s)`,                           sub: semSinapi > 0 ? "⚠ preço estimado pela IA" : "✅ todos com SINAPI" },
+    { label: "Estado / Regime",  value: estado,                                  sub: `SINAPI 05/2026 ${desSuffix}` },
   ].map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
@@ -1709,528 +1466,95 @@ function buildBudget() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EXCEL EXPORT — ExcelJS (estilizado)
+// EXCEL EXPORT
 // ═══════════════════════════════════════════════════════════════
-document.getElementById("btnDownload").addEventListener("click", () => exportExcel());
+document.getElementById("btnDownload").addEventListener("click", exportExcel);
 
-// Step-tab navigation (click on any tab navigates if step already reached)
-document.querySelectorAll(".step-tab").forEach(t => {
-  t.addEventListener("click", () => {
-    const step = +t.dataset.step;
-    if (step <= APP.currentStep) goTo(step);
-  });
-});
-
-// Cronograma screen
-document.getElementById("btnGoCronograma").addEventListener("click", () => {
-  buildSchedule();
-  goTo(5);
-});
-document.getElementById("btnDownloadFull").addEventListener("click", () => exportExcel());
-
-async function exportExcel() {
-  const estado = document.getElementById("stateSelect").value;
-  const bdi    = parseFloat(document.getElementById("bdiInput").value) / 100;
-  const fator  = FATORES_ESTADO[estado] || 1;
-  const r      = APP.analysisResult;
+function exportExcel() {
+  const estado  = APP.estado || document.getElementById("stateSelect").value;
+  const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
+  const r       = APP.analysisResult;
   if (!r) return;
 
-  // Auto-gera cronograma se ainda não foi calculado
-  if (!APP.schedule) {
-    const di = document.getElementById("startDateInput");
-    if (!di.value) di.value = new Date().toISOString().split("T")[0];
-    buildSchedule();
-  }
+  const wb = XLSX.utils.book_new();
 
-  const wb = new ExcelJS.Workbook();
-  wb.creator = "ObraIA"; wb.created = new Date();
-
-  // ── Paleta ──────────────────────────────────────────────────
-  const C = {
-    navy:"FF1A3C5E", blue:"FF2E75B6", sky:"FF5BA3D9",
-    amber:"FFE67E22", green:"FF27AE60", red:"FFE74C3C",
-    white:"FFFFFFFF", gold:"FFFFD700",
-    light:"FFE8F2FB", gray:"FFF0F4F8", subtot:"FFD6E4F0",
-    blueFloat:"FFB8D9F5",
-  };
-  const brd = (c="FFB8CDD9") => ({
-    top:{style:"thin",color:{argb:c}}, left:{style:"thin",color:{argb:c}},
-    bottom:{style:"thin",color:{argb:c}}, right:{style:"thin",color:{argb:c}},
-  });
-  const fillSolid = (argb) => ({type:"pattern",pattern:"solid",fgColor:{argb}});
-  const font = (opts={}) => ({name:"Calibri",size:10,...opts});
-
-  function fillRow(row, bg, fgArgb=C.white, bold=false, sz=10) {
-    row.eachCell({includeEmpty:true}, cell => {
-      cell.fill   = fillSolid(bg);
-      cell.font   = font({bold,color:{argb:fgArgb},size:sz});
-      cell.border = brd();
-      cell.alignment = {vertical:"middle"};
-    });
-  }
+  // ── Sheet 1: Orçamento ──────────────────────────────────────
+  const desSuffix2 = APP.desoneracao ? "Com desoneração" : "Sem desoneração";
+  const rows = [
+    [`ORÇAMENTO DE OBRA — ${APP.projectName}`],
+    [`Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | Data: ${new Date().toLocaleDateString("pt-BR")}`],
+    [],
+    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
+  ];
 
   const byCat = {};
-  (r.quantitativos||[]).forEach(q => {
-    const c = q.categoria||"99. OUTROS";
+  (r.quantitativos || []).forEach(q => {
+    const c = q.categoria || "99. OUTROS";
     if (!byCat[c]) byCat[c] = [];
     byCat[c].push(q);
   });
-  const fmt2 = v => Math.round(v*100)/100;
-  const brlFmt = '"R$ "#,##0.00';
 
-  // ════════════════════════════════════════════════════════════
-  // SHEET 1 — ORÇAMENTO
-  // ════════════════════════════════════════════════════════════
-  const ws1 = wb.addWorksheet("ORÇAMENTO");
-  ws1.columns = [
-    {width:6},{width:17},{width:54},{width:7},{width:12},
-    {width:18},{width:20},{width:10},{width:22}
+  let itemNum = 0, totalSemBdi = 0, totalComBdi = 0;
+  const fmt2 = v => Math.round(v * 100) / 100;
+
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    rows.push([cat, "", "", "", "", "", "", "", ""]);
+    let catTotal = 0;
+
+    itens.forEach(q => {
+      itemNum++;
+      const precoAdj = getSinapiPrice(q.sinapi_codigo || "", q.preco_unitario || 0);
+      const qtd        = Number(q.quantidade) || 0;
+      const subtotal   = fmt2(precoAdj * qtd);
+      const comBdi     = fmt2(subtotal * (1 + bdi));
+      catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
+
+      rows.push([itemNum, q.sinapi_codigo||"—", q.descricao,
+                 q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
+    });
+    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
+  });
+
+  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, "", fmt2(totalSemBdi)]);
+  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, "", fmt2(totalComBdi)]);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
+
+  // ── Sheet 2: EAP ───────────────────────────────────────────
+  const eapRows = [
+    [`EAP — ESTRUTURA ANALÍTICA DO PROJETO — ${APP.projectName}`],
+    [],
+    ["ID WBS","DESCRIÇÃO","NÍVEL","UN","QUANTIDADE","CÓDIGO SINAPI","MEMÓRIA DE CÁLCULO"],
   ];
+  eapRows.push(["1", APP.projectName || "OBRA", "1", "", "", "", ""]);
 
-  // Título
-  const t1 = ws1.addRow([`ORÇAMENTO DE OBRA — ${APP.projectName}`]);
-  ws1.mergeCells(`A${t1.number}:I${t1.number}`);
-  t1.height = 32;
-  t1.getCell(1).fill  = fillSolid(C.navy);
-  t1.getCell(1).font  = font({bold:true,color:{argb:C.white},size:14});
-  t1.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
-
-  // Subtítulo
-  const t2 = ws1.addRow([`Estado: ${estado}  ·  SINAPI 05/2025  ·  BDI: ${(bdi*100).toFixed(2)}%  ·  ${new Date().toLocaleDateString("pt-BR")}`]);
-  ws1.mergeCells(`A${t2.number}:I${t2.number}`);
-  t2.height = 18;
-  t2.getCell(1).fill  = fillSolid(C.blue);
-  t2.getCell(1).font  = font({color:{argb:C.white},size:9});
-  t2.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
-
-  ws1.addRow([]);
-
-  // Cabeçalho
-  const hdr1 = ws1.addRow(["ITEM","CÓD. SINAPI","DESCRIÇÃO DO SERVIÇO","UN","QTDE",
-    "PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"]);
-  hdr1.height = 22;
-  fillRow(hdr1, C.navy, C.white, true, 10);
-  hdr1.eachCell(cell => { cell.alignment = {vertical:"middle",horizontal:"center",wrapText:true}; });
-
-  let itemN=0, totSem=0, totCom=0;
-
-  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat,itens]) => {
-    // Linha de categoria
-    const rCat = ws1.addRow([cat,"","","","","","","",""]);
-    ws1.mergeCells(`A${rCat.number}:I${rCat.number}`);
-    rCat.height = 20;
-    rCat.getCell(1).fill  = fillSolid(C.blue);
-    rCat.getCell(1).font  = font({bold:true,color:{argb:C.white},size:10});
-    rCat.getCell(1).alignment = {vertical:"middle",horizontal:"left",indent:1};
-
-    let catTot=0;
-    itens.forEach((q,qi) => {
-      itemN++;
-      const si = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", cat);
-      const prAdj = (si?si.preco:(q.preco_unitario||0))*fator;
-      const qtd   = Number(q.quantidade)||0;
-      const sub   = fmt2(prAdj*qtd);
-      const cBdi  = fmt2(sub*(1+bdi));
-      catTot += cBdi; totSem += sub; totCom += cBdi;
-
-      const rI = ws1.addRow([itemN, q.sinapi_codigo||"—",
-        si?si.descricao:q.descricao, q.unidade, qtd, prAdj, sub, (bdi*100).toFixed(2)+"%", cBdi]);
-      rI.height = 16;
-      const bg = qi%2===0 ? C.gray : C.white;
-      rI.eachCell({includeEmpty:true}, cell => {
-        cell.fill   = fillSolid(bg);
-        cell.font   = font({size:9});
-        cell.border = brd("FFE0E8EF");
-        cell.alignment = {vertical:"middle"};
-      });
-      [5,6,7,9].forEach(c => { rI.getCell(c).alignment = {vertical:"middle",horizontal:"right"}; });
-      rI.getCell(6).numFmt = brlFmt;
-      rI.getCell(7).numFmt = brlFmt;
-      rI.getCell(9).numFmt = brlFmt;
-      rI.getCell(5).numFmt = "#,##0.00";
-    });
-
-    // Subtotal
-    const rSub = ws1.addRow(["","",`SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`,"","","","","",catTot]);
-    ws1.mergeCells(`A${rSub.number}:H${rSub.number}`);
-    rSub.height = 18;
-    rSub.getCell(1).fill = fillSolid(C.subtot);
-    rSub.getCell(1).font = font({bold:true,color:{argb:C.navy},size:9});
-    rSub.getCell(1).alignment = {vertical:"middle",horizontal:"right"};
-    rSub.getCell(9).fill   = fillSolid(C.subtot);
-    rSub.getCell(9).font   = font({bold:true,color:{argb:C.navy},size:9});
-    rSub.getCell(9).numFmt = brlFmt;
-    rSub.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
-    rSub.getCell(9).border = brd();
-  });
-
-  // Total s/ BDI
-  const rT1 = ws1.addRow(["","","","","","",`TOTAL GERAL S/ BDI`,"",totSem]);
-  ws1.mergeCells(`A${rT1.number}:F${rT1.number}`);
-  rT1.height = 22; fillRow(rT1, C.navy, C.white, true, 10);
-  rT1.getCell(7).fill = fillSolid(C.navy); rT1.getCell(7).font = font({bold:true,color:{argb:C.white},size:10});
-  rT1.getCell(7).alignment = {vertical:"middle",horizontal:"right"};
-  rT1.getCell(9).numFmt = brlFmt;
-  rT1.getCell(9).fill = fillSolid(C.navy); rT1.getCell(9).font = font({bold:true,color:{argb:C.white},size:10});
-  rT1.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
-
-  // Total c/ BDI
-  const rT2 = ws1.addRow(["","","","","","",`✔ TOTAL GERAL C/ BDI (${(bdi*100).toFixed(2)}%)`,"",totCom]);
-  ws1.mergeCells(`A${rT2.number}:F${rT2.number}`);
-  rT2.height = 28; fillRow(rT2, C.navy, C.gold, true, 12);
-  rT2.getCell(7).fill = fillSolid(C.navy); rT2.getCell(7).font = font({bold:true,color:{argb:C.gold},size:12});
-  rT2.getCell(7).alignment = {vertical:"middle",horizontal:"right"};
-  rT2.getCell(9).numFmt = brlFmt;
-  rT2.getCell(9).fill = fillSolid(C.navy); rT2.getCell(9).font = font({bold:true,color:{argb:C.gold},size:14});
-  rT2.getCell(9).alignment = {vertical:"middle",horizontal:"right"};
-  rT2.getCell(9).border = brd(C.gold);
-
-  ws1.views = [{state:"frozen",xSplit:0,ySplit:4,activeCell:"A5"}];
-
-  // ════════════════════════════════════════════════════════════
-  // SHEET 2 — EAP
-  // ════════════════════════════════════════════════════════════
-  const ws2 = wb.addWorksheet("EAP");
-  ws2.columns = [{width:12},{width:55},{width:8},{width:7},{width:12},{width:16},{width:55}];
-
-  const eT = ws2.addRow([`EAP — ESTRUTURA ANALÍTICA — ${APP.projectName}`]);
-  ws2.mergeCells(`A${eT.number}:G${eT.number}`);
-  eT.height = 26;
-  eT.getCell(1).fill = fillSolid(C.navy); eT.getCell(1).font = font({bold:true,color:{argb:C.white},size:12});
-  eT.getCell(1).alignment = {vertical:"middle",horizontal:"center"};
-
-  ws2.addRow([]);
-  const eH = ws2.addRow(["ID WBS","DESCRIÇÃO","NÍV.","UN","QTDE","CÔD. SINAPI","MEMÓRIA DE CÁLCULO"]);
-  eH.height = 20; fillRow(eH, C.navy, C.white, true, 10);
-  ws2.addRow(["1", APP.projectName||"OBRA","1","","","",""]);
-
-  let cIdx=0;
-  Object.entries(byCat).sort(([a],[b]) => { const n=s=>{const m=s.match(/^(\d+)\./);return m?parseInt(m[1]):99;};return n(a)-n(b); }).forEach(([cat,itens])=>{
-    cIdx++;
-    const cR = ws2.addRow([`1.${cIdx}`,cat,"2","","","",""]);
-    [1,2].forEach(i => {
-      cR.getCell(i).fill = fillSolid(C.light);
-      cR.getCell(i).font = font({bold:true,color:{argb:C.navy},size:9});
-    });
-    itens.forEach((q,i) => {
-      const iR = ws2.addRow([`1.${cIdx}.${i+1}`,q.descricao,"3",q.unidade,q.quantidade,q.sinapi_codigo||"",q.memoria_calculo||""]);
-      iR.eachCell({includeEmpty:true}, cell => { cell.font = font({size:9}); cell.border = brd("FFE0E8EF"); });
+  let catIdx = 0;
+  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+    catIdx++;
+    eapRows.push([`1.${catIdx}`, cat, "2", "", "", "", ""]);
+    itens.forEach((q, i) => {
+      eapRows.push([`1.${catIdx}.${i+1}`, q.descricao, "3", q.unidade, q.quantidade, q.sinapi_codigo||"", q.memoria_calculo||""]);
     });
   });
 
-  // ════════════════════════════════════════════════════════════
-  // SHEET 3 — AMBIENTES
-  // ════════════════════════════════════════════════════════════
+  const ws2 = XLSX.utils.aoa_to_sheet(eapRows);
+  ws2["!cols"] = [10,55,8,6,12,16,60].map(w => ({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, "EAP");
+
+  // ── Sheet 3: Ambientes ──────────────────────────────────────
   if (r.ambientes?.length) {
-    const ws3 = wb.addWorksheet("AMBIENTES");
-    ws3.columns = [{width:32},{width:15},{width:16}];
-    const aH = ws3.addRow(["AMBIENTE","ÁREA (m²)","PÉ DIREITO (m)"]);
-    aH.height=20; fillRow(aH,C.navy,C.white,true,10);
-    r.ambientes.forEach(a => {
-      const row = ws3.addRow([a.nome,a.area_m2,a.pe_direito_m||"—"]);
-      row.eachCell(cell=>{cell.font=font({size:9});cell.border=brd("FFE0E8EF");});
-    });
-    const aTot = ws3.addRow(["TOTAL", r.ambientes.reduce((s,a)=>s+(a.area_m2||0),0).toFixed(2),""]);
-    aTot.height=20; fillRow(aTot,C.blue,C.white,true,10);
+    const ambRows = [["AMBIENTE","ÁREA (m²)","PÉ DIREITO (m)"]];
+    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "—"]));
+    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
+    const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
+    ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
   }
 
-  // ════════════════════════════════════════════════════════════
-  // SHEET 4 — CRONOGRAMA
-  // ════════════════════════════════════════════════════════════
-  if (APP.schedule) {
-    const ws4 = wb.addWorksheet("CRONOGRAMA");
-    const { acts, totalWeeks, startDate } = APP.schedule;
-    const totC = acts.reduce((s,a)=>s+a.total,0);
-
-    ws4.columns = [{width:6},{width:32},{width:11},{width:12},{width:10},{width:8},{width:9},{width:14},{width:14},{width:18},{width:12}];
-
-    const cT = ws4.addRow([`CRONOGRAMA FÍSICO-FINANCEIRO — ${APP.projectName}`]);
-    ws4.mergeCells(`A${cT.number}:K${cT.number}`);
-    cT.height=28; cT.getCell(1).fill=fillSolid(C.navy); cT.getCell(1).font=font({bold:true,color:{argb:C.white},size:13});
-    cT.getCell(1).alignment={vertical:"middle",horizontal:"center"};
-    ws4.addRow([]);
-
-    const cH = ws4.addRow(["ID","ATIVIDADE","DUR.(sem)","INÍCIO","FIM","FOLGA","CRÍTICO","DT INÍCIO","DT FIM","CUSTO (R$)","% TOTAL"]);
-    cH.height=20; fillRow(cH,C.navy,C.white,true,10);
-
-    acts.forEach(a => {
-      const dI = a.active ? _fmtDate(_schedDate(startDate,a.ES)) : "";
-      const dF = a.active ? _fmtDate(_schedDate(startDate,a.EF)) : "";
-      const pct = totC>0&&a.total>0 ? (a.total/totC*100).toFixed(1)+"%" : "0%";
-      const rA = ws4.addRow([a.id,a.label,a.active?a.dur:"",a.active?a.ES:"",a.active?a.EF:"",
-        a.active?a.TF:"",a.critical?"SIM":"NÃO",dI,dF,a.active?a.total:0,pct]);
-      rA.height=16;
-      const bg = a.critical?"FFFDE8E8":(a.active?C.gray:C.white);
-      rA.eachCell({includeEmpty:true},cell=>{
-        cell.fill=fillSolid(bg);
-        cell.font=font({size:9,...(a.critical?{color:{argb:C.red},bold:true}:{})});
-        cell.border=brd("FFE0E8EF"); cell.alignment={vertical:"middle"};
-      });
-      rA.getCell(10).numFmt=brlFmt; rA.getCell(10).alignment={vertical:"middle",horizontal:"right"};
-    });
-
-    // Desembolso mensal
-    ws4.addRow([]);
-    const mTitle = ws4.addRow(["DESEMBOLSO MENSAL"]);
-    ws4.mergeCells(`A${mTitle.number}:D${mTitle.number}`);
-    mTitle.getCell(1).fill=fillSolid(C.blue); mTitle.getCell(1).font=font({bold:true,color:{argb:C.white},size:10});
-
-    const mH = ws4.addRow(["MÊS","DESEMBOLSO (R$)","ACUMULADO (R$)","ACUMULADO (%)"]);
-    mH.height=18; fillRow(mH,C.navy,C.white,true,10);
-
-    const wkCost = new Array(totalWeeks).fill(0);
-    acts.forEach(a=>{
-      if(!a.active||a.dur===0)return;
-      const wc=a.total/a.dur;
-      for(let w=a.ES;w<a.EF&&w<totalWeeks;w++) wkCost[w]+=wc;
-    });
-    const mData={},mOrder=[];
-    for(let w=0;w<totalWeeks;w++){
-      const d=_schedDate(startDate,w);
-      const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-      if(!mData[k]){mData[k]={lbl:_fmtMonthYear(d),val:0};mOrder.push(k);}
-      mData[k].val+=wkCost[w];
-    }
-    let acc=0;
-    mOrder.forEach(k=>{
-      acc+=mData[k].val;
-      const pct=totC>0?(acc/totC*100).toFixed(1)+"%":"0%";
-      const mR=ws4.addRow([mData[k].lbl,mData[k].val,acc,pct]);
-      mR.height=16;
-      mR.getCell(2).numFmt=brlFmt; mR.getCell(3).numFmt=brlFmt;
-      mR.eachCell({includeEmpty:true},cell=>{cell.font=font({size:9});cell.border=brd("FFE0E8EF");});
-    });
-    const mTot=ws4.addRow(["TOTAL",totC,totC,"100,0%"]);
-    mTot.height=20; fillRow(mTot,C.navy,C.white,true,10);
-    mTot.getCell(2).numFmt=brlFmt; mTot.getCell(3).numFmt=brlFmt;
-
-    // Gantt (grade colorida)
-    ws4.addRow([]);
-    const gTitle=ws4.addRow(["GANTT — DIAGRAMA SEMANAL"]);
-    ws4.mergeCells(`A${gTitle.number}:${String.fromCharCode(65+totalWeeks)}${gTitle.number}`);
-    gTitle.getCell(1).fill=fillSolid(C.navy); gTitle.getCell(1).font=font({bold:true,color:{argb:C.white},size:10});
-
-    const gH=ws4.addRow(["ATIVIDADE",...Array.from({length:totalWeeks},(_,i)=>"S"+(i+1))]);
-    gH.height=18;
-    gH.eachCell({includeEmpty:true},cell=>{
-      cell.fill=fillSolid(C.navy); cell.font=font({bold:true,color:{argb:C.white},size:8});
-      cell.alignment={vertical:"middle",horizontal:"center"};
-    });
-
-    acts.forEach(a=>{
-      const gR=ws4.addRow([a.label,...new Array(totalWeeks).fill("")]);
-      gR.height=14;
-      gR.getCell(1).fill=fillSolid("FFF8FAFC");
-      gR.getCell(1).font=font({size:9,...(a.critical?{color:{argb:C.red},bold:true}:{})});
-      for(let w=0;w<totalWeeks;w++){
-        const cell=gR.getCell(w+2);
-        if(a.active&&w>=a.ES&&w<a.EF){
-          cell.fill=fillSolid(a.critical?"FFE74C3C":"FF2E75B6");
-        } else if(a.active&&a.TF>0&&w>=a.EF&&w<a.EF+a.TF){
-          cell.fill=fillSolid(C.blueFloat);
-        } else {
-          cell.fill=fillSolid(C.white);
-        }
-        cell.border=brd("FFF0F4F8");
-      }
-    });
-  }
-
-  // ── Download ────────────────────────────────────────────────
-  const buffer = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href=url; a.download=`Orcamento_${(APP.projectName||"Obra").replace(/\s+/g,"_")}_${estado}.xlsx`;
-  a.click(); URL.revokeObjectURL(url);
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SCHEDULE — CPM / GANTT / S-CURVE
-// ═══════════════════════════════════════════════════════════════
-const SCHED_DEF = [
-  { id:"1",  label:"Serviços Preliminares",        cat:"1. SERVIÇOS PRELIMINARES",          baseDur:1, preds:[] },
-  { id:"2",  label:"Movimento de Terra",            cat:"2. MOVIMENTO DE TERRA",              baseDur:1, preds:[{id:"1",req:1.0}] },
-  { id:"3",  label:"Fundações",                     cat:"3. FUNDAÇÕES",                       baseDur:2, preds:[{id:"2",req:1.0}] },
-  { id:"4",  label:"Estrutura",                     cat:"4. ESTRUTURA",                       baseDur:4, preds:[{id:"3",req:1.0}] },
-  { id:"5",  label:"Alvenaria",                     cat:"5. ALVENARIA",                       baseDur:3, preds:[{id:"4",req:0.80}] },
-  { id:"6",  label:"Cobertura",                     cat:"6. COBERTURA",                       baseDur:2, preds:[{id:"4",req:0.85}] },
-  { id:"7",  label:"Revestimentos Internos",        cat:"7. REVESTIMENTOS INTERNOS",          baseDur:3, preds:[{id:"5",req:1.0},{id:"6",req:1.0}] },
-  { id:"8",  label:"Revestimentos Externos",        cat:"8. REVESTIMENTOS EXTERNOS",          baseDur:2, preds:[{id:"5",req:0.80},{id:"6",req:1.0}] },
-  { id:"9",  label:"Pintura",                       cat:"9. PINTURA",                         baseDur:2, preds:[{id:"7",req:0.90},{id:"8",req:1.0}] },
-  { id:"10", label:"Esquadrias",                    cat:"10. ESQUADRIAS",                     baseDur:1, preds:[{id:"5",req:0.80}] },
-  { id:"11", label:"Pisos",                         cat:"11. PISOS",                          baseDur:2, preds:[{id:"7",req:0.70}] },
-  { id:"12", label:"Inst. Hidrossanitárias",        cat:"12. INSTALAÇÕES HIDROSSANITÁRIAS",   baseDur:3, preds:[{id:"5",req:0.30}] },
-  { id:"13", label:"Inst. Elétricas",               cat:"13. INSTALAÇÕES ELÉTRICAS",          baseDur:3, preds:[{id:"5",req:0.30}] },
-  { id:"14", label:"Impermeabilização",             cat:"14. IMPERMEABILIZAÇÃO",              baseDur:1, preds:[{id:"4",req:1.0},{id:"6",req:1.0}] },
-  { id:"15", label:"Serviços Complementares",       cat:"15. SERVIÇOS COMPLEMENTARES",        baseDur:2, preds:[{id:"9",req:1.0},{id:"10",req:1.0},{id:"11",req:1.0},{id:"12",req:1.0},{id:"13",req:1.0}] },
-];
-
-function _schedDate(base, weeks) {
-  const d = new Date(base); d.setDate(d.getDate() + weeks * 7); return d;
-}
-function _fmtDate(d) { return d.toLocaleDateString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric" }); }
-function _fmtMonthYear(d) { return d.toLocaleDateString("pt-BR", { month:"short", year:"2-digit" }); }
-function _fmtCur(v) { return v.toLocaleString("pt-BR", { style:"currency", currency:"BRL", minimumFractionDigits:2 }); }
-
-function buildSchedule() {
-  const r = APP.analysisResult; if (!r) return;
-  const estado = document.getElementById("stateSelect").value;
-  const bdi    = parseFloat(document.getElementById("bdiInput").value) / 100 || 0.2475;
-  const fator  = FATORES_ESTADO[estado] || 1;
-  const area   = parseFloat(r.area_total_construida) || (r.ambientes||[]).reduce((s,a)=>s+(parseFloat(a.area_m2)||0),0) || 50;
-  const scale  = Math.max(0.7, Math.min(3.0, Math.sqrt(area / 50)));
-
-  // Budget totals per category number
-  const catTotals = {};
-  (r.quantitativos||[]).forEach(q => {
-    const num = (q.categoria||"15. SERVIÇOS COMPLEMENTARES").split(".")[0].trim();
-    const si  = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", q.categoria);
-    const tot = (si ? si.preco : (q.preco_unitario||0)) * fator * (parseFloat(q.quantidade)||0) * (1+bdi);
-    catTotals[num] = (catTotals[num]||0) + tot;
-  });
-
-  const acts = SCHED_DEF.map(def => ({
-    ...def,
-    dur: Math.max(1, Math.round(def.baseDur * scale)),
-    total: catTotals[def.id] || 0,
-    active: !!(catTotals[def.id] && catTotals[def.id] > 0),
-    ES:0, EF:0, LS:0, LF:0, TF:0, critical:false,
-  }));
-  const byId = {}; acts.forEach(a => byId[a.id] = a);
-
-  // Forward pass: ES_s = max over preds of (ES_p + round(req * dur_p))
-  acts.forEach(a => {
-    let es = 0;
-    a.preds.forEach(({id:pid, req}) => {
-      const p = byId[pid]; if (!p) return;
-      es = Math.max(es, p.ES + Math.round(req * p.dur));
-    });
-    a.ES = es; a.EF = es + (a.active ? a.dur : 0);
-  });
-  const totalWeeks = Math.max(1, ...acts.map(a => a.EF));
-
-  // Build schedule: backward pass + critical path
-  const maxEF = totalWeeks;
-  [...acts].reverse().forEach(a => {
-    const succs = acts.filter(b => b.preds.some(p => p.id === a.id));
-    a.LF = succs.length > 0 ? Math.min(...succs.map(b => b.LS)) : maxEF;
-    a.LS = a.LF - (a.active ? a.dur : 0);
-    a.TF = a.LS - a.ES;
-    a.critical = a.TF === 0 && a.active;
-  });
-
-  const startDateEl = document.getElementById("startDateInput");
-  if (!startDateEl.value) startDateEl.value = new Date().toISOString().split("T")[0];
-  const startDate = new Date(startDateEl.value + "T00:00:00");
-
-  APP.schedule = { acts, totalWeeks, startDate };
-  renderSchedule(acts, totalWeeks, startDate);
-  return { acts, totalWeeks };
-}
-
-function renderSchedule(acts, totalWeeks, startDate) {
-  if (!startDate) {
-    const el = document.getElementById("startDateInput");
-    startDate = el && el.value ? new Date(el.value+"T00:00:00") : new Date();
-  }
-  const r = APP.analysisResult; if (!r) return;
-  const estado = document.getElementById("stateSelect").value;
-  const bdi = parseFloat(document.getElementById("bdiInput").value) / 100 || 0.2475;
-  const fator = FATORES_ESTADO[estado] || 1;
-  const totC = (r.quantitativos||[]).reduce((s,q) => {
-    const si = findSinapiItem(q.sinapi_codigo||"", q.descricao||"", q.categoria);
-    return s + (si ? si.preco : (q.preco_unitario||0)) * fator * (parseFloat(q.quantidade)||0) * (1+bdi);
-  }, 0);
-
-  const critActs  = acts.filter(a => a.critical);
-  const activActs = acts.filter(a => a.active);
-
-  // KPI cards
-  const kpiEl = document.getElementById("schedKpis");
-  if (kpiEl) kpiEl.innerHTML = [
-    { label:"⏱ Duração Total",    val:totalWeeks+" semanas",         sub:"Prazo CPM do projeto" },
-    { label:"⚠ Caminho Crítico",  val:critActs.length+" atividades", sub:critActs.slice(0,3).map(a=>a.label).join(", ")+(critActs.length>3?"...":"") },
-    { label:"📅 Início Previsto", val:_fmtDate(startDate),            sub:"Data de início da obra" },
-    { label:"🏁 Término Previsto",val:_fmtDate(_schedDate(startDate,totalWeeks)), sub:"Data prevista de entrega" },
-  ].map(k=>`<div class="info-box"><div class="label">${k.label}</div><div class="value">${k.val}</div><div class="sublabel">${k.sub}</div></div>`).join('');
-
-  // Month header groups
-  const weekDates = Array.from({length:totalWeeks}, (_,i) => _schedDate(startDate, i));
-  const months = []; let lastM = -1, mStart = 0;
-  weekDates.forEach((d,i) => {
-    const m = d.getFullYear()*12 + d.getMonth();
-    if (m !== lastM) {
-      if (lastM >= 0) months[months.length-1].span = i - mStart;
-      months.push({label:_fmtMonthYear(d), span:1}); mStart = i; lastM = m;
-    }
-  });
-  if (months.length) months[months.length-1].span = totalWeeks - mStart;
-
-  // Gantt
-  let gt = `<table class="gantt-table"><thead><tr>
-    <th class="act-col" rowspan="2">ATIVIDADE</th>
-    <th class="info-col" rowspan="2">INÍCIO</th>
-    <th class="info-col" rowspan="2">TÉRMINO</th>
-    <th class="info-col" rowspan="2">DUR.</th>
-    ${months.map(m=>`<th class="month-hd" colspan="${m.span}">${m.label}</th>`).join('')}
-  </tr><tr>${weekDates.map((_,i)=>`<th>S${i+1}</th>`).join('')}</tr></thead><tbody>`;
-  activActs.forEach(a => {
-    gt += `<tr>
-      <td class="act-name${a.critical?' is-critical':''}">${a.critical?'▶ ':'• '}${a.label}</td>
-      <td class="info-cell">${_fmtDate(_schedDate(startDate,a.ES))}</td>
-      <td class="info-cell">${_fmtDate(_schedDate(startDate,a.EF))}</td>
-      <td class="info-cell">${a.dur}s</td>
-      ${Array.from({length:totalWeeks},(_,w) => {
-        if (w >= a.ES && w < a.EF)
-          return `<td><div class="gantt-cell ${a.critical?'gcritical':'gactive'}"></div></td>`;
-        if (a.TF > 0 && w >= a.EF && w < a.EF+a.TF)
-          return '<td><div class="gantt-cell gfloat"></div></td>';
-        return '<td></td>';
-      }).join('')}
-    </tr>`;
-  });
-  gt += '</tbody></table>';
-  const gw = document.getElementById("ganttWrap");
-  if (gw) gw.innerHTML = gt;
-
-  // S-Curve table
-  const wkCost = new Array(totalWeeks).fill(0);
-  activActs.forEach(a => {
-    if (a.dur === 0) return;
-    const wc = a.total / a.dur;
-    for(let w = a.ES; w < a.EF && w < totalWeeks; w++) wkCost[w] += wc;
-  });
-  const mData = {}, mOrder = [];
-  for (let w = 0; w < totalWeeks; w++) {
-    const d = _schedDate(startDate, w);
-    const k = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-    if (!mData[k]) { mData[k] = {lbl:_fmtMonthYear(d), val:0}; mOrder.push(k); }
-    mData[k].val += wkCost[w];
-  }
-  let cumA = 0;
-  let sc = `<table class="scurve-table"><thead><tr>
-    <th>MÊS</th><th>DESEMBOLSO</th><th>ACUMULADO</v><th style="min-width:200px">CURVA S</th>
-  </tr></thead><tbody>`;
-  mOrder.forEach(k => {
-    cumA += mData[k].val;
-    const pct = totC > 0 ? (cumA/totC*100).toFixed(1) : "0.0";
-    const bw  = totC > 0 ? Math.round(cumA/totC*100) : 0;
-    sc += `<tr><td>${mData[k].lbl}</td>
-      <td style="text-align:right">${_fmtCur(mData[k].val)}</td>
-      <td style="text-align:right">${_fmtCur(cumA)}</td>
-      <td><div style="display:flex;align-items:center;gap:6px">
-        <div style="flex:1;background:#e8f2fb;border-radius:4px;height:10px">
-          <div style="width:${bw}%;background:var(--blue);border-radius:4px;height:10px"></div>
-        </div><span style="min-width:40px;text-align:right;font-weight:600">${pct}%</span>
-      </div></td></tr>`;
-  });
-  sc += `<tr style="background:var(--navy);color:#fff;font-weight:700">
-    <td>TOTAL</td><td style="text-align:right">${_fmtCur(totC)}</td>
-    <td style="text-align:right">${_fmtCur(totC)}</td><td style="text-align:right">100,0%</td>
-  </tr></tbody></table>`;
-  const sw = document.getElementById("scurveWrap");
-  if (sw) sw.innerHTML = sc;
+  const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
+  XLSX.writeFile(wb, fname);
 }
 </script>
 </body>
