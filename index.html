@@ -278,6 +278,12 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   .budget-table { font-size: 11px; }
   .info-grid { grid-template-columns: 1fr 1fr; }
 }
+.banco-tag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;vertical-align:middle}
+.banco-sin{background:#dbeafe;color:#1e40af}
+.banco-prop{background:#fef3c7;color:#92400e}
+.banco-ia{background:#fee2e2;color:#991b1b}
+.edit-cod{cursor:pointer;margin-left:4px;opacity:.55;user-select:none}
+.edit-cod:hover{opacity:1}
 </style>
 </head>
 
@@ -691,7 +697,8 @@ const APP = {
   desoneracao: false,  // false = sem, true = com
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
-  descricoesDB: undefined  // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
+  descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
+  propriosDB: undefined     // catalogo de composicoes proprias (itens fora da SINAPI)
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -738,7 +745,7 @@ Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quanti
 
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
-2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões.
+2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões. CALCULE e PREENCHA OBRIGATORIAMENTE "area_construida_m2" (soma das áreas dos ambientes × nº de pavimentos). NUNCA deixe 0.
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
 5. Organize por categorias SINAPI.
@@ -753,8 +760,8 @@ REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (
 1. SERVIÇOS PRELIMINARES:
    - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
    - Locação de obra (74209): unidade = M², use a área CONSTRUÍDA (não do terreno).
-   - Ligação provisória de energia (73855): unidade = UN, quantidade = 1.
-   - Ligação provisória de água (73856): unidade = UN, quantidade = 1.
+   - Ligação/instalação provisória de energia: deixe sinapi_codigo vazio (composição própria). Descreva "Instalação/ligação provisória elétrica de baixa tensão para canteiro de obra". Unidade = UN, quantidade = 1.
+   - Ligação/instalação provisória de água: deixe sinapi_codigo vazio (composição própria). Descreva "Instalações provisórias de água, inclusive hidrômetro e cavalete". Unidade = UN, quantidade = 1.
    - Demolição/limpeza terreno (88309): unidade = M², use a área do TERRENO (não construída).
    - Tapume (74155/001): unidade = M², calcule pelo perímetro × altura (2,20m). Incluir somente se houver tapume.
 
@@ -1228,6 +1235,87 @@ function ordenarCategorias(entries) {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════
+// COMPOSIÇÕES PRÓPRIAS (itens fora da SINAPI) + utilidades
+// ═══════════════════════════════════════════════════════════════
+let _propIndex = null;
+let _propIdf = null;
+function buildPropIndex() {
+  if (_propIndex) return _propIndex;
+  _propIndex = (APP.propriosDB || []).map(p => ({
+    codigo: p.codigo, descricao: p.descricao, preco: p.preco, unidade: p.unidade,
+    tokens: new Set(tokenizeSinapi(p.descricao))
+  }));
+  const df = Object.create(null);
+  _propIndex.forEach(e => e.tokens.forEach(t => { df[t] = (df[t] || 0) + 1; }));
+  const N = _propIndex.length || 1;
+  _propIdf = Object.create(null);
+  for (const t in df) _propIdf[t] = Math.log(1 + N / df[t]);
+  return _propIndex;
+}
+// Busca um item no catálogo PRÓPRIO pela descrição (itens não cobertos pela SINAPI).
+// Usa peso IDF p/ valorizar termos distintivos (ex.: "água" vs "elétrica").
+function buscarProprio(descricao, minCob) {
+  if (minCob == null) minCob = 0.5;
+  const qw = tokenizeSinapi(descricao);
+  if (!qw.length) return null;
+  const qset = new Set(qw);
+  const idx = buildPropIndex();
+  const utilSet = toks => {
+    const u = new Set();
+    toks.forEach(t => {
+      if (t.startsWith("agua")) u.add("agua");
+      else if (t.startsWith("esgot")) u.add("esgoto");
+      else if (t.startsWith("eletric") || t.startsWith("energ")) u.add("eletrica");
+      else if (t === "gas") u.add("gas");
+    });
+    return u;
+  };
+  const qUtil = utilSet(qset);
+  let qW = 0; qset.forEach(t => { qW += (_propIdf[t] || 1); }); qW = qW || 1;
+  let best = null, bestScore = 0;
+  for (const e of idx) {
+    if (!e.tokens.size) continue;
+    // trava de utilidade: não casar "água" com "elétrica"/"esgoto" etc.
+    if (qUtil.size) {
+      const cUtil = utilSet(e.tokens);
+      if (cUtil.size) { let inter2 = false; qUtil.forEach(x => { if (cUtil.has(x)) inter2 = true; }); if (!inter2) continue; }
+    }
+    let inter = 0, interW = 0;
+    qset.forEach(t => { if (e.tokens.has(t)) { inter++; interW += (_propIdf[t] || 1); } });
+    if (inter < 2) continue;
+    const cob = interW / qW;                 // cobertura ponderada por IDF
+    const score = interW * (0.5 + 0.5 * cob);
+    if (score > bestScore && cob >= minCob) { bestScore = score; best = e; }
+  }
+  return best ? { codigo: best.codigo, descricao: best.descricao, preco: best.preco, unidade: best.unidade } : null;
+}
+
+// Item típico de canteiro/instalações provisórias (catálogo PRÓPRIO tem prioridade)
+function ehItemCanteiro(descricao) {
+  const d = String(descricao || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return /(provisori|mobiliz|desmobiliz|canteiro|container|conteiner|almoxarif|barracao|refeitorio|vestiario|central de (armadura|forma))/.test(d);
+}
+
+// Área construída robusta (usa soma dos ambientes se a IA não preencher area_construida_m2)
+function areaDoProjeto(r) {
+  let a = Number(r && r.area_construida_m2) || 0;
+  if (a <= 0 && r) a = (r.ambientes || []).reduce((s, x) => s + (Number(x.area_m2) || 0), 0);
+  return a;
+}
+
+// Edição manual do código SINAPI direto na planilha (lápis ✎)
+function editarCodigo(id) {
+  const r = APP.analysisResult; if (!r) return;
+  const q = (r.quantitativos || []).find(x => x._id === id);
+  if (!q) return;
+  const atual = q._codigoManual || q.sinapi_codigo || "";
+  const novo = prompt("Digite o código SINAPI para este serviço\n(vazio = usar busca automática pela descrição):", atual);
+  if (novo === null) return;  // cancelou
+  q._codigoManual = novo.trim();
+  recalcBudget();
+}
+
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1236,7 +1324,7 @@ function buildEAP() {
   const grid = document.getElementById("projectInfoGrid");
   grid.innerHTML = [
     { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
-    { label: "Área Construída",value: `${(r.area_construida_m2||0).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
+    { label: "Área Construída",value: `${areaDoProjeto(r).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
     { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
     { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
   ].map(i => `
@@ -1439,7 +1527,7 @@ function buscarCodigoPorDescricao(descricao, categoria) {
   const idx = buildDescIndex();
   const col = APP.desoneracao ? 1 : 0;
 
-  let best = null, bestScore = 0;
+  let best = null, bestScore = 0, bestCob = 0;
   if (idx.length) {
     // peso total da query (para normalizar)
     let qWeight = 0; qset.forEach(t => { qWeight += (_idf[t] || 1); });
@@ -1458,17 +1546,17 @@ function buscarCodigoPorDescricao(descricao, categoria) {
       let temNeg = false; e.tokens.forEach(t => { if (NEG_SINAPI.has(t)) temNeg = true; });
       let qNeg = false; qset.forEach(t => { if (NEG_SINAPI.has(t)) qNeg = true; });
       if (temNeg && !qNeg) score *= 0.4;
-      if (score > bestScore && cobertura >= 0.34) { bestScore = score; best = e; }
+      if (score > bestScore && cobertura >= 0.34) { bestScore = score; best = e; bestCob = cobertura; }
     }
   }
 
   // Fallback: catálogo interno (SINAPI_ITENS) caso descricoes.json não cubra
   if (!best) {
     const item = findSinapiItemHardcoded(null, descricao, categoria);
-    if (item) return { codigo: item.codigo, descricao: item.descricao, score: 1 };
+    if (item) return { codigo: item.codigo, descricao: item.descricao, score: 1, cobertura: 0.4 };
     return null;
   }
-  return { codigo: best.codigo, descricao: best.descricao, score: bestScore };
+  return { codigo: best.codigo, descricao: best.descricao, score: bestScore, cobertura: bestCob };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1485,7 +1573,14 @@ async function loadDescricoes() {
     console.warn("descricoes.json não encontrado — busca textual limitada ao catálogo interno.", e.message);
     APP.descricoesDB = null;
   }
-  _descIndex = null;  // força reconstrução do índice
+  try {
+    const rp = await fetch("data/proprios.json");
+    APP.propriosDB = rp.ok ? await rp.json() : [];
+  } catch(e) {
+    console.warn("proprios.json não encontrado — sem composições próprias.", e.message);
+    APP.propriosDB = [];
+  }
+  _descIndex = null; _propIndex = null; _propIdf = null;  // força reconstrução dos índices
 }
 
 async function loadSinapiDB(estado) {
@@ -1510,51 +1605,63 @@ async function loadSinapiDB(estado) {
 //   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
 function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
-  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", sugerido: false,
+  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false,
                 aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
 
-  // 1. Busca direta por código na tabela do estado (trata sufixos /001 e letras)
+  // 1. SINAPI por código exato no estado (trata sufixos /001 e letras)
   if (APP.sinapiDB) {
     const precoCod = precoEstado(codigo, col);
     if (precoCod != null) {
-      res.preco = precoCod;
-      res.fonte = "estado";
+      res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI";
       res.codigoFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
       return res;
     }
   }
 
-  // 2. Código não bateu → busca o serviço pelo NOME e sugere o código correto
-  const sug = buscarCodigoPorDescricao(descricao, categoria);
+  const sug      = buscarCodigoPorDescricao(descricao, categoria);
+  const canteiro = ehItemCanteiro(descricao);
+  const prop     = buscarProprio(descricao, canteiro ? 0.3 : 0.5);
+  const usarProprio = (p) => {
+    res.preco = p.preco; res.fonte = "proprio"; res.banco = "Próprio";
+    res.codigoFinal = "PRÓPRIO"; res.sugerido = false; res.descricaoRef = p.descricao;
+    return res;
+  };
+  const usarEstado = (g) => {
+    const pr = precoEstado(g.codigo, col);
+    if (pr == null) return null;
+    res.preco = pr; res.fonte = "estado-desc"; res.banco = "SINAPI";
+    res.codigoFinal = g.codigo; res.sugerido = String(g.codigo) !== String(codigo || "");
+    return res;
+  };
+
+  // 2. Itens de canteiro/provisórios → catálogo PRÓPRIO tem prioridade
+  if (prop && canteiro) return usarProprio(prop);
+
+  // 3. SINAPI por descrição com ALTA confiança (vence o catálogo próprio)
+  if (sug && APP.sinapiDB && sug.cobertura >= 0.55) { const r = usarEstado(sug); if (r) return r; }
+
+  // 4. Composição PRÓPRIA (itens fora da SINAPI)
+  if (prop) return usarProprio(prop);
+
+  // 5. SINAPI por descrição com confiança MÉDIA
+  if (sug && APP.sinapiDB) { const r = usarEstado(sug); if (r) return r; }
+
+  // 6. Catálogo interno (SINAPI_ITENS, preços SP de referência)
   if (sug) {
-    if (APP.sinapiDB) {
-      const precoSug = precoEstado(sug.codigo, col);
-      if (precoSug != null) {
-        res.preco = precoSug;
-        res.fonte = "estado-desc";
-        res.codigoFinal = sug.codigo;
-        res.sugerido = String(sug.codigo) !== String(codigo || "");
-        return res;
-      }
-    }
-    // Sem tabela de estado: usa o item interno correspondente ao código sugerido
     const itemSug = findSinapiItemHardcoded(sug.codigo);
     if (itemSug) {
-      res.preco = itemSug.preco;
-      res.fonte = "interno-desc";
-      res.codigoFinal = sug.codigo;
-      res.sugerido = String(sug.codigo) !== String(codigo || "");
+      res.preco = itemSug.preco; res.fonte = "interno-desc"; res.banco = "SINAPI-SP";
+      res.codigoFinal = sug.codigo; res.sugerido = String(sug.codigo) !== String(codigo || "");
       return res;
     }
   }
-
-  // 3. Fallback: catálogo interno por código (preços SP de referência)
   const item = findSinapiItemHardcoded(codigo);
-  if (item) { res.preco = item.preco; res.fonte = "interno"; res.codigoFinal = item.codigo; return res; }
+  if (item) { res.preco = item.preco; res.fonte = "interno"; res.banco = "SINAPI-SP"; res.codigoFinal = item.codigo; return res; }
 
-  // 4. Fallback final: preço informado pela IA
+  // 7. Fallback final: preço informado pela IA
   res.preco = preco_unitario_ia || 0;
   res.fonte = res.preco ? "ia" : "none";
+  res.banco = res.preco ? "IA" : "—";
   return res;
 }
 
@@ -1600,6 +1707,7 @@ async function buildBudget() {
   });
 
   let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, nCorrigidos = 0, nInvalidos = 0;
+  (r.quantitativos || []).forEach((q, i) => { if (q._id == null) q._id = i; });
   const tbody = document.getElementById("budgetBody");
   tbody.innerHTML = "";
 
@@ -1619,7 +1727,7 @@ async function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const info     = resolveSinapi(q.sinapi_codigo || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
       const precoAdj = info.preco;
       q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
       q._fontePreco      = info.fonte;
@@ -1638,11 +1746,16 @@ async function buildBudget() {
         : (info.fonte === "ia" ? '<span class="warn" title="Código não encontrado na tabela do estado — preço estimado pela IA">⚠ preço estimado</span>'
         : (info.fonte === "interno" || info.fonte === "interno-desc" ? '<span class="warn" title="Preço de referência interno (SP) — código ausente na tabela do estado">⚠ ref. SP</span>' : ''));
 
-      // Código corrigido pela busca textual
-      const codOrig = q.sinapi_codigo || "—";
-      const codCell = info.sugerido
-        ? `<span style="color:var(--blue)" title="Código corrigido pela busca textual (IA sugeriu: ${codOrig})">${info.codigoFinal} ✎</span>`
-        : codOrig;
+      // Banco (SINAPI/Próprio) + código corrigido + lápis editável
+      const codOrig = (q._codigoManual || q.sinapi_codigo) || "—";
+      const bancoCls = info.banco === "Próprio" ? "banco-prop" : info.banco === "IA" ? "banco-ia" : "banco-sin";
+      const bancoTag = (info.banco && info.banco !== "—") ? ` <span class="banco-tag ${bancoCls}">${info.banco}</span>` : "";
+      const codLabel = info.banco === "Próprio"
+        ? `<span title="Composição própria: ${(info.descricaoRef||"").replace(/"/g,"'")}">PRÓPRIO</span>`
+        : (info.sugerido
+            ? `<span style="color:var(--blue)" title="Código corrigido (IA sugeriu: ${codOrig})">${info.codigoFinal}</span>`
+            : (info.codigoFinal || "—"));
+      const codCell = `${codLabel}${bancoTag} <span class="edit-cod" title="Editar código SINAPI" onclick="editarCodigo(${q._id})">✎</span>`;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -1684,13 +1797,14 @@ async function buildBudget() {
   tbody.appendChild(totalBdiRow);
 
   // KPIs
-  const area = r.area_construida_m2 || 1;
+  const area = areaDoProjeto(r);
+  const custoM2 = area > 0 ? `R$ ${fmt(totalComBdi / area)}` : "—";
   const desSuffix = APP.desoneracao ? "c/ desoneração" : "s/ desoneração";
   document.getElementById("budgetKpis").innerHTML = [
     { label: "Total s/ BDI",     value: `R$ ${fmt(totalSemBdi)}`,               sub: "" },
     { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
-    { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
+    { label: "Custo / m²",       value: custoM2,        sub: area > 0 ? `${area.toFixed(1)} m²` : "área não identificada" },
     { label: "Estado / Regime",  value: estado,                                  sub: `SINAPI 05/2026 ${desSuffix}` },
     { label: "Validação de códigos", value: nInvalidos > 0 ? `⚠ ${nInvalidos} inexistente(s)` : "✓ todos válidos", sub: `${nCorrigidos} corrigido(s) pela descrição` },
   ].map(i => `
@@ -1739,7 +1853,7 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const info       = resolveSinapi(q.sinapi_codigo || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
       const precoAdj   = info.preco;
       const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
       const qtd        = Number(q.quantidade) || 0;
