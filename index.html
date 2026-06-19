@@ -410,7 +410,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div class="pages-grid" id="pagesGrid"></div>
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
       <span id="selectedCount">0</span> página(s) selecionada(s)
-      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 6 páginas enviadas para IA — selecione as plantas baixas principais.</span>
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 24 páginas — processadas em lotes de 6. Selecione as plantas e folhas relevantes.</span>
     </div>
 
     <div class="btn-group">
@@ -746,7 +746,7 @@ REGRAS OBRIGATÓRIAS:
 7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
 8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
-10. PREFIRA usar os seguintes códigos SINAPI (que já estão na tabela do sistema): 73965, 74209, 73855, 73856, 88309, 74155/001, 73583/001, 74136/001, 74119/001, 94965, 83334, 83334b, 83334c, 96527, 94228, 94237, 94966, 94972, 87456, 87704, 91010, 87266, 96548, 87556, 87556b, 73890, 73891, 87251, 87262, 87529, 87528, 87527, 88484, 88485, 88487, 88488, 88489, 88490, 87879, 87875, 87875b, 87876, 87876b, 73943, 73943b, 73936, 73936b, 73936c, 73939, 74209/007, 87241, 74155/004, 87877, 89809, 89684, 89770, 89656, 89679, 89812, 89783, 89481, 91926, 91930, 91888, 91948, 91950, 91968, 91970, 91914, 91915, 91976, 73888, 73955, 73958, 95237, 95239. Se usar outro código, inclua o preco_unitario correto.
+10. CÓDIGOS SINAPI: use SOMENTE códigos reais e vigentes da tabela SINAPI 05/2026 dos quais você tenha CERTEZA. NUNCA invente, deduza ou adapte um número de código. Se não tiver certeza do código exato, deixe "sinapi_codigo" vazio ("") e seja MUITO detalhado na "descricao" (serviço + material + dimensões + traço/espessura) — o sistema localiza o código oficial pela descrição. O campo "preco_unitario" é apenas referência de fallback.
 
 REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
 
@@ -965,6 +965,10 @@ async function renderThumbnails() {
 
 function togglePage(el, num, forceSelect = false) {
   if (forceSelect || !APP.selectedPages.has(num)) {
+    if (!APP.selectedPages.has(num) && APP.selectedPages.size >= MAX_PAGES_TOTAL) {
+      updateSelectedCount();
+      return;  // limite total de páginas atingido
+    }
     APP.selectedPages.add(num);
     el.classList.add("selected");
   } else {
@@ -979,7 +983,7 @@ function updateSelectedCount() {
   const n = APP.selectedPages.size;
   document.getElementById("selectedCount").textContent = n;
   const warn = document.getElementById("pageWarning");
-  if (warn) warn.style.display = n > 6 ? "inline" : "none";
+  if (warn) warn.style.display = n > MAX_PAGES_TOTAL ? "inline" : "none";
 }
 
 document.getElementById("btnSelectAll").addEventListener("click", () => {
@@ -992,7 +996,8 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // CONVERSION: PDF PAGE → JPEG BASE64
 // ═══════════════════════════════════════════════════════════════
-const MAX_PAGES_API = 6;      // máximo de páginas enviadas para a IA
+const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
+const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
 const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
 
 async function pageToBase64(pageNum) {
@@ -1050,85 +1055,39 @@ async function startAnalysis() {
     setProgress(10, "Renderizando páginas…");
 
     let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
-    if (sortedPages.length > MAX_PAGES_API) {
-      sortedPages = sortedPages.slice(0, MAX_PAGES_API);
+    if (sortedPages.length > MAX_PAGES_TOTAL) {
+      sortedPages = sortedPages.slice(0, MAX_PAGES_TOTAL);
     }
-    const images = [];
 
+    // Converte todas as páginas selecionadas em imagens
+    const allImages = [];
     for (let i = 0; i < sortedPages.length; i++) {
       const p = sortedPages[i];
       setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
-      images.push(await pageToBase64(p));
+      allImages.push(await pageToBase64(p));
     }
     setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
 
-    // ── Step 2: Send to AI ────────────────────────────────
-    setStep("pstep2", false, "Enviando para análise com Claude IA…");
-    setProgress(45, "Aguardando resposta da IA…");
-
+    // ── Step 2: Enviar para a IA em lotes de MAX_PAGES_API ─
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
     if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
-    const aiContent = [
-      ...images.map(img => ({
-        type: "image",
-        source: { type: "base64", media_type: "image/jpeg", data: img }
-      })),
-      {
-        type: "text",
-        text: "Analise as imagens do projeto arquitetônico e faça o levantamento completo de quantitativos.\n\n" +
-              "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
-              "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
-              "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
-              (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
-      }
-    ];
-
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 16000,
-        system: ANTHROPIC_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: aiContent }]
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Erro HTTP ${resp.status}`);
+    const batches = [];
+    for (let i = 0; i < allImages.length; i += MAX_PAGES_API) {
+      batches.push(allImages.slice(i, i + MAX_PAGES_API));
     }
 
-    const apiData = await resp.json();
-    const rawText = apiData.content[0].text;
-    const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
-
-    let parsedResult;
-    const tryParse = (str) => {
-      // Tenta direto
-      try { return JSON.parse(str); } catch(_) {}
-      // Tenta com jsonrepair (corrige newlines literais em strings, vírgulas extras, etc.)
-      if (typeof jsonrepair !== "undefined") {
-        try { return JSON.parse(jsonrepair(str)); } catch(_) {}
-      }
-      return null;
-    };
-
-    parsedResult = tryParse(jsonStr);
-    if (!parsedResult) {
-      // Extrai bloco {} do texto bruto e tenta novamente
-      const m = rawText.match(/\{[\s\S]*\}/);
-      if (m) parsedResult = tryParse(m[0]);
+    setStep("pstep2", false, `Enviando para análise com Claude IA${batches.length > 1 ? ` (${batches.length} lotes)` : ""}…`);
+    setProgress(45, "Aguardando resposta da IA…");
+    const parts = [];
+    for (let b = 0; b < batches.length; b++) {
+      setProgress(45 + (b / batches.length) * 25, `Analisando lote ${b + 1}/${batches.length}…`);
+      parts.push(await chamarIA(batches[b], apiKey, b + 1, batches.length));
     }
-    if (!parsedResult) {
-      throw new Error("JSON inválido após tentativas de reparo. Primeiros 600 chars da resposta IA:\n" + rawText.substring(0, 600));
+
+    const parsedResult = batches.length === 1 ? parts[0] : mesclarResultados(parts);
+    if (!parsedResult || !parsedResult.quantitativos) {
+      throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas por análise.");
     }
 
     setStep("pstep2", true, "Análise com IA concluída");
@@ -1165,6 +1124,110 @@ async function startAnalysis() {
 // ═══════════════════════════════════════════════════════════════
 // EAP BUILD
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// CHAMADA À IA (por lote) + MESCLAGEM DE RESULTADOS
+// ═══════════════════════════════════════════════════════════════
+async function chamarIA(images, apiKey, lote, total) {
+  const aiContent = [
+    ...images.map(img => ({
+      type: "image",
+      source: { type: "base64", media_type: "image/jpeg", data: img }
+    })),
+    {
+      type: "text",
+      text: `Analise as imagens do projeto arquitetônico${total > 1 ? ` (LOTE ${lote} de ${total} — extraia SOMENTE serviços quantificáveis NESTAS folhas; não estime serviços mostrados em outras folhas)` : ""} e faça o levantamento de quantitativos.\n\n` +
+            "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
+            "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
+            "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
+            (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+    }
+  ];
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 16000,
+      system: ANTHROPIC_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: aiContent }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `Erro HTTP ${resp.status} (lote ${lote})`);
+  }
+
+  const apiData = await resp.json();
+  const rawText = apiData.content[0].text;
+  const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
+  const tryParse = (str) => {
+    try { return JSON.parse(str); } catch(_) {}
+    if (typeof jsonrepair !== "undefined") {
+      try { return JSON.parse(jsonrepair(str)); } catch(_) {}
+    }
+    return null;
+  };
+  let parsed = tryParse(jsonStr);
+  if (!parsed) {
+    const m = rawText.match(/\{[\s\S]*\}/);
+    if (m) parsed = tryParse(m[0]);
+  }
+  if (!parsed) throw new Error(`JSON inválido (lote ${lote}). Início da resposta da IA:\n` + rawText.substring(0, 400));
+  return parsed;
+}
+
+// Mescla resultados de vários lotes: soma quantitativos por código+unidade+categoria,
+// deduplica ambientes e mantém os dados de projeto.
+function mesclarResultados(parts) {
+  const out = { projeto: "", area_construida_m2: 0, pavimentos: 1, tipologia: "", ambientes: [], quantitativos: [] };
+  const ambSet = new Set();
+  const qMap = new Map();
+  for (const r of parts) {
+    if (!r) continue;
+    if (!out.projeto && r.projeto) out.projeto = r.projeto;
+    if (!out.tipologia && r.tipologia) out.tipologia = r.tipologia;
+    out.area_construida_m2 = Math.max(out.area_construida_m2, Number(r.area_construida_m2) || 0);
+    out.pavimentos = Math.max(out.pavimentos, Number(r.pavimentos) || 1);
+    (r.ambientes || []).forEach(a => {
+      const k = String(a.nome || "").toLowerCase().trim();
+      if (k && !ambSet.has(k)) { ambSet.add(k); out.ambientes.push(a); }
+    });
+    (r.quantitativos || []).forEach(q => {
+      const chave = (String(q.sinapi_codigo || "").trim() || String(q.descricao || "").toLowerCase().trim())
+                  + "|" + String(q.unidade || "").toLowerCase().trim()
+                  + "|" + String(q.categoria || "");
+      if (qMap.has(chave)) {
+        const ex = qMap.get(chave);
+        ex.quantidade = (Number(ex.quantidade) || 0) + (Number(q.quantidade) || 0);
+        if (q.memoria_calculo && ex.memoria_calculo && !ex.memoria_calculo.includes(q.memoria_calculo)) {
+          ex.memoria_calculo += " | " + q.memoria_calculo;
+        }
+      } else {
+        qMap.set(chave, Object.assign({}, q, { quantidade: Number(q.quantidade) || 0 }));
+      }
+    });
+  }
+  out.quantitativos = [...qMap.values()];
+  return out;
+}
+
+// Ordena as categorias pelo número inicial ("1.", "2."… "15.") e não alfabeticamente
+function ordenarCategorias(entries) {
+  return entries.sort((a, b) => {
+    const na = parseInt((String(a[0]).match(/^\d+/) || ["999"])[0], 10);
+    const nb = parseInt((String(b[0]).match(/^\d+/) || ["999"])[0], 10);
+    return na - nb || String(a[0]).localeCompare(String(b[0]));
+  });
+}
+
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1194,13 +1257,13 @@ function buildEAP() {
   const tree = document.getElementById("eapTree");
   tree.innerHTML = "";
 
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens], catIdx) => {
     const node = document.createElement("div");
     node.className = "eap-node";
 
     const header = document.createElement("div");
     header.className = "eap-node-header";
-    header.innerHTML = `<span class="caret">▶</span> ${cat} <span class="badge">${itens.length} serv.</span>`;
+    header.innerHTML = `<span class="caret">▶</span> <strong>${catIdx + 1}.</strong> ${cat.replace(/^\d+\.\s*/, "")} <span class="badge">${itens.length} serv.</span>`;
     header.addEventListener("click", () => {
       header.classList.toggle("open");
       children.classList.toggle("open");
@@ -1213,7 +1276,7 @@ function buildEAP() {
       const row = document.createElement("div");
       row.className = "eap-item";
       row.innerHTML = `
-        <span class="codigo">${q.sinapi_codigo || "—"}</span>
+        <span class="codigo">${catIdx + 1}.${idx + 1} · ${q.sinapi_codigo || "—"}</span>
         <span>${q.descricao}</span>
         <span class="qtd">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})}</span>
         <span class="un">${q.unidade}</span>`;
@@ -1243,7 +1306,7 @@ function buildEAP() {
     tree.appendChild(node);
 
     // Expand first category by default
-    if (Object.keys(byCat).indexOf(cat) === 0) {
+    if (catIdx === 0) {
       header.classList.add("open");
       children.classList.add("open");
     }
@@ -1311,6 +1374,12 @@ function precoEstado(codigo, col) {
 // Um código tem preço efetivo (não-nulo) na tabela do estado para a coluna selecionada?
 function codigoExisteNoEstado(codigo, col) {
   return precoEstado(codigo, (col == null ? (APP.desoneracao ? 1 : 0) : col)) != null;
+}
+
+// Código existe no catálogo oficial SINAPI (descricoes.json)? Detecta código inventado pela IA.
+function codigoRealSinapi(codigo) {
+  if (!codigo || !APP.descricoesDB) return false;
+  return !!(APP.descricoesDB[codigo] || APP.descricoesDB[baseCodigo(codigo)]);
 }
 
 function findSinapiItemHardcoded(codigo, descricao, categoria) {
@@ -1441,7 +1510,8 @@ async function loadSinapiDB(estado) {
 //   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
 function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
-  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", sugerido: false };
+  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", sugerido: false,
+                aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
 
   // 1. Busca direta por código na tabela do estado (trata sufixos /001 e letras)
   if (APP.sinapiDB) {
@@ -1529,7 +1599,7 @@ async function buildBudget() {
     byCat[c].push(q);
   });
 
-  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0;
+  let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, nCorrigidos = 0, nInvalidos = 0;
   const tbody = document.getElementById("budgetBody");
   tbody.innerHTML = "";
 
@@ -1538,7 +1608,7 @@ async function buildBudget() {
   // Load SINAPI DB for this state (async, non-blocking if already loaded)
   await loadSinapiDB(estado);
 
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens]) => {
     // Category row
     const catRow = document.createElement("tr");
     catRow.className = "cat-row";
@@ -1553,6 +1623,8 @@ async function buildBudget() {
       const precoAdj = info.preco;
       q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
       q._fontePreco      = info.fonte;
+      if (info.aiCodigo && !info.aiValido) nInvalidos++;   // código "criado" pela IA, inexistente na SINAPI
+      if (info.sugerido) nCorrigidos++;
       const qtd      = Number(q.quantidade) || 0;
       const subtotal   = precoAdj * qtd;
       const comBdi     = subtotal * (1 + bdi);
@@ -1620,6 +1692,7 @@ async function buildBudget() {
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
     { label: "Custo / m²",       value: `R$ ${fmt(totalComBdi / area)}`,        sub: `${area.toFixed(1)} m²` },
     { label: "Estado / Regime",  value: estado,                                  sub: `SINAPI 05/2026 ${desSuffix}` },
+    { label: "Validação de códigos", value: nInvalidos > 0 ? `⚠ ${nInvalidos} inexistente(s)` : "✓ todos válidos", sub: `${nCorrigidos} corrigido(s) pela descrição` },
   ].map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
@@ -1660,7 +1733,7 @@ function exportExcel() {
   let itemNum = 0, totalSemBdi = 0, totalComBdi = 0;
   const fmt2 = v => Math.round(v * 100) / 100;
 
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens]) => {
     rows.push([cat, "", "", "", "", "", "", "", ""]);
     let catTotal = 0;
 
@@ -1696,7 +1769,7 @@ function exportExcel() {
   eapRows.push(["1", APP.projectName || "OBRA", "1", "", "", "", ""]);
 
   let catIdx = 0;
-  Object.entries(byCat).sort(([a],[b]) => a.localeCompare(b)).forEach(([cat, itens]) => {
+  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens]) => {
     catIdx++;
     eapRows.push([`1.${catIdx}`, cat, "2", "", "", "", ""]);
     itens.forEach((q, i) => {
