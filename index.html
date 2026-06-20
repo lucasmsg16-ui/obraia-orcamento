@@ -309,7 +309,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div class="logo">Obra<span>IA</span></div>
     <div class="subtitle">Sistema de Orçamento Arquitetônico com Inteligência Artificial</div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal</div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.06.20</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -1939,7 +1939,8 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) 
     }
   }
 
-  const sug      = buscarCodigoPorDescricao(descricao, categoria);
+  const _topc    = buscarTopK(descricao, 1, col);
+  const sug      = _topc.length ? { codigo: _topc[0].codigo, descricao: _topc[0].desc, cobertura: _topc[0].score } : null;
   const canteiro = ehItemCanteiro(descricao);
   const prop     = buscarProprio(descricao, canteiro ? 0.3 : 0.5);
   const usarProprio = (p) => {
@@ -1959,7 +1960,7 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) 
   // 2. Itens de canteiro/provisórios → catálogo PRÓPRIO tem prioridade
   if (prop && canteiro) return usarProprio(prop);
   // 3. SINAPI por descrição com ALTA confiança
-  if (sug && APP.sinapiDB && sug.cobertura >= 0.55) { const r = usarEstado(sug); if (r) return r; }
+  if (sug && APP.sinapiDB && sug.cobertura >= 0.45) { const r = usarEstado(sug); if (r) return r; }
   // 4. Composição PRÓPRIA
   if (prop) return usarProprio(prop);
   // 5. SINAPI por descrição com confiança MÉDIA
@@ -2029,6 +2030,13 @@ async function buildBudget() {
 
   let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, nCorrigidos = 0, nInvalidos = 0;
   (r.quantitativos || []).forEach((q, i) => { if (q._id == null) q._id = i; });
+  // pré-passada: conta uso de cada código final p/ sinalizar repetidos (serviços diferentes, mesmo código)
+  const _usoCod = {};
+  (r.quantitativos || []).forEach(q => {
+    const inf = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
+    const cf = inf.codigoFinal;
+    if (cf && cf !== "PRÓPRIO" && cf !== "—") _usoCod[cf] = (_usoCod[cf] || 0) + 1;
+  });
   const tbody = document.getElementById("budgetBody");
   tbody.innerHTML = "";
 
@@ -2082,7 +2090,7 @@ async function buildBudget() {
       tr.innerHTML = `
         <td>${itemNum}</td>
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
-        <td>${q.descricao}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}</td>
+        <td>${q.descricao}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
