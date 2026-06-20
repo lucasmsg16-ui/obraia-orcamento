@@ -1218,6 +1218,22 @@ async function startAnalysis() {
 // ═══════════════════════════════════════════════════════════════
 // CHAMADA À IA (por lote) + MESCLAGEM DE RESULTADOS
 // ═══════════════════════════════════════════════════════════════
+// Parser robusto da resposta da IA (com recuperação de JSON truncado)
+function parseIAJson(rawText) {
+  if (!rawText) return null;
+  const limpa = x => x.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  const tryP = str => { try { return JSON.parse(str); } catch (_) {} if (typeof jsonrepair !== "undefined") { try { return JSON.parse(jsonrepair(str)); } catch (_) {} } return null; };
+  const clean = limpa(rawText);
+  let p = tryP(clean); if (p) return p;
+  const m = rawText.match(/\{[\s\S]*\}/); if (m) { p = tryP(m[0]); if (p) return p; }
+  // resposta truncada: fecha o array de quantitativos no último item completo
+  if (clean.indexOf('"quantitativos"') >= 0) {
+    const lastObj = clean.lastIndexOf("}");
+    if (lastObj > 0) { p = tryP(clean.slice(0, lastObj + 1) + "]}"); if (p) return p; }
+  }
+  return null;
+}
+
 async function chamarIA(images, apiKey, lote, total, textoFolhas) {
   const aiContent = [];
   images.forEach(img => aiContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: img } }));
@@ -1241,12 +1257,11 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
       "Content-Type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",
-      "anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
       "anthropic-dangerous-direct-browser-access": "true"
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 16000,
+      max_tokens: 32000,
       system: ANTHROPIC_SYSTEM_PROMPT,
       messages: [{ role: "user", content: aiContent }]
     })
@@ -1259,20 +1274,8 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
 
   const apiData = await resp.json();
   const rawText = apiData.content[0].text;
-  const jsonStr = rawText.replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/```\s*$/i,"").trim();
-  const tryParse = (str) => {
-    try { return JSON.parse(str); } catch(_) {}
-    if (typeof jsonrepair !== "undefined") {
-      try { return JSON.parse(jsonrepair(str)); } catch(_) {}
-    }
-    return null;
-  };
-  let parsed = tryParse(jsonStr);
-  if (!parsed) {
-    const m = rawText.match(/\{[\s\S]*\}/);
-    if (m) parsed = tryParse(m[0]);
-  }
-  if (!parsed) throw new Error(`JSON inválido (lote ${lote}). Início da resposta da IA:\n` + rawText.substring(0, 400));
+  const parsed = parseIAJson(rawText);
+  if (!parsed) throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. Início: " + rawText.substring(0, 300));
   return parsed;
 }
 
@@ -1762,16 +1765,12 @@ async function analisarTexto(texto, apiKey) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 16000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] })
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 32000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] })
   });
   if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error?.message || `Erro HTTP ${resp.status}`); }
   const data = await resp.json();
   const rawText = data.content[0].text;
-  const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-  const tryParse = (str) => { try { return JSON.parse(str); } catch (_) {} if (typeof jsonrepair !== "undefined") { try { return JSON.parse(jsonrepair(str)); } catch (_) {} } return null; };
-  let parsed = tryParse(jsonStr);
-  if (!parsed) { const m = rawText.match(/\{[\s\S]*\}/); if (m) parsed = tryParse(m[0]); }
-  return parsed;
+  return parseIAJson(rawText);
 }
 
 function buildEAP() {
