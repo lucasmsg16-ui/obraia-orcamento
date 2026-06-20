@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ObraIA — Sistema de Orçamento Arquitetônico</title>
+<title>MAR ABERTO ENGENHARIA — Orçamento de Obras</title>
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -39,7 +39,7 @@ header {
   height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
 }
 header .logo { font-size: 20px; font-weight: 700; letter-spacing: -.5px; }
-header .logo span { color: var(--amber); }
+header .logo span { color: #4db8e8; }
 header .subtitle { font-size: 12px; color: rgba(255,255,255,.65); margin-top: 2px; }
 header .header-right { margin-left: auto; font-size: 12px; color: rgba(255,255,255,.5); }
 
@@ -308,9 +308,18 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 <body>
 <!-- ═══════════════════════════════════════════════════════ HEADER -->
 <header>
-  <div>
-    <div class="logo">Obra<span>IA</span></div>
-    <div class="subtitle">Sistema de Orçamento Arquitetônico com Inteligência Artificial</div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <svg width="44" height="32" viewBox="0 0 46 34" fill="none" aria-label="Mar Aberto Engenharia">
+      <defs><linearGradient id="mwave" x1="0" y1="0" x2="46" y2="34" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#0a2a43"/><stop offset="1" stop-color="#5cc3f0"/></linearGradient></defs>
+      <path d="M2 9 Q14 1 23 6 T44 6" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M2 18 Q14 10 23 15 T44 15" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M2 27 Q14 19 23 24 T44 24" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="logo">MAR ABERTO <span>ENGENHARIA</span></div>
+      <div class="subtitle">Sistema de Orçamento de Obras com Inteligência Artificial</div>
+    </div>
   </div>
   <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.06.20</span></div>
 </header>
