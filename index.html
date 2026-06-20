@@ -284,6 +284,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .banco-ia{background:#fee2e2;color:#991b1b}
 .edit-cod{cursor:pointer;margin-left:4px;opacity:.55;user-select:none}
 .edit-cod:hover{opacity:1}
+.cod-input{width:84px;font-family:monospace;font-size:12px;padding:2px 4px;border:1.5px solid var(--blue);border-radius:4px}
+.ofic{cursor:help;color:var(--blue);font-size:11px}
 .gantt{font-size:12px;margin-top:8px}
 .gantt-row,.gantt-head{display:flex;align-items:center;margin-bottom:4px}
 .gantt-lbl{flex:0 0 200px;padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--navy);font-size:12px}
@@ -1330,6 +1332,11 @@ function buscarProprio(descricao, minCob) {
   return best ? { codigo: best.codigo, descricao: best.descricao, preco: best.preco, unidade: best.unidade } : null;
 }
 
+// Normalização e detecção de tipo de execução (manual × mecanizada) p/ validar código↔descrição
+function normalizaTxt(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+function tipoExecucao(d) { d = normalizaTxt(d); if (/mecaniz|mecanic/.test(d)) return "mec"; if (/\bmanual\b/.test(d)) return "man"; return ""; }
+function descMismatch(a, b) { const x = tipoExecucao(a), y = tipoExecucao(b); return !!(x && y && x !== y); }
+
 // Item típico de canteiro/instalações provisórias (catálogo PRÓPRIO tem prioridade)
 function ehItemCanteiro(descricao) {
   const d = String(descricao || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -1348,11 +1355,19 @@ function editarCodigo(id) {
   const r = APP.analysisResult; if (!r) return;
   const q = (r.quantitativos || []).find(x => x._id === id);
   if (!q) return;
+  const cell = document.getElementById("codcell-" + id);
+  if (!cell) return;
   const atual = q._codigoManual || q.sinapi_codigo || "";
-  const novo = prompt("Digite o código SINAPI para este serviço\n(vazio = usar busca automática pela descrição):", atual);
-  if (novo === null) return;  // cancelou
-  q._codigoManual = novo.trim();
-  recalcBudget();
+  cell.innerHTML = `<input class="cod-input" value="${atual}" placeholder="código" />`;
+  const inp = cell.querySelector("input");
+  inp.focus(); inp.select();
+  let done = false;
+  const aplicar = () => { if (done) return; done = true; q._codigoManual = inp.value.trim(); recalcBudget(); };
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); aplicar(); }
+    else if (e.key === "Escape") { done = true; recalcBudget(); }
+  });
+  inp.addEventListener("blur", aplicar);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1733,6 +1748,7 @@ function buscarCodigoPorDescricao(descricao, categoria) {
   const qset = new Set(qw);
   const idx = buildDescIndex();
   const col = APP.desoneracao ? 1 : 0;
+  const qTipo = tipoExecucao(descricao);
 
   let best = null, bestScore = 0, bestCob = 0;
   if (idx.length) {
@@ -1743,6 +1759,8 @@ function buscarCodigoPorDescricao(descricao, categoria) {
       const e = idx[k];
       // só sugere código que tenha PREÇO (não-nulo) na coluna selecionada da tabela do estado
       if (APP.sinapiDB && !codigoExisteNoEstado(e.codigo, col)) continue;
+      // não casar manual×mecanizada
+      if (qTipo) { const cT = tipoExecucao(e.descricao); if (cT && cT !== qTipo) continue; }
       let inter = 0;
       qset.forEach(t => { if (e.tokens.has(t)) inter += (_idf[t] || 1); });
       if (inter <= 0) continue;
@@ -1812,16 +1830,22 @@ async function loadSinapiDB(estado) {
 //   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
 function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
-  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false,
+  const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false, alerta: false, descricaoOficial: "",
                 aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
+  const descOficialDe = (c) => APP.descricoesDB ? (APP.descricoesDB[c] || APP.descricoesDB[baseCodigo(c)] || "") : "";
 
-  // 1. SINAPI por código exato no estado (trata sufixos /001 e letras)
+  // 1. SINAPI por código exato no estado — só confia se a descrição não conflitar (ex.: manual×mecanizada)
+  let fraco = null;
   if (APP.sinapiDB) {
     const precoCod = precoEstado(codigo, col);
     if (precoCod != null) {
-      res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI";
-      res.codigoFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
-      return res;
+      const codFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
+      const ofic = descOficialDe(codigo);
+      if (!(ofic && descricao && descMismatch(descricao, ofic))) {
+        res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI";
+        res.codigoFinal = codFinal; res.descricaoOficial = ofic; return res;
+      }
+      fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // conflito → guarda como último recurso
     }
   }
 
@@ -1838,22 +1862,25 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
     if (pr == null) return null;
     res.preco = pr; res.fonte = "estado-desc"; res.banco = "SINAPI";
     res.codigoFinal = g.codigo; res.sugerido = String(g.codigo) !== String(codigo || "");
+    res.descricaoOficial = descOficialDe(g.codigo);
     return res;
   };
 
   // 2. Itens de canteiro/provisórios → catálogo PRÓPRIO tem prioridade
   if (prop && canteiro) return usarProprio(prop);
-
   // 3. SINAPI por descrição com ALTA confiança (vence o catálogo próprio)
   if (sug && APP.sinapiDB && sug.cobertura >= 0.55) { const r = usarEstado(sug); if (r) return r; }
-
   // 4. Composição PRÓPRIA (itens fora da SINAPI)
   if (prop) return usarProprio(prop);
-
   // 5. SINAPI por descrição com confiança MÉDIA
   if (sug && APP.sinapiDB) { const r = usarEstado(sug); if (r) return r; }
-
-  // 6. Catálogo interno (SINAPI_ITENS, preços SP de referência)
+  // 6. Código da IA conflitante (último recurso SINAPI) — sinaliza p/ revisão
+  if (fraco) {
+    res.preco = fraco.preco; res.fonte = "estado"; res.banco = "SINAPI";
+    res.codigoFinal = fraco.codigo; res.descricaoOficial = fraco.ofic; res.alerta = true;
+    return res;
+  }
+  // 7. Catálogo interno (SINAPI_ITENS, preços SP de referência)
   if (sug) {
     const itemSug = findSinapiItemHardcoded(sug.codigo);
     if (itemSug) {
@@ -1864,13 +1891,13 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   }
   const item = findSinapiItemHardcoded(codigo);
   if (item) { res.preco = item.preco; res.fonte = "interno"; res.banco = "SINAPI-SP"; res.codigoFinal = item.codigo; return res; }
-
-  // 7. Fallback final: preço informado pela IA
+  // 8. Fallback final: preço informado pela IA
   res.preco = preco_unitario_ia || 0;
   res.fonte = res.preco ? "ia" : "none";
   res.banco = res.preco ? "IA" : "—";
   return res;
 }
+
 
 // Compat: mantém a assinatura antiga retornando apenas o preço.
 function getSinapiPrice(codigo, preco_unitario_ia) {
@@ -1967,8 +1994,8 @@ async function buildBudget() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${itemNum}</td>
-        <td style="font-family:monospace;font-size:11px">${codCell}</td>
-        <td>${q.descricao} ${warnPrice}</td>
+        <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
+        <td>${q.descricao}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
