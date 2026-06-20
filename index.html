@@ -605,6 +605,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div style="overflow-x:auto"><div id="cronoTabela"></div></div>
     <div class="btn-group" style="margin-top:18px">
       <button class="btn btn-success" id="btnDownload2">⬇ Baixar Excel (com cronograma)</button>
+      <button class="btn btn-primary" id="btnCronoPDF">🖨️ Exportar PDF (Gantt)</button>
       <button class="btn btn-outline" id="btnGoBudget">↩ Voltar para Orçamento</button>
     </div>
   </div>
@@ -1592,6 +1593,103 @@ function editarDuracao(cat) {
   buildCronograma();
 }
 
+// Exporta o cronograma em PDF/Gantt profissional (janela de impressão → salvar PDF)
+function exportarCronogramaPDF() {
+  const r = APP.analysisResult; if (!r) { alert("Gere o orçamento primeiro."); return; }
+  const prazoEl = document.getElementById("cronoPrazo");
+  const prazo = (prazoEl && prazoEl.value) ? parseFloat(prazoEl.value) : prazoPadrao();
+  const d = computeCronograma(prazo);
+  if (!d) { alert("Sem dados de cronograma. Gere o orçamento primeiro."); return; }
+  const bdi = (parseFloat(document.getElementById("bdiInput").value) / 100) || 0;
+  const iniEl = document.getElementById("cronoInicio");
+  const inicio = (iniEl && iniEl.value) ? new Date(iniEl.value + "T00:00:00") : new Date();
+  const addDias = (dt, n) => { const x = new Date(dt); x.setDate(x.getDate() + n); return x; };
+  const fmtData = dt => dt.toLocaleDateString("pt-BR");
+  const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const estado = APP.estado || (document.getElementById("stateSelect") || {}).value || "";
+  const area = areaDoProjeto(r);
+  const conclusao = addDias(inicio, d.projDur);
+  const criticas = d.ativ.filter(a => a.critico);
+  const nMeses = Math.max(1, Math.ceil(d.projDur / 30));
+
+  let linhasMes = "", labelsMes = "";
+  for (let m = 0; m <= nMeses; m++) {
+    const left = Math.min(100, (m * 30) / d.projDur * 100);
+    linhasMes += `<div class="mline" style="left:${left}%"></div>`;
+    if (m < nMeses) { const dm = new Date(inicio); dm.setMonth(dm.getMonth() + m); labelsMes += `<div class="mlbl" style="left:${(m * 30) / d.projDur * 100}%">${("0" + (dm.getMonth() + 1)).slice(-2)}/${dm.getFullYear()}</div>`; }
+  }
+  const ganttRows = d.ativ.map(a => {
+    const left = a.es / d.projDur * 100, w = Math.max(1.2, a.dur / d.projDur * 100);
+    return `<div class="grow"><div class="glbl">${a.cat}. ${a.nome}</div><div class="gtrack">${linhasMes}<div class="gbar ${a.critico ? 'crit' : ''}" style="left:${left}%;width:${w}%">${a.dur}d</div></div></div>`;
+  }).join("");
+  const tableRows = d.ativ.map((a, i) => `<tr class="${a.critico ? 'cr' : ''}"><td>${i + 1}</td><td>${a.nome}</td><td class="r">${a.peso.toFixed(1)}%</td><td>${fmtData(addDias(inicio, a.es))}</td><td class="r">${a.dur}d</td><td>${fmtData(addDias(inicio, a.ef))}</td><td class="r">${a.folga}d</td><td>${a.critico ? 'CRÍTICA' : '—'}</td></tr>`).join("");
+  const curva = curvaS_SVG(d);
+
+  const html = `<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><title>Cronograma — ${(APP.projectName || 'Obra')}</title>
+<style>
+@page{size:A4 landscape;margin:10mm}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;color:#1f2937;font-size:11px}
+.hd{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0f2747,#1e5080);color:#fff;padding:12px 16px;border-radius:6px}
+.hd .nm{font-size:19px;font-weight:800;letter-spacing:.3px;line-height:1.1}
+.hd .nm span{color:#4db8e8}
+.hd .sub{font-size:11px;opacity:.85}
+.hd .ttl{margin-left:auto;text-align:right;font-size:14px;font-weight:800;letter-spacing:1px}
+.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.info .b{border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;background:#f8fafc}
+.info .b .l{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.3px}
+.info .b .v{font-size:13px;font-weight:700;color:#0f2747}
+h2{font-size:13px;color:#0f2747;margin:14px 0 6px;border-left:4px solid #1e40af;padding-left:8px}
+.crit{margin:6px 0;padding:8px 10px;background:#fff7ed;border-left:4px solid #ea580c;font-size:10px;border-radius:4px}
+.gantt{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}
+.ghead,.grow{display:flex;align-items:center;border-bottom:1px solid #eef2f7}
+.grow:last-child{border-bottom:none}
+.glbl{flex:0 0 210px;padding:5px 8px;font-size:10px;color:#0f2747}
+.gtrack{position:relative;flex:1;height:22px}
+.ghead .gtrack{height:16px}
+.gbar{position:absolute;top:4px;height:14px;background:#1e40af;border-radius:3px;color:#fff;font-size:8px;line-height:14px;text-align:center;overflow:hidden}
+.gbar.crit{background:#dc2626}
+.mline{position:absolute;top:0;bottom:0;width:1px;background:#eef2f7}
+.mlbl{position:absolute;top:3px;font-size:8px;color:#64748b;transform:translateX(2px)}
+table{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px}
+th,td{border:1px solid #e2e8f0;padding:4px 7px;text-align:left}
+th{background:#1e40af;color:#fff;font-size:9px;text-transform:uppercase}
+td.r{text-align:right}
+tr.cr{background:#fef2f2}
+.ft{margin-top:14px;font-size:9px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:6px}
+</style></head><body>
+<div class="hd">
+  <svg width="42" height="31" viewBox="0 0 46 34" fill="none"><defs><linearGradient id="w" x1="0" y1="0" x2="46" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0a2a43"/><stop offset="1" stop-color="#5cc3f0"/></linearGradient></defs><path d="M2 9 Q14 1 23 6 T44 6" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 18 Q14 10 23 15 T44 15" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 27 Q14 19 23 24 T44 24" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/></svg>
+  <div><div class="nm">MAR ABERTO <span>ENGENHARIA</span></div><div class="sub">Cronograma Físico-Financeiro & Caminho Crítico</div></div>
+  <div class="ttl">CRONOGRAMA<br>DA OBRA</div>
+</div>
+<div class="info">
+  <div class="b"><div class="l">Projeto</div><div class="v">${(APP.projectName || '—')}</div></div>
+  <div class="b"><div class="l">Estado / Regime</div><div class="v">${estado} · ${APP.desoneracao ? 'c/ deson.' : 's/ deson.'}</div></div>
+  <div class="b"><div class="l">Início da obra</div><div class="v">${fmtData(inicio)}</div></div>
+  <div class="b"><div class="l">Conclusão prevista</div><div class="v">${fmtData(conclusao)}</div></div>
+  <div class="b"><div class="l">Prazo</div><div class="v">${d.projDur} dias (~${(d.projDur / 30).toFixed(1)} meses)</div></div>
+  <div class="b"><div class="l">BDI</div><div class="v">${(bdi * 100).toFixed(2)}%</div></div>
+  <div class="b"><div class="l">Custo total (c/ BDI)</div><div class="v">R$ ${fmt(d.totalCusto)}</div></div>
+  <div class="b"><div class="l">Custo / m²</div><div class="v">${area > 0 ? ('R$ ' + fmt(d.totalCusto / area)) : '—'}</div></div>
+</div>
+<div class="crit"><b>Caminho crítico:</b> ${criticas.map(a => a.nome).join(' → ') || '—'} — qualquer atraso nessas fases atrasa a obra inteira.</div>
+<h2>Gráfico de Gantt</h2>
+<div class="gantt"><div class="ghead"><div class="glbl">Fase</div><div class="gtrack">${labelsMes}${linhasMes}</div></div>${ganttRows}</div>
+<h2>Curva S — Avanço Físico-Financeiro Previsto</h2>
+${curva}
+<h2>Rede CPM — Atividades</h2>
+<table><thead><tr><th>#</th><th>Fase</th><th>Peso</th><th>Início</th><th>Duração</th><th>Conclusão</th><th>Folga</th><th>Crítico</th></tr></thead><tbody>${tableRows}</tbody></table>
+<div class="ft">Emitido em ${fmtData(new Date())} · MAR ABERTO ENGENHARIA · Referência SINAPI 05/2026</div>
+</body></html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) { alert("Permita pop-ups para gerar o PDF do cronograma."); return; }
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => { win.focus(); win.print(); };
+}
+
 function buildCronograma() {
   const inp = document.getElementById("cronoPrazo");
   if (inp && !inp.value) inp.value = prazoPadrao();
@@ -1678,6 +1776,7 @@ function curvaS_SVG(d) {
 document.getElementById("btnGoCrono").addEventListener("click", () => { goTo(5); buildCronograma(); });
 document.getElementById("btnGoBudget").addEventListener("click", () => goTo(4));
 document.getElementById("btnDownload2").addEventListener("click", exportExcel);
+document.getElementById("btnCronoPDF").addEventListener("click", exportarCronogramaPDF);
 
 // ═══════════════════════════════════════════════════════════════
 // REFINO DE CÓDIGOS — desambiguação com 2ª passada da IA (RAG)
