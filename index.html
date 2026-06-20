@@ -1101,31 +1101,54 @@ async function startAnalysis() {
   goTo(2);
 
   try {
-    // ── Step 1: Convert pages ─────────────────────────────
-    setStep("pstep1", false, "Convertendo páginas PDF em imagens…");
-    setProgress(10, "Renderizando páginas…");
+    // ── Step 1: Ler o PDF (modo híbrido automático: TEXTO → IMAGEM) ──
+    setStep("pstep1", false, "Lendo o PDF…");
+    setProgress(10, "Lendo o PDF…");
 
     let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
     if (sortedPages.length > MAX_PAGES_TOTAL) {
       sortedPages = sortedPages.slice(0, MAX_PAGES_TOTAL);
     }
 
-    // Converte todas as páginas selecionadas em imagens
-    const allImages = [];
-    for (let i = 0; i < sortedPages.length; i++) {
-      const p = sortedPages[i];
-      setProgress(10 + (i / sortedPages.length) * 30, `Renderizando página ${p}…`);
-      allImages.push(await pageToBase64(p));
-    }
-    setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
-
-    // ── Step 2: Enviar para a IA em UMA única chamada (evita quantitativos duplicados) ─
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
     if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
-    setStep("pstep2", false, "Enviando para análise com Claude IA…");
-    setProgress(45, "Aguardando resposta da IA…");
-    const parsedResult = await chamarIA(allImages, apiKey, 1, 1);
+    // 1) extrai o TEXTO do PDF (camada de texto — barato, sem visão)
+    let textoProjeto = "";
+    for (let i = 0; i < sortedPages.length; i++) {
+      const p = sortedPages[i];
+      setProgress(10 + (i / sortedPages.length) * 20, `Lendo texto da página ${p}…`);
+      const t = await pageToText(p);
+      if (t) textoProjeto += `\n--- Folha ${p} ---\n${t}`;
+    }
+    const textoLimpo = textoProjeto.replace(/\s+/g, " ").trim();
+    const usarTexto = textoLimpo.length >= 600;   // texto rico → modo econômico
+
+    let parsedResult;
+    if (usarTexto) {
+      setStep("pstep1", true, `Texto extraído (${textoLimpo.length} caracteres) — modo econômico 💸`);
+      setStep("pstep2", false, "Analisando o texto do projeto (modo econômico)…");
+      setProgress(45, "Aguardando resposta da IA…");
+      parsedResult = await analisarTexto(textoProjeto, apiKey);
+      // segurança: se o texto rendeu pouco, reprocessa com imagem
+      if (!parsedResult || !parsedResult.quantitativos || parsedResult.quantitativos.length < 3) {
+        setStep("pstep2", false, "Texto insuficiente — reprocessando com imagem…");
+        const imgs = [];
+        for (let i = 0; i < sortedPages.length; i++) { setProgress(45 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]}…`); imgs.push(await pageToBase64(sortedPages[i])); }
+        parsedResult = await chamarIA(imgs, apiKey, 1, 1);
+      }
+    } else {
+      setStep("pstep1", true, "PDF sem texto suficiente — análise por imagem");
+      const allImages = [];
+      for (let i = 0; i < sortedPages.length; i++) {
+        setProgress(30 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]}…`);
+        allImages.push(await pageToBase64(sortedPages[i]));
+      }
+      setStep("pstep2", false, "Enviando para análise (imagem)…");
+      setProgress(45, "Aguardando resposta da IA…");
+      parsedResult = await chamarIA(allImages, apiKey, 1, 1);
+    }
+
     if (!parsedResult || !parsedResult.quantitativos) {
       throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas.");
     }
@@ -1644,6 +1667,37 @@ async function refinarCodigos(parsed, apiKey) {
     if (precoEstado(String(cod), col) != null) { itens[i].sinapi_codigo = String(cod); itens[i]._refinado = true; n++; }
   });
   console.log("refino de códigos: " + n + " confirmado(s) pela IA");
+}
+
+// Extrai a camada de texto de uma página do PDF (pdf.js) — base do modo econômico
+async function pageToText(pageNum) {
+  try {
+    const page = await APP.pdfDoc.getPage(pageNum);
+    const tc = await page.getTextContent();
+    return tc.items.map(it => it.str).join(" ");
+  } catch (e) { return ""; }
+}
+
+// Análise por TEXTO (modo econômico — sem imagens/visão)
+async function analisarTexto(texto, apiKey) {
+  const userText =
+    "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, legendas e memorial descritivo). " +
+    "Faça o levantamento completo de quantitativos a partir destes dados. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2. " +
+    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\nTEXTO DO PROJETO:\n" + texto +
+    (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 16000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] })
+  });
+  if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error?.message || `Erro HTTP ${resp.status}`); }
+  const data = await resp.json();
+  const rawText = data.content[0].text;
+  const jsonStr = rawText.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+  const tryParse = (str) => { try { return JSON.parse(str); } catch (_) {} if (typeof jsonrepair !== "undefined") { try { return JSON.parse(jsonrepair(str)); } catch (_) {} } return null; };
+  let parsed = tryParse(jsonStr);
+  if (!parsed) { const m = rawText.match(/\{[\s\S]*\}/); if (m) parsed = tryParse(m[0]); }
+  return parsed;
 }
 
 function buildEAP() {
