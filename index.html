@@ -802,6 +802,14 @@ Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quanti
 
 PRIORIDADE ABSOLUTA: o levantamento deve refletir o que está REALMENTE nos desenhos/plantas — cotas, áreas, quantidades e especificações mostradas. Leia e meça o DESENHO primeiro. As regras e orientações abaixo servem APENAS para padronizar unidades e para estimar quando o dado NÃO estiver explícito no projeto; elas NUNCA devem sobrepor ou alterar um dado real lido do desenho.
 
+METODOLOGIA DE LEITURA (projetos com várias folhas — siga NESTA ordem, é OBRIGATÓRIO):
+1) PLANTA BAIXA é a BASE: dela saem os ambientes, as ÁREAS em planta, os perímetros de parede e a contagem/posição de portas e janelas. Conte os itens de planta UMA ÚNICA VEZ aqui.
+2) CORTES servem APENAS para ALTURAS: pé-direito, altura de parede, altura e inclinação do telhado, platibanda, profundidades. NÃO extraia áreas nem quantidades dos cortes — eles só fornecem ALTURAS.
+3) COMBINE: calcule os quantitativos REAIS usando as medidas da PLANTA × as ALTURAS dos cortes. Ex.: área de parede = perímetro (planta) × pé-direito (corte); volume de concreto = área (planta) × altura (corte); área de telhado = projeção (planta) corrigida pela inclinação (corte).
+4) FACHADAS/ELEVAÇÕES apenas CONFIRMAM acabamentos externos e esquadrias — NÃO some áreas já contadas na planta.
+5) QUADROS (de áreas / de esquadrias) são FONTE EXATA.
+REGRA DE OURO: NUNCA conte a mesma superfície, ambiente ou quantidade em mais de uma folha. Se o corte/fachada/detalhe mostra algo que a planta já mostrou, NÃO some de novo — use-o apenas para extrair a altura/medida que faltava.
+
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
 2. Identifique os ambientes e suas dimensões. CALCULE "area_construida_m2" = soma das áreas internas dos ambientes × nº de pavimentos. NÃO confunda com a área do TERRENO/lote (essa NÃO entra na área construída). Conte cada ambiente UMA única vez; se a MESMA planta/pavimento aparecer em mais de uma folha (planta, corte, detalhe), NÃO some de novo. Nunca deixe area_construida_m2 = 0. Da mesma forma, NÃO duplique quantitativos: cada serviço deve ser somado uma única vez no total da obra.
@@ -1219,7 +1227,7 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
   }
   aiContent.push({ type: "text", text:
     `Analise o projeto arquitetônico (imagens${textoFolhas ? " + texto acima" : ""}) e faça o levantamento de quantitativos.\n\n` +
-    "PROJETO COM VÁRIAS FOLHAS: classifique mentalmente cada folha (planta baixa, corte, fachada, cobertura, elétrica, hidráulica, QUADRO/tabela, detalhe). " +
+    "PROJETO COM VÁRIAS FOLHAS: siga a METODOLOGIA DE LEITURA — a PLANTA BAIXA é a base (áreas/contagens), os CORTES servem só para ALTURAS, e você COMBINA planta × altura para o quantitativo real. Classifique cada folha (planta, corte, fachada, cobertura, elétrica, hidráulica, QUADRO, detalhe). " +
     "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
     "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
     "Retorne o JSON conforme especificado. Seja preciso — os valores gerarão um orçamento real.\n\n" +
@@ -1416,6 +1424,31 @@ function editarCodigo(id) {
     } else {
       q.descricao = q._descricaoOriginal;      // código limpo → volta ao texto original
     }
+    recalcBudget();
+  };
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); aplicar(); }
+    else if (e.key === "Escape") { done = true; recalcBudget(); }
+  });
+  inp.addEventListener("blur", aplicar);
+}
+
+// Edição inline da QUANTIDADE de um serviço
+function editarQuantidade(id) {
+  const r = APP.analysisResult; if (!r) return;
+  const q = (r.quantitativos || []).find(x => x._id === id);
+  if (!q) return;
+  const cell = document.getElementById("qtdcell-" + id);
+  if (!cell) return;
+  const atual = Number(q.quantidade) || 0;
+  cell.innerHTML = `<input class="cod-input" style="width:84px;text-align:right" value="${atual}" />`;
+  const inp = cell.querySelector("input");
+  inp.focus(); inp.select();
+  let done = false;
+  const aplicar = () => {
+    if (done) return; done = true;
+    const v = parseFloat(String(inp.value).replace(",", "."));
+    if (!isNaN(v) && v >= 0) q.quantidade = v;
     recalcBudget();
   };
   inp.addEventListener("keydown", e => {
@@ -2219,7 +2252,7 @@ async function buildBudget() {
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
         <td>${q.descricao}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
-        <td class="num">${fmt(qtd)}</td>
+        <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span></td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
         <td class="num">R$ ${fmt(subtotal)}</td>
         <td class="num">${(bdi*100).toFixed(2)}%</td>
