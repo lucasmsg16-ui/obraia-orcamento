@@ -581,6 +581,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
     <div class="state-bar" style="flex-wrap:wrap;gap:12px">
       <label>⏱️ Prazo de execução (meses):</label>
       <input type="number" id="cronoPrazo" min="1" max="48" step="1" style="width:90px;padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
+      <label>📅 Início da obra:</label>
+      <input type="date" id="cronoInicio" style="padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
       <span class="ref-sinapi">Durações estimadas pelo peso de custo de cada fase · método CPM</span>
       <button class="btn btn-outline" id="btnResetDur" style="padding:6px 10px;font-size:12px">↺ Durações automáticas</button>
     </div>
@@ -1546,6 +1548,11 @@ function buildCronograma() {
   const inp = document.getElementById("cronoPrazo");
   if (inp && !inp.value) inp.value = prazoPadrao();
   const prazo = inp ? (parseFloat(inp.value) || 6) : 6;
+  const iniEl = document.getElementById("cronoInicio");
+  if (iniEl && !iniEl.value) iniEl.value = new Date().toISOString().slice(0, 10);
+  const inicio = (iniEl && iniEl.value) ? new Date(iniEl.value + "T00:00:00") : new Date();
+  const addDias = (dt, n) => { const x = new Date(dt); x.setDate(x.getDate() + n); return x; };
+  const fmtData = dt => dt.toLocaleDateString("pt-BR");
   const d = computeCronograma(prazo);
   const fmt = v => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   if (!d) { document.getElementById("cronoGantt").innerHTML = "<p>Gere o orçamento primeiro.</p>"; return; }
@@ -1554,6 +1561,7 @@ function buildCronograma() {
   // KPIs
   document.getElementById("cronoKpis").innerHTML = [
     { label: "Prazo total", value: `${d.projDur} dias`, sub: `≈ ${(d.projDur / 30).toFixed(1)} meses` },
+    { label: "Conclusão prevista", value: fmtData(addDias(inicio, d.projDur)), sub: `início ${fmtData(inicio)}` },
     { label: "Fases", value: d.ativ.length, sub: "no cronograma" },
     { label: "Caminho crítico", value: criticas.length, sub: "fase(s) crítica(s)" },
     { label: "Custo total (c/ BDI)", value: `R$ ${fmt(d.totalCusto)}`, sub: "" },
@@ -1578,9 +1586,9 @@ function buildCronograma() {
      <span style="font-size:12px;color:var(--muted)">Qualquer atraso nessas fases atrasa a obra inteira. Concentre fiscalização e recursos aqui.</span>`;
 
   // Tabela CPM
-  let tab = `<table class="crono-tbl"><thead><tr><th>#</th><th>Fase</th><th class="num">Peso %</th><th class="num">Início (dia)</th><th class="num">Duração</th><th class="num">Fim (dia)</th><th>Predecessoras</th><th class="num">Folga</th><th>Crítico</th></tr></thead><tbody>`;
+  let tab = `<table class="crono-tbl"><thead><tr><th>#</th><th>Fase</th><th class="num">Peso %</th><th class="num">Início</th><th class="num">Duração</th><th class="num">Conclusão</th><th>Predecessoras</th><th class="num">Folga</th><th>Crítico</th></tr></thead><tbody>`;
   d.ativ.forEach((a, i) => {
-    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num">${a.es}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num">${a.ef}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
+    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
   });
   tab += `</tbody></table>`;
   document.getElementById("cronoTabela").innerHTML = tab;
@@ -2347,18 +2355,22 @@ function exportExcel() {
   const dc = computeCronograma(prazoX);
   if (dc) {
     const nMeses = Math.max(1, Math.ceil(dc.projDur / 30));
-    const head = ["FASE","PESO %","INÍCIO (dia)","DURAÇÃO (dias)","FIM (dia)","FOLGA (dias)","CRÍTICO"];
-    for (let m = 1; m <= nMeses; m++) head.push(`MÊS ${m} (R$)`);
+    const _ie = document.getElementById("cronoInicio");
+    const dataIni = (_ie && _ie.value) ? new Date(_ie.value + "T00:00:00") : new Date();
+    const _fd = dt => dt.toLocaleDateString("pt-BR");
+    const dataFim = new Date(dataIni.getTime() + dc.projDur * 86400000);
+    const head = ["FASE","PESO %","INÍCIO","DURAÇÃO (dias)","CONCLUSÃO","FOLGA (dias)","CRÍTICO"];
+    for (let m = 1; m <= nMeses; m++) { const dm = new Date(dataIni); dm.setMonth(dm.getMonth() + (m - 1)); head.push(`${("0"+(dm.getMonth()+1)).slice(-2)}/${dm.getFullYear()} (R$)`); }
     const crows = [
       [`CRONOGRAMA FÍSICO-FINANCEIRO — ${APP.projectName}`],
-      [`Prazo: ${dc.projDur} dias (~${(dc.projDur/30).toFixed(1)} meses) | SINAPI 05/2026 | BDI: ${(bdi*100).toFixed(2)}%`],
+      [`Prazo: ${dc.projDur} dias (~${(dc.projDur/30).toFixed(1)} meses) | Início: ${_fd(dataIni)} | Conclusão: ${_fd(dataFim)} | SINAPI 05/2026 | BDI: ${(bdi*100).toFixed(2)}%`],
       [],
       head
     ];
     const desemb = new Array(nMeses).fill(0);
     dc.ativ.forEach(a => {
       const dur = (a.ef - a.es) || 1;
-      const row = [a.nome, +a.peso.toFixed(2), a.es, a.dur, a.ef, a.folga, a.critico ? "SIM" : ""];
+      const row = [a.nome, +a.peso.toFixed(2), _fd(new Date(dataIni.getTime() + a.es * 86400000)), a.dur, _fd(new Date(dataIni.getTime() + a.ef * 86400000)), a.folga, a.critico ? "SIM" : ""];
       for (let m = 1; m <= nMeses; m++) {
         const ini = (m-1)*30, fim = m*30;
         const ov = Math.max(0, Math.min(a.ef, fim) - Math.max(a.es, ini));
