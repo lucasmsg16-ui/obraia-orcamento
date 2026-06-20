@@ -1361,7 +1361,19 @@ function editarCodigo(id) {
   const inp = cell.querySelector("input");
   inp.focus(); inp.select();
   let done = false;
-  const aplicar = () => { if (done) return; done = true; q._codigoManual = inp.value.trim(); recalcBudget(); };
+  const aplicar = () => {
+    if (done) return; done = true;
+    const novo = inp.value.trim();
+    if (q._descricaoOriginal == null) q._descricaoOriginal = q.descricao;  // guarda o texto original
+    q._codigoManual = novo;
+    if (novo) {
+      const ofic = APP.descricoesDB ? (APP.descricoesDB[novo] || APP.descricoesDB[baseCodigo(novo)]) : "";
+      if (ofic) q.descricao = ofic;            // troca o texto para a descrição oficial SINAPI do novo código
+    } else {
+      q.descricao = q._descricaoOriginal;      // código limpo → volta ao texto original
+    }
+    recalcBudget();
+  };
   inp.addEventListener("keydown", e => {
     if (e.key === "Enter") { e.preventDefault(); aplicar(); }
     else if (e.key === "Escape") { done = true; recalcBudget(); }
@@ -2245,7 +2257,7 @@ function exportExcel() {
     const linhaAc  = ["ACUMULADO (R$)","","","","","",""];
     const linhaPct = ["CURVA S (% acum.)","","","","","",""];
     let ac = 0;
-    desemb.forEach(v => { ac += v; linhaMes.push(+v.toFixed(2)); linhaAc.push(+ac.toFixed(2)); linhaPct.push(+((ac/dc.totalCusto)*100).toFixed(1)); });
+    desemb.forEach(v => { ac += v; linhaMes.push(+v.toFixed(2)); linhaAc.push(+ac.toFixed(2)); linhaPct.push(+((ac / dc.totalCusto) * 100).toFixed(1)); });
     crows.push([], linhaMes, linhaAc, linhaPct);
     const ws4 = XLSX.utils.aoa_to_sheet(crows);
     ws4["!cols"] = [{wch:26},{wch:9},{wch:12},{wch:14},{wch:11},{wch:12},{wch:9}].concat(Array(nMeses).fill({wch:14}));
