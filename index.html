@@ -8,7 +8,7 @@
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- SheetJS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <!-- jsonrepair: corrige JSON malformado gerado por IA -->
 <script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
 
@@ -2264,6 +2264,45 @@ async function buildBudget() {
 // ═══════════════════════════════════════════════════════════════
 document.getElementById("btnDownload").addEventListener("click", exportExcel);
 
+// ── Estilização do Excel (xlsx-js-style) ──────────────────────
+function _xlBorda() { const b = { style: "thin", color: { rgb: "C7D2E0" } }; return { top: b, bottom: b, left: b, right: b }; }
+function estilizarSheet(ws, opt) {
+  opt = opt || {};
+  if (!ws["!ref"]) return;
+  const rng = XLSX.utils.decode_range(ws["!ref"]);
+  const bd = _xlBorda();
+  const moeda = new Set(opt.moedaCols || []);
+  const headerMax = (opt.headerRows && opt.headerRows.length) ? Math.max.apply(null, opt.headerRows) : -1;
+  for (let R = rng.s.r; R <= rng.e.r; R++) {
+    let kind = "data";
+    if (R === opt.titulo) kind = "titulo";
+    else if (R === opt.subtitulo) kind = "subtitulo";
+    else if ((opt.headerRows || []).includes(R)) kind = "header";
+    else {
+      let total = false, sub = false;
+      for (let C = rng.s.c; C <= rng.e.c; C++) { const c = ws[XLSX.utils.encode_cell({ r: R, c: C })]; const v = c ? String(c.v == null ? "" : c.v) : ""; if (/^TOTAL/i.test(v)) total = true; if (/SUBTOTAL|DESEMBOLSO|ACUMULADO|CURVA S/i.test(v)) sub = true; }
+      const a0 = ws[XLSX.utils.encode_cell({ r: R, c: rng.s.c })]; const av = a0 ? String(a0.v == null ? "" : a0.v) : "";
+      if (total) kind = "total"; else if (sub) kind = "subtotal"; else if (opt.catCol0 && /^\d+\.\s*\D/.test(av)) kind = "cat";
+    }
+    for (let C = rng.s.c; C <= rng.e.c; C++) {
+      const ref = XLSX.utils.encode_cell({ r: R, c: C });
+      let cell = ws[ref]; if (!cell) { cell = { t: "s", v: "" }; ws[ref] = cell; }
+      let s;
+      if (kind === "titulo") s = { font: { bold: true, sz: 15, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "0F2747" } }, alignment: { vertical: "center", horizontal: "left" } };
+      else if (kind === "subtitulo") s = { font: { sz: 10, color: { rgb: "DCE6F5" } }, fill: { fgColor: { rgb: "1E40AF" } }, alignment: { vertical: "center", horizontal: "left" } };
+      else if (kind === "header") s = { font: { bold: true, sz: 10, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E40AF" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: bd };
+      else if (kind === "cat") s = { font: { bold: true, sz: 11, color: { rgb: "0F2747" } }, fill: { fgColor: { rgb: "DCE6F5" } }, alignment: { vertical: "center" }, border: bd };
+      else if (kind === "subtotal") s = { font: { bold: true, sz: 10, color: { rgb: "0F2747" } }, fill: { fgColor: { rgb: "EEF2F7" } }, alignment: { vertical: "center" }, border: bd };
+      else if (kind === "total") s = { font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "166534" } }, alignment: { vertical: "center" }, border: bd };
+      else { s = { font: { sz: 10, color: { rgb: "1F2937" } }, alignment: { vertical: "center" }, border: bd }; if (((R - headerMax) % 2) === 0) s.fill = { fgColor: { rgb: "F4F7FB" } }; }
+      if (typeof cell.v === "number") { s.alignment = Object.assign({}, s.alignment, { horizontal: "right" }); if (moeda.has(C)) s.numFmt = '"R$" #,##0.00'; }
+      cell.s = s;
+    }
+  }
+  ws["!rows"] = ws["!rows"] || [];
+  if (opt.titulo != null) ws["!rows"][opt.titulo] = { hpt: 24 };
+}
+
 function exportExcel() {
   const estado  = APP.estado || document.getElementById("stateSelect").value;
   const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
@@ -2316,6 +2355,8 @@ function exportExcel() {
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
+  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
+  estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[5,6,8], catCol0:true });
   XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
@@ -2337,6 +2378,8 @@ function exportExcel() {
 
   const ws2 = XLSX.utils.aoa_to_sheet(eapRows);
   ws2["!cols"] = [10,55,8,6,12,16,60].map(w => ({wch:w}));
+  ws2["!merges"] = [{s:{r:0,c:0},e:{r:0,c:6}}];
+  estilizarSheet(ws2, { titulo:0, headerRows:[2] });
   XLSX.utils.book_append_sheet(wb, ws2, "EAP");
 
   // ── Sheet 3: Ambientes ──────────────────────────────────────
@@ -2346,6 +2389,7 @@ function exportExcel() {
     ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
     const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
     ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
+    estilizarSheet(ws3, { headerRows:[0] });
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
   }
 
@@ -2388,6 +2432,10 @@ function exportExcel() {
     crows.push([], linhaMes, linhaAc, linhaPct);
     const ws4 = XLSX.utils.aoa_to_sheet(crows);
     ws4["!cols"] = [{wch:26},{wch:9},{wch:12},{wch:14},{wch:11},{wch:12},{wch:9}].concat(Array(nMeses).fill({wch:14}));
+    const _totCols = 7 + nMeses;
+    const _moedaCr = []; for (let m = 0; m < nMeses; m++) _moedaCr.push(7 + m);
+    ws4["!merges"] = [{s:{r:0,c:0},e:{r:0,c:_totCols-1}},{s:{r:1,c:0},e:{r:1,c:_totCols-1}}];
+    estilizarSheet(ws4, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:_moedaCr, catCol0:false });
     XLSX.utils.book_append_sheet(wb, ws4, "CRONOGRAMA");
   }
 
