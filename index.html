@@ -284,6 +284,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .banco-ia{background:#fee2e2;color:#991b1b}
 .edit-cod{cursor:pointer;margin-left:4px;opacity:.55;user-select:none}
 .edit-cod:hover{opacity:1}
+.del-serv{cursor:pointer;color:#dc2626;margin-left:4px;opacity:.55;user-select:none;font-weight:700}
+.del-serv:hover{opacity:1}
 .cod-input{width:84px;font-family:monospace;font-size:12px;padding:2px 4px;border:1.5px solid var(--blue);border-radius:4px}
 .ofic{cursor:help;color:var(--blue);font-size:11px}
 .gantt{font-size:12px;margin-top:8px}
@@ -564,6 +566,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 
     <div class="btn-group">
       <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
+      <button class="btn btn-outline" id="btnAddServ">➕ Incluir serviço</button>
       <button class="btn btn-primary" id="btnGoCrono">📅 Gerar Cronograma →</button>
       <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
     </div>
@@ -1381,6 +1384,33 @@ function editarCodigo(id) {
   inp.addEventListener("blur", aplicar);
 }
 
+// Excluir um serviço da planilha
+function excluirServico(id) {
+  const r = APP.analysisResult; if (!r) return;
+  const q = (r.quantitativos || []).find(x => x._id === id);
+  if (!q) return;
+  if (!confirm(`Excluir o serviço:\n\n"${(q.descricao || "").slice(0, 80)}" ?`)) return;
+  r.quantitativos = (r.quantitativos || []).filter(x => x._id !== id);
+  recalcBudget();
+}
+
+// Incluir um serviço a partir do código SINAPI (puxa descrição e preço da tabela do estado)
+function incluirServico() {
+  const r = APP.analysisResult; if (!r) { alert("Gere o orçamento primeiro."); return; }
+  const col = APP.desoneracao ? 1 : 0;
+  const cod = (prompt("Código SINAPI do serviço a incluir:") || "").trim();
+  if (!cod) return;
+  const preco = precoEstado(cod, col);
+  const ofic = APP.descricoesDB ? (APP.descricoesDB[cod] || APP.descricoesDB[baseCodigo(cod)] || "") : "";
+  if (preco == null && !confirm(`O código ${cod} não tem preço na tabela de ${APP.estado}.\nIncluir mesmo assim (preço a verificar)?`)) return;
+  const desc = ofic || (prompt("Descrição do serviço:", "") || "").trim() || ("Código " + cod);
+  const qtd = parseFloat((prompt("Quantidade:", "1") || "1").replace(",", ".")) || 0;
+  const un  = (prompt("Unidade (m2, m3, un, m, kg…):", "un") || "un").trim();
+  const nextId = (r.quantitativos || []).reduce((m, x) => Math.max(m, x._id == null ? -1 : x._id), -1) + 1;
+  r.quantitativos.push({ sinapi_codigo: cod, _codigoManual: cod, descricao: desc, unidade: un, quantidade: qtd, categoria: "99. SERVIÇOS ADICIONAIS", _id: nextId });
+  recalcBudget();
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CRONOGRAMA FÍSICO-FINANCEIRO + CAMINHO CRÍTICO (CPM)
 // ═══════════════════════════════════════════════════════════════
@@ -1706,6 +1736,7 @@ document.getElementById("btnGoToBudget").addEventListener("click", async () => {
   await buildBudget();
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
+document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnRestart").addEventListener("click", () => {
   Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
   document.getElementById("fileInfo").style.display = "none";
@@ -2084,7 +2115,7 @@ async function buildBudget() {
         : (info.sugerido
             ? `<span style="color:var(--blue)" title="Código corrigido (IA sugeriu: ${codOrig})">${info.codigoFinal}</span>`
             : (info.codigoFinal || "—"));
-      const codCell = `${codLabel}${bancoTag} <span class="edit-cod" title="Editar código SINAPI" onclick="editarCodigo(${q._id})">✎</span>`;
+      const codCell = `${codLabel}${bancoTag} <span class="edit-cod" title="Editar código SINAPI" onclick="editarCodigo(${q._id})">✎</span> <span class="del-serv" title="Excluir serviço" onclick="excluirServico(${q._id})">✕</span>`;
 
       const tr = document.createElement("tr");
       tr.innerHTML = `
