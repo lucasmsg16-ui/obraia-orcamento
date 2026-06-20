@@ -286,6 +286,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .edit-cod:hover{opacity:1}
 .del-serv{cursor:pointer;color:#dc2626;margin-left:4px;opacity:.55;user-select:none;font-weight:700}
 .del-serv:hover{opacity:1}
+.dur-edit{cursor:pointer;color:var(--blue);white-space:nowrap}
 .cod-input{width:84px;font-family:monospace;font-size:12px;padding:2px 4px;border:1.5px solid var(--blue);border-radius:4px}
 .ofic{cursor:help;color:var(--blue);font-size:11px}
 .gantt{font-size:12px;margin-top:8px}
@@ -581,6 +582,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
       <label>⏱️ Prazo de execução (meses):</label>
       <input type="number" id="cronoPrazo" min="1" max="48" step="1" style="width:90px;padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
       <span class="ref-sinapi">Durações estimadas pelo peso de custo de cada fase · método CPM</span>
+      <button class="btn btn-outline" id="btnResetDur" style="padding:6px 10px;font-size:12px">↺ Durações automáticas</button>
     </div>
     <div class="info-grid" id="cronoKpis" style="margin:16px 0"></div>
     <div id="cronoCritico" class="alert" style="background:#fff7ed;border-left:4px solid #ea580c;margin-bottom:16px"></div>
@@ -787,6 +789,8 @@ function saveApiKey() {
 const ANTHROPIC_SYSTEM_PROMPT = `Você é um engenheiro civil sênior especialista em levantamento de quantitativos de obras.
 Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quantitativos de serviços de construção civil.
 
+PRIORIDADE ABSOLUTA: o levantamento deve refletir o que está REALMENTE nos desenhos/plantas — cotas, áreas, quantidades e especificações mostradas. Leia e meça o DESENHO primeiro. As regras e orientações abaixo servem APENAS para padronizar unidades e para estimar quando o dado NÃO estiver explícito no projeto; elas NUNCA devem sobrepor ou alterar um dado real lido do desenho.
+
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
 2. Identifique os ambientes e suas dimensões. CALCULE "area_construida_m2" = soma das áreas internas dos ambientes × nº de pavimentos. NÃO confunda com a área do TERRENO/lote (essa NÃO entra na área construída). Conte cada ambiente UMA única vez; se a MESMA planta/pavimento aparecer em mais de uma folha (planta, corte, detalhe), NÃO some de novo. Nunca deixe area_construida_m2 = 0. Da mesma forma, NÃO duplique quantitativos: cada serviço deve ser somado uma única vez no total da obra.
@@ -799,7 +803,7 @@ REGRAS OBRIGATÓRIAS:
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
 10. CÓDIGOS SINAPI: use SOMENTE códigos reais e vigentes da tabela SINAPI 05/2026 dos quais você tenha CERTEZA. NUNCA invente, deduza ou adapte um número de código. Se não tiver certeza do código exato, deixe "sinapi_codigo" vazio ("") e seja MUITO detalhado na "descricao" (serviço + material + dimensões + traço/espessura) — o sistema localiza o código oficial pela descrição. O campo "preco_unitario" é apenas referência de fallback.
 
-REGRAS DE QUANTITATIVOS POR CATEGORIA — baseadas em orçamentos SINAPI reais (siga rigorosamente):
+ORIENTAÇÕES DE QUANTITATIVOS POR CATEGORIA (use SOMENTE como referência de unidade/estimativa quando o desenho não fornecer o dado; o desenho sempre prevalece):
 
 1. SERVIÇOS PRELIMINARES:
    - Placa de obra (73965): unidade = UN, quantidade = 1. NUNCA use a área do projeto.
@@ -1429,8 +1433,12 @@ function incluirServico() {
   const desc = ofic || (prompt("Descrição do serviço:", "") || "").trim() || ("Código " + cod);
   const qtd = parseFloat((prompt("Quantidade:", "1") || "1").replace(",", ".")) || 0;
   const un  = (prompt("Unidade (m2, m3, un, m, kg…):", "un") || "un").trim();
+  const CATEGORIAS_PADRAO = ["1. SERVIÇOS PRELIMINARES","2. MOVIMENTO DE TERRA","3. FUNDAÇÕES","4. ESTRUTURA","5. ALVENARIA","6. COBERTURA","7. REVESTIMENTOS INTERNOS","8. REVESTIMENTOS EXTERNOS","9. PINTURA","10. ESQUADRIAS","11. PISOS","12. INSTALAÇÕES HIDROSSANITÁRIAS","13. INSTALAÇÕES ELÉTRICAS","14. IMPERMEABILIZAÇÃO","15. SERVIÇOS COMPLEMENTARES"];
+  const grp = (prompt("Em qual grupo de serviços? Digite o NÚMERO:\n" + CATEGORIAS_PADRAO.join("\n") + "\n\n(vazio = Serviços Adicionais)", "") || "").trim();
+  const gn = parseInt(grp.replace(/[^0-9]/g, ""), 10);
+  const categoria = (gn >= 1 && gn <= 15) ? CATEGORIAS_PADRAO[gn - 1] : "99. SERVIÇOS ADICIONAIS";
   const nextId = (r.quantitativos || []).reduce((m, x) => Math.max(m, x._id == null ? -1 : x._id), -1) + 1;
-  r.quantitativos.push({ sinapi_codigo: cod, _codigoManual: cod, descricao: desc, unidade: un, quantidade: qtd, categoria: "99. SERVIÇOS ADICIONAIS", _id: nextId });
+  r.quantitativos.push({ sinapi_codigo: cod, _codigoManual: cod, descricao: desc, unidade: un, quantidade: qtd, categoria: categoria, _id: nextId });
   recalcBudget();
 }
 
@@ -1495,6 +1503,9 @@ function computeCronograma(prazoMeses) {
   const prazoDias = Math.max(1, Math.round((prazoMeses || 6) * 30));
   const factor = prazoDias / cpLen;
   const dur = {}; cats.forEach(c => dur[c] = Math.max(1, Math.round(durProv[c] * factor)));
+  // aplica durações editadas manualmente pelo usuário (override por fase)
+  const _ov = APP.cronoDurOverride || {};
+  cats.forEach(c => { if (_ov[c] != null && _ov[c] > 0) dur[c] = _ov[c]; });
 
   // forward pass
   const ES = {}, EF = {};
@@ -1519,6 +1530,16 @@ function prazoPadrao() {
   const d = computeCronograma(6);
   const custo = d ? d.totalCusto : 0;
   return Math.max(4, Math.min(24, Math.round(custo / 200000) || 6));
+}
+
+function editarDuracao(cat) {
+  APP.cronoDurOverride = APP.cronoDurOverride || {};
+  const atual = APP.cronoDurOverride[cat] || "";
+  const v = prompt("Duração desta fase, em dias:", String(atual));
+  if (v === null) return;
+  const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
+  if (n > 0) APP.cronoDurOverride[cat] = n; else delete APP.cronoDurOverride[cat];
+  buildCronograma();
 }
 
 function buildCronograma() {
@@ -1559,7 +1580,7 @@ function buildCronograma() {
   // Tabela CPM
   let tab = `<table class="crono-tbl"><thead><tr><th>#</th><th>Fase</th><th class="num">Peso %</th><th class="num">Início (dia)</th><th class="num">Duração</th><th class="num">Fim (dia)</th><th>Predecessoras</th><th class="num">Folga</th><th>Crítico</th></tr></thead><tbody>`;
   d.ativ.forEach((a, i) => {
-    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num">${a.es}</td><td class="num">${a.dur}d</td><td class="num">${a.ef}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
+    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num">${a.es}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num">${a.ef}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
   });
   tab += `</tbody></table>`;
   document.getElementById("cronoTabela").innerHTML = tab;
@@ -1791,6 +1812,7 @@ document.getElementById("btnGoToBudget").addEventListener("click", async () => {
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
+document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
   Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
   document.getElementById("fileInfo").style.display = "none";
