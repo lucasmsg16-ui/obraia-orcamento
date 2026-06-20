@@ -786,7 +786,7 @@ Sua tarefa é analisar plantas arquitetônicas e extrair com precisão os quanti
 
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
-2. Identifique os ambientes (sala, quartos, banheiros, cozinha, área de serviço, etc.) e suas dimensões. CALCULE e PREENCHA OBRIGATORIAMENTE "area_construida_m2" (soma das áreas dos ambientes × nº de pavimentos). NUNCA deixe 0.
+2. Identifique os ambientes e suas dimensões. CALCULE "area_construida_m2" = soma das áreas internas dos ambientes × nº de pavimentos. NÃO confunda com a área do TERRENO/lote (essa NÃO entra na área construída). Conte cada ambiente UMA única vez; se a MESMA planta/pavimento aparecer em mais de uma folha (planta, corte, detalhe), NÃO some de novo. Nunca deixe area_construida_m2 = 0. Da mesma forma, NÃO duplique quantitativos: cada serviço deve ser somado uma única vez no total da obra.
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
 5. Organize por categorias SINAPI.
@@ -1116,26 +1116,15 @@ async function startAnalysis() {
     }
     setStep("pstep1", true, `${sortedPages.length} página(s) convertida(s)`);
 
-    // ── Step 2: Enviar para a IA em lotes de MAX_PAGES_API ─
+    // ── Step 2: Enviar para a IA em UMA única chamada (evita quantitativos duplicados) ─
     const apiKey = localStorage.getItem("anthropic_api_key") || "";
     if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
 
-    const batches = [];
-    for (let i = 0; i < allImages.length; i += MAX_PAGES_API) {
-      batches.push(allImages.slice(i, i + MAX_PAGES_API));
-    }
-
-    setStep("pstep2", false, `Enviando para análise com Claude IA${batches.length > 1 ? ` (${batches.length} lotes)` : ""}…`);
+    setStep("pstep2", false, "Enviando para análise com Claude IA…");
     setProgress(45, "Aguardando resposta da IA…");
-    const parts = [];
-    for (let b = 0; b < batches.length; b++) {
-      setProgress(45 + (b / batches.length) * 25, `Analisando lote ${b + 1}/${batches.length}…`);
-      parts.push(await chamarIA(batches[b], apiKey, b + 1, batches.length));
-    }
-
-    const parsedResult = batches.length === 1 ? parts[0] : mesclarResultados(parts);
+    const parsedResult = await chamarIA(allImages, apiKey, 1, 1);
     if (!parsedResult || !parsedResult.quantitativos) {
-      throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas por análise.");
+      throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas.");
     }
 
     setStep("pstep2", true, "Análise com IA concluída");
@@ -1336,6 +1325,13 @@ function buscarProprio(descricao, minCob) {
 function normalizaTxt(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
 function tipoExecucao(d) { d = normalizaTxt(d); if (/mecaniz|mecanic/.test(d)) return "mec"; if (/\bmanual\b/.test(d)) return "man"; return ""; }
 function descMismatch(a, b) { const x = tipoExecucao(a), y = tipoExecucao(b); return !!(x && y && x !== y); }
+// Cobertura: fração dos termos da descrição A presentes na descrição B (0..1)
+function coberturaDesc(a, b) {
+  const ta = tokenizeSinapi(a), sb = new Set(tokenizeSinapi(b));
+  if (!ta.length) return 1;
+  let hit = 0; ta.forEach(t => { if (sb.has(t)) hit++; });
+  return hit / ta.length;
+}
 
 // Item típico de canteiro/instalações provisórias (catálogo PRÓPRIO tem prioridade)
 function ehItemCanteiro(descricao) {
@@ -1395,7 +1391,7 @@ function computeCronograma(prazoMeses) {
   // custo (c/ BDI) por categoria
   const custoCat = {};
   (r.quantitativos || []).forEach(q => {
-    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0);
+    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!q._codigoManual);
     const tot = info.preco * (Number(q.quantidade) || 0) * (1 + bdi);
     const c = numCat(q.categoria || "99");
     if (NOME_FASE[c]) custoCat[c] = (custoCat[c] || 0) + tot;
@@ -1661,7 +1657,7 @@ function tokenizeSinapi(s) {
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]/g, " ")
     .split(/\s+/)
-    .filter(w => w.length > 2 && !STOP_SINAPI.has(w))
+    .filter(w => (w.length > 2 || (/[a-z]/.test(w) && /[0-9]/.test(w))) && !STOP_SINAPI.has(w))
     .map(stemSinapi);
 }
 
@@ -1828,24 +1824,35 @@ async function loadSinapiDB(estado) {
 // Resolve preço + código final + procedência para um serviço.
 // Retorna { preco, codigoFinal, fonte, sugerido }
 //   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
-function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
+function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
   const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false, alerta: false, descricaoOficial: "",
                 aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
   const descOficialDe = (c) => APP.descricoesDB ? (APP.descricoesDB[c] || APP.descricoesDB[baseCodigo(c)] || "") : "";
 
-  // 1. SINAPI por código exato no estado — só confia se a descrição não conflitar (ex.: manual×mecanizada)
+  // EDIÇÃO MANUAL: o código digitado pelo usuário tem precedência absoluta (não é sobreposto pela busca)
+  if (manual && codigo) {
+    const pr = precoEstado(codigo, col);
+    res.codigoFinal = (APP.sinapiDB && APP.sinapiDB[codigo]) ? String(codigo) : (baseCodigo(codigo) || String(codigo));
+    res.descricaoOficial = descOficialDe(codigo);
+    if (pr != null) { res.preco = pr; res.fonte = "estado"; res.banco = "SINAPI"; return res; }
+    res.preco = preco_unitario_ia || 0;
+    res.fonte = res.preco ? "ia" : "none";
+    res.banco = codigoRealSinapi(codigo) ? "SINAPI" : (res.preco ? "IA" : "—");
+    res.alerta = true;  // código informado não tem preço na tabela do estado selecionado
+    return res;
+  }
+
+  // 1. Código da IA — só é aceito se a descrição OFICIAL confirmar (evita código certo p/ serviço errado)
   let fraco = null;
   if (APP.sinapiDB) {
     const precoCod = precoEstado(codigo, col);
     if (precoCod != null) {
       const codFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
       const ofic = descOficialDe(codigo);
-      if (!(ofic && descricao && descMismatch(descricao, ofic))) {
-        res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI";
-        res.codigoFinal = codFinal; res.descricaoOficial = ofic; return res;
-      }
-      fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // conflito → guarda como último recurso
+      const confirma = !(ofic && descricao) ? true : (!descMismatch(descricao, ofic) && coberturaDesc(descricao, ofic) >= 0.6);
+      if (confirma) { res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI"; res.codigoFinal = codFinal; res.descricaoOficial = ofic; return res; }
+      fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // código existe mas descrição diverge
     }
   }
 
@@ -1868,26 +1875,22 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
 
   // 2. Itens de canteiro/provisórios → catálogo PRÓPRIO tem prioridade
   if (prop && canteiro) return usarProprio(prop);
-  // 3. SINAPI por descrição com ALTA confiança (vence o catálogo próprio)
+  // 3. SINAPI por descrição com ALTA confiança
   if (sug && APP.sinapiDB && sug.cobertura >= 0.55) { const r = usarEstado(sug); if (r) return r; }
-  // 4. Composição PRÓPRIA (itens fora da SINAPI)
+  // 4. Composição PRÓPRIA
   if (prop) return usarProprio(prop);
   // 5. SINAPI por descrição com confiança MÉDIA
   if (sug && APP.sinapiDB) { const r = usarEstado(sug); if (r) return r; }
-  // 6. Código da IA conflitante (último recurso SINAPI) — sinaliza p/ revisão
+  // 6. Código da IA divergente (último recurso SINAPI) — sinaliza p/ revisão manual
   if (fraco) {
     res.preco = fraco.preco; res.fonte = "estado"; res.banco = "SINAPI";
     res.codigoFinal = fraco.codigo; res.descricaoOficial = fraco.ofic; res.alerta = true;
     return res;
   }
-  // 7. Catálogo interno (SINAPI_ITENS, preços SP de referência)
+  // 7. Catálogo interno (SINAPI_ITENS, preços SP)
   if (sug) {
     const itemSug = findSinapiItemHardcoded(sug.codigo);
-    if (itemSug) {
-      res.preco = itemSug.preco; res.fonte = "interno-desc"; res.banco = "SINAPI-SP";
-      res.codigoFinal = sug.codigo; res.sugerido = String(sug.codigo) !== String(codigo || "");
-      return res;
-    }
+    if (itemSug) { res.preco = itemSug.preco; res.fonte = "interno-desc"; res.banco = "SINAPI-SP"; res.codigoFinal = sug.codigo; res.sugerido = String(sug.codigo) !== String(codigo || ""); return res; }
   }
   const item = findSinapiItemHardcoded(codigo);
   if (item) { res.preco = item.preco; res.fonte = "interno"; res.banco = "SINAPI-SP"; res.codigoFinal = item.codigo; return res; }
@@ -1897,6 +1900,7 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia) {
   res.banco = res.preco ? "IA" : "—";
   return res;
 }
+
 
 
 // Compat: mantém a assinatura antiga retornando apenas o preço.
@@ -1961,7 +1965,7 @@ async function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!q._codigoManual);
       const precoAdj = info.preco;
       q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
       q._fontePreco      = info.fonte;
@@ -2087,7 +2091,7 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0);
+      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!q._codigoManual);
       const precoAdj   = info.preco;
       const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
       const qtd        = Number(q.quantidade) || 0;
