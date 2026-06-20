@@ -805,6 +805,7 @@ PRIORIDADE ABSOLUTA: o levantamento deve refletir o que está REALMENTE nos dese
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
 2. Identifique os ambientes e suas dimensões. CALCULE "area_construida_m2" = soma das áreas internas dos ambientes × nº de pavimentos. NÃO confunda com a área do TERRENO/lote (essa NÃO entra na área construída). Conte cada ambiente UMA única vez; se a MESMA planta/pavimento aparecer em mais de uma folha (planta, corte, detalhe), NÃO some de novo. Nunca deixe area_construida_m2 = 0. Da mesma forma, NÃO duplique quantitativos: cada serviço deve ser somado uma única vez no total da obra.
+2b. QUADROS/TABELAS: se houver QUADRO DE ÁREAS ou QUADRO DE ESQUADRIAS, use-os como FONTE EXATA (áreas dos ambientes; quantidade e dimensões de portas/janelas). Em projetos de várias folhas (cada uma marcada como "Folha N"), preencha "fonte" com a folha de origem de cada item e não conte o mesmo serviço em folhas diferentes.
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
 5. Organize por categorias SINAPI.
@@ -938,6 +939,7 @@ FORMATO DE RESPOSTA (JSON puro):
       "quantidade": 0.0,
       "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
+      "fonte": "Folha 1 (planta baixa)",
       "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
     }
   ]
@@ -1064,7 +1066,7 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
 const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
-const IMG_MAX_WIDTH = 1024;   // largura máxima — suficiente para a IA ler cotas
+const IMG_MAX_WIDTH = 1600;   // largura máxima — alta resolução p/ ler cotas em folhas grandes
 
 async function pageToBase64(pageNum) {
   if (APP.pageImages[pageNum]) return APP.pageImages[pageNum];
@@ -1140,28 +1142,28 @@ async function startAnalysis() {
     const usarTexto = textoLimpo.length >= 600;   // texto rico → modo econômico
 
     let parsedResult;
-    if (usarTexto) {
+    const muitasFolhas = sortedPages.length > 5;
+    if (usarTexto && !muitasFolhas) {
       setStep("pstep1", true, `Texto extraído (${textoLimpo.length} caracteres) — modo econômico 💸`);
       setStep("pstep2", false, "Analisando o texto do projeto (modo econômico)…");
       setProgress(45, "Aguardando resposta da IA…");
       parsedResult = await analisarTexto(textoProjeto, apiKey);
-      // segurança: se o texto rendeu pouco, reprocessa com imagem
       if (!parsedResult || !parsedResult.quantitativos || parsedResult.quantitativos.length < 3) {
-        setStep("pstep2", false, "Texto insuficiente — reprocessando com imagem…");
+        setStep("pstep2", false, "Texto insuficiente — reprocessando com texto + imagem…");
         const imgs = [];
         for (let i = 0; i < sortedPages.length; i++) { setProgress(45 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]}…`); imgs.push(await pageToBase64(sortedPages[i])); }
-        parsedResult = await chamarIA(imgs, apiKey, 1, 1);
+        parsedResult = await chamarIA(imgs, apiKey, 1, 1, textoProjeto);
       }
     } else {
-      setStep("pstep1", true, "PDF sem texto suficiente — análise por imagem");
+      setStep("pstep1", true, usarTexto ? `Projeto com ${sortedPages.length} folhas — leitura completa (texto + imagem)` : "PDF sem texto — análise por imagem (alta resolução)");
       const allImages = [];
       for (let i = 0; i < sortedPages.length; i++) {
-        setProgress(30 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]}…`);
+        setProgress(30 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]} em alta resolução…`);
         allImages.push(await pageToBase64(sortedPages[i]));
       }
-      setStep("pstep2", false, "Enviando para análise (imagem)…");
+      setStep("pstep2", false, "Analisando folhas (texto + imagem · quadros como fonte)…");
       setProgress(45, "Aguardando resposta da IA…");
-      parsedResult = await chamarIA(allImages, apiKey, 1, 1);
+      parsedResult = await chamarIA(allImages, apiKey, 1, 1, textoProjeto);
     }
 
     if (!parsedResult || !parsedResult.quantitativos) {
@@ -1208,21 +1210,22 @@ async function startAnalysis() {
 // ═══════════════════════════════════════════════════════════════
 // CHAMADA À IA (por lote) + MESCLAGEM DE RESULTADOS
 // ═══════════════════════════════════════════════════════════════
-async function chamarIA(images, apiKey, lote, total) {
-  const aiContent = [
-    ...images.map(img => ({
-      type: "image",
-      source: { type: "base64", media_type: "image/jpeg", data: img }
-    })),
-    {
-      type: "text",
-      text: `Analise as imagens do projeto arquitetônico${total > 1 ? ` (LOTE ${lote} de ${total} — extraia SOMENTE serviços quantificáveis NESTAS folhas; não estime serviços mostrados em outras folhas)` : ""} e faça o levantamento de quantitativos.\n\n` +
-            "Retorne o JSON conforme especificado. Seja preciso — os valores serão usados para gerar um orçamento real.\n\n" +
-            "Foque em: alvenaria (áreas de parede por ambiente menos vãos), estrutura (pilares/vigas/lajes), " +
-            "cobertura (área do telhado), pisos, revestimentos em paredes molhadas, esquadrias (qtd e dimensões)." +
-            (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
-    }
-  ];
+async function chamarIA(images, apiKey, lote, total, textoFolhas) {
+  const aiContent = [];
+  images.forEach(img => aiContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: img } }));
+  if (textoFolhas && textoFolhas.trim()) {
+    aiContent.push({ type: "text", text:
+      "TEXTO EXTRAÍDO DO PDF (use os QUADROS/TABELAS daqui como FONTE EXATA de quantidades — quadro de áreas, quadro de esquadrias; cada folha está marcada como 'Folha N'):\n" + textoFolhas });
+  }
+  aiContent.push({ type: "text", text:
+    `Analise o projeto arquitetônico (imagens${textoFolhas ? " + texto acima" : ""}) e faça o levantamento de quantitativos.\n\n` +
+    "PROJETO COM VÁRIAS FOLHAS: classifique mentalmente cada folha (planta baixa, corte, fachada, cobertura, elétrica, hidráulica, QUADRO/tabela, detalhe). " +
+    "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
+    "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
+    "Retorne o JSON conforme especificado. Seja preciso — os valores gerarão um orçamento real.\n\n" +
+    "Foque em: alvenaria (paredes menos vãos), estrutura (pilares/vigas/lajes), cobertura (área do telhado), pisos, revestimentos, esquadrias (qtd e dimensões — use o quadro de esquadrias se houver)." +
+    (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
+  });
 
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -1787,7 +1790,7 @@ function buildEAP() {
       row.className = "eap-item";
       row.innerHTML = `
         <span class="codigo">${catIdx + 1}.${idx + 1} · ${q.sinapi_codigo || "—"}</span>
-        <span>${q.descricao}</span>
+        <span>${q.descricao}${q.fonte ? ` <span style="color:var(--muted);font-size:10px">· ${q.fonte}</span>` : ""}</span>
         <span class="qtd">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})}</span>
         <span class="un">${q.unidade}</span>`;
 
@@ -2214,7 +2217,7 @@ async function buildBudget() {
       tr.innerHTML = `
         <td>${itemNum}</td>
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
-        <td>${q.descricao}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
+        <td>${q.descricao}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
         <td class="num">${fmt(qtd)}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
