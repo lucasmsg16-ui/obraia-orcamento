@@ -16,10 +16,10 @@
 /* ── Reset & Base ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --navy:   #1a3c5e;
-  --blue:   #2e75b6;
+  --navy:   #002B40;
+  --blue:   #1792C0;
   --sky:    #5ba3d9;
-  --amber:  #e67e22;
+  --amber:  #1792C0;
   --green:  #27ae60;
   --red:    #e74c3c;
   --bg:     #f0f4f8;
@@ -33,7 +33,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 
 /* ── Header ───────────────────────────────────────────────── */
 header {
-  background: linear-gradient(135deg, var(--navy) 0%, #1e5080 100%);
+  background: linear-gradient(135deg, var(--navy) 0%, #1792C0 100%);
   color: #fff; padding: 0 24px;
   display: flex; align-items: center; gap: 16px;
   height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,.25);
@@ -311,13 +311,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   <div style="display:flex;align-items:center;gap:12px">
     <svg width="44" height="32" viewBox="0 0 46 34" fill="none" aria-label="Mar Aberto Engenharia">
       <defs><linearGradient id="mwave" x1="0" y1="0" x2="46" y2="34" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#0a2a43"/><stop offset="1" stop-color="#5cc3f0"/></linearGradient></defs>
+        <stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
       <path d="M2 9 Q14 1 23 6 T44 6" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
       <path d="M2 18 Q14 10 23 15 T44 15" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
       <path d="M2 27 Q14 19 23 24 T44 24" stroke="url(#mwave)" stroke-width="4" stroke-linecap="round"/>
     </svg>
     <div>
-      <div class="logo">MAR ABERTO <span>ENGENHARIA</span></div>
+      <div class="logo">MAR ABERTO ENGENHAR<span>IA</span></div>
       <div class="subtitle">Sistema de Orçamento de Obras com Inteligência Artificial</div>
     </div>
   </div>
@@ -1630,7 +1630,7 @@ function exportarCronogramaPDF() {
 @page{size:A4 landscape;margin:10mm}
 *{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{margin:0;color:#1f2937;font-size:11px}
-.hd{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0f2747,#1e5080);color:#fff;padding:12px 16px;border-radius:6px}
+.hd{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#002b40,#1792c0);color:#fff;padding:12px 16px;border-radius:6px}
 .hd .nm{font-size:19px;font-weight:800;letter-spacing:.3px;line-height:1.1}
 .hd .nm span{color:#4db8e8}
 .hd .sub{font-size:11px;opacity:.85}
@@ -1638,13 +1638,13 @@ body{margin:0;color:#1f2937;font-size:11px}
 .info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
 .info .b{border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;background:#f8fafc}
 .info .b .l{font-size:9px;color:#64748b;text-transform:uppercase;letter-spacing:.3px}
-.info .b .v{font-size:13px;font-weight:700;color:#0f2747}
-h2{font-size:13px;color:#0f2747;margin:14px 0 6px;border-left:4px solid #1e40af;padding-left:8px}
+.info .b .v{font-size:13px;font-weight:700;color:#002b40}
+h2{font-size:13px;color:#002b40;margin:14px 0 6px;border-left:4px solid #1e40af;padding-left:8px}
 .crit{margin:6px 0;padding:8px 10px;background:#fff7ed;border-left:4px solid #ea580c;font-size:10px;border-radius:4px}
 .gantt{border:1px solid #e2e8f0;border-radius:6px;overflow:hidden}
 .ghead,.grow{display:flex;align-items:center;border-bottom:1px solid #eef2f7}
 .grow:last-child{border-bottom:none}
-.glbl{flex:0 0 210px;padding:5px 8px;font-size:10px;color:#0f2747}
+.glbl{flex:0 0 210px;padding:5px 8px;font-size:10px;color:#002b40}
 .gtrack{position:relative;flex:1;height:22px}
 .ghead .gtrack{height:16px}
 .gbar{position:absolute;top:4px;height:14px;background:#1e40af;border-radius:3px;color:#fff;font-size:8px;line-height:14px;text-align:center;overflow:hidden}
@@ -1659,8 +1659,8 @@ tr.cr{background:#fef2f2}
 .ft{margin-top:14px;font-size:9px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:6px}
 </style></head><body>
 <div class="hd">
-  <svg width="42" height="31" viewBox="0 0 46 34" fill="none"><defs><linearGradient id="w" x1="0" y1="0" x2="46" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0a2a43"/><stop offset="1" stop-color="#5cc3f0"/></linearGradient></defs><path d="M2 9 Q14 1 23 6 T44 6" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 18 Q14 10 23 15 T44 15" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 27 Q14 19 23 24 T44 24" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/></svg>
-  <div><div class="nm">MAR ABERTO <span>ENGENHARIA</span></div><div class="sub">Cronograma Físico-Financeiro & Caminho Crítico</div></div>
+  <svg width="42" height="31" viewBox="0 0 46 34" fill="none"><defs><linearGradient id="w" x1="0" y1="0" x2="46" y2="34" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs><path d="M2 9 Q14 1 23 6 T44 6" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 18 Q14 10 23 15 T44 15" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/><path d="M2 27 Q14 19 23 24 T44 24" stroke="url(#w)" stroke-width="4" stroke-linecap="round"/></svg>
+  <div><div class="nm">MAR ABERTO ENGENHAR<span>IA</span></div><div class="sub">Cronograma Físico-Financeiro & Caminho Crítico</div></div>
   <div class="ttl">CRONOGRAMA<br>DA OBRA</div>
 </div>
 <div class="info">
@@ -1770,7 +1770,7 @@ function curvaS_SVG(d) {
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:680px">${grid}
     <polyline points="${pts.join(" ")}" fill="none" stroke="#1e40af" stroke-width="2.5"/>
     ${dots}${xlab}
-    <text x="${W / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#0f2747">Curva S — Avanço Físico-Financeiro Previsto (%)</text></svg>`;
+    <text x="${W / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#002b40">Curva S — Avanço Físico-Financeiro Previsto (%)</text></svg>`;
 }
 
 document.getElementById("btnGoCrono").addEventListener("click", () => { goTo(5); buildCronograma(); });
@@ -2431,11 +2431,11 @@ function estilizarSheet(ws, opt) {
       const ref = XLSX.utils.encode_cell({ r: R, c: C });
       let cell = ws[ref]; if (!cell) { cell = { t: "s", v: "" }; ws[ref] = cell; }
       let s;
-      if (kind === "titulo") s = { font: { bold: true, sz: 15, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "0F2747" } }, alignment: { vertical: "center", horizontal: "left" } };
-      else if (kind === "subtitulo") s = { font: { sz: 10, color: { rgb: "DCE6F5" } }, fill: { fgColor: { rgb: "1E40AF" } }, alignment: { vertical: "center", horizontal: "left" } };
-      else if (kind === "header") s = { font: { bold: true, sz: 10, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E40AF" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: bd };
-      else if (kind === "cat") s = { font: { bold: true, sz: 11, color: { rgb: "0F2747" } }, fill: { fgColor: { rgb: "DCE6F5" } }, alignment: { vertical: "center" }, border: bd };
-      else if (kind === "subtotal") s = { font: { bold: true, sz: 10, color: { rgb: "0F2747" } }, fill: { fgColor: { rgb: "EEF2F7" } }, alignment: { vertical: "center" }, border: bd };
+      if (kind === "titulo") s = { font: { bold: true, sz: 15, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "002B40" } }, alignment: { vertical: "center", horizontal: "left" } };
+      else if (kind === "subtitulo") s = { font: { sz: 10, color: { rgb: "DCE6F5" } }, fill: { fgColor: { rgb: "1792C0" } }, alignment: { vertical: "center", horizontal: "left" } };
+      else if (kind === "header") s = { font: { bold: true, sz: 10, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1792C0" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: bd };
+      else if (kind === "cat") s = { font: { bold: true, sz: 11, color: { rgb: "002B40" } }, fill: { fgColor: { rgb: "DCE6F5" } }, alignment: { vertical: "center" }, border: bd };
+      else if (kind === "subtotal") s = { font: { bold: true, sz: 10, color: { rgb: "002B40" } }, fill: { fgColor: { rgb: "EEF2F7" } }, alignment: { vertical: "center" }, border: bd };
       else if (kind === "total") s = { font: { bold: true, sz: 12, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "166534" } }, alignment: { vertical: "center" }, border: bd };
       else { s = { font: { sz: 10, color: { rgb: "1F2937" } }, alignment: { vertical: "center" }, border: bd }; if (((R - headerMax) % 2) === 0) s.fill = { fgColor: { rgb: "F4F7FB" } }; }
       if (typeof cell.v === "number") { s.alignment = Object.assign({}, s.alignment, { horizontal: "right" }); if (moeda.has(C)) s.numFmt = '"R$" #,##0.00'; }
@@ -2457,8 +2457,8 @@ function exportExcel() {
   // ── Sheet 1: Orçamento ──────────────────────────────────────
   const desSuffix2 = APP.desoneracao ? "Com desoneração" : "Sem desoneração";
   const rows = [
-    [`ORÇAMENTO DE OBRA — ${APP.projectName}`],
-    [`Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | Data: ${new Date().toLocaleDateString("pt-BR")}`],
+    [`MAR ABERTO ENGENHARIA`],
+    [`Orçamento de Obra — ${APP.projectName} | Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | ${new Date().toLocaleDateString("pt-BR")}`],
     [],
     ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
   ];
@@ -2504,7 +2504,7 @@ function exportExcel() {
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
   const eapRows = [
-    [`EAP — ESTRUTURA ANALÍTICA DO PROJETO — ${APP.projectName}`],
+    [`MAR ABERTO ENGENHARIA — EAP (Estrutura Analítica) — ${APP.projectName}`],
     [],
     ["ID WBS","DESCRIÇÃO","NÍVEL","UN","QUANTIDADE","CÓDIGO SINAPI","MEMÓRIA DE CÁLCULO"],
   ];
@@ -2549,8 +2549,8 @@ function exportExcel() {
     const head = ["FASE","PESO %","INÍCIO","DURAÇÃO (dias)","CONCLUSÃO","FOLGA (dias)","CRÍTICO"];
     for (let m = 1; m <= nMeses; m++) { const dm = new Date(dataIni); dm.setMonth(dm.getMonth() + (m - 1)); head.push(`${("0"+(dm.getMonth()+1)).slice(-2)}/${dm.getFullYear()} (R$)`); }
     const crows = [
-      [`CRONOGRAMA FÍSICO-FINANCEIRO — ${APP.projectName}`],
-      [`Prazo: ${dc.projDur} dias (~${(dc.projDur/30).toFixed(1)} meses) | Início: ${_fd(dataIni)} | Conclusão: ${_fd(dataFim)} | SINAPI 05/2026 | BDI: ${(bdi*100).toFixed(2)}%`],
+      [`MAR ABERTO ENGENHARIA`],
+      [`Cronograma Físico-Financeiro — ${APP.projectName} | Prazo: ${dc.projDur} dias (~${(dc.projDur/30).toFixed(1)} meses) | Início: ${_fd(dataIni)} | Conclusão: ${_fd(dataFim)} | BDI: ${(bdi*100).toFixed(2)}%`],
       [],
       head
     ];
