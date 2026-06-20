@@ -1126,6 +1126,9 @@ async function startAnalysis() {
     if (!parsedResult || !parsedResult.quantitativos) {
       throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas.");
     }
+    // 2ª passada: refina os códigos SINAPI escolhendo entre candidatos reais
+    setProgress(70, "Refinando códigos SINAPI…");
+    try { await refinarCodigos(parsedResult, apiKey); } catch (e) { console.warn("refino:", e.message); }
 
     setStep("pstep2", true, "Análise com IA concluída");
     setProgress(75, "Processando quantitativos…");
@@ -1391,7 +1394,7 @@ function computeCronograma(prazoMeses) {
   // custo (c/ BDI) por categoria
   const custoCat = {};
   (r.quantitativos || []).forEach(q => {
-    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!q._codigoManual);
+    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
     const tot = info.preco * (Number(q.quantidade) || 0) * (1 + bdi);
     const c = numCat(q.categoria || "99");
     if (NOME_FASE[c]) custoCat[c] = (custoCat[c] || 0) + tot;
@@ -1534,6 +1537,73 @@ document.getElementById("btnGoCrono").addEventListener("click", () => { goTo(5);
 document.getElementById("btnGoBudget").addEventListener("click", () => goTo(4));
 document.getElementById("btnDownload2").addEventListener("click", exportExcel);
 
+// ═══════════════════════════════════════════════════════════════
+// REFINO DE CÓDIGOS — desambiguação com 2ª passada da IA (RAG)
+// ═══════════════════════════════════════════════════════════════
+// Top-K candidatos SINAPI (com preço no estado) por similaridade Dice (IDF)
+function buscarTopK(descricao, K, col) {
+  const qw = tokenizeSinapi(descricao); if (!qw.length) return [];
+  const qset = new Set(qw);
+  const idx = buildDescIndex();
+  if (col == null) col = APP.desoneracao ? 1 : 0;
+  const qTipo = tipoExecucao(descricao);
+  let qW = 0; qset.forEach(t => { qW += (_idf[t] || 1); }); qW = qW || 1;
+  const out = [];
+  for (const e of idx) {
+    if (APP.sinapiDB && !codigoExisteNoEstado(e.codigo, col)) continue;
+    if (qTipo) { const cT = tipoExecucao(e.descricao); if (cT && cT !== qTipo) continue; }
+    let interW = 0; qset.forEach(t => { if (e.tokens.has(t)) interW += (_idf[t] || 1); });
+    if (interW <= 0) continue;
+    const dice = 2 * interW / (qW + (e.w || 1));   // penaliza descrições longas/genéricas
+    out.push({ codigo: e.codigo, desc: e.descricao, score: dice });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, K || 8);
+}
+
+// 2ª passada: a IA escolhe, entre candidatos reais, o código que melhor corresponde a cada serviço
+async function refinarCodigos(parsed, apiKey) {
+  if (!APP.descricoesDB || !APP.sinapiDB || !apiKey) return;
+  const col = APP.desoneracao ? 1 : 0;
+  const itens = parsed.quantitativos || [];
+  const blocos = [];
+  itens.forEach((q, i) => {
+    const desc = q.descricao || "";
+    if (!desc || ehItemCanteiro(desc)) return;            // canteiro/provisório → catálogo próprio
+    const cands = buscarTopK(desc, 8, col);
+    if (cands.length < 2) return;                          // 0/1 candidato → nada a desambiguar
+    blocos.push(`#${i}: "${desc}"\n` + cands.map(c => `   ${c.codigo} = ${c.desc.slice(0, 100)}`).join("\n"));
+  });
+  if (!blocos.length) return;
+
+  const sys = "Você é engenheiro orçamentista especialista em SINAPI. Para CADA serviço (#n), escolha o ÚNICO código da lista cujo TEXTO melhor corresponde ao serviço descrito. Atenção a: execução manual × mecanizada, profundidade/altura, categoria do solo, dimensões, e APLICAÇÃO de um serviço × PREPARO de material. Se NENHUM candidato corresponder de fato, responda null para aquele item. Responda SOMENTE um JSON {\"n\": \"codigo\" | null}.";
+  const user = "Selecione o código correto para cada serviço:\n\n" + blocos.join("\n\n");
+
+  let mapa = null;
+  try {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, system: sys, messages: [{ role: "user", content: user }] })
+    });
+    if (!resp.ok) { console.warn("refino HTTP " + resp.status); return; }
+    const data = await resp.json();
+    let txt = (data.content && data.content[0] && data.content[0].text) || "";
+    txt = txt.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    try { mapa = JSON.parse(txt); } catch (_) { const m = txt.match(/\{[\s\S]*\}/); if (m) mapa = JSON.parse(m[0]); }
+  } catch (e) { console.warn("refino falhou:", e.message); return; }
+  if (!mapa) return;
+
+  let n = 0;
+  Object.keys(mapa).forEach(k => {
+    const i = parseInt(String(k).replace(/[^0-9]/g, ""), 10);
+    const cod = mapa[k];
+    if (!itens[i] || cod == null) return;
+    if (precoEstado(String(cod), col) != null) { itens[i].sinapi_codigo = String(cod); itens[i]._refinado = true; n++; }
+  });
+  console.log("refino de códigos: " + n + " confirmado(s) pela IA");
+}
+
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
@@ -1641,7 +1711,7 @@ document.getElementById("btnRestart").addEventListener("click", () => {
 // ── Normalização / tokenização compartilhada ──────────────────
 const STOP_SINAPI = new Set(["de","da","do","das","dos","em","para","com","e","a","o","as","os",
   "no","na","nos","nas","um","uma","ou","ao","aos","incl","inclusive","tipo","ref","und","un",
-  "mm","cm","m2","m3","ml","fck","mpa","af","ps","pe"]);
+  "mm","cm","m2","m3","ml","fck","mpa","af","ps","pe","ate","sob","sobre","apos","cada"]);
 
 // Stemmer leve PT-BR (plural/gênero) p/ casar "compensada"≈"compensado", "vigas"≈"viga"
 function stemSinapi(w) {
@@ -1733,6 +1803,7 @@ function buildDescIndex() {
   }
   const N = _descIndex.length || 1;
   for (const t in df) _idf[t] = Math.log(1 + N / df[t]);
+  _descIndex.forEach(e => { let w = 0; e.tokens.forEach(t => { w += (_idf[t] || 1); }); e.w = w; });
   return _descIndex;
 }
 
@@ -1850,7 +1921,7 @@ function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) 
     if (precoCod != null) {
       const codFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
       const ofic = descOficialDe(codigo);
-      const confirma = !(ofic && descricao) ? true : (!descMismatch(descricao, ofic) && coberturaDesc(descricao, ofic) >= 0.6);
+      const confirma = !(ofic && descricao) ? true : (!descMismatch(descricao, ofic) && coberturaDesc(descricao, ofic) >= 0.7);
       if (confirma) { res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI"; res.codigoFinal = codFinal; res.descricaoOficial = ofic; return res; }
       fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // código existe mas descrição diverge
     }
@@ -1965,7 +2036,7 @@ async function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!q._codigoManual);
+      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
       const precoAdj = info.preco;
       q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
       q._fontePreco      = info.fonte;
@@ -2091,7 +2162,7 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!q._codigoManual);
+      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
       const precoAdj   = info.preco;
       const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
       const qtd        = Number(q.quantidade) || 0;
