@@ -340,13 +340,13 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 <div class="screen active" id="screen-1">
   <!-- API Key banner -->
   <div id="apiKeyBanner" class="card" style="margin-bottom:16px; border-left:4px solid var(--amber);">
-    <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de API Anthropic</div>
+    <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de Acesso</div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..."
+      <input type="password" id="apiKeyInput" placeholder="Digite sua chave de acesso"
         style="flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:6px; font-size:13px; font-family:monospace;">
       <button onclick="saveApiKey()" style="padding:10px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; white-space:nowrap;">Salvar</button>
     </div>
-    <p style="font-size:11px; color:var(--muted); margin-top:8px;">A chave fica salva apenas no seu navegador (localStorage). Obtenha em <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>.</p>
+    <p style="font-size:11px; color:var(--muted); margin-top:8px;">Sua chave de acesso libera o uso do sistema. <span id="creditosInfo"></span> Não tem uma chave? Fale com a <b>MAR ABERTO ENGENHARIA</b>.</p>
   </div>
 
   <div class="card">
@@ -778,7 +778,7 @@ function goTo(step) {
 // API KEY
 // ═══════════════════════════════════════════════════════════════
 (function initApiKeyUI() {
-  const stored = localStorage.getItem("anthropic_api_key") || "";
+  const stored = localStorage.getItem("mar_chave") || "";
   const banner = document.getElementById("apiKeyBanner");
   const input  = document.getElementById("apiKeyInput");
   if (stored) {
@@ -789,10 +789,34 @@ function goTo(step) {
 
 function saveApiKey() {
   const key = document.getElementById("apiKeyInput").value.trim();
-  if (!key) { alert("Digite a chave antes de salvar."); return; }
-  localStorage.setItem("anthropic_api_key", key);
+  if (!key) { alert("Digite a sua chave de acesso antes de salvar."); return; }
+  localStorage.setItem("mar_chave", key);
   document.getElementById("apiKeyBanner").style.borderLeftColor = "var(--green)";
-  alert("✅ Chave salva no navegador!");
+  alert("✅ Chave de acesso salva neste navegador!");
+}
+
+function atualizarCreditosUI(n) {
+  const el = document.getElementById("creditosInfo");
+  if (el && n != null) el.innerHTML = `Créditos restantes: <b>${n}</b>.`;
+}
+
+// Backend seguro MAR ABERTO ENGENHARIA — a chave da IA fica protegida no servidor
+const MAR_BACKEND = "https://xcfqqpjljtnbamisqqvq.supabase.co/functions/v1/analisar";
+const MAR_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjZnFxcGpsanRuYmFtaXNxcXZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwODgyMzgsImV4cCI6MjA5NTY2NDIzOH0.9TvsxqyrmyYkFWnYCwNsPWzl-qxUi7CdRAdkCChm5ZA";
+
+// Chama a IA SEMPRE através do backend (proxy). 'payload' = corpo da API Anthropic.
+async function callAnthropic(payload) {
+  const chave = (localStorage.getItem("mar_chave") || "").trim();
+  if (!chave) throw new Error("Informe sua CHAVE DE ACESSO no campo acima e clique em Salvar.");
+  const resp = await fetch(MAR_BACKEND, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + MAR_ANON, "apikey": MAR_ANON },
+    body: JSON.stringify({ chave, payload })
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || `Erro ${resp.status} no servidor.`);
+  if (data._creditos_restantes != null) { try { atualizarCreditosUI(data._creditos_restantes); } catch(_){} }
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1136,8 +1160,8 @@ async function startAnalysis() {
       sortedPages = sortedPages.slice(0, MAX_PAGES_TOTAL);
     }
 
-    const apiKey = localStorage.getItem("anthropic_api_key") || "";
-    if (!apiKey) throw new Error("Chave de API não configurada. Insira sua ANTHROPIC_API_KEY no campo acima e clique em Salvar.");
+    const apiKey = (localStorage.getItem("mar_chave") || "").trim();
+    if (!apiKey) throw new Error("Chave de acesso não configurada. Informe sua chave no campo acima e clique em Salvar.");
 
     // 1) extrai o TEXTO do PDF (camada de texto — barato, sem visão)
     let textoProjeto = "";
@@ -1252,28 +1276,12 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
   });
 
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 32000,
-      system: ANTHROPIC_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: aiContent }]
-    })
+  const apiData = await callAnthropic({
+    model: "claude-sonnet-4-6",
+    max_tokens: 32000,
+    system: ANTHROPIC_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: aiContent }]
   });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Erro HTTP ${resp.status} (lote ${lote})`);
-  }
-
-  const apiData = await resp.json();
   const rawText = apiData.content[0].text;
   const parsed = parseIAJson(rawText);
   if (!parsed) throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. Início: " + rawText.substring(0, 300));
@@ -1804,7 +1812,7 @@ function buscarTopK(descricao, K, col) {
 
 // 2ª passada: a IA escolhe, entre candidatos reais, o código que melhor corresponde a cada serviço
 async function refinarCodigos(parsed, apiKey) {
-  if (!APP.descricoesDB || !APP.sinapiDB || !apiKey) return;
+  if (!APP.descricoesDB || !APP.sinapiDB) return;
   const col = APP.desoneracao ? 1 : 0;
   const itens = parsed.quantitativos || [];
   const blocos = [];
@@ -1822,13 +1830,7 @@ async function refinarCodigos(parsed, apiKey) {
 
   let mapa = null;
   try {
-    const resp = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-      body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 4000, system: sys, messages: [{ role: "user", content: user }] })
-    });
-    if (!resp.ok) { console.warn("refino HTTP " + resp.status); return; }
-    const data = await resp.json();
+    const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 4000, system: sys, messages: [{ role: "user", content: user }] });
     let txt = (data.content && data.content[0] && data.content[0].text) || "";
     txt = txt.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
     try { mapa = JSON.parse(txt); } catch (_) { const m = txt.match(/\{[\s\S]*\}/); if (m) mapa = JSON.parse(m[0]); }
@@ -1861,13 +1863,7 @@ async function analisarTexto(texto, apiKey) {
     "Faça o levantamento completo de quantitativos a partir destes dados. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2. " +
     "Se algum dado não estiver no texto, estime com bom senso técnico.\n\nTEXTO DO PROJETO:\n" + texto +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 32000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] })
-  });
-  if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error?.message || `Erro HTTP ${resp.status}`); }
-  const data = await resp.json();
+  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] });
   const rawText = data.content[0].text;
   return parseIAJson(rawText);
 }
