@@ -2469,6 +2469,85 @@ function estilizarSheet(ws, opt) {
   if (opt.titulo != null) ws["!rows"][opt.titulo] = { hpt: 24 };
 }
 
+// Aba GANTT: gráfico do cronograma em células coloridas, caminho crítico em destaque,
+// com espaço no topo para a marca do cliente.
+function montarGanttSheet(wb, dc, dataIni) {
+  if (!dc || !dc.ativ || !dc.ativ.length) return;
+  const bd = _xlBorda();
+  const _fdc = dt => ("0"+dt.getDate()).slice(-2) + "/" + ("0"+(dt.getMonth()+1)).slice(-2);
+  const totalDias = Math.max(1, dc.projDur);
+  const bucketDias = Math.max(7, Math.ceil(totalDias / 40));
+  const nB = Math.max(1, Math.ceil(totalDias / bucketDias));
+  const COR_CRIT = "E11D48", COR_NORM = "1792C0";
+
+  const head = ["FASE", "INÍCIO", "CONCLUSÃO", "DUR (d)"];
+  for (let b = 0; b < nB; b++) head.push(_fdc(new Date(dataIni.getTime() + b * bucketDias * 86400000)));
+  const fixCols = 4;
+  const totCols = fixCols + nB;
+  const firstActRow = 5;
+
+  const aoa = [];
+  aoa.push([""]);
+  aoa.push(["CRONOGRAMA — GRÁFICO DE GANTT · CAMINHO CRÍTICO"]);
+  aoa.push(["Projeto: " + (APP.projectName || "") + "  |  Prazo: " + dc.projDur + " dias  |  Início: " + dataIni.toLocaleDateString("pt-BR")]);
+  aoa.push(["Legenda:", "Caminho crítico", "", "Demais atividades"]);
+  aoa.push(head);
+  dc.ativ.forEach(a => {
+    const row = [a.nome,
+      new Date(dataIni.getTime() + a.es * 86400000).toLocaleDateString("pt-BR"),
+      new Date(dataIni.getTime() + a.ef * 86400000).toLocaleDateString("pt-BR"),
+      a.dur];
+    for (let b = 0; b < nB; b++) row.push("");
+    aoa.push(row);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const lastRow = firstActRow + dc.ativ.length - 1;
+  ws["!ref"] = XLSX.utils.encode_range({ s:{r:0,c:0}, e:{r:lastRow, c:totCols-1} });
+  const ref = XLSX.utils.decode_range(ws["!ref"]);
+
+  ws["!cols"] = [{wch:26},{wch:11},{wch:11},{wch:8}].concat(Array(nB).fill({wch:4}));
+  ws["!rows"] = []; ws["!rows"][0] = { hpt: 38 }; ws["!rows"][1] = { hpt: 22 };
+  ws["!merges"] = [
+    {s:{r:0,c:0}, e:{r:0,c:totCols-1}},
+    {s:{r:1,c:0}, e:{r:1,c:totCols-1}},
+    {s:{r:2,c:0}, e:{r:2,c:totCols-1}}
+  ];
+
+  for (let R = ref.s.r; R <= ref.e.r; R++) {
+    const a = dc.ativ[R - firstActRow];
+    for (let C = ref.s.c; C <= ref.e.c; C++) {
+      const addr = XLSX.utils.encode_cell({r:R,c:C});
+      let cell = ws[addr]; if (!cell) { cell = {t:"s", v:""}; ws[addr] = cell; }
+      let s;
+      if (R === 0) s = { fill:{fgColor:{rgb:"FFFFFF"}}, font:{italic:true, sz:10, color:{rgb:"94A3B8"}}, alignment:{vertical:"center", horizontal:"left"} };
+      else if (R === 1) s = { font:{bold:true, sz:14, color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"002B40"}}, alignment:{vertical:"center", horizontal:"left"} };
+      else if (R === 2) s = { font:{sz:10, color:{rgb:"DCE6F5"}}, fill:{fgColor:{rgb:"1792C0"}}, alignment:{vertical:"center", horizontal:"left"} };
+      else if (R === 3) {
+        s = { font:{sz:10, color:{rgb:"1F2937"}}, alignment:{vertical:"center", horizontal:"center"}, border:bd };
+        if (C === 0) s.font = { bold:true, sz:10, color:{rgb:"002B40"} };
+        if (C === 1) { s.fill = {fgColor:{rgb:COR_CRIT}}; s.font = {bold:true, sz:9, color:{rgb:"FFFFFF"}}; }
+        if (C === 3) { s.fill = {fgColor:{rgb:COR_NORM}}; s.font = {bold:true, sz:9, color:{rgb:"FFFFFF"}}; }
+      }
+      else if (R === 4) s = { font:{bold:true, sz:9, color:{rgb:"FFFFFF"}}, fill:{fgColor:{rgb:"1792C0"}}, alignment:{vertical:"center", horizontal:"center", wrapText:true}, border:bd };
+      else {
+        if (C < fixCols) {
+          s = { font:{sz:10, color:{rgb:"1F2937"}}, alignment:{vertical:"center", horizontal: C===0?"left":"center"}, border:bd };
+          if (((R - 4) % 2) === 0) s.fill = { fgColor:{rgb:"F4F7FB"} };
+          if (C === 0 && a && a.critico) s.font = { bold:true, sz:10, color:{rgb:"9F1239"} };
+        } else {
+          const b = C - fixCols, bi = b*bucketDias, bf = (b+1)*bucketDias;
+          const ativo = a && (Math.min(a.ef,bf) > Math.max(a.es,bi));
+          if (ativo) { const cor = a.critico ? COR_CRIT : COR_NORM; s = { fill:{fgColor:{rgb:cor}}, alignment:{vertical:"center"}, border:bd }; }
+          else { s = { alignment:{vertical:"center"}, border:bd }; if (((R - 4) % 2) === 0) s.fill = { fgColor:{rgb:"FBFCFE"} }; }
+        }
+      }
+      cell.s = s;
+    }
+  }
+  XLSX.utils.book_append_sheet(wb, ws, "GANTT");
+}
+
 function exportExcel() {
   const estado  = APP.estado || document.getElementById("stateSelect").value;
   const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
@@ -2603,6 +2682,7 @@ function exportExcel() {
     ws4["!merges"] = [{s:{r:0,c:0},e:{r:0,c:_totCols-1}},{s:{r:1,c:0},e:{r:1,c:_totCols-1}}];
     estilizarSheet(ws4, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:_moedaCr, catCol0:false });
     XLSX.utils.book_append_sheet(wb, ws4, "CRONOGRAMA");
+    montarGanttSheet(wb, dc, dataIni);
   }
 
   const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
