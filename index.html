@@ -813,10 +813,37 @@ async function callAnthropic(payload) {
     headers: { "Content-Type": "application/json", "Authorization": "Bearer " + MAR_ANON, "apikey": MAR_ANON },
     body: JSON.stringify({ chave, payload })
   });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) throw new Error(data.error || `Erro ${resp.status} no servidor.`);
-  if (data._creditos_restantes != null) { try { atualizarCreditosUI(data._creditos_restantes); } catch(_){} }
-  return data;
+  const ctype = resp.headers.get("content-type") || "";
+  // Erro ou resposta não-stream → JSON
+  if (!resp.ok || ctype.includes("application/json")) {
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(data.error || `Erro ${resp.status} no servidor.`);
+    if (data._creditos_restantes != null) { try { atualizarCreditosUI(data._creditos_restantes); } catch(_){} }
+    return data;
+  }
+  // STREAMING (text/event-stream): remonta o texto conforme chega (evita timeout 504)
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "", texto = "", creditos = null;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith("data:")) continue;
+      const ds = line.slice(5).trim();
+      if (!ds || ds === "[DONE]") continue;
+      let ev; try { ev = JSON.parse(ds); } catch(_) { continue; }
+      if (ev.type === "content_block_delta" && ev.delta && typeof ev.delta.text === "string") texto += ev.delta.text;
+      else if (ev.type === "error") throw new Error((ev.error && ev.error.message) || "Erro da IA durante a geração.");
+      else if (ev.type === "mar_credits" && ev.creditos_restantes != null) creditos = ev.creditos_restantes;
+    }
+  }
+  if (creditos != null) { try { atualizarCreditosUI(creditos); } catch(_){} }
+  return { content: [{ type: "text", text: texto }], _creditos_restantes: creditos };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1099,7 +1126,7 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
 const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
-const IMG_MAX_WIDTH = 1600;   // largura máxima — alta resolução p/ ler cotas em folhas grandes
+const IMG_MAX_WIDTH = 1400;   // largura máxima — boa resolução p/ ler cotas, mais leve/rápido (anti-timeout)
 
 async function pageToBase64(pageNum) {
   if (APP.pageImages[pageNum]) return APP.pageImages[pageNum];
