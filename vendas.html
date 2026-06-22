@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAR ABERTO ENGENHARIA — Orçamentos de obra com IA em minutos</title>
+<meta name="description" content="Transforme plantas em PDF em orçamento SINAPI, cronograma com caminho crítico e Excel profissional — em minutos. Ganhe tempo e feche mais propostas.">
+
+<!-- ============================================================
+  COMO PUBLICAR / CONFIGURAR:
+  1) Troque TODOS os links de compra: procure por  data-checkout  e
+     substitua  href="#planos"  pelo LINK DO CHECKOUT DO KIWIFY.
+  2) Os depoimentos abaixo são EXEMPLOS — troque por clientes reais.
+  3) Cores da marca já aplicadas (navy #002B40, azul #1792C0, IA #4db8e8).
+============================================================ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#002B40; --navy2:#013a55; --blue:#1792C0; --ia:#4db8e8;
+    --ink:#0f2230; --muted:#5b7081; --line:#e3edf3; --bg:#f3f8fb; --white:#fff;
+    --amber:#f5a623; --green:#1faa6c;
+    --radius:16px; --shadow:0 18px 50px rgba(0,43,64,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Poppins',system-ui,Arial,sans-serif;color:var(--ink);background:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 22px}
+  a{text-decoration:none;color:inherit}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em}
+  .em{color:var(--ia)}
+
+  /* Botões */
+  .btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:17px;
+    padding:16px 30px;border-radius:50px;cursor:pointer;border:0;transition:.2s;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),var(--ia));color:#fff;box-shadow:0 12px 30px rgba(23,146,192,.45)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(23,146,192,.55)}
+  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+  .btn-ghost:hover{background:rgba(255,255,255,.2)}
+  .btn-lg{font-size:19px;padding:19px 40px}
+
+  /* NAV */
+  header.nav{position:sticky;top:0;z-index:50;background:rgba(0,43,64,.92);backdrop-filter:blur(8px)}
+  .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .logo{display:flex;align-items:center;gap:12px;color:#fff;font-weight:800;font-size:20px;letter-spacing:.5px}
+  .logo small{display:block;font-size:10px;font-weight:500;letter-spacing:3px;color:#9fc6da;margin-top:-3px}
+  .mark{width:34px;height:34px;flex:none}
+  .nav .btn{font-size:14px;padding:11px 22px}
+  @media(max-width:640px){.nav .cta-top{display:none}}
+
+  /* HERO */
+  .hero{position:relative;background:radial-gradient(1200px 500px at 80% -10%,#0a4a68 0,var(--navy) 55%);color:#fff;overflow:hidden;padding:70px 0 90px}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:90px;background:var(--white);
+    -webkit-mask:radial-gradient(80px 90px at 50% 0,transparent 98%,#000) ;mask:none}
+  .hero .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(77,184,232,.15);border:1px solid rgba(77,184,232,.4);
+    color:#bfe3f6;font-size:13px;font-weight:600;padding:7px 14px;border-radius:50px;margin-bottom:20px}
+  .hero h1{font-size:46px;font-weight:800}
+  .hero p.sub{font-size:19px;color:#cfe3ef;margin:18px 0 28px;max-width:560px}
+  .hero .cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .trust{display:flex;gap:22px;flex-wrap:wrap;margin-top:26px;color:#bcd6e4;font-size:14px}
+  .trust b{color:#fff}
+  .shot{background:linear-gradient(135deg,#0d557a,#0a3a52);border:1px solid rgba(255,255,255,.15);border-radius:18px;
+    box-shadow:0 30px 70px rgba(0,0,0,.35);padding:14px}
+  .shot .bar{display:flex;gap:6px;padding:6px 4px 12px}
+  .shot .bar i{width:11px;height:11px;border-radius:50%;display:block;background:#ff5f57}
+  .shot .bar i:nth-child(2){background:#febc2e}.shot .bar i:nth-child(3){background:#28c840}
+  .shot .scr{background:#fff;border-radius:10px;overflow:hidden;color:var(--ink)}
+  .scr .top{background:var(--navy);color:#fff;padding:10px 14px;font-size:12px;font-weight:600;display:flex;justify-content:space-between}
+  .scr .body{padding:14px}
+  .scr .line{height:9px;border-radius:5px;background:#e7eef4;margin:9px 0}
+  .scr .line.s{width:60%}.scr .line.m{width:85%}
+  .scr table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+  .scr td{padding:6px 8px;border-bottom:1px solid #eef3f7}
+  .scr td.r{text-align:right;font-weight:700;color:var(--blue)}
+  .gantt{display:flex;gap:3px;margin-top:8px}
+  .gantt span{height:13px;border-radius:3px;flex:1;background:#e7eef4}
+  .gantt span.c{background:#e11d48}.gantt span.b{background:var(--blue)}
+  @media(max-width:880px){.hero .grid{grid-template-columns:1fr}.hero h1{font-size:34px}.shot{order:2}}
+
+  /* SECTIONS */
+  section{padding:74px 0}
+  .center{text-align:center;max-width:760px;margin:0 auto 46px}
+  .kicker{color:var(--blue);font-weight:700;letter-spacing:2px;font-size:13px;text-transform:uppercase}
+  h2{font-size:34px;font-weight:800;margin:10px 0 14px;color:var(--navy)}
+  .lead{color:var(--muted);font-size:18px}
+
+  .bg-soft{background:var(--bg)}
+
+  /* DOR */
+  .pains{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .pain{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .pain .x{width:40px;height:40px;border-radius:10px;background:#fde7ea;color:#e11d48;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin-bottom:12px}
+  .pain h3{font-size:18px;color:var(--navy);margin-bottom:6px}
+  .pain p{color:var(--muted);font-size:15px}
+
+  /* BENEFÍCIOS */
+  .benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .ben{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px;transition:.2s;box-shadow:0 6px 18px rgba(0,43,64,.04)}
+  .ben:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:#cfe6f1}
+  .ben .ic{width:52px;height:52px;border-radius:13px;background:linear-gradient(135deg,var(--blue),var(--ia));
+    display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:16px}
+  .ben h3{font-size:19px;color:var(--navy);margin-bottom:8px}
+  .ben p{color:var(--muted);font-size:15px}
+
+  /* COMO FUNCIONA */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:s}
+  .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:30px 24px 24px;text-align:center}
+  .step .n{counter-increment:s;position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+    width:44px;height:44px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .step .n::before{content:counter(s)}
+  .step h3{color:var(--navy);margin:10px 0 6px;font-size:19px}
+  .step p{color:var(--muted);font-size:15px}
+
+  /* OFERTA / PREÇO */
+  .price-wrap{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center}
+  .stack li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;font-size:16px}
+  .stack .ck{color:var(--green);font-weight:800;flex:none}
+  .stack .bonus{color:var(--amber);font-weight:800;flex:none}
+  .card-price{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;border-radius:24px;padding:38px 34px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .card-price .tag{position:absolute;top:18px;right:-44px;background:var(--amber);color:#3a2a00;font-weight:800;font-size:12px;padding:7px 56px;transform:rotate(45deg)}
+  .card-price .plan{color:var(--ia);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px}
+  .card-price .old{color:#8fb6cc;text-decoration:line-through;font-size:18px;margin-top:10px}
+  .card-price .now{font-size:52px;font-weight:800;line-height:1}
+  .card-price .now small{font-size:18px;font-weight:600;color:#cfe3ef}
+  .card-price .perday{color:#bfe3f6;font-size:14px;margin:6px 0 18px}
+  .card-price .btn{width:100%;justify-content:center;margin-top:8px}
+  .card-price .mini{font-size:13px;color:#9fc6da;text-align:center;margin-top:14px}
+
+  /* BÔNUS */
+  .bonusbox{background:linear-gradient(135deg,#fff7e9,#fffdf8);border:1.5px dashed var(--amber);border-radius:var(--radius);padding:26px 28px;display:flex;gap:20px;align-items:center;margin-top:30px}
+  .bonusbox .big{font-size:40px;flex:none}
+  .bonusbox h3{color:#8a5a00;font-size:20px}
+  .bonusbox p{color:#8a6a30;font-size:15px}
+
+  /* GARANTIA */
+  .guarantee{display:flex;gap:22px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 30px;max-width:820px;margin:0 auto;box-shadow:0 6px 18px rgba(0,43,64,.05)}
+  .seal{width:84px;height:84px;border-radius:50%;background:linear-gradient(135deg,var(--green),#16c172);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;flex:none;line-height:1}
+  .seal small{font-size:10px;font-weight:600}
+
+  /* DEPOIMENTOS */
+  .reviews{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .rev{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+  .rev .stars{color:var(--amber);font-size:15px;letter-spacing:2px}
+  .rev p{font-size:15px;color:var(--ink);margin:10px 0 16px}
+  .rev .who{display:flex;align-items:center;gap:12px}
+  .rev .av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--ia));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .rev .who b{display:block;color:var(--navy);font-size:14px}
+  .rev .who span{color:var(--muted);font-size:13px}
+
+  /* FAQ */
+  .faq{max-width:820px;margin:0 auto}
+  details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;padding:4px 20px}
+  summary{cursor:pointer;font-weight:600;color:var(--navy);padding:16px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;font-size:16px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--blue);font-size:24px;font-weight:700}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);padding:0 0 16px;font-size:15px}
+
+  /* CTA FINAL */
+  .final{background:radial-gradient(900px 400px at 50% 0,#0a4a68,var(--navy));color:#fff;text-align:center}
+  .final h2{color:#fff;font-size:36px}
+  .final p{color:#cfe3ef;font-size:18px;max-width:620px;margin:14px auto 28px}
+
+  footer{background:#011d2b;color:#9fc6da;padding:40px 0;font-size:14px}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;align-items:center}
+
+  @media(max-width:880px){
+    .pains,.benefits,.steps,.reviews{grid-template-columns:1fr}
+    .price-wrap{grid-template-columns:1fr}
+    h2{font-size:27px}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav">
+  <div class="wrap">
+    <a href="#" class="logo">
+      <img src="logo-branco.png?v=2" alt="MAR ABERTO ENGENHARIA" style="height:46px;width:auto;display:block">
+    </a>
+    <a href="#planos" data-checkout class="btn btn-primary cta-top">Garantir meu acesso</a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <span class="pill">⚡ Inteligência artificial para engenharia civil</span>
+        <h1>Orçamentos de obra completos <span class="em">em minutos</span>, não em dias.</h1>
+        <p class="sub">Envie a planta em PDF e receba o <b>orçamento pela tabela SINAPI</b> do seu estado, o <b>cronograma com caminho crítico</b> e uma <b>planilha Excel profissional</b> — pronta para entregar com a sua marca.</p>
+        <div class="cta-row">
+          <a href="#planos" data-checkout class="btn btn-primary btn-lg">Quero economizar horas →</a>
+          <a href="#como" class="btn btn-ghost">Ver como funciona</a>
+        </div>
+        <div class="trust">
+          <span>✅ <b>Tabela SINAPI</b> oficial e atualizada</span>
+          <span>✅ Funciona em <b>todos os estados</b></span>
+          <span>✅ Sem instalar nada</span>
+        </div>
+      </div>
+
+      <!-- Mock do sistema -->
+      <div class="shot">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div class="scr">
+          <div class="top"><span>Orçamento — Residência Unifamiliar</span><span>SINAPI ✓</span></div>
+          <div class="body">
+            <table>
+              <tr><td>Alvenaria de vedação</td><td class="r">R$ 18.430,00</td></tr>
+              <tr><td>Estrutura (pilares/vigas/laje)</td><td class="r">R$ 42.110,00</td></tr>
+              <tr><td>Cobertura</td><td class="r">R$ 15.880,00</td></tr>
+              <tr><td>Revestimentos</td><td class="r">R$ 22.640,00</td></tr>
+            </table>
+            <div class="line m"></div><div class="line s"></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:10px">Cronograma · caminho crítico</div>
+            <div class="gantt"><span class="c"></span><span class="c"></span><span class="b"></span><span></span><span class="b"></span><span class="c"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOR -->
+<section>
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">Você reconhece isso?</span>
+      <h2>Cada orçamento manual custa horas que você não tem</h2>
+      <p class="lead">Enquanto você levanta quantitativo célula por célula, propostas escapam e o cliente vai para quem responde primeiro.</p>
+    </div>
+    <div class="pains">
+      <div class="pain"><div class="x">✕</div><h3>Horas perdidas no Excel</h3><p>Medir planta, lançar item por item e cruzar com a SINAPI consome um dia inteiro de trabalho.</p></div>
+      <div class="pain"><div class="x">✕</div><h3>Erros que custam caro</h3><p>Um código errado ou um quantitativo esquecido vira prejuízo — ou uma proposta perdida.</p></div>
+      <div class="pain"><div class="x">✕</div><h3>Propostas que demoram</h3><p>Quando o orçamento fica pronto, o cliente já fechou com outro escritório mais rápido.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUÇÃO / BENEFÍCIOS -->
+<section class="bg-soft" id="beneficios">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">A virada de chave</span>
+      <h2>Deixe a IA fazer o trabalho pesado por você</h2>
+      <p class="lead">Você cuida da engenharia e do relacionamento. O sistema faz o levantamento, a precificação e o cronograma.</p>
+    </div>
+    <div class="benefits">
+      <div class="ben"><div class="ic">⏱️</div><h3>De dias para minutos</h3><p>Suba a planta e receba o orçamento estruturado em poucos minutos. Mais propostas no mesmo dia.</p></div>
+      <div class="ben"><div class="ic">📊</div><h3>Preços SINAPI do seu estado</h3><p>Quantitativos cruzados com a tabela SINAPI oficial, com ou sem desoneração e BDI configurável.</p></div>
+      <div class="ben"><div class="ic">🗓️</div><h3>Cronograma + caminho crítico</h3><p>Cronograma físico-financeiro, curva S e gráfico de Gantt — tudo gerado automaticamente.</p></div>
+      <div class="ben"><div class="ic">📑</div><h3>Excel pronto para entregar</h3><p>Planilha profissional e organizada que você baixa e entrega com a marca do seu escritório.</p></div>
+      <div class="ben"><div class="ic">🎯</div><h3>Mais precisão, menos retrabalho</h3><p>A IA valida códigos e organiza a EAP, reduzindo erros e esquecimentos no levantamento.</p></div>
+      <div class="ben"><div class="ic">💻</div><h3>100% online</h3><p>Funciona no navegador, sem instalar programa nenhum. Use do escritório ou da obra.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- COMO FUNCIONA -->
+<section id="como">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">Simples assim</span>
+      <h2>3 passos para o seu orçamento</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="n"></div><h3>Envie a planta</h3><p>Faça upload do PDF do projeto — plantas, cortes e fachadas.</p></div>
+      <div class="step"><div class="n"></div><h3>A IA analisa</h3><p>O sistema lê o projeto, levanta os quantitativos e precifica pela SINAPI.</p></div>
+      <div class="step"><div class="n"></div><h3>Baixe, revise e entregue</h3><p>Confira o orçamento, ajuste o que quiser e entregue ao cliente com a sua marca.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- OFERTA / PREÇO -->
+<section class="bg-soft" id="planos">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">Oferta de lançamento</span>
+      <h2>Um ano de acesso por menos do que custa um orçamento manual</h2>
+      <p class="lead">Pense: um único orçamento toma horas do seu dia. Aqui você faz dezenas — o ano inteiro.</p>
+    </div>
+
+    <div class="price-wrap">
+      <div>
+        <ul class="stack">
+          <li><span class="ck">✓</span> <span><b>Acesso completo por 12 meses</b> ao gerador de orçamentos com IA</span></li>
+          <li><span class="ck">✓</span> <span>Até <b>20 análises por mês</b> (240 orçamentos no ano)</span></li>
+          <li><span class="ck">✓</span> <span>Orçamento <b>SINAPI</b> de todos os estados, com e sem desoneração</span></li>
+          <li><span class="ck">✓</span> <span><b>Cronograma</b> físico-financeiro, curva S e Gantt com caminho crítico</span></li>
+          <li><span class="ck">✓</span> <span><b>Excel profissional</b> para entregar com a sua marca</span></li>
+          <li><span class="ck">✓</span> <span>Atualizações e melhorias incluídas no período</span></li>
+          <li><span class="bonus">★</span> <span><b>BÔNUS:</b> +50 skills de engenharia para escritórios (orçamentos, levantamentos e propostas técnicas)</span></li>
+        </ul>
+      </div>
+
+      <div class="card-price">
+        <div class="tag">LANÇAMENTO</div>
+        <div class="plan">Plano Anual</div>
+        <div class="old">de R$ 1.188,00</div>
+        <div class="now">R$ 397<small>/ano</small></div>
+        <div class="perday">menos de R$ 1,09 por dia · ou parcele no cartão</div>
+        <!-- TROQUE href pelo link do checkout do Kiwify -->
+        <a href="#" data-checkout class="btn btn-primary">Garantir meu acesso anual →</a>
+        <div class="mini">🔒 Pagamento seguro via Kiwify · Pix ou cartão</div>
+      </div>
+    </div>
+
+    <!-- BÔNUS (agrega, sem ofuscar o principal) -->
+    <div class="bonusbox">
+      <div class="big">🎁</div>
+      <div>
+        <h3>Bônus exclusivo para escritórios</h3>
+        <p>Além do gerador de orçamentos, você leva <b>mais de 50 skills de engenharia</b> para acelerar levantamentos de projeto, orçamentos e propostas técnicas — um arsenal que complementa o seu dia a dia. Incluso, sem custo extra.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GARANTIA -->
+<section>
+  <div class="wrap">
+    <div class="guarantee">
+      <div class="seal">7<small>DIAS</small></div>
+      <div>
+        <h3 style="color:var(--navy);font-size:20px;margin-bottom:6px">Risco zero para você</h3>
+        <p style="color:var(--muted)">Teste o sistema por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento. A decisão é sua — e sem dor de cabeça.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEPOIMENTOS (EXEMPLOS — trocar por reais) -->
+<section class="bg-soft">
+  <div class="wrap">
+    <div class="center">
+      <span class="kicker">Quem usa, recomenda</span>
+      <h2>O que muda na rotina de quem orça com IA</h2>
+      <p class="lead" style="font-size:14px">(Depoimentos ilustrativos — substitua pelos relatos dos seus primeiros clientes.)</p>
+    </div>
+    <div class="reviews">
+      <div class="rev"><div class="stars">★★★★★</div><p>"Fiz um orçamento que levaria meu dia inteiro em menos de 10 minutos. Consegui responder o cliente na hora."</p><div class="who"><div class="av">RC</div><div><b>Eng. Rafael C.</b><span>Engenheiro Civil</span></div></div></div>
+      <div class="rev"><div class="stars">★★★★★</div><p>"O cronograma com caminho crítico já sai pronto. Minhas propostas ficaram muito mais profissionais."</p><div class="who"><div class="av">JS</div><div><b>Arq. Juliana S.</b><span>Escritório de projetos</span></div></div></div>
+      <div class="rev"><div class="stars">★★★★★</div><p>"O Excel sai organizado e com a minha marca. O cliente acha que tenho uma equipe enorme por trás."</p><div class="who"><div class="av">MA</div><div><b>Eng. Marcos A.</b><span>Construtora</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section>
+  <div class="wrap">
+    <div class="center"><span class="kicker">Dúvidas frequentes</span><h2>Tudo o que você precisa saber</h2></div>
+    <div class="faq">
+      <details open><summary>Preciso entender de inteligência artificial para usar?</summary><p>Não. Você só envia o PDF da planta e o sistema faz todo o trabalho. É tão simples quanto anexar um arquivo.</p></details>
+      <details><summary>Funciona para o meu estado?</summary><p>Sim. O sistema usa a tabela SINAPI de todos os estados brasileiros, com opção de cálculo com ou sem desoneração e BDI ajustável.</p></details>
+      <details><summary>O que está incluído nas 20 análises por mês?</summary><p>Cada análise é um orçamento completo gerado a partir de uma planta, com EAP, preços SINAPI, cronograma e Excel. São até 20 por mês — mais do que suficiente para a maioria dos escritórios.</p></details>
+      <details><summary>Como faço o pagamento?</summary><p>Pelo checkout seguro do Kiwify, no Pix ou cartão (com opção de parcelamento). Assim que o pagamento é aprovado, você recebe sua chave de acesso por e-mail.</p></details>
+      <details><summary>Os meus projetos ficam seguros?</summary><p>Sim. Suas plantas são usadas apenas para gerar o seu orçamento. Você mantém total controle sobre os seus arquivos.</p></details>
+      <details><summary>E se eu não gostar?</summary><p>Você tem 7 dias de garantia. Se não fizer sentido para você, é só pedir o reembolso.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="final">
+  <div class="wrap">
+    <h2>Comece a orçar com IA ainda hoje</h2>
+    <p>Ganhe tempo, reduza erros e feche mais propostas. Garanta seu acesso anual com o preço de lançamento.</p>
+    <a href="#" data-checkout class="btn btn-primary btn-lg">Garantir meu acesso por R$ 397/ano →</a>
+    <div style="margin-top:16px;color:#9fc6da;font-size:14px">🔒 Pagamento seguro · Pix ou cartão · Garantia de 7 dias</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:17px">
+      <img src="logo-branco.png?v=2" alt="MAR ABERTO ENGENHARIA" style="height:34px;width:auto;display:block">
+    </div>
+    <div>© 2026 MAR ABERTO ENGENHARIA · Todos os direitos reservados</div>
+  </div>
+</footer>
+
+</body>
+</html>
