@@ -2243,6 +2243,13 @@ async function loadDescricoes() {
     console.warn("proprios.json não encontrado — sem composições próprias.", e.message);
     APP.propriosDB = [];
   }
+  try {
+    const ru = await fetch("data/unidades.json");
+    APP.unidadesDB = ru.ok ? await ru.json() : {};
+  } catch(e) {
+    console.warn("unidades.json não encontrado — unidades indisponíveis.", e.message);
+    APP.unidadesDB = {};
+  }
   _descIndex = null; _propIndex = null; _propIdf = null;  // força reconstrução dos índices
 }
 
@@ -2912,10 +2919,11 @@ async function sinapiConsulta(){
   let rows='';
   lista.forEach(([c,p])=>{
     const d=APP.descricoesDB[c]||APP.descricoesDB[baseCodigo(c)]||'(sem descrição)';
+    const un=(APP.unidadesDB&&(APP.unidadesDB[c]||APP.unidadesDB[baseCodigo(c)]))||'—';
     const precoTxt=p!=null?('R$ '+_fmtBR(p)):'<span class="warn">sem preço no estado</span>';
-    rows+=`<tr><td style="font-family:monospace;font-size:12px;white-space:nowrap">${c}</td><td>${d}</td><td class="num" style="white-space:nowrap">${precoTxt}</td><td><button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="inserirDaConsulta('${c}')">Inserir</button></td></tr>`;
+    rows+=`<tr><td style="font-family:monospace;font-size:12px;white-space:nowrap">${c}</td><td>${d}</td><td style="text-align:center;white-space:nowrap">${un}</td><td class="num" style="white-space:nowrap">${precoTxt}</td><td><button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="inserirDaConsulta('${c}')">Inserir</button></td></tr>`;
   });
-  out.innerHTML=`<div class="muted" style="margin:6px 0 8px">${lista.length} resultado(s) · Estado ${estado} · ${APP.desoneracao?'com':'sem'} desoneração</div><div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>Código</th><th>Descrição</th><th class="num">Preço unit.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  out.innerHTML=`<div class="muted" style="margin:6px 0 8px">${lista.length} resultado(s) · Estado ${estado} · ${APP.desoneracao?'com':'sem'} desoneração</div><div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>Código</th><th>Descrição</th><th style="text-align:center">Unidade</th><th class="num">Preço unit.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function inserirDaConsulta(cod){
   const r=APP.analysisResult;
@@ -2924,7 +2932,8 @@ function inserirDaConsulta(cod){
   const qtd=parseFloat((prompt('Quantidade para:\n'+desc.slice(0,70),'1')||'1').replace(',','.'))||0;
   if(!qtd) return;
   const nextId=(r.quantitativos||[]).reduce((m,x)=>Math.max(m,x._id==null?-1:x._id),-1)+1;
-  r.quantitativos.push({sinapi_codigo:cod,_codigoManual:cod,descricao:desc,unidade:'un',quantidade:qtd,categoria:'99. SERVIÇOS ADICIONAIS',_id:nextId});
+  const un=(APP.unidadesDB&&(APP.unidadesDB[cod]||APP.unidadesDB[baseCodigo(cod)]))||'un';
+  r.quantitativos.push({sinapi_codigo:cod,_codigoManual:cod,descricao:desc,unidade:un,quantidade:qtd,categoria:'99. SERVIÇOS ADICIONAIS',_id:nextId});
   recalcBudget();
   alert('✅ Serviço inserido na planilha (etapa 4 — Orçamento). Ajuste a unidade/quantidade se precisar.');
 }
