@@ -302,11 +302,66 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .crono-tbl th{background:var(--navy);color:#fff;font-size:11px}
 .crono-tbl .num{text-align:right}
 .crono-tbl .crit-row{background:#fef2f2}
+/* ====== Menu lateral + recursos novos ====== */
+:root{ --sidew:240px; --sidew-col:66px; }
+#sidenav{ position:fixed; left:0; top:0; bottom:0; width:var(--sidew); background:var(--navy); color:#fff; z-index:200; display:flex; flex-direction:column; transition:width .2s; box-shadow:2px 0 14px rgba(0,0,0,.25); }
+body.nav-collapsed #sidenav{ width:var(--sidew-col); }
+body{ padding-left:var(--sidew); transition:padding-left .2s; }
+body.nav-collapsed{ padding-left:var(--sidew-col); }
+#stepsBar{ display:none !important; }
+.sn-brand{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.10); min-height:60px; }
+.sn-brand img{ height:30px; width:auto; }
+body.nav-collapsed .sn-brand img{ display:none; }
+body.nav-collapsed .sn-brand{ justify-content:center; padding:14px 8px; }
+.sn-toggle{ margin-left:auto; background:rgba(255,255,255,.10); border:0; color:#cfe3ef; width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:15px; flex:none; }
+.sn-toggle:hover{ background:rgba(255,255,255,.2); }
+body.nav-collapsed .sn-toggle{ margin:0 auto; }
+.sn-scroll{ flex:1; overflow-y:auto; padding:10px 8px; }
+.sn-sec{ font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#6f93a8; padding:14px 12px 6px; }
+body.nav-collapsed .sn-sec{ font-size:0; padding:10px 0 4px; }
+.nav-item{ display:flex; align-items:center; gap:12px; width:100%; background:transparent; border:0; color:#cfe0ea; text-align:left; padding:10px 12px; border-radius:9px; cursor:pointer; font-size:14px; font-weight:500; transition:.15s; font-family:inherit; }
+.nav-item:hover{ background:rgba(255,255,255,.08); color:#fff; }
+.nav-item.active{ background:var(--blue); color:#fff; box-shadow:0 4px 12px rgba(23,146,192,.4); }
+.nav-item .ic{ font-size:18px; width:24px; text-align:center; flex:none; }
+.nav-item .lb{ white-space:nowrap; overflow:hidden; }
+body.nav-collapsed .nav-item .lb{ display:none; }
+body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
+.muted{ color:var(--muted); font-size:14px; }
+.abc-sums{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.abc-sum{ background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.abc-sum .cl{ font-weight:800; font-size:15px; }
+.abc-sum .vv{ font-size:14px; color:var(--ink); margin-top:4px; font-weight:600; }
+.abc-sum .pp{ font-size:12px; color:var(--muted); }
+.abc-badge{ display:inline-block; min-width:20px; text-align:center; color:#fff; font-weight:800; font-size:11px; padding:2px 7px; border-radius:20px; }
+.hist-ctrls{ display:flex; gap:18px; flex-wrap:wrap; margin:14px 0; }
+.hist-ctrls label{ display:flex; flex-direction:column; font-size:12px; font-weight:600; color:var(--ink); gap:4px; }
+.hist-ctrls input{ padding:8px 10px; border:1.5px solid var(--border); border-radius:6px; font-size:14px; width:170px; }
+.sinapi-search{ display:flex; align-items:center; gap:10px; background:#fff; border:1.5px solid var(--border); border-radius:30px; padding:8px 16px; max-width:560px; }
+.sinapi-search input{ border:0; outline:0; flex:1; font-size:15px; font-family:inherit; }
+@media(max-width:760px){ body{ padding-left:var(--sidew-col); } #sidenav{ width:var(--sidew-col); } #sidenav .nav-item .lb, #sidenav .sn-sec, #sidenav .sn-brand img{ display:none; } #sidenav .nav-item{ justify-content:center; } .abc-sums{ grid-template-columns:1fr; } }
 </style>
 </head>
 
 <body>
 <!-- ═══════════════════════════════════════════════════════ HEADER -->
+<aside id="sidenav">
+  <div class="sn-brand">
+    <img src="logo-branco.png?v=2" alt="MAR ABERTO ENGENHARIA">
+    <button class="sn-toggle" onclick="toggleNav()" title="Recolher / expandir menu">☰</button>
+  </div>
+  <nav class="sn-scroll">
+    <div class="sn-sec">Etapas</div>
+    <button class="nav-item active" data-view="1" onclick="goTo(1)"><span class="ic">📤</span><span class="lb">Upload</span></button>
+    <button class="nav-item" data-view="2" onclick="goTo(2)"><span class="ic">🤖</span><span class="lb">Análise IA</span></button>
+    <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">EAP</span></button>
+    <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
+    <button class="nav-item" data-view="5" onclick="goTo(5)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
+    <div class="sn-sec">Ferramentas</div>
+    <button class="nav-item" data-view="abc" onclick="showTool('abc')"><span class="ic">📊</span><span class="lb">Curva ABC</span></button>
+    <button class="nav-item" data-view="hist" onclick="showTool('hist')"><span class="ic">👷</span><span class="lb">Histograma</span></button>
+    <button class="nav-item" data-view="sinapi" onclick="showTool('sinapi')"><span class="ic">🔍</span><span class="lb">Consultar SINAPI</span></button>
+  </nav>
+</aside>
 <header>
   <div style="display:flex;align-items:center;gap:14px">
     <img src="logo-branco.png?v=2" alt="MAR ABERTO ENGENHARIA" style="height:48px;width:auto;display:block">
@@ -602,6 +657,34 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
   </div>
 </div>
 
+<!-- ─── Painel: Curva ABC ─────────────────────────────────── -->
+<div class="screen" id="screen-abc">
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> Curva ABC — onde o seu dinheiro está</div>
+    <div id="abcContent"><div class="alert alert-error">Gere o orçamento primeiro (etapa 4 — Orçamento SINAPI) para ver a Curva ABC.</div></div>
+  </div>
+</div>
+
+<!-- ─── Painel: Histograma de mão de obra ─────────────────── -->
+<div class="screen" id="screen-hist">
+  <div class="card">
+    <div class="card-title"><span class="icon">👷</span> Histograma de mão de obra</div>
+    <div id="histContent"><div class="alert alert-error">Gere o orçamento primeiro (etapa 4) para ver o histograma de mão de obra.</div></div>
+  </div>
+</div>
+
+<!-- ─── Painel: Consultar SINAPI ──────────────────────────── -->
+<div class="screen" id="screen-sinapi">
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> Consultar tabela SINAPI</div>
+    <p class="muted" style="margin-bottom:12px">Pesquise por <b>código</b> (ex.: 87490) ou por <b>palavra</b> (ex.: revestimento, contrapiso, telha). Filtra pelo estado e desoneração escolhidos na etapa de Orçamento. Você consulta o serviço e o preço sem baixar a tabela — e pode inserir direto na planilha.</p>
+    <div class="sinapi-search">
+      <span style="font-size:18px">🔍</span>
+      <input type="text" id="sinapiQuery" placeholder="Digite um código ou uma palavra…" oninput="sinapiConsultaInput()" autocomplete="off">
+    </div>
+    <div id="sinapiResults" style="margin-top:16px"><p class="muted">Digite um código ou uma palavra para buscar.</p></div>
+  </div>
+</div>
 </main>
 
 <!-- ═══════════════════════════════════════════════════════ SCRIPTS -->
@@ -762,6 +845,7 @@ function goTo(step) {
     const n = +t.dataset.step;
     t.className = "step-tab" + (n === step ? " active" : n < step ? " done" : "");
   });
+  if (typeof _navActive === "function") _navActive(step);
   window.scrollTo(0, 0);
 }
 
@@ -2678,6 +2762,159 @@ function exportExcel() {
 
   const fname = `Orcamento_${APP.projectName.replace(/\s+/g,"_")}_${estado}.xlsx`;
   XLSX.writeFile(wb, fname);
+}
+
+/* ===== NOVOS RECURSOS: menu lateral, Curva ABC, Histograma de mão de obra, Consulta SINAPI ===== */
+function _navActive(view){ document.querySelectorAll('#sidenav .nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===String(view))); }
+function showTool(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById('screen-'+name); if(el) el.classList.add('active');
+  _navActive(name);
+  if(name==='abc') buildABC();
+  if(name==='hist') buildHistograma();
+  if(name==='sinapi'){ loadDescricoes(); setTimeout(()=>{const i=document.getElementById('sinapiQuery'); if(i) i.focus();},60); }
+  window.scrollTo(0,0);
+}
+function toggleNav(){ document.body.classList.toggle('nav-collapsed'); }
+function _fmtBR(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* 1) CURVA ABC */
+function _coletarItensOrcamento(){
+  const r=APP.analysisResult; if(!r||!r.quantitativos) return null;
+  const bdi=(parseFloat(document.getElementById('bdiInput').value)/100)||0;
+  const itens=[];
+  r.quantitativos.forEach(q=>{
+    const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+    const qtd=Number(q.quantidade)||0;
+    const total=info.preco*qtd*(1+bdi);
+    if(total>0) itens.push({nome:q.descricao||"(sem descrição)", codigo:info.codigoFinal||"—", total:total});
+  });
+  return {itens, bdi};
+}
+function buildABC(){
+  const host=document.getElementById('abcContent'); if(!host) return;
+  const data=_coletarItensOrcamento();
+  if(!data || !data.itens.length){ host.innerHTML='<div class="alert alert-error">Gere o orçamento primeiro (etapa 4 — Orçamento SINAPI) para ver a Curva ABC.</div>'; return; }
+  const itens=data.itens.slice().sort((a,b)=>b.total-a.total);
+  const tot=itens.reduce((s,i)=>s+i.total,0)||1;
+  let acc=0;
+  itens.forEach(i=>{ i.pct=i.total/tot*100; acc+=i.pct; i.acc=acc; i.classe=i.acc<=80?'A':(i.acc<=95?'B':'C'); });
+  const cnt={A:0,B:0,C:0}, val={A:0,B:0,C:0};
+  itens.forEach(i=>{cnt[i.classe]++; val[i.classe]+=i.total;});
+  const card=(cl,cor)=>`<div class="abc-sum" style="border-top:3px solid ${cor}"><div class="cl" style="color:${cor}">Classe ${cl}</div><div class="vv">${cnt[cl]} itens · R$ ${_fmtBR(val[cl])}</div><div class="pp">${(val[cl]/tot*100).toFixed(1)}% do custo</div></div>`;
+  const W=720,H=240,padB=24,padT=14,padL=24;
+  const n=itens.length, maxv=itens[0].total||1, step=(W-padL-20)/n, bw=Math.min(22,step-3);
+  let bars='',pts=[];
+  itens.forEach((it,idx)=>{
+    const x=padL+idx*step;
+    const h=(it.total/maxv)*(H-padB-padT-16);
+    const col=it.classe==='A'?'#e11d48':it.classe==='B'?'#f5a623':'#1792C0';
+    bars+=`<rect x="${x.toFixed(1)}" y="${(H-padB-h).toFixed(1)}" width="${Math.max(3,bw).toFixed(1)}" height="${h.toFixed(1)}" fill="${col}"></rect>`;
+    const ly=padT+(1-it.acc/100)*(H-padB-padT);
+    pts.push(`${(x+bw/2).toFixed(1)},${ly.toFixed(1)}`);
+  });
+  const l80=padT+(1-0.8)*(H-padB-padT);
+  const svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:#fff;border:1px solid var(--border);border-radius:8px"><line x1="${padL}" y1="${l80.toFixed(1)}" x2="${W}" y2="${l80.toFixed(1)}" stroke="#94a3b8" stroke-dasharray="4 4"/><text x="${padL+4}" y="${(l80-4).toFixed(1)}" font-size="10" fill="#64748b">80% acum. (limite Classe A)</text>${bars}<polyline points="${pts.join(' ')}" fill="none" stroke="#002B40" stroke-width="2"/></svg>`;
+  let rows='';
+  itens.forEach((it,idx)=>{ const col=it.classe==='A'?'#e11d48':it.classe==='B'?'#f5a623':'#1792C0'; rows+=`<tr><td>${idx+1}</td><td><span class="abc-badge" style="background:${col}">${it.classe}</span></td><td style="font-family:monospace;font-size:11px">${it.codigo}</td><td>${it.nome}</td><td class="num">R$ ${_fmtBR(it.total)}</td><td class="num">${it.pct.toFixed(1)}%</td><td class="num">${it.acc.toFixed(1)}%</td></tr>`; });
+  host.innerHTML=`<p class="muted" style="margin-bottom:14px">A Curva ABC ordena os serviços do mais caro ao mais barato. <b>Classe A</b>: poucos itens que concentram a maior parte do custo (priorize a negociação). <b>B</b>: intermediários. <b>C</b>: muitos itens de baixo impacto.</p><div class="abc-sums">${card('A','#e11d48')}${card('B','#f5a623')}${card('C','#1792C0')}</div><div style="margin:16px 0">${svg}</div><div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>#</th><th>Classe</th><th>Código</th><th>Serviço</th><th class="num">Total c/ BDI</th><th class="num">% indiv.</th><th class="num">% acum.</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* 2) HISTOGRAMA DE MÃO DE OBRA */
+const MO_SHARE_DEFAULT=40, CUSTO_HORA_DEFAULT=22, COLAB_DEFAULT=8;
+function buildHistograma(){
+  const host=document.getElementById('histContent'); if(!host) return;
+  if(!APP.analysisResult){ host.innerHTML='<div class="alert alert-error">Gere o orçamento primeiro (etapa 4) para ver o histograma de mão de obra.</div>'; return; }
+  if(!document.getElementById('histColab')){
+    host.innerHTML=`<p class="muted">Estimativa de mão de obra a partir do cronograma. A mão de obra é estimada como uma fração do custo direto (referência SINAPI/IBGE: ~38–45% do custo) e convertida em horas-homem pelo custo-hora médio. É uma estimativa de planejamento; não substitui um estudo de produtividade detalhado.</p><div class="hist-ctrls"><label>👷 Colaboradores (equipe)<input type="number" id="histColab" min="1" max="300" value="${COLAB_DEFAULT}" oninput="renderHist()"></label><label>💵 Custo-hora médio (R$)<input type="number" id="histHora" min="1" step="0.5" value="${CUSTO_HORA_DEFAULT}" oninput="renderHist()"></label><label>🔧 Mão de obra (% do custo)<input type="number" id="histMo" min="5" max="80" value="${MO_SHARE_DEFAULT}" oninput="renderHist()"></label></div><div id="histKpis" class="info-grid"></div><div id="histChart" style="margin-top:14px"></div>`;
+  }
+  renderHist();
+}
+function renderHist(){
+  const chart=document.getElementById('histChart'); if(!chart) return;
+  const prazoEl=document.getElementById('cronoPrazo');
+  const prazo=(prazoEl&&prazoEl.value)?parseFloat(prazoEl.value):prazoPadrao();
+  const dc=computeCronograma(prazo);
+  if(!dc){ chart.innerHTML='<div class="alert alert-error">Sem dados de cronograma.</div>'; return; }
+  const bdi=(parseFloat(document.getElementById('bdiInput').value)/100)||0;
+  const N=Math.max(1,parseInt(document.getElementById('histColab').value)||COLAB_DEFAULT);
+  const hora=Math.max(1,parseFloat(document.getElementById('histHora').value)||CUSTO_HORA_DEFAULT);
+  const moShare=Math.max(1,parseFloat(document.getElementById('histMo').value)||MO_SHARE_DEFAULT)/100;
+  const projDur=dc.projDur||1, HH_DIA=8, DIAS_SEM=6, HH_SEM=HH_DIA*DIAS_SEM;
+  const nSem=Math.max(1,Math.ceil(projDur/7));
+  const semHH=new Array(nSem).fill(0); let totalHH=0;
+  dc.ativ.forEach(a=>{
+    const custoDir=(a.custo||0)/(1+bdi);
+    const hh=custoDir*moShare/hora; totalHH+=hh;
+    const dur=Math.max(1,(a.ef-a.es));
+    for(let d=Math.floor(a.es); d<Math.ceil(a.ef); d++){ const w=Math.min(nSem-1,Math.floor(d/7)); semHH[w]+=hh/dur; }
+  });
+  const semW=semHH.map(h=>h/HH_SEM);
+  const pico=Math.max.apply(null,semW.concat([0])), media=semW.reduce((s,x)=>s+x,0)/(semW.length||1);
+  const durIdeal=Math.ceil(totalHH/(N*HH_DIA));
+  document.getElementById('histKpis').innerHTML=[
+    {label:'Horas-homem estimadas',value:Math.round(totalHH).toLocaleString('pt-BR'),sub:'HH no total'},
+    {label:'Pico de trabalhadores',value:Math.ceil(pico),sub:'semana mais intensa'},
+    {label:'Média de trabalhadores',value:media.toFixed(1),sub:'ao longo da obra'},
+    {label:'Duração com '+N+' colab.',value:durIdeal+' dias úteis',sub:'~'+(durIdeal/DIAS_SEM).toFixed(1)+' semanas'}
+  ].map(k=>`<div class="info-box"><div class="label">${k.label}</div><div class="value">${k.value}</div><div class="sub">${k.sub}</div></div>`).join('');
+  const W=720,H=260,padB=26,padT=14,padL=36;
+  const maxv=Math.max(pico,N,1), step=(W-padL-16)/nSem, bw=Math.min(24,step-3);
+  let bars='';
+  semW.forEach((w,i)=>{
+    const x=padL+i*step, h=(w/maxv)*(H-padB-padT), over=w>N+0.05;
+    bars+=`<rect x="${x.toFixed(1)}" y="${(H-padB-h).toFixed(1)}" width="${Math.max(3,bw).toFixed(1)}" height="${h.toFixed(1)}" fill="${over?'#e11d48':'#1792C0'}"><title>Semana ${i+1}: ${w.toFixed(1)} trab.</title></rect>`;
+    if((i%4)===0) bars+=`<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" font-size="9" fill="#64748b" text-anchor="middle">S${i+1}</text>`;
+  });
+  const yN=H-padB-(N/maxv)*(H-padB-padT);
+  const lineN=`<line x1="${padL}" y1="${yN.toFixed(1)}" x2="${W}" y2="${yN.toFixed(1)}" stroke="#002B40" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${padL+4}" y="${(yN-4).toFixed(1)}" font-size="10" fill="#002B40">Equipe definida: ${N}</text>`;
+  chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;background:#fff;border:1px solid var(--border);border-radius:8px">${bars}${lineN}</svg><p class="muted" style="font-size:12px;margin-top:8px">Barras vermelhas = semanas que exigem mais que a equipe definida (precisaria de mais gente, hora extra ou esticar o prazo). Linha tracejada = nº de colaboradores escolhido.</p>`;
+}
+
+/* 3) CONSULTA SINAPI */
+let _consultaTimer=null;
+function sinapiConsultaInput(){ clearTimeout(_consultaTimer); _consultaTimer=setTimeout(sinapiConsulta,220); }
+async function sinapiConsulta(){
+  const q=(document.getElementById('sinapiQuery').value||'').trim();
+  const out=document.getElementById('sinapiResults');
+  const estado=APP.estado||(document.getElementById('stateSelect')||{}).value||'PE';
+  if(q.length<2){ out.innerHTML='<p class="muted">Digite um código (ex.: 87490) ou uma palavra (ex.: revestimento, contrapiso, telha, pintura).</p>'; return; }
+  out.innerHTML='<p class="muted">Buscando…</p>';
+  await loadSinapiDB(estado);
+  if(!APP.descricoesDB){ out.innerHTML='<div class="alert alert-error">Catálogo SINAPI indisponível.</div>'; return; }
+  const col=APP.desoneracao?1:0;
+  let res=[];
+  const soDig=q.replace(/\D/g,'');
+  if(soDig.length>=3 && /^\d/.test(q.trim())){
+    Object.keys(APP.descricoesDB).forEach(c=>{ if(c.startsWith(soDig)) res.push(c); });
+    res=res.slice(0,60);
+  } else {
+    const idx=buildDescIndex(); const qset=new Set(tokenizeSinapi(q)); const scored=[];
+    for(let k=0;k<idx.length;k++){ const e=idx[k]; let m=0; qset.forEach(t=>{ if(e.tokens.has(t)) m+=(_idf[t]||1); }); if(m>0) scored.push([e.codigo,m]); }
+    scored.sort((a,b)=>b[1]-a[1]); res=scored.slice(0,80).map(s=>s[0]);
+  }
+  const comPreco=[], semPreco=[];
+  res.forEach(c=>{ const p=precoEstado(c,col); (p!=null?comPreco:semPreco).push([c,p]); });
+  const lista=comPreco.concat(semPreco).slice(0,40);
+  if(!lista.length){ out.innerHTML='<div class="alert alert-error">Nada encontrado. Tente outra palavra ou código.</div>'; return; }
+  let rows='';
+  lista.forEach(([c,p])=>{
+    const d=APP.descricoesDB[c]||APP.descricoesDB[baseCodigo(c)]||'(sem descrição)';
+    const precoTxt=p!=null?('R$ '+_fmtBR(p)):'<span class="warn">sem preço no estado</span>';
+    rows+=`<tr><td style="font-family:monospace;font-size:12px;white-space:nowrap">${c}</td><td>${d}</td><td class="num" style="white-space:nowrap">${precoTxt}</td><td><button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="inserirDaConsulta('${c}')">Inserir</button></td></tr>`;
+  });
+  out.innerHTML=`<div class="muted" style="margin:6px 0 8px">${lista.length} resultado(s) · Estado ${estado} · ${APP.desoneracao?'com':'sem'} desoneração</div><div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>Código</th><th>Descrição</th><th class="num">Preço unit.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function inserirDaConsulta(cod){
+  const r=APP.analysisResult;
+  if(!r||!r.quantitativos){ alert('Gere um orçamento primeiro (etapa 4) para inserir serviços na planilha.'); return; }
+  const desc=(APP.descricoesDB&&(APP.descricoesDB[cod]||APP.descricoesDB[baseCodigo(cod)]))||('Código '+cod);
+  const qtd=parseFloat((prompt('Quantidade para:\n'+desc.slice(0,70),'1')||'1').replace(',','.'))||0;
+  if(!qtd) return;
+  const nextId=(r.quantitativos||[]).reduce((m,x)=>Math.max(m,x._id==null?-1:x._id),-1)+1;
+  r.quantitativos.push({sinapi_codigo:cod,_codigoManual:cod,descricao:desc,unidade:'un',quantidade:qtd,categoria:'99. SERVIÇOS ADICIONAIS',_id:nextId});
+  recalcBudget();
+  alert('✅ Serviço inserido na planilha (etapa 4 — Orçamento). Ajuste a unidade/quantidade se precisar.');
 }
 </script>
 </body>
