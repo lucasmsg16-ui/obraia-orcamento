@@ -364,7 +364,6 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 </aside>
 <header>
   <div style="display:flex;align-items:center;gap:14px">
-    <img src="logo-branco.png?v=2" alt="MAR ABERTO ENGENHARIA" style="height:48px;width:auto;display:block">
     <div class="subtitle">Sistema de Orçamento de Obras com Inteligência Artificial</div>
   </div>
   <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.06.20</span></div>
@@ -529,6 +528,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
 <!-- ─── SCREEN 3: EAP ─────────────────────────────────────── -->
 <div class="screen" id="screen-3">
+  <div class="need-project alert alert-error" id="np-3" style="display:none">📂 Insira um projeto na etapa <b>Upload</b> para que a EAP (Estrutura Analítica do Projeto) seja gerada. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button></div>
   <div class="info-grid" id="projectInfoGrid"></div>
 
   <div class="card">
@@ -548,6 +548,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
 <!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
 <div class="screen" id="screen-4">
+  <div class="need-project alert alert-error" id="np-4" style="display:none">📂 Insira um projeto na etapa <b>Upload</b> para gerar o orçamento SINAPI. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button></div>
   <!-- State selector -->
   <div class="state-bar" style="flex-wrap:wrap;gap:12px">
     <label>🗺️ Estado:</label>
@@ -631,6 +632,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
 <!-- ─── SCREEN 5: Cronograma ──────────────────────────────── -->
 <div class="screen" id="screen-5">
+  <div class="need-project alert alert-error" id="np-5" style="display:none">📂 Insira um projeto na etapa <b>Upload</b> para gerar o cronograma. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button></div>
   <div class="card">
     <div class="card-title"><span class="icon">📅</span> Cronograma Físico-Financeiro & Caminho Crítico</div>
     <div class="state-bar" style="flex-wrap:wrap;gap:12px">
@@ -846,6 +848,7 @@ function goTo(step) {
     t.className = "step-tab" + (n === step ? " active" : n < step ? " done" : "");
   });
   if (typeof _navActive === "function") _navActive(step);
+  if (typeof applyProjectGuards === "function") applyProjectGuards();
   window.scrollTo(0, 0);
 }
 
@@ -2776,6 +2779,15 @@ function showTool(name){
   window.scrollTo(0,0);
 }
 function toggleNav(){ document.body.classList.toggle('nav-collapsed'); }
+function applyProjectGuards(){
+  const has=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length);
+  [3,4,5].forEach(s=>{
+    const sc=document.getElementById('screen-'+s); if(!sc) return;
+    const np=document.getElementById('np-'+s); if(!np) return;
+    np.style.display = has ? 'none' : 'block';
+    Array.prototype.forEach.call(sc.children, ch=>{ if(ch!==np) ch.style.display = has ? '' : 'none'; });
+  });
+}
 function _fmtBR(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 /* 1) CURVA ABC */
