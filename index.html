@@ -359,6 +359,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="abc" onclick="showTool('abc')"><span class="ic">📊</span><span class="lb">Curva ABC</span></button>
     <button class="nav-item" data-view="hist" onclick="showTool('hist')"><span class="ic">👷</span><span class="lb">Histograma</span></button>
+    <button class="nav-item" data-view="insumos" onclick="showTool('insumos')"><span class="ic">📦</span><span class="lb">Insumos / Materiais</span></button>
     <button class="nav-item" data-view="sinapi" onclick="showTool('sinapi')"><span class="ic">🔍</span><span class="lb">Consultar SINAPI</span></button>
   </nav>
 </aside>
@@ -685,6 +686,14 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <input type="text" id="sinapiQuery" placeholder="Digite um código ou uma palavra…" oninput="sinapiConsultaInput()" autocomplete="off">
     </div>
     <div id="sinapiResults" style="margin-top:16px"><p class="muted">Digite um código ou uma palavra para buscar.</p></div>
+  </div>
+</div>
+
+<!-- ─── Painel: Insumos / Lista de Materiais ──────────────── -->
+<div class="screen" id="screen-insumos">
+  <div class="card">
+    <div class="card-title"><span class="icon">📦</span> Insumos / Lista de Materiais</div>
+    <div id="insumosContent"><div class="alert alert-error">Gere o orçamento primeiro (etapa 4) para levantar os insumos/materiais.</div></div>
   </div>
 </div>
 </main>
@@ -2782,6 +2791,7 @@ function showTool(name){
   _navActive(name);
   if(name==='abc') buildABC();
   if(name==='hist') buildHistograma();
+  if(name==='insumos') buildInsumos();
   if(name==='sinapi'){ loadDescricoes(); setTimeout(()=>{const i=document.getElementById('sinapiQuery'); if(i) i.focus();},60); }
   window.scrollTo(0,0);
 }
@@ -2936,6 +2946,72 @@ function inserirDaConsulta(cod){
   r.quantitativos.push({sinapi_codigo:cod,_codigoManual:cod,descricao:desc,unidade:un,quantidade:qtd,categoria:'99. SERVIÇOS ADICIONAIS',_id:nextId});
   recalcBudget();
   alert('✅ Serviço inserido na planilha (etapa 4 — Orçamento). Ajuste a unidade/quantidade se precisar.');
+}
+
+/* ===== 4) LEVANTAMENTO DE INSUMOS / LISTA DE MATERIAIS ===== */
+async function loadInsumosDB(){
+  if(APP.compItens!==undefined) return;
+  try{ const a=await fetch("data/composicoes_itens.json"); APP.compItens=a.ok?await a.json():null; }catch(e){ APP.compItens=null; }
+  try{ const b=await fetch("data/insumos_desc.json"); APP.insumosDesc=b.ok?await b.json():{}; }catch(e){ APP.insumosDesc={}; }
+}
+function _ehMaterial(un){
+  un=(un||'').toUpperCase();
+  if(un==='H'||un.indexOf('CH')===0||un==='MES'||un.indexOf('XMES')>=0||un.indexOf('XKM')>=0) return false;
+  return true;
+}
+function _expandInsumos(code, mult, seen, acc){
+  const items=APP.compItens[code]||APP.compItens[baseCodigo(code)];
+  if(!items) return;
+  if(seen.has(code)) return; seen.add(code);
+  for(const it of items){ const t=it[0], ic=it[1], coef=it[2];
+    if(t==='I'){ acc[ic]=(acc[ic]||0)+coef*mult; }
+    else { _expandInsumos(ic, coef*mult, seen, acc); }
+  }
+  seen.delete(code);
+}
+async function buildInsumos(){
+  const host=document.getElementById('insumosContent'); if(!host) return;
+  const r=APP.analysisResult;
+  if(!r||!r.quantitativos){ host.innerHTML='<div class="alert alert-error">Gere o orçamento primeiro (etapa 4 — Orçamento) para levantar os insumos/materiais.</div>'; return; }
+  host.innerHTML='<p class="muted">Carregando base de composições e calculando…</p>';
+  await loadInsumosDB();
+  if(!APP.compItens){ host.innerHTML='<div class="alert alert-error">Base de composições (analítico SINAPI) indisponível.</div>'; return; }
+  const geral={}, porEtapa={}; let semComp=0, comComp=0;
+  r.quantitativos.forEach(q=>{
+    const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+    const code=info.codigoFinal; const qtd=Number(q.quantidade)||0;
+    if(!code||code==='PRÓPRIO'||code==='—'||qtd<=0){ semComp++; return; }
+    const items=APP.compItens[code]||APP.compItens[baseCodigo(code)];
+    if(!items){ semComp++; return; }
+    comComp++;
+    const acc={}; _expandInsumos(code, qtd, new Set(), acc);
+    const cat=q.categoria||'99. OUTROS'; porEtapa[cat]=porEtapa[cat]||{};
+    for(const ic in acc){ geral[ic]=(geral[ic]||0)+acc[ic]; porEtapa[cat][ic]=(porEtapa[cat][ic]||0)+acc[ic]; }
+  });
+  const linhas=[];
+  for(const ic in geral){ const d=APP.insumosDesc[ic]||['(insumo '+ic+')','—']; linhas.push({ic, desc:d[0], un:d[1], qtd:geral[ic], material:_ehMaterial(d[1])}); }
+  const materiais=linhas.filter(l=>l.material).sort((a,b)=>b.qtd-a.qtd);
+  const mo=linhas.filter(l=>!l.material).sort((a,b)=>b.qtd-a.qtd);
+  APP._insumosMateriais=materiais; APP._insumosPorEtapa=porEtapa;
+  const fmtQ=v=>(Math.round(v*100)/100).toLocaleString('pt-BR',{maximumFractionDigits:2});
+  let rows=''; materiais.forEach((l,i)=>{ rows+=`<tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${l.ic}</td><td>${l.desc}</td><td style="text-align:center">${l.un}</td><td class="num">${fmtQ(l.qtd)}</td></tr>`; });
+  const aviso=semComp>0?`<p class="muted" style="font-size:12px">${semComp} serviço(s) sem composição analítica (itens "PRÓPRIO" ou fora do SINAPI) não entraram na lista.</p>`:'';
+  host.innerHTML=`<p class="muted">Lista de <b>materiais</b> da obra, calculada a partir das composições oficiais do SINAPI (analítico): cada serviço foi "explodido" em seus insumos e somado. ${comComp} serviço(s) processado(s). Mão de obra e equipamentos não entram aqui (o custo deles já está no orçamento).</p>
+  <div class="btn-group" style="margin:10px 0 16px"><button class="btn btn-success" onclick="exportInsumos()">⬇ Baixar lista de materiais (.xlsx)</button></div>
+  <div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>#</th><th>Código</th><th>Insumo / Material</th><th style="text-align:center">Un.</th><th class="num">Quantidade</th></tr></thead><tbody>${rows}</tbody></table></div>
+  ${mo.length?`<details style="margin-top:16px"><summary style="cursor:pointer;font-weight:600;color:var(--navy)">Ver mão de obra e equipamentos (horas) — ${mo.length} itens</summary><div style="overflow-x:auto;margin-top:10px"><table class="budget-table"><thead><tr><th>Código</th><th>Item</th><th style="text-align:center">Un.</th><th class="num">Qtd</th></tr></thead><tbody>${mo.map(l=>`<tr><td style="font-family:monospace;font-size:11px">${l.ic}</td><td>${l.desc}</td><td style="text-align:center">${l.un}</td><td class="num">${fmtQ(l.qtd)}</td></tr>`).join('')}</tbody></table></div></details>`:''}
+  ${aviso}`;
+}
+function exportInsumos(){
+  const mats=APP._insumosMateriais; if(!mats||!mats.length){ alert('Abra a aba Insumos e gere a lista primeiro.'); return; }
+  const aoa=[['MAR ABERTO ENGENHARIA'],['Lista de Materiais (Insumos) — '+(APP.projectName||'')+' | '+new Date().toLocaleDateString('pt-BR')],[],['ITEM','CÓDIGO INSUMO','DESCRIÇÃO DO MATERIAL','UN','QUANTIDADE']];
+  mats.forEach((l,i)=>aoa.push([i+1,l.ic,l.desc,l.un,+(Math.round(l.qtd*100)/100)]));
+  const wb=XLSX.utils.book_new(); const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:6},{wch:14},{wch:62},{wch:8},{wch:14}];
+  ws['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
+  if(typeof estilizarSheet==='function') estilizarSheet(ws,{titulo:0,subtitulo:1,headerRows:[3]});
+  XLSX.utils.book_append_sheet(wb,ws,'MATERIAIS');
+  XLSX.writeFile(wb,'Materiais_'+((APP.projectName||'obra').replace(/\s+/g,'_'))+'.xlsx');
 }
 </script>
 </body>
