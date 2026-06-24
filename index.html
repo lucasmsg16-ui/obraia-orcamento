@@ -960,7 +960,9 @@ REGRAS OBRIGATÓRIAS:
 7. Retorne EXCLUSIVAMENTE um JSON válido, sem texto antes ou depois.
 8. CRÍTICO: NUNCA coloque quebras de linha (\n) dentro de valores de string no JSON. Use ponto e vírgula (;) como separador se precisar listar itens em uma string.
 9. Para cada item dos quantitativos, inclua o campo "preco_unitario" com o preço unitário SINAPI (R$) estimado com base em tabelas SINAPI SP 2025. Esse campo é OBRIGATÓRIO.
-10. CÓDIGOS SINAPI: use SOMENTE códigos reais e vigentes da tabela SINAPI 05/2026 dos quais você tenha CERTEZA. NUNCA invente, deduza ou adapte um número de código. Se não tiver certeza do código exato, deixe "sinapi_codigo" vazio ("") e seja MUITO detalhado na "descricao" (serviço + material + dimensões + traço/espessura) — o sistema localiza o código oficial pela descrição. O campo "preco_unitario" é apenas referência de fallback.
+10. CÓDIGOS SINAPI: use SOMENTE códigos reais e vigentes da tabela SINAPI 05/2026 dos quais você tenha CERTEZA. NUNCA invente, deduza ou adapte um número de código. Se não tiver certeza do código exato, deixe "sinapi_codigo" vazio ("") — o sistema localiza o código oficial pela descrição. O campo "preco_unitario" é apenas referência de fallback.
+10.1 DESCRIÇÃO (CRÍTICO para casar o código certo): nomeie o serviço com a TERMINOLOGIA CANÔNICA do SINAPI (elemento + material + tipo). Informe dimensões/espessura/traço APENAS quando estiverem EXPLÍCITOS no projeto ou no memorial — NUNCA invente medidas, espessuras, normas ou acessórios. NÃO acrescente palavras genéricas de remate como "inclusive estrutura...", "e acabamentos", "com fixação", pois elas desviam a busca para o item errado (ex.: confundir o forro com a moldura/sanca). Descreva o ELEMENTO PRINCIPAL, não seus acessórios.
+10.2 FORRO: identifique o MATERIAL do painel — gesso (placas de gesso comum), drywall (gesso acartonado com perfis), PVC, madeira/pinus, ou fibra mineral — e o ambiente (residencial/comercial) somente se indicado. Ex.: "Forro em placas de gesso" (NÃO "forro de gesso com estrutura metálica e acabamentos"); "Forro em drywall"; "Forro de PVC". Moldura/sanca/roda-forro são serviços SEPARADOS, lance-os à parte só se aparecerem no projeto.
 
 ORIENTAÇÕES DE QUANTITATIVOS POR CATEGORIA (use SOMENTE como referência de unidade/estimativa quando o desenho não fornecer o dado; o desenho sempre prevalece):
 
@@ -1506,6 +1508,26 @@ function buscarProprio(descricao, minCob) {
 function normalizaTxt(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
 function tipoExecucao(d) { d = normalizaTxt(d); if (/mecaniz|mecanic/.test(d)) return "mec"; if (/\bmanual\b/.test(d)) return "man"; return ""; }
 function descMismatch(a, b) { const x = tipoExecucao(a), y = tipoExecucao(b); return !!(x && y && x !== y); }
+
+// Arremate/acessório (moldura, sanca, rodapé, roda-forro/teto, cimalha, guarnição) — itens de
+// remate frequentemente confundidos com o elemento principal (forro/piso/parede) na busca textual.
+function ehAcessorioArremate(d) {
+  d = normalizaTxt(d);
+  return /\b(moldura|sanca|cimalha|guarnic|rodap|roda.?forro|roda.?teto|roda.?meio)\b/.test(d) || /acabamentos para forro/.test(d);
+}
+// Família do FORRO pelo MATERIAL do painel — ignora "estrutura metálica de fixação" (acessório).
+// Evita casar forro de gesso com drywall/pvc/madeira/fibra mineral. "" = não é forro; "forro_outro" = forro sem material reconhecido (curinga).
+function familiaForro(d) {
+  d = normalizaTxt(d);
+  if (!/\bforro\b/.test(d)) return "";
+  if (ehAcessorioArremate(d)) return "";                 // arremate de forro não é o forro em si
+  if (/drywall|acartonad|cartonad/.test(d)) return "forro_drywall";
+  if (/\bgesso\b/.test(d))                  return "forro_gesso";
+  if (/\bpvc\b/.test(d))                    return "forro_pvc";
+  if (/madeira|pinus|lambri/.test(d))       return "forro_madeira";
+  if (/mineral|fibra|isopor|\beps\b/.test(d)) return "forro_mineral";
+  return "forro_outro";
+}
 // Cobertura: fração dos termos da descrição A presentes na descrição B (0..1)
 function coberturaDesc(a, b) {
   const ta = tokenizeSinapi(a), sb = new Set(tokenizeSinapi(b));
@@ -1910,14 +1932,29 @@ function buscarTopK(descricao, K, col) {
   const idx = buildDescIndex();
   if (col == null) col = APP.desoneracao ? 1 : 0;
   const qTipo = tipoExecucao(descricao);
+  const qFam  = familiaForro(descricao);                 // família do forro (gesso/drywall/pvc/...)
+  const qArr  = ehAcessorioArremate(descricao);          // a query pede um arremate (rodapé/moldura/...)?
+  const qComercial = /comerci|loja|galpao|industri|escritorio|corporativ/.test(normalizaTxt(descricao));
+  let qNeg = false; qset.forEach(t => { if (NEG_SINAPI.has(t)) qNeg = true; });
   let qW = 0; qset.forEach(t => { qW += (_idf[t] || 1); }); qW = qW || 1;
   const out = [];
   for (const e of idx) {
     if (APP.sinapiDB && !codigoExisteNoEstado(e.codigo, col)) continue;
     if (qTipo) { const cT = tipoExecucao(e.descricao); if (cT && cT !== qTipo) continue; }
+    // GUARDA arremate: não casar serviço principal com remate (moldura/sanca/rodapé/roda-forro), salvo se a query pedir
+    if (!qArr && ehAcessorioArremate(e.descricao)) continue;
+    // GUARDA família do forro: não casar forro de gesso com drywall/pvc/madeira/fibra mineral
+    if (qFam && qFam !== "forro_outro") { const cF = familiaForro(e.descricao); if (cF && cF !== "forro_outro" && cF !== qFam) continue; }
     let interW = 0; qset.forEach(t => { if (e.tokens.has(t)) interW += (_idf[t] || 1); });
     if (interW <= 0) continue;
-    const dice = 2 * interW / (qW + (e.w || 1));   // penaliza descrições longas/genéricas
+    let dice = 2 * interW / (qW + (e.w || 1));   // penaliza descrições longas/genéricas
+    // preferência por ambiente RESIDENCIAL quando a query não menciona ambiente comercial/industrial
+    if (/comerci/.test(normalizaTxt(e.descricao)) && !qComercial) dice *= 0.92;
+    // penaliza serviços de demolição/remoção/limpeza quando a query não os pede
+    let cNeg = false; e.tokens.forEach(t => { if (NEG_SINAPI.has(t)) cNeg = true; });
+    if (cNeg && !qNeg) dice *= 0.4;
+    // query é de forro → prioriza candidatos que sejam de fato "forro" (evita casar com luva/eletroduto de PVC etc.)
+    if (qFam && !/\bforro\b/.test(normalizaTxt(e.descricao))) dice *= 0.5;
     out.push({ codigo: e.codigo, desc: e.descricao, score: dice });
   }
   out.sort((a, b) => b.score - a.score);
@@ -1939,7 +1976,7 @@ async function refinarCodigos(parsed, apiKey) {
   });
   if (!blocos.length) return;
 
-  const sys = "Você é engenheiro orçamentista especialista em SINAPI. Para CADA serviço (#n), escolha o ÚNICO código da lista cujo TEXTO melhor corresponde ao serviço descrito. Atenção a: execução manual × mecanizada, profundidade/altura, categoria do solo, dimensões, e APLICAÇÃO de um serviço × PREPARO de material. Se NENHUM candidato corresponder de fato, responda null para aquele item. Responda SOMENTE um JSON {\"n\": \"codigo\" | null}.";
+  const sys = "Você é engenheiro orçamentista especialista em SINAPI. Para CADA serviço (#n), escolha o ÚNICO código da lista cujo TEXTO melhor corresponde ao serviço descrito. Atenção a: execução manual × mecanizada, profundidade/altura, categoria do solo, dimensões, e APLICAÇÃO de um serviço × PREPARO de material. NÃO confunda o ELEMENTO principal (ex.: forro em placas de gesso) com seus ACABAMENTOS/remates (moldura, sanca, roda-forro) — são serviços diferentes. Respeite o MATERIAL (gesso comum × drywall × PVC × madeira × fibra mineral não se misturam). Sem indicação de ambiente, prefira RESIDENCIAL a comercial. Se NENHUM candidato corresponder de fato, responda null para aquele item. Responda SOMENTE um JSON {\"n\": \"codigo\" | null}.";
   const user = "Selecione o código correto para cada serviço:\n\n" + blocos.join("\n\n");
 
   let mapa = null;
@@ -2465,7 +2502,7 @@ async function buildBudget() {
       tr.innerHTML = `
         <td>${itemNum}</td>
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
-        <td>${q.descricao}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${info.descricaoOficial ? ` <span class="ofic" title="SINAPI ${info.codigoFinal}: ${(info.descricaoOficial||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
+        <td>${(info.descricaoOficial || q.descricao)}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${(info.descricaoOficial && normalizaTxt(info.descricaoOficial) !== normalizaTxt(q.descricao||"")) ? ` <span class="ofic" title="Descrição lida pela IA: ${(q.descricao||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
         <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span></td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
@@ -2683,7 +2720,7 @@ function exportExcel() {
       const comBdi     = fmt2(subtotal * (1 + bdi));
       catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
 
-      rows.push([itemNum, codExcel, q.descricao,
+      rows.push([itemNum, codExcel, (info.descricaoOficial || q.descricao),
                  q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
     });
     rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
