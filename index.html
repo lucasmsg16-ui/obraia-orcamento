@@ -405,21 +405,20 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
     <div class="upload-zone" id="uploadZone">
       <div class="upload-icon">📄</div>
-      <h3>Selecione o PDF do projeto</h3>
-      <p>Plantas, cortes e fachadas · Máximo 50 MB</p>
+      <h3>Selecione o(s) PDF(s) do projeto</h3>
+      <p>Arquitetônico, hidráulico, elétrico, estrutural — pode escolher vários · Máx. 50 MB cada</p>
       <div style="margin-top:18px;">
-        <input type="file" id="fileInput" accept=".pdf,application/pdf"
+        <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple
           style="display:block; margin:0 auto; font-size:14px; cursor:pointer; padding:8px;">
       </div>
-      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste o arquivo para cá</p>
+      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste os arquivos para cá · pode adicionar em várias vezes</p>
     </div>
     <div id="uploadStatus" style="display:none; margin-top:10px; padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500;"></div>
 
     <div id="fileInfo" style="display:none; margin-top:12px;" class="alert alert-success">
-      <span>📄</span>
-      <div>
-        <strong id="fileName"></strong>
-        <div id="fileSize" style="font-size:11px; opacity:.8;"></div>
+      <div style="width:100%">
+        <strong id="fileCount"></strong>
+        <div id="fileList" style="font-size:12px; opacity:.9; margin-top:6px; line-height:1.7;"></div>
       </div>
     </div>
   </div>
@@ -472,6 +471,19 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
             <span><strong>Com desoneração</strong> — desoneração da folha de pagamento</span>
           </label>
         </div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:16px">
+      <label>Disciplina do Projeto</label>
+      <select id="disciplinaSelect" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;outline:none">
+        <option value="auto" selected>🔎 Detectar automaticamente (a IA identifica)</option>
+        <option value="arquitetonico">🏠 Arquitetônico — obra completa (todas as categorias)</option>
+        <option value="estrutural">🧱 Estrutural — fôrma/armação (aço, concreto, fôrma)</option>
+        <option value="eletrico">💡 Elétrico — instalações elétricas</option>
+        <option value="hidrossanitario">🚿 Hidrossanitário — água / esgoto</option>
+      </select>
+      <div class="muted" style="font-size:12px;margin-top:6px">
+        Para um projeto de <b>uma disciplina</b> (ex.: estrutural), o sistema levanta <b>somente</b> os serviços daquela disciplina — não monta a EAP completa da obra.
       </div>
     </div>
     <div class="alert alert-info" style="margin-top:12px;font-size:12px">
@@ -832,12 +844,15 @@ const APP = {
   currentStep: 1,
   pdfFile: null,
   pdfDoc: null,
+  pdfDocs: [],      // [{name, doc, size}] — múltiplos PDFs (arquitetônico/hidráulico/elétrico/estrutural)
+  pages: [],        // registro global de folhas: [{doc, pageNum, fileName, fileIdx}] — gid = índice+1
   selectedPages: new Set(),
-  pageImages: {},   // pageNum → base64 JPEG string
+  pageImages: {},   // gid → base64 JPEG string
   analysisResult: null,
   projectName: "",
   estado: "PE",
   desoneracao: false,  // false = sem, true = com
+  disciplina: "auto",  // auto | arquitetonico | estrutural | eletrico | hidrossanitario
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
@@ -1092,7 +1107,69 @@ FORMATO DE RESPOSTA (JSON puro):
       "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
     }
   ]
-}`;
+}
+
+CAMPO ADICIONAL OBRIGATÓRIO: inclua sempre "disciplina_detectada" no JSON raiz, com um destes valores conforme o que você efetivamente leu nas pranchas: "arquitetonico", "estrutural", "eletrico" ou "hidrossanitario". Quando for "estrutural", inclua também "subtipo_estrutural": "forma_armacao" (a prancha traz geometria de fôrma E detalhamento de armadura) ou "armacao" (apenas detalhamento de ferragem/aço).`;
+
+// ═══════════════════════════════════════════════════════════════
+// DISCIPLINAS — leitura assertiva por tipo de projeto
+// nums = categorias SINAPI permitidas (null = todas / obra completa)
+// ═══════════════════════════════════════════════════════════════
+const DISCIPLINAS = {
+  auto:            { label:"Detecção automática",            nums:null },
+  arquitetonico:   { label:"Arquitetônico (obra completa)",  nums:null },
+  estrutural:      { label:"Estrutural (fôrma/armação)",     nums:[3,4] },
+  eletrico:        { label:"Elétrico",                       nums:[13] },
+  hidrossanitario: { label:"Hidrossanitário (água/esgoto)",  nums:[12] }
+};
+
+// Instruções específicas anexadas ao system prompt conforme a disciplina escolhida
+const DISC_PROMPT = {
+  arquitetonico: "\n\n══════ DISCIPLINA: ARQUITETÔNICO (OBRA COMPLETA) ══════\nProjeto de arquitetura de obra completa: levante TODAS as categorias aplicáveis (preliminares, terra, fundação, estrutura, alvenaria, cobertura, revestimentos, pintura, esquadrias, pisos, instalações, etc.). disciplina_detectada=\"arquitetonico\".",
+
+  estrutural: "\n\n══════ DISCIPLINA: PROJETO ESTRUTURAL ══════\nEste é um PROJETO ESTRUTURAL (fôrma e/ou armação). Levante EXCLUSIVAMENTE serviços de ESTRUTURA. É PROIBIDO levantar alvenaria, revestimento, pintura, cobertura, esquadrias, pisos, instalações elétricas/hidráulicas ou qualquer serviço de outra disciplina — mesmo que apareçam citados em legendas ou notas.\n1) CLASSIFIQUE a prancha primeiro:\n   • FÔRMA + ARMAÇÃO (há geometria de fôrma de pilares/vigas/lajes/fundações E detalhamento de armadura/ferragem) → levante o CONJUNTO: AÇO CA-50/CA-60 (kg), CONCRETO estrutural (m³, separando fundação/pilar/viga/laje) e FÔRMA de madeira (m²). subtipo_estrutural=\"forma_armacao\".\n   • SOMENTE ARMAÇÃO/FERRAGEM (só detalhamento de aço, sem geometria de fôrma) → levante APENAS o AÇO (kg). subtipo_estrutural=\"armacao\".\n2) AÇO: o RESUMO DE AÇO / QUADRO DE FERRAGEM (bitola, comprimento, quantidade, peso) é a FONTE EXATA — some o peso total por bitola em kg. Sem quadro, estime 80~120 kg/m³ de concreto estrutural.\n3) CONCRETO: volume real (m³) por elemento, lido das seções de fôrma.\n4) FÔRMA: área de contato (m²) das faces de pilares/vigas e fundo/laterais de laje.\nUse SOMENTE as categorias \"3. FUNDAÇÕES\" e \"4. ESTRUTURA\". disciplina_detectada=\"estrutural\".",
+
+  eletrico: "\n\n══════ DISCIPLINA: PROJETO ELÉTRICO ══════\nEste é um PROJETO ELÉTRICO. Levante EXCLUSIVAMENTE instalações elétricas: eletrodutos (m), cabos/fios por bitola (m), quadro(s) de distribuição (un), disjuntores (un), tomadas (un), interruptores (un), pontos de luz/luminárias (un), aterramento e DPS. É PROIBIDO levantar serviços de outras disciplinas.\nConte CADA ponto (tomada, interruptor, luz) individualmente pela legenda/simbologia. Some a metragem de eletroduto e de cabo por bitola.\nUse SOMENTE a categoria \"13. INSTALAÇÕES ELÉTRICAS\". disciplina_detectada=\"eletrico\".",
+
+  hidrossanitario: "\n\n══════ DISCIPLINA: PROJETO HIDROSSANITÁRIO (ÁGUA/ESGOTO) ══════\nEste é um PROJETO HIDROSSANITÁRIO. Levante EXCLUSIVAMENTE água fria/quente, esgoto, ventilação e águas pluviais: tubulações por diâmetro/material (m), conexões e registros (un), caixas de inspeção/gordura/passagem (un), ralos, aparelhos sanitários e reservatórios (un). É PROIBIDO levantar serviços de outras disciplinas.\nSome a metragem de tubulação por diâmetro; conte conexões, peças e aparelhos individualmente pela legenda.\nUse SOMENTE a categoria \"12. INSTALAÇÕES HIDROSSANITÁRIAS\". disciplina_detectada=\"hidrossanitario\".",
+
+  auto: "\n\n══════ MODO: DETECÇÃO AUTOMÁTICA DE DISCIPLINA ══════\nANTES de levantar, identifique a disciplina predominante do material: \"arquitetonico\" (planta/cortes/fachadas de arquitetura → obra completa), \"estrutural\" (fôrma/armação), \"eletrico\" (instalações elétricas) ou \"hidrossanitario\" (água/esgoto). Informe em disciplina_detectada.\nSE for de UMA disciplina específica (estrutural, elétrico ou hidrossanitário — NÃO arquitetura completa), levante SOMENTE os serviços daquela disciplina: estrutural → aço/concreto/fôrma (cat. 3 e 4; se for só armação, apenas o aço em kg); elétrico → cat. 13; hidrossanitário → cat. 12. NÃO misture serviços de outras disciplinas.\nSÓ faça o levantamento completo de todas as categorias quando for um projeto ARQUITETÔNICO de obra completa."
+};
+
+// Linha de foco injetada no prompt do usuário conforme a disciplina
+const DISC_FOCUS = {
+  arquitetonico: "Foque em: alvenaria (paredes menos vãos), estrutura (pilares/vigas/lajes), cobertura (área do telhado), pisos, revestimentos, esquadrias (qtd e dimensões — use o quadro de esquadrias se houver).",
+  estrutural: "FOQUE EXCLUSIVAMENTE NA ESTRUTURA: leia o quadro/resumo de aço (bitola×comprimento×qtd = peso em kg), os volumes de concreto por elemento (m³) e a área de fôrma (m²). Se a prancha for só de armação, levante APENAS o aço. IGNORE qualquer serviço que não seja estrutural.",
+  eletrico: "FOQUE EXCLUSIVAMENTE NAS INSTALAÇÕES ELÉTRICAS: conte cada ponto pela legenda/simbologia e some as metragens de eletroduto e cabo por bitola. IGNORE serviços de outras disciplinas.",
+  hidrossanitario: "FOQUE EXCLUSIVAMENTE NO HIDROSSANITÁRIO: some as tubulações por diâmetro (água/esgoto/pluvial) e conte conexões, peças e aparelhos. IGNORE serviços de outras disciplinas.",
+  auto: "Primeiro identifique a disciplina. Se for de disciplina única (estrutural/elétrico/hidrossanitário), levante SOMENTE os serviços dela; se for arquitetura completa, foque em: alvenaria, estrutura, cobertura, pisos, revestimentos e esquadrias."
+};
+
+function buildSystemPrompt(disc) {
+  const d = DISC_PROMPT[disc] ? disc : "auto";
+  return ANTHROPIC_SYSTEM_PROMPT + DISC_PROMPT[d];
+}
+function focoDisciplina(disc) {
+  return DISC_FOCUS[disc] || DISC_FOCUS.auto;
+}
+function catNum(cat) {
+  const m = String(cat || "").match(/^\s*(\d+)/);
+  return m ? parseInt(m[1], 10) : 99;
+}
+// Filtro assertivo: descarta serviços fora das categorias da disciplina.
+// Em "auto", usa a disciplina detectada pela IA. Retorna {efetiva, removidos}.
+function filtrarPorDisciplina(result, disc) {
+  if (!result || !Array.isArray(result.quantitativos)) return { efetiva: disc, removidos: 0 };
+  let efetiva = disc;
+  if (disc === "auto") efetiva = String(result.disciplina_detectada || "arquitetonico").toLowerCase();
+  if (!DISCIPLINAS[efetiva]) efetiva = "arquitetonico";
+  result._disciplinaEfetiva = efetiva;
+  const conf = DISCIPLINAS[efetiva];
+  if (!conf || !conf.nums) return { efetiva, removidos: 0 };
+  const antes = result.quantitativos.length;
+  result.quantitativos = result.quantitativos.filter(q => conf.nums.includes(catNum(q.categoria)));
+  return { efetiva, removidos: antes - result.quantitativos.length };
+}
 
 // ═══════════════════════════════════════════════════════════════
 // PDF UPLOAD & RENDERING
@@ -1106,8 +1183,8 @@ const fileInput  = document.getElementById("fileInput");
 // Clique é tratado pelo input transparente que cobre toda a zona (position:absolute;opacity:0)
 uploadZone.addEventListener("dragover",  e => { e.preventDefault(); uploadZone.classList.add("drag"); });
 uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
-uploadZone.addEventListener("drop",      e => { e.preventDefault(); uploadZone.classList.remove("drag"); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener("change",     e => handleFile(e.target.files[0]));
+uploadZone.addEventListener("drop",      e => { e.preventDefault(); uploadZone.classList.remove("drag"); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener("change",     e => handleFiles(e.target.files));
 
 function setUploadStatus(msg, color) {
   const el = document.getElementById("uploadStatus");
@@ -1117,33 +1194,67 @@ function setUploadStatus(msg, color) {
   el.textContent = msg;
 }
 
-async function handleFile(file) {
-  if (!file) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
-  setUploadStatus("📄 Arquivo recebido: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)", "blue");
-
-  const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf" || file.type === "";
-  if (!isPdf) {
-    setUploadStatus("❌ Arquivo inválido: selecione um PDF. Tipo detectado: " + (file.type || "desconhecido"), "red");
+// Aceita VÁRIOS arquivos (cumulativo): cada PDF vira folhas no registro global APP.pages.
+async function handleFiles(fileList) {
+  const files = [...(fileList || [])].filter(Boolean);
+  if (!files.length) { setUploadStatus("⚠️ Nenhum arquivo recebido pelo sistema.", "red"); return; }
+  const falhas = [];
+  for (const file of files) {
+    const isPdf = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf" || file.type === "";
+    if (!isPdf) { falhas.push(file.name + " (não é PDF)"); continue; }
+    setUploadStatus("⏳ Carregando " + file.name + "…", "blue");
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const doc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const fileIdx = APP.pdfDocs.length;
+      APP.pdfDocs.push({ name: file.name, doc, size: file.size });
+      for (let p = 1; p <= doc.numPages; p++) APP.pages.push({ doc, pageNum: p, fileName: file.name, fileIdx });
+    } catch (err) {
+      console.error("Erro ao carregar PDF:", err);
+      falhas.push(file.name + " (" + (err.message || "erro") + ")");
+    }
+  }
+  // permite re-selecionar o mesmo arquivo depois
+  document.getElementById("fileInput").value = "";
+  if (!APP.pdfDocs.length) {
+    setUploadStatus("❌ Não foi possível abrir os arquivos. " + falhas.join("; "), "red");
+    document.getElementById("fileInfo").style.display = "none";
     return;
   }
-  APP.pdfFile = file;
+  // compat com referências antigas a um único doc
+  APP.pdfFile = { name: APP.pdfDocs[0].name };
+  APP.pdfDoc  = APP.pdfDocs[0].doc;
+  renderFileInfo();
+  setUploadStatus(`✅ ${APP.pdfDocs.length} arquivo(s) · ${APP.pages.length} página(s) detectada(s).` + (falhas.length ? ` ⚠️ Ignorado(s): ${falhas.join("; ")}` : ""), falhas.length ? "blue" : "green");
+  await renderThumbnails();
+}
 
-  document.getElementById("fileName").textContent = file.name;
-  document.getElementById("fileSize").textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
-  document.getElementById("fileInfo").style.display = "flex";
+function renderFileInfo() {
+  const info = document.getElementById("fileInfo");
+  if (!APP.pdfDocs.length) { info.style.display = "none"; return; }
+  info.style.display = "flex";
+  document.getElementById("fileCount").textContent = `${APP.pdfDocs.length} arquivo(s) · ${APP.pages.length} página(s)`;
+  document.getElementById("fileList").innerHTML = APP.pdfDocs.map((f, i) =>
+    `📄 ${f.name} <span style="opacity:.7">(${(f.size / 1024 / 1024).toFixed(2)} MB · ${f.doc.numPages} pág)</span> <span title="Remover este arquivo" style="cursor:pointer;color:#b91c1c;font-weight:700" onclick="removerArquivo(${i})">✕</span>`
+  ).join("<br>");
+}
 
-  setUploadStatus("⏳ Carregando PDF com PDF.js...", "blue");
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    APP.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    setUploadStatus("✅ PDF carregado com sucesso! " + APP.pdfDoc.numPages + " página(s) detectada(s).", "green");
-    renderThumbnails();
-  } catch (err) {
-    console.error("Erro ao carregar PDF:", err);
-    setUploadStatus("❌ Erro ao abrir PDF: " + (err.message || String(err)), "red");
+function removerArquivo(idx) {
+  APP.pdfDocs.splice(idx, 1);
+  APP.pages = [];
+  APP.pdfDocs.forEach((f, fi) => { for (let p = 1; p <= f.doc.numPages; p++) APP.pages.push({ doc: f.doc, pageNum: p, fileName: f.name, fileIdx: fi }); });
+  APP.pageImages = {}; APP.selectedPages.clear();
+  if (!APP.pdfDocs.length) {
     document.getElementById("fileInfo").style.display = "none";
-    APP.pdfFile = null;
+    document.getElementById("pageCard").style.display = "none";
+    document.getElementById("configCard").style.display = "none";
+    document.getElementById("pagesGrid").innerHTML = "";
+    document.getElementById("fileInput").value = "";
+    APP.pdfDoc = null; APP.pdfFile = null;
+    return;
   }
+  APP.pdfDoc = APP.pdfDocs[0].doc; APP.pdfFile = { name: APP.pdfDocs[0].name };
+  renderFileInfo(); renderThumbnails();
 }
 
 async function renderThumbnails() {
@@ -1156,28 +1267,31 @@ async function renderThumbnails() {
   APP.selectedPages.clear();
   updateSelectedCount();
 
-  for (let i = 1; i <= APP.pdfDoc.numPages; i++) {
+  const multi = APP.pdfDocs.length > 1;
+  for (let gid = 1; gid <= APP.pages.length; gid++) {
+    const ent = APP.pages[gid - 1];
     const thumb = document.createElement("div");
     thumb.className = "page-thumb";
-    thumb.dataset.page = i;
-    thumb.innerHTML = `<div class="check">✓</div><div class="page-num">Pág. ${i}</div>`;
+    thumb.dataset.page = gid;
+    const lbl = multi ? `${ent.fileName.replace(/\.pdf$/i, "").slice(0, 14)} · p${ent.pageNum}` : `Pág. ${ent.pageNum}`;
+    thumb.innerHTML = `<div class="check">✓</div><div class="page-num" title="${ent.fileName} — página ${ent.pageNum}">${lbl}</div>`;
 
     const canvas = document.createElement("canvas");
     thumb.insertBefore(canvas, thumb.firstChild);
     grid.appendChild(thumb);
 
     // Render thumbnail
-    const page = await APP.pdfDoc.getPage(i);
+    const page = await ent.doc.getPage(ent.pageNum);
     const viewport = page.getViewport({ scale: 0.4 });
     canvas.width  = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
 
-    thumb.addEventListener("click", () => togglePage(thumb, i));
+    thumb.addEventListener("click", () => togglePage(thumb, gid));
     // Auto-select all pages
-    togglePage(thumb, i, true);
+    togglePage(thumb, gid, true);
   }
-  document.getElementById("btnAnalyze").disabled = false;
+  document.getElementById("btnAnalyze").disabled = APP.pages.length === 0;
 }
 
 function togglePage(el, num, forceSelect = false) {
@@ -1217,10 +1331,11 @@ const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
 const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
 const IMG_MAX_WIDTH = 1400;   // largura máxima — boa resolução p/ ler cotas, mais leve/rápido (anti-timeout)
 
-async function pageToBase64(pageNum) {
-  if (APP.pageImages[pageNum]) return APP.pageImages[pageNum];
-
-  const page = await APP.pdfDoc.getPage(pageNum);
+async function pageToBase64(gid) {
+  if (APP.pageImages[gid]) return APP.pageImages[gid];
+  const ent = APP.pages[gid - 1];
+  if (!ent) return "";
+  const page = await ent.doc.getPage(ent.pageNum);
 
   // Calcula scale para que a largura não ultrapasse IMG_MAX_WIDTH
   const baseViewport = page.getViewport({ scale: 1 });
@@ -1234,7 +1349,7 @@ async function pageToBase64(pageNum) {
 
   // JPEG a 65% — legível para IA, payload reduzido
   const base64 = canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
-  APP.pageImages[pageNum] = base64;
+  APP.pageImages[gid] = base64;
   return base64;
 }
 
@@ -1260,6 +1375,7 @@ async function startAnalysis() {
   // Capture state and desoneração from Screen 1 selectors
   APP.estado = document.getElementById("estadoSelect1").value;
   APP.desoneracao = document.querySelector('input[name="desonerado"]:checked')?.value === "com";
+  APP.disciplina = (document.getElementById("disciplinaSelect")?.value || "auto").trim();
   // Sync to Screen 4 selectors
   document.getElementById("stateSelect").value = APP.estado;
   document.getElementById("desonerSelect").value = APP.desoneracao ? "com" : "sem";
@@ -1283,9 +1399,11 @@ async function startAnalysis() {
     let textoProjeto = "";
     for (let i = 0; i < sortedPages.length; i++) {
       const p = sortedPages[i];
-      setProgress(10 + (i / sortedPages.length) * 20, `Lendo texto da página ${p}…`);
+      const ent = APP.pages[p - 1];
+      const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
+      setProgress(10 + (i / sortedPages.length) * 20, `Lendo texto: ${lbl}…`);
       const t = await pageToText(p);
-      if (t) textoProjeto += `\n--- Folha ${p} ---\n${t}`;
+      if (t) textoProjeto += `\n--- ${lbl} ---\n${t}`;
     }
     const textoLimpo = textoProjeto.replace(/\s+/g, " ").trim();
     const usarTexto = textoLimpo.length >= 600;   // texto rico → modo econômico
@@ -1317,6 +1435,12 @@ async function startAnalysis() {
 
     if (!parsedResult || !parsedResult.quantitativos) {
       throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas.");
+    }
+    // Filtro assertivo por disciplina: descarta serviços fora do escopo escolhido
+    const filtro = filtrarPorDisciplina(parsedResult, APP.disciplina);
+    if (filtro.removidos > 0) console.log(`disciplina "${filtro.efetiva}": ${filtro.removidos} serviço(s) fora do escopo removido(s)`);
+    if (!parsedResult.quantitativos.length) {
+      throw new Error(`Nenhum serviço da disciplina "${DISCIPLINAS[filtro.efetiva]?.label || filtro.efetiva}" foi identificado nas folhas selecionadas. Verifique se as pranchas corretas estão marcadas ou troque a disciplina para "Detectar automaticamente".`);
     }
     // 2ª passada: refina os códigos SINAPI escolhendo entre candidatos reais
     setProgress(70, "Refinando códigos SINAPI…");
@@ -1383,19 +1507,19 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
       "TEXTO EXTRAÍDO DO PDF (use os QUADROS/TABELAS daqui como FONTE EXATA de quantidades — quadro de áreas, quadro de esquadrias; cada folha está marcada como 'Folha N'):\n" + textoFolhas });
   }
   aiContent.push({ type: "text", text:
-    `Analise o projeto arquitetônico (imagens${textoFolhas ? " + texto acima" : ""}) e faça o levantamento de quantitativos.\n\n` +
-    "PROJETO COM VÁRIAS FOLHAS: siga a METODOLOGIA DE LEITURA — a PLANTA BAIXA é a base (áreas/contagens), os CORTES servem só para ALTURAS, e você COMBINA planta × altura para o quantitativo real. Classifique cada folha (planta, corte, fachada, cobertura, elétrica, hidráulica, QUADRO, detalhe). " +
-    "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
+    `Analise o projeto (imagens${textoFolhas ? " + texto acima" : ""}) e faça o levantamento de quantitativos.\n\n` +
+    "PROJETO COM VÁRIAS FOLHAS: siga a METODOLOGIA DE LEITURA — a PLANTA BAIXA é a base (áreas/contagens), os CORTES servem só para ALTURAS, e você COMBINA planta × altura para o quantitativo real. Classifique cada folha (planta, corte, fachada, cobertura, elétrica, hidráulica, estrutural/fôrma/armação, QUADRO, detalhe). " +
+    "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias, resumo de aço). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
     "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
-    "Retorne o JSON conforme especificado. Seja preciso — os valores gerarão um orçamento real.\n\n" +
-    "Foque em: alvenaria (paredes menos vãos), estrutura (pilares/vigas/lajes), cobertura (área do telhado), pisos, revestimentos, esquadrias (qtd e dimensões — use o quadro de esquadrias se houver)." +
+    "Retorne o JSON conforme especificado (inclua disciplina_detectada). Seja preciso — os valores gerarão um orçamento real.\n\n" +
+    focoDisciplina(APP.disciplina) +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
   });
 
   const apiData = await callAnthropic({
     model: "claude-sonnet-4-6",
     max_tokens: 32000,
-    system: ANTHROPIC_SYSTEM_PROMPT,
+    system: buildSystemPrompt(APP.disciplina),
     messages: [{ role: "user", content: aiContent }]
   });
   const rawText = apiData.content[0].text;
@@ -1999,9 +2123,11 @@ async function refinarCodigos(parsed, apiKey) {
 }
 
 // Extrai a camada de texto de uma página do PDF (pdf.js) — base do modo econômico
-async function pageToText(pageNum) {
+async function pageToText(gid) {
   try {
-    const page = await APP.pdfDoc.getPage(pageNum);
+    const ent = APP.pages[gid - 1];
+    if (!ent) return "";
+    const page = await ent.doc.getPage(ent.pageNum);
     const tc = await page.getTextContent();
     return tc.items.map(it => it.str).join(" ");
   } catch (e) { return ""; }
@@ -2010,11 +2136,12 @@ async function pageToText(pageNum) {
 // Análise por TEXTO (modo econômico — sem imagens/visão)
 async function analisarTexto(texto, apiKey) {
   const userText =
-    "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, legendas e memorial descritivo). " +
-    "Faça o levantamento completo de quantitativos a partir destes dados. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2. " +
-    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\nTEXTO DO PROJETO:\n" + texto +
+    "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, resumo de aço, legendas e memorial descritivo). " +
+    "Faça o levantamento de quantitativos a partir destes dados, respeitando a disciplina. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2 (quando aplicável). Inclua disciplina_detectada. " +
+    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\n" + focoDisciplina(APP.disciplina) +
+    "\n\nTEXTO DO PROJETO:\n" + texto +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
-  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: ANTHROPIC_SYSTEM_PROMPT, messages: [{ role: "user", content: userText }] });
+  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: buildSystemPrompt(APP.disciplina), messages: [{ role: "user", content: userText }] });
   const rawText = data.content[0].text;
   return parseIAJson(rawText);
 }
@@ -2022,6 +2149,24 @@ async function analisarTexto(texto, apiKey) {
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
+
+  // Aviso de disciplina aplicada (leitura assertiva por tipo de projeto)
+  const eapAlert = document.getElementById("eapAlert");
+  if (eapAlert) {
+    const ef = r._disciplinaEfetiva || (APP.disciplina === "auto" ? "arquitetonico" : APP.disciplina);
+    const lbl = (DISCIPLINAS[ef] && DISCIPLINAS[ef].label) || ef;
+    const restrito = DISCIPLINAS[ef] && DISCIPLINAS[ef].nums;
+    let extra = "";
+    if (ef === "estrutural" && r.subtipo_estrutural) {
+      extra = r.subtipo_estrutural === "armacao"
+        ? " — prancha de armação: levantado apenas o aço (kg)"
+        : " — fôrma + armação: aço, concreto e fôrma";
+    }
+    const modo = APP.disciplina === "auto" ? " (detectada automaticamente)" : "";
+    eapAlert.innerHTML = restrito
+      ? `<span>🎯</span><span>Leitura assertiva — disciplina <b>${lbl}</b>${modo}${extra}. Apenas os serviços desta disciplina foram levantados. Revise os quantitativos antes de gerar o orçamento.</span>`
+      : `<span>✅</span><span>Levantamento <b>${lbl}</b>${modo} concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>`;
+  }
 
   // Project info cards
   const grid = document.getElementById("projectInfoGrid");
@@ -2112,7 +2257,7 @@ document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("configCard").style.display = "none";
