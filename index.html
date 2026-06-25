@@ -3141,6 +3141,16 @@ function _ehMaterial(un){
   if(un==='H'||un.indexOf('CH')===0||un==='MES'||un.indexOf('XMES')>=0||un.indexOf('XKM')>=0) return false;
   return true;
 }
+// Rede de segurança: limpa descrições de insumo corrompidas (lixo da tabela do relatório
+// SINAPI após " | ", separadores "---" e trechos repetidos em sequência).
+function _limparInsumoDesc(s){
+  s=String(s==null?'':s);
+  var i=s.indexOf(' | '); if(i>=0) s=s.slice(0,i);
+  s=s.replace(/\s*\|\s*$/,'').replace(/\s*-{3,}.*$/,'');
+  var prev=null,g=0;
+  while(s!==prev && g++<8){ prev=s; s=s.replace(/(.{6,600}?)(?:\s*\1)+/g,function(m,u){ return /[xX×]\s*$/.test(u)?m:u; }); }
+  return s.replace(/\s+/g,' ').trim();
+}
 function _expandInsumos(code, mult, seen, acc){
   const items=APP.compItens[code]||APP.compItens[baseCodigo(code)];
   if(!items) return;
@@ -3171,7 +3181,7 @@ async function buildInsumos(){
     for(const ic in acc){ geral[ic]=(geral[ic]||0)+acc[ic]; porEtapa[cat][ic]=(porEtapa[cat][ic]||0)+acc[ic]; }
   });
   const linhas=[];
-  for(const ic in geral){ const d=APP.insumosDesc[ic]||['(insumo '+ic+')','—']; linhas.push({ic, desc:d[0], un:d[1], qtd:geral[ic], material:_ehMaterial(d[1])}); }
+  for(const ic in geral){ const d=APP.insumosDesc[ic]||['(insumo '+ic+')','—']; linhas.push({ic, desc:_limparInsumoDesc(d[0]), un:d[1], qtd:geral[ic], material:_ehMaterial(d[1])}); }
   const materiais=linhas.filter(l=>l.material).sort((a,b)=>b.qtd-a.qtd);
   const mo=linhas.filter(l=>!l.material).sort((a,b)=>b.qtd-a.qtd);
   APP._insumosMateriais=materiais; APP._insumosPorEtapa=porEtapa;
