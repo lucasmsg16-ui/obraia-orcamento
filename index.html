@@ -2004,6 +2004,7 @@ function calcAlvenaria(id){
       <label style="font-size:12px;font-weight:700">Área final (m²)<br><input id="acFinal" type="number" step="any" value="${Number(q.quantidade) || 0}" style="${inp};border-color:var(--green)"></label>
     </div>
     <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="tkOpen(${id})">📐 Medir paredes na planta</button>
       <button class="btn btn-success" onclick="aplicarAlvenaria(${id})">Aplicar à planilha</button>
       <button class="btn btn-outline" onclick="document.getElementById('alvCalcPanel').remove()">Cancelar</button>
     </div>`;
@@ -3565,6 +3566,136 @@ function exportInsumos(){
   XLSX.utils.book_append_sheet(wb,ws,'MATERIAIS');
   XLSX.writeFile(wb,'Materiais_'+((APP.projectName||'obra').replace(/\s+/g,'_'))+'.xlsx');
 }
+</script>
+
+<!-- ═══ FERRAMENTA: MEDIR PAREDES NA PLANTA (takeoff com escala calibrada) ═══ -->
+<div id="takeoffModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65)">
+  <div style="position:absolute;inset:2.5%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:10px 14px;background:#002B40;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <strong style="margin-right:6px">📐 Medir paredes na planta</strong>
+      <select id="tkPage" onchange="tkRenderPage()" style="padding:5px 8px;border-radius:6px;border:none;max-width:220px"></select>
+      <button class="btn" id="tkBtnCalib" style="padding:6px 10px" onclick="tkSetMode('calibrar')">1) Definir escala</button>
+      <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar paredes</button>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar parede</button>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkUndo()">↩ Desfazer ponto</button>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar paredes</button>
+      <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:380px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida.</span>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClose()">✕ Fechar</button>
+    </div>
+    <div id="tkCanvasWrap" style="flex:1;overflow:auto;background:#333;display:flex;justify-content:center;align-items:flex-start">
+      <canvas id="tkCanvas" style="display:block;cursor:crosshair;max-width:100%"></canvas>
+    </div>
+    <div style="padding:10px 14px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
+      <div style="font-size:13px"><b>Escala:</b> <span id="tkScale">não definida</span></div>
+      <div style="font-size:13px"><b>Comprimento de paredes:</b> <span id="tkLen" style="font-weight:700">0,00 m</span></div>
+      <label style="font-size:12px">Pé-direito (m)<br><input id="tkPe" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <label style="font-size:12px">Vãos (m²)<br><input id="tkVaos" type="number" step="any" value="0" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <div style="font-size:13px"><b>Área de alvenaria:</b> <span id="tkArea" style="color:var(--green);font-weight:700;font-size:16px">0,00 m²</span></div>
+      <button class="btn btn-success" style="margin-left:auto" onclick="tkApply()">✓ Aplicar à alvenaria</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Ferramenta de medição de paredes na planta (escala calibrada + traçado) ──
+function tkState(){ if(!APP.takeoff) APP.takeoff={ gid:1, targetId:null, img:null, scale:null, mode:'idle', calib:[], runs:[], current:[] }; return APP.takeoff; }
+function tkOpen(id){
+  const t=tkState(); t.targetId=id; t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.mode='idle';
+  if(!APP.pages || !APP.pages.length){ alert("Nenhuma planta carregada nesta sessão. Faça o upload do projeto."); return; }
+  const sel=document.getElementById("tkPage");
+  sel.innerHTML=APP.pages.map((p,i)=>`<option value="${i+1}">${(p.fileName||"Folha").replace(/\.pdf$/i,"").slice(0,28)} · pág ${p.pageNum}</option>`).join("");
+  // pré-seleciona a 1ª página selecionada na análise, se houver
+  const sels=[...(APP.selectedPages||[])]; if(sels.length) sel.value=Math.min(...sels);
+  const item=(APP.analysisResult&&APP.analysisResult.quantitativos||[]).find(q=>q._id===id);
+  if(item && item._alvCalc && item._alvCalc.peDireito) document.getElementById("tkPe").value=item._alvCalc.peDireito;
+  document.getElementById("takeoffModal").style.display="block";
+  tkRenderPage();
+}
+function tkClose(){ document.getElementById("takeoffModal").style.display="none"; }
+async function tkRenderPage(){
+  const t=tkState(); const gid=+document.getElementById("tkPage").value||1; t.gid=gid;
+  const ent=APP.pages[gid-1]; if(!ent) return;
+  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.mode='idle'; tkSetMode('idle');
+  const page=await ent.doc.getPage(ent.pageNum);
+  const wrap=document.getElementById("tkCanvasWrap");
+  const targetW=Math.min(1600, Math.max(700,(wrap.clientWidth||1000)));
+  const base=page.getViewport({scale:1});
+  const sc=targetW/base.width;
+  const vp=page.getViewport({scale:sc});
+  const off=document.createElement("canvas"); off.width=Math.round(vp.width); off.height=Math.round(vp.height);
+  await page.render({canvasContext:off.getContext("2d"),viewport:vp}).promise;
+  t.img=off;
+  const cv=document.getElementById("tkCanvas"); cv.width=off.width; cv.height=off.height;
+  cv.onclick=tkClick;
+  tkRedraw(); tkUpdateReadout();
+}
+function tkSetMode(m){
+  const t=tkState(); t.mode=m;
+  const bc=document.getElementById("tkBtnCalib"), bw=document.getElementById("tkBtnWall"), st=document.getElementById("tkStatus");
+  if(bc) bc.style.outline=m==='calibrar'?'3px solid #FFD700':'';
+  if(bw) bw.style.outline=m==='parede'?'3px solid #FFD700':'';
+  if(st){ if(m==='calibrar'){ t.calib=[]; st.innerHTML="Escala: clique nos <b>2 extremos</b> de uma cota conhecida (ex.: uma medida de 5,00 m)."; }
+    else if(m==='parede'){ st.innerHTML="Paredes: clique seguindo o eixo de cada parede. <b>Finalizar parede</b> encerra um trecho e começa outro."; }
+    else st.innerHTML="Passo 1: <b>Definir escala</b> · Passo 2: <b>Traçar paredes</b>."; }
+  tkRedraw();
+}
+function tkClick(e){
+  const t=tkState(); const cv=document.getElementById("tkCanvas"); const rect=cv.getBoundingClientRect();
+  const x=(e.clientX-rect.left)*(cv.width/rect.width), y=(e.clientY-rect.top)*(cv.height/rect.height);
+  if(t.mode==='calibrar'){
+    t.calib.push({x,y});
+    if(t.calib.length>=2){
+      t.calib=t.calib.slice(0,2);
+      const px=Math.hypot(t.calib[0].x-t.calib[1].x, t.calib[0].y-t.calib[1].y);
+      const real=parseFloat(String(prompt("Distância REAL entre os 2 pontos, em metros (ex.: 5.00):","")||"").replace(",","."));
+      if(real>0 && px>0){ t.scale=real/px; tkSetMode('parede'); } else { t.calib=[]; t.scale=null; }
+    }
+  } else if(t.mode==='parede'){
+    if(!t.scale){ alert("Defina a escala primeiro (passo 1)."); return; }
+    t.current.push({x,y});
+  }
+  tkRedraw(); tkUpdateReadout();
+}
+function tkRedraw(){
+  const t=tkState(); const cv=document.getElementById("tkCanvas"); if(!cv) return; const ctx=cv.getContext("2d");
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(t.img) ctx.drawImage(t.img,0,0);
+  // escala (azul)
+  if(t.calib.length){ ctx.strokeStyle="#2563eb"; ctx.fillStyle="#2563eb"; ctx.lineWidth=3;
+    ctx.beginPath(); t.calib.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
+    t.calib.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,6.3);ctx.fill();}); }
+  // paredes (verde)
+  ctx.strokeStyle="#16a34a"; ctx.fillStyle="#16a34a"; ctx.lineWidth=4; ctx.lineJoin="round"; ctx.lineCap="round";
+  const drawRun=run=>{ if(!run||!run.length) return; ctx.beginPath(); run.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); run.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,6.3);ctx.fill();}); };
+  t.runs.forEach(drawRun); drawRun(t.current);
+}
+function tkFinishRun(){ const t=tkState(); if(t.current.length>=2) t.runs.push(t.current); t.current=[]; tkRedraw(); tkUpdateReadout(); }
+function tkUndo(){ const t=tkState(); if(t.current.length) t.current.pop(); else if(t.runs.length){ t.current=t.runs.pop(); t.current.pop(); } tkRedraw(); tkUpdateReadout(); }
+function tkClearWalls(){ const t=tkState(); t.runs=[]; t.current=[]; tkRedraw(); tkUpdateReadout(); }
+function tkLengthM(){ const t=tkState(); if(!t.scale) return 0; let px=0; const seg=run=>{ for(let i=1;i<run.length;i++) px+=Math.hypot(run[i].x-run[i-1].x, run[i].y-run[i-1].y); }; t.runs.forEach(seg); seg(t.current); return px*t.scale; }
+function tkUpdateReadout(){
+  const t=tkState(); const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById("tkScale").textContent = t.scale ? (nf(1/t.scale)+" px/m") : "não definida";
+  const L=tkLengthM(); document.getElementById("tkLen").textContent=nf(L)+" m";
+  const pe=parseFloat(String(document.getElementById("tkPe").value).replace(",","."))||0;
+  const v=parseFloat(String(document.getElementById("tkVaos").value).replace(",","."))||0;
+  const area=Math.max(0, L*pe - v);
+  document.getElementById("tkArea").textContent=nf(area)+" m²";
+  APP.takeoff._area=Math.round(area*100)/100; APP.takeoff._L=Math.round(L*100)/100; APP.takeoff._pe=pe; APP.takeoff._v=v;
+}
+function tkApply(){
+  const t=tkState(); const r=APP.analysisResult; if(!r) return;
+  if(!t.scale){ alert("Defina a escala antes (passo 1)."); return; }
+  const L=tkLengthM(); if(L<=0){ alert("Trace as paredes antes de aplicar."); return; }
+  let q=(r.quantitativos||[]).find(x=>x._id===t.targetId) || (r.quantitativos||[]).find(x=>_ehItemAlvenaria(x));
+  if(!q){ alert("Não encontrei o item de alvenaria na planilha."); return; }
+  q.quantidade=t._area; q._alvCalc={ Lparedes:t._L, peDireito:t._pe, vaos:t._v, platibanda:0, caixa:0, area:t._area, auto:false, medidoNaPlanta:true };
+  tkClose();
+  const p=document.getElementById("alvCalcPanel"); if(p) p.remove();
+  recalcBudget();
+  goTo(4);
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && document.getElementById("takeoffModal").style.display==="block") tkClose(); });
 </script>
 </body>
 </html>
