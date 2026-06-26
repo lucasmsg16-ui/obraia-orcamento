@@ -352,7 +352,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <nav class="sn-scroll">
     <div class="sn-sec">Projeto</div>
     <button class="nav-item active" data-view="1" onclick="goTo(1)"><span class="ic">📤</span><span class="lb">Upload</span></button>
-    <button class="nav-item" data-view="2" onclick="goTo(2)"><span class="ic">🤖</span><span class="lb">Análise IA</span></button>
+    <button class="nav-item" data-view="2" onclick="goTo(2)"><span class="ic">👷</span><span class="lb">Análise</span></button>
     <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">Levantamento</span></button>
     <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
@@ -373,7 +373,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
 <div class="steps-bar" id="stepsBar">
   <div class="step-tab active" data-step="1"><span class="num">1</span>Upload do Projeto</div>
-  <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
+  <div class="step-tab" data-step="2"><span class="num">2</span>Análise</div>
   <div class="step-tab" data-step="3"><span class="num">3</span>Levantamento (validação)</div>
   <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
   <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma</div>
@@ -505,7 +505,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
     <div class="btn-group">
       <button class="btn btn-primary" id="btnAnalyze" disabled>
-        🤖 Analisar com IA
+        👷 Executar levantamento
       </button>
       <button class="btn btn-outline" id="btnSelectAll">Selecionar Todas</button>
     </div>
@@ -515,24 +515,24 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <!-- ─── SCREEN 2: Processing ──────────────────────────────── -->
 <div class="screen" id="screen-2">
   <div class="card">
-    <div class="card-title"><span class="icon">🤖</span> Análise com Inteligência Artificial</div>
+    <div class="card-title"><span class="icon">👷</span> Executando os Levantamentos</div>
 
     <div class="alert alert-info" style="margin-bottom:20px">
       <span class="spinner"></span>
-      Estamos analisando as plantas e extraindo os quantitativos. Aguarde…
+      Estamos realizando o levantamento dos seus projetos — lendo as pranchas e extraindo os quantitativos. Aguarde…
     </div>
 
     <div class="progress-wrap">
-      <div class="progress-label">Processando o projeto…</div>
+      <div class="progress-label">Realizando o levantamento…</div>
       <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:5%"></div></div>
-      <div class="status-msg" id="statusMsg">Enviando imagens para análise…</div>
+      <div class="status-msg" id="statusMsg">Preparando o levantamento…</div>
     </div>
 
     <div id="processingSteps" style="margin-top:20px">
       <div class="alert alert-info" id="pstep1">⏳ Convertendo páginas PDF em imagens…</div>
-      <div class="alert" id="pstep2" style="display:none">⏳ Enviando para análise com IA…</div>
+      <div class="alert" id="pstep2" style="display:none">⏳ Realizando o levantamento dos projetos…</div>
       <div class="alert" id="pstep3" style="display:none">⏳ Extraindo quantitativos…</div>
-      <div class="alert" id="pstep4" style="display:none">⏳ Estruturando EAP…</div>
+      <div class="alert" id="pstep4" style="display:none">⏳ Estruturando o levantamento…</div>
     </div>
   </div>
 </div>
@@ -551,8 +551,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="eap-tree" id="eapTree"></div>
 
     <div class="btn-group">
-      <button class="btn btn-primary" id="btnValidar">✓ Validar levantamento</button>
-      <button class="btn btn-outline" id="btnGoToBudget">📊 Gerar Orçamento SINAPI →</button>
+      <button class="btn btn-primary" id="btnGoToBudget">📊 Revisar e gerar Orçamento →</button>
       <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
     </div>
   </div>
@@ -639,11 +638,16 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       </table>
     </div>
 
+    <div class="alert alert-info" id="orcValidaHint" style="margin-top:14px;font-size:13px">
+      <span>📝</span>
+      <span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, a Curva ABC, o Histograma e os Insumos.</span>
+    </div>
     <div class="btn-group">
+      <button class="btn btn-primary" id="btnValidarOrc">✓ Validar orçamento</button>
       <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
       <button class="btn btn-outline" id="btnAddServ">➕ Incluir serviço</button>
-      <button class="btn btn-primary" id="btnGoCrono">📅 Gerar Cronograma →</button>
-      <button class="btn btn-outline" id="btnGoEap">↩ Voltar para EAP</button>
+      <button class="btn btn-outline" id="btnGoCrono">📅 Gerar Cronograma →</button>
+      <button class="btn btn-outline" id="btnGoEap">↩ Voltar ao Levantamento</button>
     </div>
   </div>
 </div>
@@ -861,7 +865,7 @@ const APP = {
   pageDisc: {},        // gid -> disciplina detectada/confirmada (modo multi-disciplina)
   pageTextCache: {},   // gid -> texto da camada (cache p/ classificação e análise)
   filtroDisc: "todas", // filtro ativo nas ferramentas: "todas" (geral) ou uma disciplina
-  levantamentoValidado: false, // libera as ferramentas (Orçamento, Cronograma, etc.) após o usuário validar
+  orcamentoValidado: false, // validação final do orçamento (após ajustes) → libera Cronograma, ABC, Histograma, Insumos
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
@@ -883,8 +887,8 @@ function goTo(step) {
   if (typeof _navActive === "function") _navActive(step);
   if (typeof applyProjectGuards === "function") applyProjectGuards();
   // Orçamento/Cronograma são ferramentas: ao abrir (já validado), constроem com os dados atuais
-  if (step === 4 && APP.levantamentoValidado) { try { buildBudget(); } catch(e){} }
-  if (step === 5 && APP.levantamentoValidado) { try { buildCronograma(); } catch(e){} }
+  if (step === 4 && APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length) { try { buildBudget(); } catch(e){} }
+  if (step === 5 && APP.orcamentoValidado) { try { buildCronograma(); } catch(e){} }
   window.scrollTo(0, 0);
 }
 
@@ -1507,7 +1511,7 @@ async function startAnalysis() {
   // Estado é definido aqui (necessário p/ refino de preços). Desoneração é escolhida na etapa de Orçamento.
   APP.estado = document.getElementById("estadoSelect1").value;
   APP.disciplina = (document.getElementById("disciplinaSelect")?.value || "auto").trim();
-  APP.levantamentoValidado = false;   // nova análise exige nova validação
+  APP.orcamentoValidado = false;   // nova análise exige nova validação do orçamento
   // Sync to Screen 4 selectors
   document.getElementById("stateSelect").value = APP.estado;
   document.getElementById("desonerSelect").value = APP.desoneracao ? "com" : "sem";
@@ -1545,7 +1549,7 @@ async function startAnalysis() {
       const g = grupos[gi];
       const lbl = (DISCIPLINAS[g.disc] || {}).label || g.disc;
       setStep("pstep2", false, `Lendo ${lbl} — ${g.pages.length} folha(s) (${gi + 1}/${grupos.length})…`);
-      setProgress(15 + (gi / grupos.length) * 55, `Analisando ${lbl}…`);
+      setProgress(15 + (gi / grupos.length) * 55, `Levantando ${lbl}…`);
       const res = await analisarGrupo(g.pages, g.disc, apiKey);
       if (res && res.quantitativos && res.quantitativos.length) { res._grupoDisc = g.disc; parts.push(res); }
       else console.warn(`disciplina ${g.disc}: nenhum serviço identificado`);
@@ -1572,7 +1576,7 @@ async function startAnalysis() {
     }
 
     // 2ª passada: refina os códigos SINAPI de cada disciplina
-    setStep("pstep2", true, `Análise concluída — ${grupos.length} disciplina(s)`);
+    setStep("pstep2", true, `Levantamento concluído — ${grupos.length} disciplina(s)`);
     setProgress(72, "Refinando códigos SINAPI…");
     for (const res of parts) { try { await refinarCodigos(res, apiKey); } catch (e) { console.warn("refino:", e.message); } }
 
@@ -2170,7 +2174,7 @@ function curvaS_SVG(d) {
     <text x="${W / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#002b40">Curva S — Avanço Físico-Financeiro Previsto (%)</text></svg>`;
 }
 
-document.getElementById("btnGoCrono").addEventListener("click", () => { goTo(5); buildCronograma(); });
+document.getElementById("btnGoCrono").addEventListener("click", () => { if(!validarOrcamento()) return; goTo(5); });
 document.getElementById("btnGoBudget").addEventListener("click", () => goTo(4));
 document.getElementById("btnDownload2").addEventListener("click", exportExcel);
 document.getElementById("btnCronoPDF").addEventListener("click", exportarCronogramaPDF);
@@ -2279,13 +2283,6 @@ async function analisarTexto(texto, apiKey, disc) {
 function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
-
-  // Estado do botão "Validar levantamento" conforme a validação atual
-  const bv = document.getElementById("btnValidar");
-  if (bv) {
-    if (APP.levantamentoValidado) { bv.textContent = "✓ Levantamento validado"; bv.classList.add("btn-success"); bv.classList.remove("btn-primary"); bv.disabled = true; }
-    else { bv.textContent = "✓ Validar levantamento"; bv.classList.add("btn-primary"); bv.classList.remove("btn-success"); bv.disabled = false; }
-  }
 
   // Aviso de disciplina(s) aplicada(s)
   const eapAlert = document.getElementById("eapAlert");
@@ -2411,30 +2408,39 @@ function renderEapCategorias(container, quantitativos) {
   });
 }
 
-// Valida o levantamento e libera as ferramentas (Orçamento, Cronograma, ABC, Histograma, Insumos)
-function validarLevantamento(){
+// Valida o ORÇAMENTO (após o usuário ajustar quantidades/itens) e libera Cronograma, ABC, Histograma e Insumos
+function validarOrcamento(){
   if(!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length)){
-    alert("Faça a análise de um projeto antes de validar o levantamento."); return false;
+    alert("Gere o orçamento antes de validar."); return false;
   }
-  APP.levantamentoValidado = true;
-  const b=document.getElementById("btnValidar");
-  if(b){ b.textContent="✓ Levantamento validado"; b.classList.remove("btn-primary"); b.classList.add("btn-success"); b.disabled=true; }
-  const al=document.getElementById("eapAlert");
-  if(al){ al.classList.remove("alert-error"); al.innerHTML = '<span>✅</span><span><b>Levantamento validado.</b> As ferramentas (Orçamento, Cronograma, Curva ABC, Histograma, Insumos) estão liberadas no menu lateral.</span>'; }
+  APP.orcamentoValidado = true;
+  _refreshBtnValidarOrc();
+  const h=document.getElementById("orcValidaHint");
+  if(h){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Curva ABC, Histograma e Insumos liberados no menu lateral.</span>'; }
   applyProjectGuards();
   return true;
 }
-document.getElementById("btnValidar").addEventListener("click", validarLevantamento);
+function _refreshBtnValidarOrc(){
+  const b=document.getElementById("btnValidarOrc");
+  const h=document.getElementById("orcValidaHint");
+  if(b){
+    if(APP.orcamentoValidado){ b.textContent="✓ Orçamento validado"; b.classList.remove("btn-primary"); b.classList.add("btn-success"); b.disabled=true; }
+    else { b.textContent="✓ Validar orçamento"; b.classList.add("btn-primary"); b.classList.remove("btn-success"); b.disabled=false; }
+  }
+  if(h){
+    if(APP.orcamentoValidado){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Curva ABC, Histograma e Insumos liberados no menu lateral.</span>'; }
+    else { h.classList.add("alert-info"); h.classList.remove("alert-success"); h.innerHTML='<span>📝</span><span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, a Curva ABC, o Histograma e os Insumos.</span>'; }
+  }
+}
+document.getElementById("btnValidarOrc").addEventListener("click", validarOrcamento);
 
-document.getElementById("btnGoToBudget").addEventListener("click", () => {
-  if(!validarLevantamento()) return;   // gerar orçamento valida o levantamento
-  goTo(4);                             // goTo já reconstrói o orçamento quando validado
-});
+// Da EAP/Levantamento, ir ao Orçamento (sem exigir validação — é lá que o usuário ajusta e valida)
+document.getElementById("btnGoToBudget").addEventListener("click", () => { goTo(4); });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", levantamentoValidado:false, filtroDisc:"todas" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", orcamentoValidado:false, filtroDisc:"todas" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("configCard").style.display = "none";
@@ -2769,8 +2775,9 @@ async function buildBudget() {
   const r       = APP.analysisResult;
   if (!r) return;
 
-  // Atualiza o seletor de disciplina do orçamento (Todas/geral + presentes)
+  // Atualiza o seletor de disciplina do orçamento (Todas/geral + presentes) e o botão de validação
   popularFiltroDisc();
+  if (typeof _refreshBtnValidarOrc === "function") _refreshBtnValidarOrc();
   const ativos = quantitativosAtivos();
 
   // Group by category (apenas a disciplina ativa; "todas" = orçamento geral)
@@ -3166,12 +3173,12 @@ function showTool(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=document.getElementById('screen-'+name); if(el) el.classList.add('active');
   _navActive(name);
-  // Ferramentas derivadas do orçamento exigem levantamento validado
+  // Ferramentas derivadas do orçamento exigem ORÇAMENTO validado
   if(['abc','hist','insumos'].includes(name)){
-    const val=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length && APP.levantamentoValidado);
+    const val=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length && APP.orcamentoValidado);
     if(!val){
       const host=document.getElementById(name+'Content');
-      if(host) host.innerHTML='<div class="alert alert-error">🔒 Valide o levantamento primeiro — vá em <b>Levantamento</b> e clique em <b>✓ Validar levantamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(3)">↩ Ir para Levantamento</button></div>';
+      if(host) host.innerHTML='<div class="alert alert-error">🔒 Valide o orçamento primeiro — vá em <b>Orçamento</b>, ajuste os itens e clique em <b>✓ Validar orçamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(4)">↩ Ir para Orçamento</button></div>';
       window.scrollTo(0,0); return;
     }
   }
@@ -3183,7 +3190,7 @@ function showTool(name){
 }
 function toggleNav(){ document.body.classList.toggle('nav-collapsed'); }
 const MSG_SEM_PROJ='📂 Insira um projeto na etapa <b>Upload</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button>';
-const MSG_VALIDAR='🔒 Valide o levantamento primeiro: vá em <b>Levantamento</b>, revise os quantitativos e clique em <b>✓ Validar levantamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(3)">↩ Ir para Levantamento</button>';
+const MSG_VALIDAR='🔒 Valide o orçamento primeiro: vá em <b>Orçamento</b>, revise os códigos/quantidades e clique em <b>✓ Validar orçamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(4)">↩ Ir para Orçamento</button>';
 function _guardScreen(s, ok, msg){
   const sc=document.getElementById('screen-'+s); if(!sc) return;
   const np=document.getElementById('np-'+s); if(!np) return;
@@ -3193,13 +3200,11 @@ function _guardScreen(s, ok, msg){
 }
 function applyProjectGuards(){
   const has=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length);
-  const val=has && APP.levantamentoValidado;
-  // Levantamento (3): precisa só de projeto
+  // Levantamento (3) e Orçamento (4): precisam só de projeto analisado (é no Orçamento que se ajusta e valida)
   _guardScreen(3, has, MSG_SEM_PROJ);
-  // Orçamento (4) e Cronograma (5): precisam de levantamento VALIDADO
-  const msg45 = has ? MSG_VALIDAR : MSG_SEM_PROJ;
-  _guardScreen(4, val, msg45);
-  _guardScreen(5, val, msg45);
+  _guardScreen(4, has, MSG_SEM_PROJ);
+  // Cronograma (5): exige orçamento VALIDADO
+  _guardScreen(5, has && APP.orcamentoValidado, has ? MSG_VALIDAR : MSG_SEM_PROJ);
 }
 function _fmtBR(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
