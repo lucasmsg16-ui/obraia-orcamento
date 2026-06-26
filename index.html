@@ -350,13 +350,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <button class="sn-toggle" onclick="toggleNav()" title="Recolher / expandir menu">☰</button>
   </div>
   <nav class="sn-scroll">
-    <div class="sn-sec">Etapas</div>
+    <div class="sn-sec">Projeto</div>
     <button class="nav-item active" data-view="1" onclick="goTo(1)"><span class="ic">📤</span><span class="lb">Upload</span></button>
     <button class="nav-item" data-view="2" onclick="goTo(2)"><span class="ic">🤖</span><span class="lb">Análise IA</span></button>
-    <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">EAP</span></button>
+    <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">Levantamento</span></button>
+    <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
     <button class="nav-item" data-view="5" onclick="goTo(5)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
-    <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="abc" onclick="showTool('abc')"><span class="ic">📊</span><span class="lb">Curva ABC</span></button>
     <button class="nav-item" data-view="hist" onclick="showTool('hist')"><span class="ic">👷</span><span class="lb">Histograma</span></button>
     <button class="nav-item" data-view="insumos" onclick="showTool('insumos')"><span class="ic">📦</span><span class="lb">Insumos / Materiais</span></button>
@@ -374,7 +374,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <div class="steps-bar" id="stepsBar">
   <div class="step-tab active" data-step="1"><span class="num">1</span>Upload do Projeto</div>
   <div class="step-tab" data-step="2"><span class="num">2</span>Análise com IA</div>
-  <div class="step-tab" data-step="3"><span class="num">3</span>EAP — Quantitativos</div>
+  <div class="step-tab" data-step="3"><span class="num">3</span>Levantamento (validação)</div>
   <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
   <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma</div>
 </div>
@@ -460,17 +460,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
         </select>
       </div>
       <div class="field">
-        <label>Regime de Desoneração</label>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;text-transform:none;font-weight:400;letter-spacing:0">
-            <input type="radio" name="desonerado" id="desSem" value="sem" checked style="width:16px;height:16px;accent-color:var(--blue)">
-            <span><strong>Sem desoneração</strong> — encargos horistas padrão</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;text-transform:none;font-weight:400;letter-spacing:0">
-            <input type="radio" name="desonerado" id="desCom" value="com" style="width:16px;height:16px;accent-color:var(--blue)">
-            <span><strong>Com desoneração</strong> — desoneração da folha de pagamento</span>
-          </label>
-        </div>
+        <label>Desoneração</label>
+        <div class="muted" style="font-size:13px;margin-top:8px">Escolhida na etapa de <b>Orçamento</b> (com / sem), junto com o estado e o BDI — assim dá para comparar os dois regimes sem reprocessar o projeto.</div>
       </div>
     </div>
     <div class="field" style="margin-top:16px">
@@ -607,6 +598,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <option value="sem">Sem desoneração</option>
       <option value="com">Com desoneração</option>
     </select>
+
+    <span id="discFilterWrap" style="display:none">
+      <label>📁 Disciplina:</label>
+      <select id="discFilterSel" onchange="setFiltroDisc(this.value)">
+        <option value="todas">Todas as disciplinas (geral)</option>
+      </select>
+    </span>
 
     <div class="bdi-field">
       <label style="white-space:nowrap">BDI (%):</label>
@@ -862,6 +860,7 @@ const APP = {
   disciplina: "auto",  // auto (detecta por folha/multi) | arquitetonico | estrutural | eletrico | hidrossanitario
   pageDisc: {},        // gid -> disciplina detectada/confirmada (modo multi-disciplina)
   pageTextCache: {},   // gid -> texto da camada (cache p/ classificação e análise)
+  filtroDisc: "todas", // filtro ativo nas ferramentas: "todas" (geral) ou uma disciplina
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
@@ -1228,6 +1227,20 @@ function consolidarDisciplinas(parts){
   });
   return out;
 }
+// Quantitativos sob o filtro de disciplina ativo (ferramentas). "todas" = orçamento geral.
+function quantitativosAtivos(){
+  const r=APP.analysisResult; if(!r||!r.quantitativos) return [];
+  const f=APP.filtroDisc||"todas";
+  if(f==="todas") return r.quantitativos;
+  return r.quantitativos.filter(q=>(q._disciplina||"arquitetonico")===f);
+}
+// Disciplinas presentes no levantamento (para montar o filtro)
+function disciplinasPresentes(){
+  const r=APP.analysisResult; if(!r||!r.quantitativos) return [];
+  const ORDEM=["arquitetonico","estrutural","eletrico","hidrossanitario"];
+  return [...new Set(r.quantitativos.map(q=>q._disciplina||"arquitetonico"))]
+    .sort((a,b)=>{const ia=ORDEM.indexOf(a),ib=ORDEM.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
+}
 // Painel de revisão: lista cada folha com sua disciplina detectada (editável). Só no modo "Detectar por folha".
 async function montarRevisaoDisc(){
   const wrap=document.getElementById("discReviewWrap");
@@ -1487,9 +1500,8 @@ async function analisarGrupo(grpPages, disc, apiKey) {
 
 async function startAnalysis() {
   APP.projectName = document.getElementById("projectName").value.trim() || APP.pdfFile?.name || "Projeto";
-  // Capture state and desoneração from Screen 1 selectors
+  // Estado é definido aqui (necessário p/ refino de preços). Desoneração é escolhida na etapa de Orçamento.
   APP.estado = document.getElementById("estadoSelect1").value;
-  APP.desoneracao = document.querySelector('input[name="desonerado"]:checked')?.value === "com";
   APP.disciplina = (document.getElementById("disciplinaSelect")?.value || "auto").trim();
   // Sync to Screen 4 selectors
   document.getElementById("stateSelect").value = APP.estado;
@@ -1897,7 +1909,7 @@ function computeCronograma(prazoMeses) {
 
   // custo (c/ BDI) por categoria
   const custoCat = {};
-  (r.quantitativos || []).forEach(q => {
+  quantitativosAtivos().forEach(q => {
     const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
     const tot = info.preco * (Number(q.quantidade) || 0) * (1 + bdi);
     const c = numCat(q.categoria || "99");
@@ -2709,15 +2721,34 @@ function syncStateFromScreen4() {
 
 function recalcBudget() { buildBudget(); }  // calls async buildBudget, promise not awaited (fire-and-forget)
 
+// Filtro de disciplina do orçamento: "todas" (geral) + cada disciplina presente
+function popularFiltroDisc() {
+  const wrap = document.getElementById("discFilterWrap");
+  const sel  = document.getElementById("discFilterSel");
+  if (!wrap || !sel) return;
+  const ds = disciplinasPresentes();
+  if (ds.length <= 1) { wrap.style.display = "none"; APP.filtroDisc = "todas"; return; }
+  wrap.style.display = "";
+  if (!["todas", ...ds].includes(APP.filtroDisc)) APP.filtroDisc = "todas";
+  sel.innerHTML = `<option value="todas">Todas as disciplinas (geral)</option>` +
+    ds.map(d => `<option value="${d}">${(DISCIPLINAS[d] || {}).label || d}</option>`).join("");
+  sel.value = APP.filtroDisc;
+}
+function setFiltroDisc(v) { APP.filtroDisc = v; buildBudget(); }
+
 async function buildBudget() {
   const estado  = APP.estado || document.getElementById("stateSelect").value;
   const bdi     = parseFloat(document.getElementById("bdiInput").value) / 100;
   const r       = APP.analysisResult;
   if (!r) return;
 
-  // Group by category
+  // Atualiza o seletor de disciplina do orçamento (Todas/geral + presentes)
+  popularFiltroDisc();
+  const ativos = quantitativosAtivos();
+
+  // Group by category (apenas a disciplina ativa; "todas" = orçamento geral)
   const byCat = {};
-  (r.quantitativos || []).forEach(q => {
+  ativos.forEach(q => {
     const c = q.categoria || "99. OUTROS";
     if (!byCat[c]) byCat[c] = [];
     byCat[c].push(q);
@@ -2727,7 +2758,7 @@ async function buildBudget() {
   (r.quantitativos || []).forEach((q, i) => { if (q._id == null) q._id = i; });
   // pré-passada: conta uso de cada código final p/ sinalizar repetidos (serviços diferentes, mesmo código)
   const _usoCod = {};
-  (r.quantitativos || []).forEach(q => {
+  ativos.forEach(q => {
     const inf = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
     const cf = inf.codigoFinal;
     if (cf && cf !== "PRÓPRIO" && cf !== "—") _usoCod[cf] = (_usoCod[cf] || 0) + 1;
@@ -3132,7 +3163,7 @@ function _coletarItensOrcamento(){
   const r=APP.analysisResult; if(!r||!r.quantitativos) return null;
   const bdi=(parseFloat(document.getElementById('bdiInput').value)/100)||0;
   const itens=[];
-  r.quantitativos.forEach(q=>{
+  quantitativosAtivos().forEach(q=>{
     const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
     const qtd=Number(q.quantidade)||0;
     const total=info.preco*qtd*(1+bdi);
@@ -3307,7 +3338,7 @@ async function buildInsumos(){
   await loadInsumosDB();
   if(!APP.compItens){ host.innerHTML='<div class="alert alert-error">Base de composições (analítico SINAPI) indisponível.</div>'; return; }
   const geral={}, porEtapa={}; let semComp=0, comComp=0;
-  r.quantitativos.forEach(q=>{
+  quantitativosAtivos().forEach(q=>{
     const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
     const code=info.codigoFinal; const qtd=Number(q.quantidade)||0;
     if(!code||code==='PRÓPRIO'||code==='—'||qtd<=0){ semComp++; return; }
