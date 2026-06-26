@@ -646,7 +646,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <button class="btn btn-primary" id="btnValidarOrc">✓ Validar orçamento</button>
       <button class="btn btn-success" id="btnDownload">⬇ Baixar Excel (.xlsx)</button>
       <button class="btn btn-outline" id="btnAddServ">➕ Incluir serviço</button>
-      <button class="btn btn-outline" id="btnGoCrono">📅 Gerar Cronograma →</button>
+      <button class="btn btn-outline" id="btnGoCrono" disabled title="Valide o orçamento para liberar o cronograma">📅 Gerar Cronograma →</button>
       <button class="btn btn-outline" id="btnGoEap">↩ Voltar ao Levantamento</button>
     </div>
   </div>
@@ -975,7 +975,7 @@ PRIORIDADE ABSOLUTA: o levantamento deve refletir o que está REALMENTE nos dese
 METODOLOGIA DE LEITURA (projetos com várias folhas — siga NESTA ordem, é OBRIGATÓRIO):
 1) PLANTA BAIXA é a BASE: dela saem os ambientes, as ÁREAS em planta, os perímetros de parede e a contagem/posição de portas e janelas. Conte os itens de planta UMA ÚNICA VEZ aqui.
 2) CORTES servem APENAS para ALTURAS: pé-direito, altura de parede, altura e inclinação do telhado, platibanda, profundidades. NÃO extraia áreas nem quantidades dos cortes — eles só fornecem ALTURAS.
-3) COMBINE: calcule os quantitativos REAIS usando as medidas da PLANTA × as ALTURAS dos cortes. Ex.: área de parede = perímetro (planta) × pé-direito (corte); volume de concreto = área (planta) × altura (corte); área de telhado = projeção (planta) corrigida pela inclinação (corte).
+3) COMBINE: calcule os quantitativos REAIS usando as medidas da PLANTA × as ALTURAS dos cortes. Ex.: área de parede = COMPRIMENTO TOTAL de paredes (externas + TODAS as internas, na planta) × pé-direito (corte) − vãos; volume de concreto = área (planta) × altura (corte); área de telhado = projeção (planta) corrigida pela inclinação (corte).
 4) FACHADAS/ELEVAÇÕES apenas CONFIRMAM acabamentos externos e esquadrias — NÃO some áreas já contadas na planta.
 5) QUADROS (de áreas / de esquadrias) são FONTE EXATA.
 REGRA DE OURO: NUNCA conte a mesma superfície, ambiente ou quantidade em mais de uma folha. Se o corte/fachada/detalhe mostra algo que a planta já mostrou, NÃO some de novo — use-o apenas para extrair a altura/medida que faltava.
@@ -1021,9 +1021,15 @@ ORIENTAÇÕES DE QUANTITATIVOS POR CATEGORIA (use SOMENTE como referência de un
    - Forma em madeira (94228): unidade = M² (área de contato da fôrma).
    - Armação aço CA-50/CA-60 (94237): unidade = KG (estimativa: 80~120 kg/m³ de concreto estrutural).
 
-5. ALVENARIA:
-   - Alvenaria (87456): unidade = M² (descontar TODOS os vãos de portas e janelas).
-   - Vergas e contravergas (87704): unidade = M (metro linear, soma dos vãos de portas e janelas).
+5. ALVENARIA (CRÍTICO — principal fonte de erro; faça com MUITO cuidado e não subestime):
+   - Alvenaria de vedação (87456): unidade = M². SIGA ESTA METODOLOGIA OBRIGATÓRIA, passo a passo:
+     a) Percorra a planta baixa e identifique TODAS as paredes — as EXTERNAS (todo o perímetro da edificação) E TODAS as INTERNAS (divisórias entre TODOS os ambientes: quartos, sala, cozinha, banheiros, closets, área de serviço, corredores, hall). É MUITO comum esquecer paredes internas — percorra ambiente por ambiente e não deixe nenhuma de fora.
+     b) Meça o COMPRIMENTO de cada parede pelas cotas da planta (some os trechos). Calcule L_total = (soma das paredes externas) + (soma das paredes internas). Cada parede interna conta UMA vez (separa 2 ambientes, mas é 1 parede física).
+     c) Leia o PÉ-DIREITO no corte (altura piso→teto). Se não houver corte, use 2,80 m (residencial). Área bruta de parede = L_total × pé-direito.
+     d) DESCONTE os vãos: subtraia a soma das áreas de TODAS as portas e janelas (largura × altura de cada vão — use o QUADRO DE ESQUADRIAS se houver).
+     e) Área de alvenaria = Área bruta − área de vãos.
+     OBRIGATÓRIO em "memoria_calculo": registre o detalhamento auditável — comprimento de paredes externas, comprimento de paredes internas, pé-direito usado, área bruta, vãos descontados e resultado. Ex.: "Paredes ext=42,0m + int=58,5m = 100,5m x pé-direito 2,80m = 281,4m² - vãos(3 portas+5 janelas)=34,2m² = 247,2m²". NUNCA estime a alvenaria só pela área construída — meça as paredes.
+   - Vergas e contravergas (87704): unidade = M (metro linear = soma das larguras de TODOS os vãos de portas e janelas, contando verga + contraverga).
 
 6. COBERTURA:
    - Estrutura madeira (91010): unidade = M² (área do telhado com inclinação, não planta).
@@ -1873,24 +1879,70 @@ function excluirServico(id) {
   recalcBudget();
 }
 
-// Incluir um serviço a partir do código SINAPI (puxa descrição e preço da tabela do estado)
+// Resolve preço/origem de um serviço, honrando COMPOSIÇÃO PRÓPRIA com preço manual (_precoManual)
+function precoServico(q){
+  if(q && q._precoManual!=null && q._precoManual!==""){
+    const p=Number(q._precoManual)||0;
+    return { preco:p, codigoFinal:"PRÓPRIO", banco:"Próprio", fonte:"manual",
+             descricaoOficial:q.descricao||"", sugerido:false, aiCodigo:false, aiValido:true, alerta:false };
+  }
+  return resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+}
+
+// Incluir um serviço (código SINAPI OU composição própria) — painel inline acima da planilha
+const CATEGORIAS_ADD = ["1. SERVIÇOS PRELIMINARES","2. MOVIMENTO DE TERRA","3. FUNDAÇÕES","4. ESTRUTURA","5. ALVENARIA","6. COBERTURA","7. REVESTIMENTOS INTERNOS","8. REVESTIMENTOS EXTERNOS","9. PINTURA","10. ESQUADRIAS","11. PISOS","12. INSTALAÇÕES HIDROSSANITÁRIAS","13. INSTALAÇÕES ELÉTRICAS","14. IMPERMEABILIZAÇÃO","15. SERVIÇOS COMPLEMENTARES","99. SERVIÇOS ADICIONAIS"];
 function incluirServico() {
   const r = APP.analysisResult; if (!r) { alert("Gere o orçamento primeiro."); return; }
-  const col = APP.desoneracao ? 1 : 0;
-  const cod = (prompt("Código SINAPI do serviço a incluir:") || "").trim();
-  if (!cod) return;
-  const preco = precoEstado(cod, col);
-  const ofic = APP.descricoesDB ? (APP.descricoesDB[cod] || APP.descricoesDB[baseCodigo(cod)] || "") : "";
-  if (preco == null && !confirm(`O código ${cod} não tem preço na tabela de ${APP.estado}.\nIncluir mesmo assim (preço a verificar)?`)) return;
-  const desc = ofic || (prompt("Descrição do serviço:", "") || "").trim() || ("Código " + cod);
-  const qtd = parseFloat((prompt("Quantidade:", "1") || "1").replace(",", ".")) || 0;
-  const un  = (prompt("Unidade (m2, m3, un, m, kg…):", "un") || "un").trim();
-  const CATEGORIAS_PADRAO = ["1. SERVIÇOS PRELIMINARES","2. MOVIMENTO DE TERRA","3. FUNDAÇÕES","4. ESTRUTURA","5. ALVENARIA","6. COBERTURA","7. REVESTIMENTOS INTERNOS","8. REVESTIMENTOS EXTERNOS","9. PINTURA","10. ESQUADRIAS","11. PISOS","12. INSTALAÇÕES HIDROSSANITÁRIAS","13. INSTALAÇÕES ELÉTRICAS","14. IMPERMEABILIZAÇÃO","15. SERVIÇOS COMPLEMENTARES"];
-  const grp = (prompt("Em qual grupo de serviços? Digite o NÚMERO:\n" + CATEGORIAS_PADRAO.join("\n") + "\n\n(vazio = Serviços Adicionais)", "") || "").trim();
-  const gn = parseInt(grp.replace(/[^0-9]/g, ""), 10);
-  const categoria = (gn >= 1 && gn <= 15) ? CATEGORIAS_PADRAO[gn - 1] : "99. SERVIÇOS ADICIONAIS";
+  const existente = document.getElementById("inlineAddPanel");
+  if (existente) { existente.remove(); return; }   // toggle
+  const tbl = document.getElementById("budgetTable"); if (!tbl) return;
+  const inp = "padding:7px;border:1.5px solid var(--border);border-radius:6px";
+  const panel = document.createElement("div");
+  panel.id = "inlineAddPanel";
+  panel.className = "card";
+  panel.style.cssText = "margin-bottom:12px;border:1.5px solid var(--blue);background:#f0f9ff";
+  panel.innerHTML = `
+    <div style="font-weight:700;margin-bottom:10px">➕ Incluir serviço na planilha</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label style="font-size:12px">Tipo<br><select id="addTipo" style="${inp}">
+        <option value="proprio">Composição própria (preço manual)</option>
+        <option value="sinapi">Código SINAPI</option></select></label>
+      <label style="font-size:12px">Grupo de serviço<br><select id="addGrupo" style="${inp};max-width:240px">
+        ${CATEGORIAS_ADD.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></label>
+      <label style="font-size:12px;flex:1;min-width:200px">Descrição<br><input id="addDesc" placeholder="Ex.: Emissão de ART" style="${inp};width:100%"></label>
+      <label style="font-size:12px">Unidade<br><input id="addUn" value="un" style="${inp};width:70px"></label>
+      <label style="font-size:12px">Quantidade<br><input id="addQtd" type="number" value="1" min="0" step="any" style="${inp};width:90px"></label>
+      <label style="font-size:12px" id="addCodWrap" hidden>Código SINAPI<br><input id="addCod" placeholder="ex.: 90778" style="${inp};width:110px"></label>
+      <label style="font-size:12px" id="addPrecoWrap">Preço unit. (R$)<br><input id="addPreco" type="number" value="0" min="0" step="any" style="${inp};width:120px"></label>
+    </div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-primary" onclick="confirmarIncluirServico()">Inserir na planilha</button>
+      <button class="btn btn-outline" onclick="document.getElementById('inlineAddPanel').remove()">Cancelar</button>
+    </div>`;
+  tbl.parentNode.insertBefore(panel, tbl);
+  const tipo = panel.querySelector("#addTipo");
+  const toggle = () => { const isSin = tipo.value === "sinapi"; panel.querySelector("#addCodWrap").hidden = !isSin; panel.querySelector("#addPrecoWrap").hidden = isSin; };
+  tipo.addEventListener("change", toggle); toggle();
+  panel.querySelector("#addDesc").focus();
+}
+function confirmarIncluirServico() {
+  const r = APP.analysisResult; if (!r) return;
+  const tipo = document.getElementById("addTipo").value;
+  const categoria = document.getElementById("addGrupo").value;
+  const desc = (document.getElementById("addDesc").value || "").trim();
+  const un = (document.getElementById("addUn").value || "un").trim();
+  const qtd = parseFloat(String(document.getElementById("addQtd").value).replace(",", ".")) || 0;
+  if (!desc) { alert("Informe a descrição do serviço."); return; }
   const nextId = (r.quantitativos || []).reduce((m, x) => Math.max(m, x._id == null ? -1 : x._id), -1) + 1;
-  r.quantitativos.push({ sinapi_codigo: cod, _codigoManual: cod, descricao: desc, unidade: un, quantidade: qtd, categoria: categoria, _id: nextId });
+  if (tipo === "sinapi") {
+    const cod = (document.getElementById("addCod").value || "").trim();
+    if (!cod) { alert("Informe o código SINAPI (ou troque para composição própria)."); return; }
+    r.quantitativos.push({ sinapi_codigo: cod, _codigoManual: cod, descricao: desc, unidade: un, quantidade: qtd, categoria, _id: nextId });
+  } else {
+    const preco = parseFloat(String(document.getElementById("addPreco").value).replace(",", ".")) || 0;
+    r.quantitativos.push({ descricao: desc, unidade: un, quantidade: qtd, categoria, _precoManual: preco, preco_unitario: preco, _id: nextId });
+  }
+  const panel = document.getElementById("inlineAddPanel"); if (panel) panel.remove();
   recalcBudget();
 }
 
@@ -1919,7 +1971,7 @@ function computeCronograma(prazoMeses) {
   // custo (c/ BDI) por categoria
   const custoCat = {};
   quantitativosAtivos().forEach(q => {
-    const info = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
+    const info = precoServico(q);
     const tot = info.preco * (Number(q.quantidade) || 0) * (1 + bdi);
     const c = numCat(q.categoria || "99");
     if (NOME_FASE[c]) custoCat[c] = (custoCat[c] || 0) + tot;
@@ -2174,7 +2226,7 @@ function curvaS_SVG(d) {
     <text x="${W / 2}" y="14" text-anchor="middle" font-size="12" font-weight="700" fill="#002b40">Curva S — Avanço Físico-Financeiro Previsto (%)</text></svg>`;
 }
 
-document.getElementById("btnGoCrono").addEventListener("click", () => { if(!validarOrcamento()) return; goTo(5); });
+document.getElementById("btnGoCrono").addEventListener("click", () => { if(!APP.orcamentoValidado){ alert("Valide o orçamento primeiro para gerar o cronograma."); return; } goTo(5); });
 document.getElementById("btnGoBudget").addEventListener("click", () => goTo(4));
 document.getElementById("btnDownload2").addEventListener("click", exportExcel);
 document.getElementById("btnCronoPDF").addEventListener("click", exportarCronogramaPDF);
@@ -2423,10 +2475,12 @@ function validarOrcamento(){
 function _refreshBtnValidarOrc(){
   const b=document.getElementById("btnValidarOrc");
   const h=document.getElementById("orcValidaHint");
+  const cr=document.getElementById("btnGoCrono");
   if(b){
     if(APP.orcamentoValidado){ b.textContent="✓ Orçamento validado"; b.classList.remove("btn-primary"); b.classList.add("btn-success"); b.disabled=true; }
     else { b.textContent="✓ Validar orçamento"; b.classList.add("btn-primary"); b.classList.remove("btn-success"); b.disabled=false; }
   }
+  if(cr){ cr.disabled=!APP.orcamentoValidado; cr.style.opacity=APP.orcamentoValidado?"":"0.5"; cr.title=APP.orcamentoValidado?"":"Valide o orçamento para liberar o cronograma"; }
   if(h){
     if(APP.orcamentoValidado){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Histograma e Insumos liberados no menu lateral.</span>'; }
     else { h.classList.add("alert-info"); h.classList.remove("alert-success"); h.innerHTML='<span>📝</span><span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, o Histograma e os Insumos. (A <b>Curva ABC</b> já está liberada — use-a para achar os serviços mais caros e ajustar o orçamento.)</span>'; }
@@ -2793,7 +2847,7 @@ async function buildBudget() {
   // pré-passada: conta uso de cada código final p/ sinalizar repetidos (serviços diferentes, mesmo código)
   const _usoCod = {};
   ativos.forEach(q => {
-    const inf = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || "", q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
+    const inf = precoServico(q);
     const cf = inf.codigoFinal;
     if (cf && cf !== "PRÓPRIO" && cf !== "—") _usoCod[cf] = (_usoCod[cf] || 0) + 1;
   });
@@ -2816,7 +2870,7 @@ async function buildBudget() {
 
     itens.forEach(q => {
       itemNum++;
-      const info     = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
+      const info     = precoServico(q);
       const precoAdj = info.preco;
       q._codigoResolvido = info.codigoFinal;   // usado também na exportação Excel
       q._fontePreco      = info.fonte;
@@ -3059,7 +3113,7 @@ function exportExcel() {
 
     itens.forEach(q => {
       itemNum++;
-      const info       = resolveSinapi((q._codigoManual || q.sinapi_codigo) || "", q.descricao || "", q.categoria || cat, q.preco_unitario || 0, !!(q._codigoManual || q._refinado));
+      const info       = precoServico(q);
       const precoAdj   = info.preco;
       const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
       const qtd        = Number(q.quantidade) || 0;
@@ -3220,7 +3274,7 @@ function _coletarItensOrcamento(){
   const bdi=(parseFloat(document.getElementById('bdiInput').value)/100)||0;
   const itens=[];
   quantitativosAtivos().forEach(q=>{
-    const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+    const info=precoServico(q);
     const qtd=Number(q.quantidade)||0;
     const total=info.preco*qtd*(1+bdi);
     if(total>0) itens.push({nome:q.descricao||"(sem descrição)", codigo:info.codigoFinal||"—", total:total});
@@ -3397,7 +3451,7 @@ async function buildInsumos(){
   if(!APP.compItens){ host.innerHTML='<div class="alert alert-error">Base de composições (analítico SINAPI) indisponível.</div>'; return; }
   const geral={}, porEtapa={}; let semComp=0, comComp=0;
   quantitativosAtivos().forEach(q=>{
-    const info=resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+    const info=precoServico(q);
     const code=info.codigoFinal; const qtd=Number(q.quantidade)||0;
     if(!code||code==='PRÓPRIO'||code==='—'||qtd<=0){ semComp++; return; }
     const items=APP.compItens[code]||APP.compItens[baseCodigo(code)];
