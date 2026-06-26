@@ -476,14 +476,14 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="field" style="margin-top:16px">
       <label>Disciplina do Projeto</label>
       <select id="disciplinaSelect" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;outline:none">
-        <option value="auto" selected>🔎 Detectar automaticamente (a IA identifica)</option>
+        <option value="auto" selected>🔎 Detectar por folha — vários projetos/disciplinas juntos</option>
         <option value="arquitetonico">🏠 Arquitetônico — obra completa (todas as categorias)</option>
         <option value="estrutural">🧱 Estrutural — fôrma/armação (aço, concreto, fôrma)</option>
         <option value="eletrico">💡 Elétrico — instalações elétricas</option>
         <option value="hidrossanitario">🚿 Hidrossanitário — água / esgoto</option>
       </select>
       <div class="muted" style="font-size:12px;margin-top:6px">
-        Para um projeto de <b>uma disciplina</b> (ex.: estrutural), o sistema levanta <b>somente</b> os serviços daquela disciplina — não monta a EAP completa da obra.
+        Subiu <b>vários projetos juntos</b> (estrutural + arquitetônico + hidrossanitário)? Deixe em <b>Detectar por folha</b>: cada folha é classificada e lida no escopo da sua disciplina (uma leitura isolada por disciplina). Você confere/ajusta a disciplina de cada folha logo abaixo, na seleção de páginas.
       </div>
     </div>
     <div class="alert alert-info" style="margin-top:12px;font-size:12px">
@@ -503,6 +503,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
       <span id="selectedCount">0</span> página(s) selecionada(s)
       <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 24 páginas — processadas em lotes de 6. Selecione as plantas e folhas relevantes.</span>
+    </div>
+
+    <!-- Revisão de disciplina por folha (modo Detectar por folha) -->
+    <div id="discReviewWrap" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+      <div style="font-weight:600;margin-bottom:2px">🧭 Disciplina por folha</div>
+      <div class="muted" style="font-size:12px;margin-bottom:10px">Detectamos a disciplina de cada folha. Confira e ajuste se necessário — cada disciplina é lida separadamente (1 crédito por disciplina).</div>
+      <div id="discReview"></div>
     </div>
 
     <div class="btn-group">
@@ -852,7 +859,9 @@ const APP = {
   projectName: "",
   estado: "PE",
   desoneracao: false,  // false = sem, true = com
-  disciplina: "auto",  // auto | arquitetonico | estrutural | eletrico | hidrossanitario
+  disciplina: "auto",  // auto (detecta por folha/multi) | arquitetonico | estrutural | eletrico | hidrossanitario
+  pageDisc: {},        // gid -> disciplina detectada/confirmada (modo multi-disciplina)
+  pageTextCache: {},   // gid -> texto da camada (cache p/ classificação e análise)
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
@@ -1172,6 +1181,78 @@ function filtrarPorDisciplina(result, disc) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MULTI-DISCIPLINA — classificação por folha + consolidação
+// ═══════════════════════════════════════════════════════════════
+const DISC_KEYWORDS = {
+  estrutural:     [/ESTRUTURAL/,/F[OÔÓ]RMA/,/ARMA[ÇC][AÃ]O/,/ARMADURA/,/FERRAGEM/,/\bPILAR/,/\bVIGA/,/\bLAJE/,/SAPATA/,/FUNDA[ÇC][AÃ]O/,/CA-?50/,/CA-?60/,/CONCRETO ARMADO/,/RESUMO DE A[ÇC]O/,/ESTACA/,/BALDRAME/,/RADIER/,/ESTRIBO/],
+  hidrossanitario:[/HIDROSSANIT/,/HIDR[AÁ]ULIC/,/SANIT[AÁ]RI/,/ESGOTO/,/[AÁ]GUA FRIA/,/[AÁ]GUA QUENTE/,/PLUVIAL/,/PRUMADA/,/TUBULA[ÇC]/,/RESERVAT[OÓ]RIO/,/CAIXA D.?[AÁ]GUA/,/\bRAMAL/,/VENTILA[ÇC]/,/REGISTRO DE GAVETA/,/\bRALO/],
+  eletrico:       [/EL[EÉ]TRIC/,/UNIFILAR/,/QUADRO DE CARGAS/,/\bQDC\b|\bQDL\b|\bQGBT\b|\bQDF\b/,/TOMADA/,/INTERRUPTOR/,/LUMIN[AÁ]RIA/,/ELETRODUTO/,/DISJUNTOR/,/\bCIRCUITO/,/\bSPDA\b/,/ATERRAMENTO/,/\bDPS\b/,/PADR[AÃ]O DE ENTRADA/],
+  arquitetonico:  [/ARQUITET/,/PLANTA BAIXA/,/\bCORTE\b/,/FACHADA/,/ELEVA[ÇC][AÃ]O/,/COBERTURA/,/\bLAYOUT/,/QUADRO DE [AÁ]REAS/,/ESQUADRIAS/,/PAGINA[ÇC][AÃ]O/]
+};
+function classificarTextoNome(hay){
+  hay = String(hay||"").toUpperCase();
+  const score = {estrutural:0,hidrossanitario:0,eletrico:0,arquitetonico:0};
+  for(const d in DISC_KEYWORDS) DISC_KEYWORDS[d].forEach(rx=>{ if(rx.test(hay)) score[d]++; });
+  let best="", bv=0; for(const d in score){ if(score[d]>bv){ bv=score[d]; best=d; } }
+  return bv>0 ? best : "";   // "" = indefinido
+}
+async function getPageText(gid){
+  if(APP.pageTextCache[gid]!=null) return APP.pageTextCache[gid];
+  let t=""; try{ t=await pageToText(gid); }catch(_){}
+  APP.pageTextCache[gid]=t||"";
+  return APP.pageTextCache[gid];
+}
+// Classifica cada folha por nome do arquivo (sinal forte p/ PDFs separados) + camada de texto (sinal por folha p/ caderno único).
+async function classificarPaginas(pages, forcar){
+  for(const gid of pages){
+    if(!forcar && APP.pageDisc[gid]) continue;   // mantém escolha do usuário
+    const ent=APP.pages[gid-1]; const nome=(ent&&ent.fileName)||"";
+    const txt=await getPageText(gid);
+    const porNome=classificarTextoNome(nome);
+    const porTexto=classificarTextoNome(txt);
+    APP.pageDisc[gid]= porNome || porTexto || "arquitetonico";
+  }
+  return APP.pageDisc;
+}
+// Junta os resultados de cada disciplina SEM somar entre disciplinas (cada item mantém _disciplina).
+function consolidarDisciplinas(parts){
+  const out={projeto:"",area_construida_m2:0,pavimentos:1,tipologia:"",ambientes:[],quantitativos:[],_multi:true};
+  const ambSet=new Set();
+  parts.forEach(r=>{ if(!r) return;
+    if(!out.projeto&&r.projeto) out.projeto=r.projeto;
+    if(!out.tipologia&&r.tipologia) out.tipologia=r.tipologia;
+    out.area_construida_m2=Math.max(out.area_construida_m2, Number(r.area_construida_m2)||0);
+    out.pavimentos=Math.max(out.pavimentos, Number(r.pavimentos)||1);
+    (r.ambientes||[]).forEach(a=>{ const k=String(a.nome||"").toLowerCase().trim(); if(k&&!ambSet.has(k)){ ambSet.add(k); out.ambientes.push(a); } });
+    (r.quantitativos||[]).forEach(q=>out.quantitativos.push(q));
+  });
+  return out;
+}
+// Painel de revisão: lista cada folha com sua disciplina detectada (editável). Só no modo "Detectar por folha".
+async function montarRevisaoDisc(){
+  const wrap=document.getElementById("discReviewWrap");
+  const host=document.getElementById("discReview");
+  if(!wrap||!host) return;
+  const modo=(document.getElementById("disciplinaSelect")||{}).value||APP.disciplina;
+  if(modo!=="auto" || !APP.pages.length){ wrap.style.display="none"; return; }
+  wrap.style.display="block";
+  host.innerHTML='<span class="muted" style="font-size:12px">Classificando folhas…</span>';
+  const all=[]; for(let g=1;g<=APP.pages.length;g++) all.push(g);
+  await classificarPaginas(all);
+  const opts=["arquitetonico","estrutural","eletrico","hidrossanitario"];
+  host.innerHTML = all.map(g=>{
+    const ent=APP.pages[g-1];
+    const lbl=ent?`${ent.fileName.replace(/\.pdf$/i,"").slice(0,24)} · p${ent.pageNum}`:`Folha ${g}`;
+    const d=APP.pageDisc[g]||"arquitetonico";
+    const sel=opts.map(o=>`<option value="${o}"${o===d?" selected":""}>${(DISCIPLINAS[o]||{}).label||o}</option>`).join("");
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)">`
+      + `<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ent?ent.fileName+' — pág '+ent.pageNum:''}">${lbl}</span>`
+      + `<select onchange="APP.pageDisc[${g}]=this.value" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;min-width:230px">${sel}</select>`
+      + `</div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════════
 // PDF UPLOAD & RENDERING
 // ═══════════════════════════════════════════════════════════════
 pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -1243,7 +1324,7 @@ function removerArquivo(idx) {
   APP.pdfDocs.splice(idx, 1);
   APP.pages = [];
   APP.pdfDocs.forEach((f, fi) => { for (let p = 1; p <= f.doc.numPages; p++) APP.pages.push({ doc: f.doc, pageNum: p, fileName: f.name, fileIdx: fi }); });
-  APP.pageImages = {}; APP.selectedPages.clear();
+  APP.pageImages = {}; APP.selectedPages.clear(); APP.pageDisc = {}; APP.pageTextCache = {};
   if (!APP.pdfDocs.length) {
     document.getElementById("fileInfo").style.display = "none";
     document.getElementById("pageCard").style.display = "none";
@@ -1292,6 +1373,7 @@ async function renderThumbnails() {
     togglePage(thumb, gid, true);
   }
   document.getElementById("btnAnalyze").disabled = APP.pages.length === 0;
+  montarRevisaoDisc();   // classifica e mostra a revisão de disciplina por folha (modo "auto")
 }
 
 function togglePage(el, num, forceSelect = false) {
@@ -1357,6 +1439,8 @@ async function pageToBase64(gid) {
 // ANALYSIS
 // ═══════════════════════════════════════════════════════════════
 document.getElementById("btnAnalyze").addEventListener("click", startAnalysis);
+// Mostra/oculta a revisão de disciplina por folha conforme o modo escolhido
+(function(){ const ds=document.getElementById("disciplinaSelect"); if(ds) ds.addEventListener("change", montarRevisaoDisc); })();
 
 function setStep(stepId, done, msg) {
   const el = document.getElementById(stepId);
@@ -1368,6 +1452,37 @@ function setStep(stepId, done, msg) {
 function setProgress(pct, msg) {
   document.getElementById("progressFill").style.width = pct + "%";
   document.getElementById("statusMsg").textContent = msg;
+}
+
+// Lê UM grupo de folhas (de uma única disciplina) de forma isolada: texto→imagem, filtra e carimba _disciplina.
+async function analisarGrupo(grpPages, disc, apiKey) {
+  let texto = "";
+  for (const p of grpPages) {
+    const ent = APP.pages[p - 1];
+    const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
+    const t = await getPageText(p);
+    if (t) texto += `\n--- ${lbl} ---\n${t}`;
+  }
+  const textoLimpo = texto.replace(/\s+/g, " ").trim();
+  const usarTexto = textoLimpo.length >= 600;
+  const muitas = grpPages.length > 5;
+  const minOk = (disc === "arquitetonico") ? 3 : 1;   // disciplinas específicas podem ter poucos itens
+  let res;
+  if (usarTexto && !muitas) {
+    res = await analisarTexto(texto, apiKey, disc);
+    if (!res || !res.quantitativos || res.quantitativos.length < minOk) {
+      const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
+      res = await chamarIA(imgs, apiKey, 1, 1, texto, disc);
+    }
+  } else {
+    const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
+    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc);
+  }
+  if (!res || !res.quantitativos) return null;
+  filtrarPorDisciplina(res, disc);
+  const ef = res._disciplinaEfetiva || disc;
+  res.quantitativos.forEach(q => { if (!q._disciplina) q._disciplina = ef; });
+  return res;
 }
 
 async function startAnalysis() {
@@ -1383,79 +1498,75 @@ async function startAnalysis() {
   goTo(2);
 
   try {
-    // ── Step 1: Ler o PDF (modo híbrido automático: TEXTO → IMAGEM) ──
+    // ── Passo 1: preparar folhas e agrupar por disciplina ──
     setStep("pstep1", false, "Lendo o PDF…");
-    setProgress(10, "Lendo o PDF…");
+    setProgress(8, "Lendo o PDF…");
 
     let sortedPages = [...APP.selectedPages].sort((a, b) => a - b);
-    if (sortedPages.length > MAX_PAGES_TOTAL) {
-      sortedPages = sortedPages.slice(0, MAX_PAGES_TOTAL);
-    }
+    if (sortedPages.length > MAX_PAGES_TOTAL) sortedPages = sortedPages.slice(0, MAX_PAGES_TOTAL);
 
     const apiKey = (localStorage.getItem("mar_chave") || "").trim();
     if (!apiKey) throw new Error("Chave de acesso não configurada. Informe sua chave no campo acima e clique em Salvar.");
 
-    // 1) extrai o TEXTO do PDF (camada de texto — barato, sem visão)
-    let textoProjeto = "";
-    for (let i = 0; i < sortedPages.length; i++) {
-      const p = sortedPages[i];
-      const ent = APP.pages[p - 1];
-      const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
-      setProgress(10 + (i / sortedPages.length) * 20, `Lendo texto: ${lbl}…`);
-      const t = await pageToText(p);
-      if (t) textoProjeto += `\n--- ${lbl} ---\n${t}`;
-    }
-    const textoLimpo = textoProjeto.replace(/\s+/g, " ").trim();
-    const usarTexto = textoLimpo.length >= 600;   // texto rico → modo econômico
-
-    let parsedResult;
-    const muitasFolhas = sortedPages.length > 5;
-    if (usarTexto && !muitasFolhas) {
-      setStep("pstep1", true, `Texto extraído (${textoLimpo.length} caracteres) — modo econômico 💸`);
-      setStep("pstep2", false, "Analisando o texto do projeto (modo econômico)…");
-      setProgress(45, "Aguardando resposta da IA…");
-      parsedResult = await analisarTexto(textoProjeto, apiKey);
-      if (!parsedResult || !parsedResult.quantitativos || parsedResult.quantitativos.length < 3) {
-        setStep("pstep2", false, "Texto insuficiente — reprocessando com texto + imagem…");
-        const imgs = [];
-        for (let i = 0; i < sortedPages.length; i++) { setProgress(45 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]}…`); imgs.push(await pageToBase64(sortedPages[i])); }
-        parsedResult = await chamarIA(imgs, apiKey, 1, 1, textoProjeto);
-      }
+    // Monta os grupos de folhas por disciplina (modo "auto" = leitura por folha/multi-disciplina)
+    let grupos;
+    if (APP.disciplina === "auto") {
+      await classificarPaginas(sortedPages);   // preenche/usa APP.pageDisc (respeita revisão do usuário)
+      const byDisc = {};
+      sortedPages.forEach(p => { const d = APP.pageDisc[p] || "arquitetonico"; (byDisc[d] = byDisc[d] || []).push(p); });
+      grupos = Object.keys(byDisc).map(d => ({ disc: d, pages: byDisc[d] }));
     } else {
-      setStep("pstep1", true, usarTexto ? `Projeto com ${sortedPages.length} folhas — leitura completa (texto + imagem)` : "PDF sem texto — análise por imagem (alta resolução)");
-      const allImages = [];
-      for (let i = 0; i < sortedPages.length; i++) {
-        setProgress(30 + (i / sortedPages.length) * 15, `Renderizando página ${sortedPages[i]} em alta resolução…`);
-        allImages.push(await pageToBase64(sortedPages[i]));
+      grupos = [{ disc: APP.disciplina, pages: sortedPages }];
+    }
+    setStep("pstep1", true, grupos.length > 1
+      ? `${sortedPages.length} folha(s) em ${grupos.length} disciplinas — leitura isolada por disciplina`
+      : `${sortedPages.length} folha(s) — ${(DISCIPLINAS[grupos[0].disc] || {}).label || grupos[0].disc}`);
+
+    // ── Passo 2: uma passada de IA ISOLADA por disciplina (não confunde disciplinas) ──
+    const parts = [];
+    for (let gi = 0; gi < grupos.length; gi++) {
+      const g = grupos[gi];
+      const lbl = (DISCIPLINAS[g.disc] || {}).label || g.disc;
+      setStep("pstep2", false, `Lendo ${lbl} — ${g.pages.length} folha(s) (${gi + 1}/${grupos.length})…`);
+      setProgress(15 + (gi / grupos.length) * 55, `Analisando ${lbl}…`);
+      const res = await analisarGrupo(g.pages, g.disc, apiKey);
+      if (res && res.quantitativos && res.quantitativos.length) { res._grupoDisc = g.disc; parts.push(res); }
+      else console.warn(`disciplina ${g.disc}: nenhum serviço identificado`);
+    }
+    if (!parts.length) {
+      throw new Error("Nenhum serviço foi identificado nas folhas selecionadas. Verifique se as pranchas corretas estão marcadas, ou ajuste a disciplina das folhas na etapa de Upload.");
+    }
+
+    // Anti-dupla-contagem: se há disciplina dedicada (estrutural/elétrico/hidro) no lote,
+    // remove essas categorias do resultado ARQUITETÔNICO (que tem escopo completo).
+    if (parts.length > 1) {
+      const ownedByOthers = new Set();
+      grupos.forEach(g => { if (g.disc !== "arquitetonico" && DISCIPLINAS[g.disc] && DISCIPLINAS[g.disc].nums) DISCIPLINAS[g.disc].nums.forEach(n => ownedByOthers.add(n)); });
+      if (ownedByOthers.size) {
+        parts.forEach(res => {
+          if (res._grupoDisc === "arquitetonico") {
+            const antes = res.quantitativos.length;
+            res.quantitativos = res.quantitativos.filter(q => !ownedByOthers.has(catNum(q.categoria)));
+            const rem = antes - res.quantitativos.length;
+            if (rem > 0) console.log(`arquitetônico: ${rem} item(ns) de estrutura/elétrica/hidro removidos (já cobertos por disciplina dedicada)`);
+          }
+        });
       }
-      setStep("pstep2", false, "Analisando folhas (texto + imagem · quadros como fonte)…");
-      setProgress(45, "Aguardando resposta da IA…");
-      parsedResult = await chamarIA(allImages, apiKey, 1, 1, textoProjeto);
     }
 
-    if (!parsedResult || !parsedResult.quantitativos) {
-      throw new Error("A IA não retornou quantitativos válidos. Tente novamente ou selecione menos páginas.");
-    }
-    // Filtro assertivo por disciplina: descarta serviços fora do escopo escolhido
-    const filtro = filtrarPorDisciplina(parsedResult, APP.disciplina);
-    if (filtro.removidos > 0) console.log(`disciplina "${filtro.efetiva}": ${filtro.removidos} serviço(s) fora do escopo removido(s)`);
-    if (!parsedResult.quantitativos.length) {
-      throw new Error(`Nenhum serviço da disciplina "${DISCIPLINAS[filtro.efetiva]?.label || filtro.efetiva}" foi identificado nas folhas selecionadas. Verifique se as pranchas corretas estão marcadas ou troque a disciplina para "Detectar automaticamente".`);
-    }
-    // 2ª passada: refina os códigos SINAPI escolhendo entre candidatos reais
-    setProgress(70, "Refinando códigos SINAPI…");
-    try { await refinarCodigos(parsedResult, apiKey); } catch (e) { console.warn("refino:", e.message); }
+    // 2ª passada: refina os códigos SINAPI de cada disciplina
+    setStep("pstep2", true, `Análise concluída — ${grupos.length} disciplina(s)`);
+    setProgress(72, "Refinando códigos SINAPI…");
+    for (const res of parts) { try { await refinarCodigos(res, apiKey); } catch (e) { console.warn("refino:", e.message); } }
 
-    setStep("pstep2", true, "Análise com IA concluída");
-    setProgress(75, "Processando quantitativos…");
-
-    // ── Step 3: Parse result ──────────────────────────────
-    setStep("pstep3", false, "Extraindo e organizando quantitativos…");
-    APP.analysisResult = parsedResult;
-    setStep("pstep3", true, `${APP.analysisResult.quantitativos?.length || 0} serviços identificados`);
+    // ── Passo 3: consolida (mantém _disciplina de cada item) ──
+    setStep("pstep3", false, "Consolidando o levantamento…");
+    const consolidado = parts.length === 1 ? parts[0] : consolidarDisciplinas(parts);
+    APP.analysisResult = consolidado;
+    setStep("pstep3", true, `${consolidado.quantitativos.length} serviços em ${grupos.length} disciplina(s)`);
     setProgress(90, "Estruturando EAP…");
 
-    // ── Step 4: EAP ───────────────────────────────────────
+    // ── Passo 4: EAP ──
     setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
     setTimeout(() => {
       setStep("pstep4", true, "EAP gerada com sucesso");
@@ -1499,7 +1610,8 @@ function parseIAJson(rawText) {
   return null;
 }
 
-async function chamarIA(images, apiKey, lote, total, textoFolhas) {
+async function chamarIA(images, apiKey, lote, total, textoFolhas, disc) {
+  disc = disc || APP.disciplina;
   const aiContent = [];
   images.forEach(img => aiContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: img } }));
   if (textoFolhas && textoFolhas.trim()) {
@@ -1512,14 +1624,14 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas) {
     "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias, resumo de aço). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
     "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
     "Retorne o JSON conforme especificado (inclua disciplina_detectada). Seja preciso — os valores gerarão um orçamento real.\n\n" +
-    focoDisciplina(APP.disciplina) +
+    focoDisciplina(disc) +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
   });
 
   const apiData = await callAnthropic({
     model: "claude-sonnet-4-6",
     max_tokens: 32000,
-    system: buildSystemPrompt(APP.disciplina),
+    system: buildSystemPrompt(disc),
     messages: [{ role: "user", content: aiContent }]
   });
   const rawText = apiData.content[0].text;
@@ -2134,14 +2246,15 @@ async function pageToText(gid) {
 }
 
 // Análise por TEXTO (modo econômico — sem imagens/visão)
-async function analisarTexto(texto, apiKey) {
+async function analisarTexto(texto, apiKey, disc) {
+  disc = disc || APP.disciplina;
   const userText =
     "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, resumo de aço, legendas e memorial descritivo). " +
     "Faça o levantamento de quantitativos a partir destes dados, respeitando a disciplina. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2 (quando aplicável). Inclua disciplina_detectada. " +
-    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\n" + focoDisciplina(APP.disciplina) +
+    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\n" + focoDisciplina(disc) +
     "\n\nTEXTO DO PROJETO:\n" + texto +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
-  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: buildSystemPrompt(APP.disciplina), messages: [{ role: "user", content: userText }] });
+  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: buildSystemPrompt(disc), messages: [{ role: "user", content: userText }] });
   const rawText = data.content[0].text;
   return parseIAJson(rawText);
 }
@@ -2150,22 +2263,28 @@ function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
 
-  // Aviso de disciplina aplicada (leitura assertiva por tipo de projeto)
+  // Aviso de disciplina(s) aplicada(s)
   const eapAlert = document.getElementById("eapAlert");
   if (eapAlert) {
-    const ef = r._disciplinaEfetiva || (APP.disciplina === "auto" ? "arquitetonico" : APP.disciplina);
-    const lbl = (DISCIPLINAS[ef] && DISCIPLINAS[ef].label) || ef;
-    const restrito = DISCIPLINAS[ef] && DISCIPLINAS[ef].nums;
-    let extra = "";
-    if (ef === "estrutural" && r.subtipo_estrutural) {
-      extra = r.subtipo_estrutural === "armacao"
-        ? " — prancha de armação: levantado apenas o aço (kg)"
-        : " — fôrma + armação: aço, concreto e fôrma";
+    const discs = [...new Set((r.quantitativos || []).map(q => q._disciplina).filter(Boolean))];
+    if (r._multi || discs.length > 1) {
+      const nomes = discs.map(d => (DISCIPLINAS[d] || {}).label || d).join(", ");
+      eapAlert.innerHTML = `<span>🎯</span><span>Leitura <b>multi-disciplina</b> — ${discs.length} disciplinas lidas separadamente: <b>${nomes}</b>. Cada folha foi analisada no escopo da sua disciplina. Revise os quantitativos antes de gerar o orçamento.</span>`;
+    } else {
+      const ef = r._disciplinaEfetiva || discs[0] || (APP.disciplina === "auto" ? "arquitetonico" : APP.disciplina);
+      const lbl = (DISCIPLINAS[ef] && DISCIPLINAS[ef].label) || ef;
+      const restrito = DISCIPLINAS[ef] && DISCIPLINAS[ef].nums;
+      let extra = "";
+      if (ef === "estrutural" && r.subtipo_estrutural) {
+        extra = r.subtipo_estrutural === "armacao"
+          ? " — prancha de armação: levantado apenas o aço (kg)"
+          : " — fôrma + armação: aço, concreto e fôrma";
+      }
+      const modo = APP.disciplina === "auto" ? " (detectada automaticamente)" : "";
+      eapAlert.innerHTML = restrito
+        ? `<span>🎯</span><span>Leitura assertiva — disciplina <b>${lbl}</b>${modo}${extra}. Apenas os serviços desta disciplina foram levantados. Revise os quantitativos antes de gerar o orçamento.</span>`
+        : `<span>✅</span><span>Levantamento <b>${lbl}</b>${modo} concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>`;
     }
-    const modo = APP.disciplina === "auto" ? " (detectada automaticamente)" : "";
-    eapAlert.innerHTML = restrito
-      ? `<span>🎯</span><span>Leitura assertiva — disciplina <b>${lbl}</b>${modo}${extra}. Apenas os serviços desta disciplina foram levantados. Revise os quantitativos antes de gerar o orçamento.</span>`
-      : `<span>✅</span><span>Levantamento <b>${lbl}</b>${modo} concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>`;
   }
 
   // Project info cards
@@ -2182,16 +2301,46 @@ function buildEAP() {
       <div class="sub">${i.sub}</div>
     </div>`).join("");
 
-  // Group by category
-  const byCat = {};
-  (r.quantitativos || []).forEach(q => {
-    const c = q.categoria || "99. OUTROS";
-    if (!byCat[c]) byCat[c] = [];
-    byCat[c].push(q);
-  });
-
+  // Agrupa por DISCIPLINA → CATEGORIA (multi) ou só por categoria (disciplina única)
   const tree = document.getElementById("eapTree");
   tree.innerHTML = "";
+
+  const ORDEM_DISC = ["arquitetonico", "estrutural", "eletrico", "hidrossanitario"];
+  const discs = [...new Set((r.quantitativos || []).map(q => q._disciplina || "arquitetonico"))]
+    .sort((a, b) => {
+      const ia = ORDEM_DISC.indexOf(a), ib = ORDEM_DISC.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+
+  if (discs.length <= 1) {
+    renderEapCategorias(tree, r.quantitativos || []);
+  } else {
+    discs.forEach((d, di) => {
+      const itensD = (r.quantitativos || []).filter(q => (q._disciplina || "arquitetonico") === d);
+      if (!itensD.length) return;
+      const lblD = (DISCIPLINAS[d] || {}).label || d;
+      const disco = document.createElement("div");
+      disco.className = "eap-node";
+      disco.style.cssText = "border-left:3px solid var(--blue);margin-bottom:10px";
+      const dh = document.createElement("div");
+      dh.className = "eap-node-header";
+      dh.style.cssText = "font-size:15px;background:rgba(23,146,192,0.08)";
+      dh.innerHTML = `<span class="caret">▶</span> 📁 <strong>${lblD}</strong> <span class="badge">${itensD.length} serv.</span>`;
+      const dc = document.createElement("div");
+      dc.className = "eap-children";
+      dh.addEventListener("click", () => { dh.classList.toggle("open"); dc.classList.toggle("open"); });
+      renderEapCategorias(dc, itensD);
+      disco.appendChild(dh); disco.appendChild(dc);
+      tree.appendChild(disco);
+      if (di === 0) { dh.classList.add("open"); dc.classList.add("open"); }
+    });
+  }
+}
+
+// Renderiza a árvore Categoria → serviços dentro de um container
+function renderEapCategorias(container, quantitativos) {
+  const byCat = {};
+  (quantitativos || []).forEach(q => { const c = q.categoria || "99. OUTROS"; (byCat[c] = byCat[c] || []).push(q); });
 
   ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens], catIdx) => {
     const node = document.createElement("div");
@@ -2200,13 +2349,9 @@ function buildEAP() {
     const header = document.createElement("div");
     header.className = "eap-node-header";
     header.innerHTML = `<span class="caret">▶</span> <strong>${catIdx + 1}.</strong> ${cat.replace(/^\d+\.\s*/, "")} <span class="badge">${itens.length} serv.</span>`;
-    header.addEventListener("click", () => {
-      header.classList.toggle("open");
-      children.classList.toggle("open");
-    });
-
     const children = document.createElement("div");
     children.className = "eap-children";
+    header.addEventListener("click", () => { header.classList.toggle("open"); children.classList.toggle("open"); });
 
     itens.forEach((q, idx) => {
       const row = document.createElement("div");
@@ -2222,11 +2367,9 @@ function buildEAP() {
         memoToggle.className = "memo-toggle";
         memoToggle.textContent = "Ver memória de cálculo";
         memoToggle.style.gridColumn = "1 / -1";
-
         const memo = document.createElement("div");
         memo.className = "eap-memo";
         memo.textContent = q.memoria_calculo;
-
         memoToggle.addEventListener("click", () => {
           memo.classList.toggle("open");
           memoToggle.textContent = memo.classList.contains("open") ? "Ocultar memória" : "Ver memória de cálculo";
@@ -2239,13 +2382,8 @@ function buildEAP() {
 
     node.appendChild(header);
     node.appendChild(children);
-    tree.appendChild(node);
-
-    // Expand first category by default
-    if (catIdx === 0) {
-      header.classList.add("open");
-      children.classList.add("open");
-    }
+    container.appendChild(node);
+    if (catIdx === 0) { header.classList.add("open"); children.classList.add("open"); }
   });
 }
 
@@ -2257,7 +2395,7 @@ document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, analysisResult:null, projectName:"" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("configCard").style.display = "none";
