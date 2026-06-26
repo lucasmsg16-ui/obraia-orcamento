@@ -425,8 +425,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
   <!-- Configurações do orçamento (aparece ao carregar PDF) -->
   <div class="card" id="configCard" style="display:none">
-    <div class="card-title"><span class="icon">⚙️</span> Configurações do Orçamento</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap">
+    <div class="card-title"><span class="icon">⚙️</span> Configurações do Projeto</div>
+    <div style="display:none">
       <div class="field">
         <label>Estado da Obra</label>
         <select id="estadoSelect1" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;outline:none">
@@ -479,7 +479,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     </div>
     <div class="alert alert-info" style="margin-top:12px;font-size:12px">
       <span>📋</span>
-      <span>Tabela SINAPI 05/2026 · Os preços serão buscados na tabela do estado selecionado.</span>
+      <span>Tabela SINAPI 05/2026 · <b>Estado, desoneração e BDI</b> você define na etapa de <b>Orçamento</b> (assim dá para recalcular o preço sem reprocessar o projeto).</span>
     </div>
   </div>
 
@@ -551,7 +551,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="eap-tree" id="eapTree"></div>
 
     <div class="btn-group">
-      <button class="btn btn-primary" id="btnGoToBudget">📊 Gerar Orçamento SINAPI →</button>
+      <button class="btn btn-primary" id="btnValidar">✓ Validar levantamento</button>
+      <button class="btn btn-outline" id="btnGoToBudget">📊 Gerar Orçamento SINAPI →</button>
       <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
     </div>
   </div>
@@ -631,7 +632,6 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
             <th class="num">Qtd.</th>
             <th class="num">Preço Unit. (R$)</th>
             <th class="num">Total s/ BDI (R$)</th>
-            <th class="num">BDI (%)</th>
             <th class="num">Total c/ BDI (R$)</th>
           </tr>
         </thead>
@@ -861,6 +861,7 @@ const APP = {
   pageDisc: {},        // gid -> disciplina detectada/confirmada (modo multi-disciplina)
   pageTextCache: {},   // gid -> texto da camada (cache p/ classificação e análise)
   filtroDisc: "todas", // filtro ativo nas ferramentas: "todas" (geral) ou uma disciplina
+  levantamentoValidado: false, // libera as ferramentas (Orçamento, Cronograma, etc.) após o usuário validar
   sinapiDB: null,      // loaded per-state SINAPI data
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
@@ -881,6 +882,9 @@ function goTo(step) {
   });
   if (typeof _navActive === "function") _navActive(step);
   if (typeof applyProjectGuards === "function") applyProjectGuards();
+  // Orçamento/Cronograma são ferramentas: ao abrir (já validado), constроem com os dados atuais
+  if (step === 4 && APP.levantamentoValidado) { try { buildBudget(); } catch(e){} }
+  if (step === 5 && APP.levantamentoValidado) { try { buildCronograma(); } catch(e){} }
   window.scrollTo(0, 0);
 }
 
@@ -1503,6 +1507,7 @@ async function startAnalysis() {
   // Estado é definido aqui (necessário p/ refino de preços). Desoneração é escolhida na etapa de Orçamento.
   APP.estado = document.getElementById("estadoSelect1").value;
   APP.disciplina = (document.getElementById("disciplinaSelect")?.value || "auto").trim();
+  APP.levantamentoValidado = false;   // nova análise exige nova validação
   // Sync to Screen 4 selectors
   document.getElementById("stateSelect").value = APP.estado;
   document.getElementById("desonerSelect").value = APP.desoneracao ? "com" : "sem";
@@ -2275,6 +2280,13 @@ function buildEAP() {
   const r = APP.analysisResult;
   if (!r) return;
 
+  // Estado do botão "Validar levantamento" conforme a validação atual
+  const bv = document.getElementById("btnValidar");
+  if (bv) {
+    if (APP.levantamentoValidado) { bv.textContent = "✓ Levantamento validado"; bv.classList.add("btn-success"); bv.classList.remove("btn-primary"); bv.disabled = true; }
+    else { bv.textContent = "✓ Validar levantamento"; bv.classList.add("btn-primary"); bv.classList.remove("btn-success"); bv.disabled = false; }
+  }
+
   // Aviso de disciplina(s) aplicada(s)
   const eapAlert = document.getElementById("eapAlert");
   if (eapAlert) {
@@ -2399,15 +2411,30 @@ function renderEapCategorias(container, quantitativos) {
   });
 }
 
-document.getElementById("btnGoToBudget").addEventListener("click", async () => {
-  goTo(4);
-  await buildBudget();
+// Valida o levantamento e libera as ferramentas (Orçamento, Cronograma, ABC, Histograma, Insumos)
+function validarLevantamento(){
+  if(!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length)){
+    alert("Faça a análise de um projeto antes de validar o levantamento."); return false;
+  }
+  APP.levantamentoValidado = true;
+  const b=document.getElementById("btnValidar");
+  if(b){ b.textContent="✓ Levantamento validado"; b.classList.remove("btn-primary"); b.classList.add("btn-success"); b.disabled=true; }
+  const al=document.getElementById("eapAlert");
+  if(al){ al.classList.remove("alert-error"); al.innerHTML = '<span>✅</span><span><b>Levantamento validado.</b> As ferramentas (Orçamento, Cronograma, Curva ABC, Histograma, Insumos) estão liberadas no menu lateral.</span>'; }
+  applyProjectGuards();
+  return true;
+}
+document.getElementById("btnValidar").addEventListener("click", validarLevantamento);
+
+document.getElementById("btnGoToBudget").addEventListener("click", () => {
+  if(!validarLevantamento()) return;   // gerar orçamento valida o levantamento
+  goTo(4);                             // goTo já reconstrói o orçamento quando validado
 });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", levantamentoValidado:false, filtroDisc:"todas" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("configCard").style.display = "none";
@@ -2775,7 +2802,7 @@ async function buildBudget() {
     // Category row
     const catRow = document.createElement("tr");
     catRow.className = "cat-row";
-    catRow.innerHTML = `<td colspan="9">📁 ${cat}</td>`;
+    catRow.innerHTML = `<td colspan="8">📁 ${cat}</td>`;
     tbody.appendChild(catRow);
 
     let catTotal = 0;
@@ -2821,7 +2848,6 @@ async function buildBudget() {
         <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span></td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
         <td class="num">R$ ${fmt(subtotal)}</td>
-        <td class="num">${(bdi*100).toFixed(2)}%</td>
         <td class="num">R$ ${fmt(comBdi)}</td>`;
       tbody.appendChild(tr);
     });
@@ -2830,7 +2856,7 @@ async function buildBudget() {
     const subRow = document.createElement("tr");
     subRow.className = "subtotal-row";
     subRow.innerHTML = `
-      <td colspan="8" style="text-align:right">SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}</td>
+      <td colspan="7" style="text-align:right">SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}</td>
       <td class="num">R$ ${fmt(catTotal)}</td>`;
     tbody.appendChild(subRow);
   });
@@ -2841,13 +2867,13 @@ async function buildBudget() {
   totalRow.innerHTML = `
     <td colspan="6" style="text-align:right">TOTAL GERAL DA OBRA (s/ BDI)</td>
     <td class="num">R$ ${fmt(totalSemBdi)}</td>
-    <td></td><td></td>`;
+    <td></td>`;
   tbody.appendChild(totalRow);
 
   const totalBdiRow = document.createElement("tr");
   totalBdiRow.className = "total-row";
   totalBdiRow.innerHTML = `
-    <td colspan="8" style="text-align:right;font-size:14px">✅ TOTAL GERAL DA OBRA (c/ BDI ${(bdi*100).toFixed(2)}%)</td>
+    <td colspan="7" style="text-align:right;font-size:14px">✅ TOTAL GERAL DA OBRA (c/ BDI ${(bdi*100).toFixed(2)}%)</td>
     <td class="num" style="font-size:14px;color:#FFD700">R$ ${fmt(totalComBdi)}</td>`;
   tbody.appendChild(totalBdiRow);
 
@@ -3007,11 +3033,11 @@ function exportExcel() {
     [`MAR ABERTO ENGENHARIA`],
     [`Orçamento de Obra — ${APP.projectName} | Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | ${new Date().toLocaleDateString("pt-BR")}`],
     [],
-    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","BDI (%)","TOTAL C/ BDI (R$)"],
+    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","TOTAL C/ BDI (R$)"],
   ];
 
   const byCat = {};
-  (r.quantitativos || []).forEach(q => {
+  quantitativosAtivos().forEach(q => {
     const c = q.categoria || "99. OUTROS";
     if (!byCat[c]) byCat[c] = [];
     byCat[c].push(q);
@@ -3021,7 +3047,7 @@ function exportExcel() {
   const fmt2 = v => Math.round(v * 100) / 100;
 
   ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens]) => {
-    rows.push([cat, "", "", "", "", "", "", "", ""]);
+    rows.push([cat, "", "", "", "", "", "", ""]);
     let catTotal = 0;
 
     itens.forEach(q => {
@@ -3035,18 +3061,18 @@ function exportExcel() {
       catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
 
       rows.push([itemNum, codExcel, (info.descricaoOficial || q.descricao),
-                 q.unidade, qtd, fmt2(precoAdj), subtotal, (bdi*100).toFixed(2)+"%", comBdi]);
+                 q.unidade, qtd, fmt2(precoAdj), subtotal, comBdi]);
     });
-    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal)]);
+    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", fmt2(catTotal)]);
   });
 
-  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, "", fmt2(totalSemBdi)]);
-  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, "", fmt2(totalComBdi)]);
+  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, fmt2(totalSemBdi)]);
+  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, fmt2(totalComBdi)]);
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1["!cols"] = [5,16,60,6,12,16,18,10,20].map(w => ({wch:w}));
-  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
-  estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[5,6,8], catCol0:true });
+  ws1["!cols"] = [5,16,60,6,12,16,18,20].map(w => ({wch:w}));
+  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+  estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[5,6,7], catCol0:true });
   XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
@@ -3140,6 +3166,15 @@ function showTool(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=document.getElementById('screen-'+name); if(el) el.classList.add('active');
   _navActive(name);
+  // Ferramentas derivadas do orçamento exigem levantamento validado
+  if(['abc','hist','insumos'].includes(name)){
+    const val=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length && APP.levantamentoValidado);
+    if(!val){
+      const host=document.getElementById(name+'Content');
+      if(host) host.innerHTML='<div class="alert alert-error">🔒 Valide o levantamento primeiro — vá em <b>Levantamento</b> e clique em <b>✓ Validar levantamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(3)">↩ Ir para Levantamento</button></div>';
+      window.scrollTo(0,0); return;
+    }
+  }
   if(name==='abc') buildABC();
   if(name==='hist') buildHistograma();
   if(name==='insumos') buildInsumos();
@@ -3147,14 +3182,24 @@ function showTool(name){
   window.scrollTo(0,0);
 }
 function toggleNav(){ document.body.classList.toggle('nav-collapsed'); }
+const MSG_SEM_PROJ='📂 Insira um projeto na etapa <b>Upload</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button>';
+const MSG_VALIDAR='🔒 Valide o levantamento primeiro: vá em <b>Levantamento</b>, revise os quantitativos e clique em <b>✓ Validar levantamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(3)">↩ Ir para Levantamento</button>';
+function _guardScreen(s, ok, msg){
+  const sc=document.getElementById('screen-'+s); if(!sc) return;
+  const np=document.getElementById('np-'+s); if(!np) return;
+  if(!ok && msg) np.innerHTML=msg;
+  np.style.display = ok ? 'none' : 'block';
+  Array.prototype.forEach.call(sc.children, ch=>{ if(ch!==np) ch.style.display = ok ? '' : 'none'; });
+}
 function applyProjectGuards(){
   const has=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length);
-  [3,4,5].forEach(s=>{
-    const sc=document.getElementById('screen-'+s); if(!sc) return;
-    const np=document.getElementById('np-'+s); if(!np) return;
-    np.style.display = has ? 'none' : 'block';
-    Array.prototype.forEach.call(sc.children, ch=>{ if(ch!==np) ch.style.display = has ? '' : 'none'; });
-  });
+  const val=has && APP.levantamentoValidado;
+  // Levantamento (3): precisa só de projeto
+  _guardScreen(3, has, MSG_SEM_PROJ);
+  // Orçamento (4) e Cronograma (5): precisam de levantamento VALIDADO
+  const msg45 = has ? MSG_VALIDAR : MSG_SEM_PROJ;
+  _guardScreen(4, val, msg45);
+  _guardScreen(5, val, msg45);
 }
 function _fmtBR(v){ return (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
