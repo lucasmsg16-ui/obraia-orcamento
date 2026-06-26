@@ -549,6 +549,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <span>Levantamento concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>
     </div>
     <div class="eap-tree" id="eapTree"></div>
+    <div id="auditParedes"></div>
 
     <div class="btn-group">
       <button class="btn btn-primary" id="btnGoToBudget">📊 Revisar e gerar Orçamento →</button>
@@ -1029,6 +1030,7 @@ ORIENTAÇÕES DE QUANTITATIVOS POR CATEGORIA (use SOMENTE como referência de un
      d) DESCONTE os vãos: subtraia a soma das áreas de TODAS as portas e janelas (largura × altura de cada vão — use o QUADRO DE ESQUADRIAS se houver).
      e) Área de alvenaria = Área bruta − área de vãos.
      OBRIGATÓRIO em "memoria_calculo": registre o detalhamento auditável — comprimento de paredes externas, comprimento de paredes internas, pé-direito usado, área bruta, vãos descontados e resultado. Ex.: "Paredes ext=42,0m + int=58,5m = 100,5m x pé-direito 2,80m = 281,4m² - vãos(3 portas+5 janelas)=34,2m² = 247,2m²". NUNCA estime a alvenaria só pela área construída — meça as paredes.
+     OBRIGATÓRIO TAMBÉM: preencha o campo estruturado "memoria_paredes" deste item (ver FORMATO) com os comprimentos (externas/internas/total), pé-direito, área bruta, vãos, área líquida e a LISTA "paredes" trecho-a-trecho — é a tabela de auditoria que o usuário confere.
    - Vergas e contravergas (87704): unidade = M (metro linear = soma das larguras de TODOS os vãos de portas e janelas, contando verga + contraverga).
 
 6. COBERTURA:
@@ -1126,10 +1128,25 @@ FORMATO DE RESPOSTA (JSON puro):
       "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
       "fonte": "Folha 1 (planta baixa)",
-      "memoria_calculo": "Sala: per=18.0m x h=2.80m = 50.4m² - vãos(1por+2jan)=8.4m² = 42.0m²; ..."
+      "memoria_calculo": "Paredes ext=42.0m + int=58.5m = 100.5m x pé-direito 2.80m = 281.4m² - vãos(3por+5jan)=34.2m² = 247.2m²",
+      "memoria_paredes": {
+        "paredes_externas_m": 42.0,
+        "paredes_internas_m": 58.5,
+        "comprimento_total_m": 100.5,
+        "pe_direito_m": 2.80,
+        "area_bruta_m2": 281.4,
+        "vaos_m2": 34.2,
+        "area_liquida_m2": 247.2,
+        "paredes": [
+          { "trecho": "Perímetro externo (fachadas)", "tipo": "externa", "comprimento_m": 42.0 },
+          { "trecho": "Quarto 1 / Corredor", "tipo": "interna", "comprimento_m": 3.2 },
+          { "trecho": "Banheiro / Quarto 2", "tipo": "interna", "comprimento_m": 2.8 }
+        ]
+      }
     }
   ]
 }
+IMPORTANTE: o campo "memoria_paredes" (acima) é OBRIGATÓRIO no item de ALVENARIA — é a auditoria que o usuário usa para conferir as paredes. Liste em "paredes" cada trecho/parede (externa e interna) com seu comprimento. Para outros itens, omita "memoria_paredes".
 
 CAMPO ADICIONAL OBRIGATÓRIO: inclua sempre "disciplina_detectada" no JSON raiz, com um destes valores conforme o que você efetivamente leu nas pranchas: "arquitetonico", "estrutural", "eletrico" ou "hidrossanitario". Quando for "estrutural", inclua também "subtipo_estrutural": "forma_armacao" (a prancha traz geometria de fôrma E detalhamento de armadura) ou "armacao" (apenas detalhamento de ferragem/aço).`;
 
@@ -2408,6 +2425,45 @@ function buildEAP() {
       if (di === 0) { dh.classList.add("open"); dc.classList.add("open"); }
     });
   }
+  renderAuditoriaParedes(r);
+}
+
+// Auditoria das paredes (alvenaria): tabela conferível com comprimentos, pé-direito, vãos e lista parede-a-parede
+function renderAuditoriaParedes(r) {
+  const host = document.getElementById("auditParedes"); if (!host) return;
+  host.innerHTML = "";
+  const itens = (r.quantitativos || []).filter(q => q.memoria_paredes && typeof q.memoria_paredes === "object");
+  if (!itens.length) return;
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  let html = "";
+  itens.forEach(q => {
+    const m = q.memoria_paredes;
+    const disc = q._disciplina && q._disciplina !== "arquitetonico" ? ` <span class="badge">${(DISCIPLINAS[q._disciplina] || {}).label || q._disciplina}</span>` : "";
+    const kpi = (lbl, v, un) => `<div class="info-box"><div class="label">${lbl}</div><div class="value" style="font-size:16px">${nf(v)} ${un}</div></div>`;
+    const total = (Number(m.comprimento_total_m) || ((Number(m.paredes_externas_m) || 0) + (Number(m.paredes_internas_m) || 0)));
+    let linhas = "";
+    (m.paredes || []).forEach((p, i) => {
+      const t = (p.tipo || "").toLowerCase().startsWith("ext") ? "Externa" : "Interna";
+      linhas += `<tr><td>${i + 1}</td><td>${p.trecho || "—"}</td><td style="text-align:center">${t}</td><td class="num">${nf(p.comprimento_m)} m</td></tr>`;
+    });
+    html += `
+      <div class="card" style="margin-top:14px;border-left:3px solid var(--green)">
+        <div class="card-title"><span class="icon">📐</span> Auditoria das paredes — ${q.descricao || "Alvenaria"}${disc}</div>
+        <p class="muted" style="font-size:12px;margin-bottom:10px">Confira o levantamento das paredes. Área de alvenaria = comprimento total × pé-direito − vãos. Se algo estiver errado, ajuste a quantidade do serviço na etapa de Orçamento.</p>
+        <div class="info-grid">
+          ${kpi("Paredes externas", m.paredes_externas_m, "m")}
+          ${kpi("Paredes internas", m.paredes_internas_m, "m")}
+          ${kpi("Comprimento total", total, "m")}
+          ${kpi("Pé-direito", m.pe_direito_m, "m")}
+          ${kpi("Área bruta", m.area_bruta_m2, "m²")}
+          ${kpi("Vãos descontados", m.vaos_m2, "m²")}
+          ${kpi("Área de alvenaria", m.area_liquida_m2, "m²")}
+        </div>
+        ${linhas ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600;color:var(--navy)">Ver lista parede-a-parede (${(m.paredes || []).length} trechos)</summary>
+          <div style="overflow-x:auto;margin-top:10px"><table class="budget-table"><thead><tr><th>#</th><th>Trecho / ambiente</th><th style="text-align:center">Tipo</th><th class="num">Comprimento</th></tr></thead><tbody>${linhas}</tbody></table></div></details>` : ""}
+      </div>`;
+  });
+  host.innerHTML = html;
 }
 
 // Renderiza a árvore Categoria → serviços dentro de um container
