@@ -549,7 +549,6 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <span>Levantamento concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>
     </div>
     <div class="eap-tree" id="eapTree"></div>
-    <div id="auditParedes"></div>
 
     <div class="btn-group">
       <button class="btn btn-primary" id="btnGoToBudget">📊 Revisar e gerar Orçamento →</button>
@@ -1022,15 +1021,14 @@ ORIENTAÇÕES DE QUANTITATIVOS POR CATEGORIA (use SOMENTE como referência de un
    - Forma em madeira (94228): unidade = M² (área de contato da fôrma).
    - Armação aço CA-50/CA-60 (94237): unidade = KG (estimativa: 80~120 kg/m³ de concreto estrutural).
 
-5. ALVENARIA (CRÍTICO — principal fonte de erro; faça com MUITO cuidado e não subestime):
-   - Alvenaria de vedação (87456): unidade = M². SIGA ESTA METODOLOGIA OBRIGATÓRIA, passo a passo:
-     a) Percorra a planta baixa e identifique TODAS as paredes — as EXTERNAS (todo o perímetro da edificação) E TODAS as INTERNAS (divisórias entre TODOS os ambientes: quartos, sala, cozinha, banheiros, closets, área de serviço, corredores, hall). É MUITO comum esquecer paredes internas — percorra ambiente por ambiente e não deixe nenhuma de fora.
-     b) Meça o COMPRIMENTO de cada parede pelas cotas da planta (some os trechos). Calcule L_total = (soma das paredes externas) + (soma das paredes internas). Cada parede interna conta UMA vez (separa 2 ambientes, mas é 1 parede física).
-     c) Leia o PÉ-DIREITO no corte (altura piso→teto). Se não houver corte, use 2,80 m (residencial). Área bruta de parede = L_total × pé-direito.
-     d) DESCONTE os vãos: subtraia a soma das áreas de TODAS as portas e janelas (largura × altura de cada vão — use o QUADRO DE ESQUADRIAS se houver).
-     e) Área de alvenaria = Área bruta − área de vãos.
-     OBRIGATÓRIO em "memoria_calculo": registre o detalhamento auditável — comprimento de paredes externas, comprimento de paredes internas, pé-direito usado, área bruta, vãos descontados e resultado. Ex.: "Paredes ext=42,0m + int=58,5m = 100,5m x pé-direito 2,80m = 281,4m² - vãos(3 portas+5 janelas)=34,2m² = 247,2m²". NUNCA estime a alvenaria só pela área construída — meça as paredes.
-     OBRIGATÓRIO TAMBÉM: preencha o campo estruturado "memoria_paredes" deste item (ver FORMATO) com os comprimentos (externas/internas/total), pé-direito, área bruta, vãos, área líquida e a LISTA "paredes" trecho-a-trecho — é a tabela de auditoria que o usuário confere.
+5. ALVENARIA (CRÍTICO — o SISTEMA calcula a alvenaria pelas dimensões dos ambientes; sua tarefa é MEDIR BEM as cotas):
+   - Alvenaria de vedação (87456): unidade = M². O sistema calcula assim: comprimento de paredes = (Σ perímetros dos ambientes + perímetro externo) ÷ 2; área = comprimento × pé-direito − vãos + platibanda + caixa d'água. Para isso, faça com PRECISÃO e preencha os campos estruturados:
+     a) Para CADA ambiente da planta baixa, leia as DIMENSÕES internas (comprimento × largura) pelas cotas e preencha "comprimento_m" e "largura_m" em cada item de "ambientes". Inclua TODOS os ambientes (quartos, sala, cozinha, banheiros, closets, área de serviço, corredores, hall, varanda) — não esqueça nenhum.
+     b) Leia o PERÍMETRO EXTERNO da edificação (contorno das fachadas), em metros, e preencha "perimetro_externo_m" na raiz do JSON.
+     c) Leia o PÉ-DIREITO no corte (use 2,80 m residencial se não houver) e preencha "pe_direito_m" nos ambientes.
+     d) Some a área de TODOS os vãos (portas + janelas: largura×altura de cada) e preencha "vaos_alvenaria_m2" na raiz (use o quadro de esquadrias se houver).
+     e) Se houver PLATIBANDA, preencha "platibanda_m2" (perímetro da platibanda × altura dela). Se houver ALVENARIA da CAIXA D'ÁGUA / reservatório, preencha "caixa_dagua_alvenaria_m2". Esses dois ENTRAM NO MESMO quantitativo de alvenaria de vedação (some-os).
+     No item de alvenaria preencha "quantidade" com sua melhor estimativa (o sistema RECALCULA pelos campos acima quando disponíveis) e um resumo em "memoria_calculo".
    - Vergas e contravergas (87704): unidade = M (metro linear = soma das larguras de TODOS os vãos de portas e janelas, contando verga + contraverga).
 
 6. COBERTURA:
@@ -1116,8 +1114,12 @@ FORMATO DE RESPOSTA (JSON puro):
   "area_construida_m2": 0,
   "pavimentos": 1,
   "tipologia": "Residencial Unifamiliar / Comercial / etc",
+  "perimetro_externo_m": 0.0,
+  "vaos_alvenaria_m2": 0.0,
+  "platibanda_m2": 0.0,
+  "caixa_dagua_alvenaria_m2": 0.0,
   "ambientes": [
-    { "nome": "Sala de Estar", "area_m2": 20.0, "pe_direito_m": 2.80 }
+    { "nome": "Sala de Estar", "comprimento_m": 5.0, "largura_m": 4.0, "area_m2": 20.0, "pe_direito_m": 2.80 }
   ],
   "quantitativos": [
     {
@@ -1128,25 +1130,11 @@ FORMATO DE RESPOSTA (JSON puro):
       "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
       "fonte": "Folha 1 (planta baixa)",
-      "memoria_calculo": "Paredes ext=42.0m + int=58.5m = 100.5m x pé-direito 2.80m = 281.4m² - vãos(3por+5jan)=34.2m² = 247.2m²",
-      "memoria_paredes": {
-        "paredes_externas_m": 42.0,
-        "paredes_internas_m": 58.5,
-        "comprimento_total_m": 100.5,
-        "pe_direito_m": 2.80,
-        "area_bruta_m2": 281.4,
-        "vaos_m2": 34.2,
-        "area_liquida_m2": 247.2,
-        "paredes": [
-          { "trecho": "Perímetro externo (fachadas)", "tipo": "externa", "comprimento_m": 42.0 },
-          { "trecho": "Quarto 1 / Corredor", "tipo": "interna", "comprimento_m": 3.2 },
-          { "trecho": "Banheiro / Quarto 2", "tipo": "interna", "comprimento_m": 2.8 }
-        ]
-      }
+      "memoria_calculo": "L paredes=(Σ perím. ambientes + perím. externo)/2 x pé-direito − vãos + platibanda + caixa d'água"
     }
   ]
 }
-IMPORTANTE: o campo "memoria_paredes" (acima) é OBRIGATÓRIO no item de ALVENARIA — é a auditoria que o usuário usa para conferir as paredes. Liste em "paredes" cada trecho/parede (externa e interna) com seu comprimento. Para outros itens, omita "memoria_paredes".
+OBRIGATÓRIO para o cálculo da ALVENARIA: preencha na raiz "perimetro_externo_m" e "vaos_alvenaria_m2" (e "platibanda_m2"/"caixa_dagua_alvenaria_m2" quando houver), e em CADA ambiente "comprimento_m" e "largura_m" (dimensões internas em planta) — o sistema usa esses dados para calcular a área de alvenaria.
 
 CAMPO ADICIONAL OBRIGATÓRIO: inclua sempre "disciplina_detectada" no JSON raiz, com um destes valores conforme o que você efetivamente leu nas pranchas: "arquitetonico", "estrutural", "eletrico" ou "hidrossanitario". Quando for "estrutural", inclua também "subtipo_estrutural": "forma_armacao" (a prancha traz geometria de fôrma E detalhamento de armadura) ou "armacao" (apenas detalhamento de ferragem/aço).`;
 
@@ -1606,6 +1594,7 @@ async function startAnalysis() {
     // ── Passo 3: consolida (mantém _disciplina de cada item) ──
     setStep("pstep3", false, "Consolidando o levantamento…");
     const consolidado = parts.length === 1 ? parts[0] : consolidarDisciplinas(parts);
+    recalcularAlvenaria(consolidado);   // recalcula a alvenaria pelas dimensões dos ambientes
     APP.analysisResult = consolidado;
     setStep("pstep3", true, `${consolidado.quantitativos.length} serviços em ${grupos.length} disciplina(s)`);
     setProgress(90, "Estruturando EAP…");
@@ -1960,6 +1949,79 @@ function confirmarIncluirServico() {
     r.quantitativos.push({ descricao: desc, unidade: un, quantidade: qtd, categoria, _precoManual: preco, preco_unitario: preco, _id: nextId });
   }
   const panel = document.getElementById("inlineAddPanel"); if (panel) panel.remove();
+  recalcBudget();
+}
+
+// ── ALVENARIA: cálculo automático pelos ambientes + ajuste manual ──
+function _ehItemAlvenaria(q){
+  return catNum(q.categoria) === 5 && /alvenaria/i.test(q.descricao || "") && !/verga|contraverga/i.test(q.descricao || "");
+}
+// Recalcula a quantidade de alvenaria a partir das dimensões dos ambientes (comprimento de paredes
+// = (Σ perímetros dos ambientes + perímetro externo)/2) × pé-direito − vãos + platibanda + caixa d'água.
+function recalcularAlvenaria(r){
+  if(!r || !Array.isArray(r.quantitativos)) return;
+  let somaPerim = 0, peSum = 0, nPe = 0;
+  (r.ambientes || []).forEach(a => {
+    const L = Number(a.comprimento_m) || 0, W = Number(a.largura_m) || 0;
+    if(L > 0 && W > 0) somaPerim += 2 * (L + W);
+    const pe = Number(a.pe_direito_m) || 0; if(pe > 0){ peSum += pe; nPe++; }
+  });
+  const perimExt = Number(r.perimetro_externo_m) || 0;
+  if(somaPerim <= 0 || perimExt <= 0) return;   // sem dados suficientes → mantém a estimativa da IA
+  const peDireito = nPe > 0 ? (peSum / nPe) : 2.8;
+  const vaos = Number(r.vaos_alvenaria_m2) || 0;
+  const platibanda = Number(r.platibanda_m2) || 0;
+  const caixa = Number(r.caixa_dagua_alvenaria_m2) || 0;
+  const Lparedes = (somaPerim + perimExt) / 2;
+  let area = Lparedes * peDireito - vaos + platibanda + caixa;
+  if(area <= 0) return;
+  area = Math.round(area * 100) / 100;
+  const item = (r.quantitativos || []).find(q => _ehItemAlvenaria(q));
+  if(!item) return;
+  item.quantidade = area;
+  item._alvCalc = { Lparedes: Math.round(Lparedes * 100) / 100, peDireito: Math.round(peDireito * 100) / 100, vaos, platibanda, caixa, area, auto: true };
+}
+// Abre a calculadora manual da alvenaria (ajuste/calibração)
+function calcAlvenaria(id){
+  const r = APP.analysisResult; if(!r) return;
+  const q = (r.quantitativos || []).find(x => x._id === id); if(!q) return;
+  const ex = document.getElementById("alvCalcPanel"); if(ex) ex.remove();
+  const tbl = document.getElementById("budgetTable"); if(!tbl) return;
+  const c = q._alvCalc || {};
+  const inp = "padding:7px;border:1.5px solid var(--border);border-radius:6px;width:120px";
+  const panel = document.createElement("div");
+  panel.id = "alvCalcPanel"; panel.className = "card";
+  panel.style.cssText = "margin-bottom:12px;border:1.5px solid var(--green);background:#f0fdf4";
+  panel.innerHTML = `
+    <div style="font-weight:700;margin-bottom:4px">🧮 Calcular / ajustar alvenaria — ${q.descricao || ""}</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">Área = comprimento de paredes × pé-direito − vãos + platibanda + caixa d'água. Edite os campos (a área final recalcula sozinha) ou digite direto a <b>área final</b> medida.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <label style="font-size:12px">Comprimento de paredes (m)<br><input id="acL" type="number" step="any" value="${c.Lparedes != null ? c.Lparedes : ""}" style="${inp}"></label>
+      <label style="font-size:12px">Pé-direito (m)<br><input id="acH" type="number" step="any" value="${c.peDireito != null ? c.peDireito : 2.8}" style="${inp}"></label>
+      <label style="font-size:12px">Vãos (m²)<br><input id="acV" type="number" step="any" value="${c.vaos != null ? c.vaos : 0}" style="${inp}"></label>
+      <label style="font-size:12px">Platibanda (m²)<br><input id="acP" type="number" step="any" value="${c.platibanda != null ? c.platibanda : 0}" style="${inp}"></label>
+      <label style="font-size:12px">Caixa d'água (m²)<br><input id="acC" type="number" step="any" value="${c.caixa != null ? c.caixa : 0}" style="${inp}"></label>
+      <label style="font-size:12px;font-weight:700">Área final (m²)<br><input id="acFinal" type="number" step="any" value="${Number(q.quantidade) || 0}" style="${inp};border-color:var(--green)"></label>
+    </div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-success" onclick="aplicarAlvenaria(${id})">Aplicar à planilha</button>
+      <button class="btn btn-outline" onclick="document.getElementById('alvCalcPanel').remove()">Cancelar</button>
+    </div>`;
+  tbl.parentNode.insertBefore(panel, tbl);
+  const recompute = () => {
+    const g = idf => parseFloat(String(document.getElementById(idf).value).replace(",", ".")) || 0;
+    const a = Math.max(0, g("acL") * g("acH") - g("acV") + g("acP") + g("acC"));
+    document.getElementById("acFinal").value = Math.round(a * 100) / 100;
+  };
+  ["acL","acH","acV","acP","acC"].forEach(idf => document.getElementById(idf).addEventListener("input", recompute));
+}
+function aplicarAlvenaria(id){
+  const r = APP.analysisResult; if(!r) return;
+  const q = (r.quantitativos || []).find(x => x._id === id); if(!q) return;
+  const g = idf => parseFloat(String(document.getElementById(idf).value).replace(",", ".")) || 0;
+  q.quantidade = g("acFinal");
+  q._alvCalc = { Lparedes: g("acL"), peDireito: g("acH") || 2.8, vaos: g("acV"), platibanda: g("acP"), caixa: g("acC"), area: g("acFinal"), auto: false };
+  const p = document.getElementById("alvCalcPanel"); if(p) p.remove();
   recalcBudget();
 }
 
@@ -2425,45 +2487,6 @@ function buildEAP() {
       if (di === 0) { dh.classList.add("open"); dc.classList.add("open"); }
     });
   }
-  renderAuditoriaParedes(r);
-}
-
-// Auditoria das paredes (alvenaria): tabela conferível com comprimentos, pé-direito, vãos e lista parede-a-parede
-function renderAuditoriaParedes(r) {
-  const host = document.getElementById("auditParedes"); if (!host) return;
-  host.innerHTML = "";
-  const itens = (r.quantitativos || []).filter(q => q.memoria_paredes && typeof q.memoria_paredes === "object");
-  if (!itens.length) return;
-  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-  let html = "";
-  itens.forEach(q => {
-    const m = q.memoria_paredes;
-    const disc = q._disciplina && q._disciplina !== "arquitetonico" ? ` <span class="badge">${(DISCIPLINAS[q._disciplina] || {}).label || q._disciplina}</span>` : "";
-    const kpi = (lbl, v, un) => `<div class="info-box"><div class="label">${lbl}</div><div class="value" style="font-size:16px">${nf(v)} ${un}</div></div>`;
-    const total = (Number(m.comprimento_total_m) || ((Number(m.paredes_externas_m) || 0) + (Number(m.paredes_internas_m) || 0)));
-    let linhas = "";
-    (m.paredes || []).forEach((p, i) => {
-      const t = (p.tipo || "").toLowerCase().startsWith("ext") ? "Externa" : "Interna";
-      linhas += `<tr><td>${i + 1}</td><td>${p.trecho || "—"}</td><td style="text-align:center">${t}</td><td class="num">${nf(p.comprimento_m)} m</td></tr>`;
-    });
-    html += `
-      <div class="card" style="margin-top:14px;border-left:3px solid var(--green)">
-        <div class="card-title"><span class="icon">📐</span> Auditoria das paredes — ${q.descricao || "Alvenaria"}${disc}</div>
-        <p class="muted" style="font-size:12px;margin-bottom:10px">Confira o levantamento das paredes. Área de alvenaria = comprimento total × pé-direito − vãos. Se algo estiver errado, ajuste a quantidade do serviço na etapa de Orçamento.</p>
-        <div class="info-grid">
-          ${kpi("Paredes externas", m.paredes_externas_m, "m")}
-          ${kpi("Paredes internas", m.paredes_internas_m, "m")}
-          ${kpi("Comprimento total", total, "m")}
-          ${kpi("Pé-direito", m.pe_direito_m, "m")}
-          ${kpi("Área bruta", m.area_bruta_m2, "m²")}
-          ${kpi("Vãos descontados", m.vaos_m2, "m²")}
-          ${kpi("Área de alvenaria", m.area_liquida_m2, "m²")}
-        </div>
-        ${linhas ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600;color:var(--navy)">Ver lista parede-a-parede (${(m.paredes || []).length} trechos)</summary>
-          <div style="overflow-x:auto;margin-top:10px"><table class="budget-table"><thead><tr><th>#</th><th>Trecho / ambiente</th><th style="text-align:center">Tipo</th><th class="num">Comprimento</th></tr></thead><tbody>${linhas}</tbody></table></div></details>` : ""}
-      </div>`;
-  });
-  host.innerHTML = html;
 }
 
 // Renderiza a árvore Categoria → serviços dentro de um container
@@ -2962,7 +2985,7 @@ async function buildBudget() {
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
         <td>${(info.descricaoOficial || q.descricao)}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${(info.descricaoOficial && normalizaTxt(info.descricaoOficial) !== normalizaTxt(q.descricao||"")) ? ` <span class="ofic" title="Descrição lida pela IA: ${(q.descricao||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
-        <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span></td>
+        <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span>${_ehItemAlvenaria(q) ? ` <span class="edit-cod" title="Calcular/ajustar alvenaria" onclick="calcAlvenaria(${q._id})">🧮</span>` : ""}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
         <td class="num">R$ ${fmt(subtotal)}</td>
         <td class="num">R$ ${fmt(comBdi)}</td>`;
