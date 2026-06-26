@@ -356,8 +356,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">Levantamento</span></button>
     <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
-    <button class="nav-item" data-view="5" onclick="goTo(5)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
     <button class="nav-item" data-view="abc" onclick="showTool('abc')"><span class="ic">📊</span><span class="lb">Curva ABC</span></button>
+    <button class="nav-item" data-view="5" onclick="goTo(5)"><span class="ic">📅</span><span class="lb">Cronograma</span></button>
     <button class="nav-item" data-view="hist" onclick="showTool('hist')"><span class="ic">👷</span><span class="lb">Histograma</span></button>
     <button class="nav-item" data-view="insumos" onclick="showTool('insumos')"><span class="ic">📦</span><span class="lb">Insumos / Materiais</span></button>
     <button class="nav-item" data-view="sinapi" onclick="showTool('sinapi')"><span class="ic">🔍</span><span class="lb">Consultar SINAPI</span></button>
@@ -640,7 +640,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
     <div class="alert alert-info" id="orcValidaHint" style="margin-top:14px;font-size:13px">
       <span>📝</span>
-      <span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, a Curva ABC, o Histograma e os Insumos.</span>
+      <span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, o Histograma e os Insumos. (A <b>Curva ABC</b> já está liberada — use-a para achar os serviços mais caros e ajustar o orçamento.)</span>
     </div>
     <div class="btn-group">
       <button class="btn btn-primary" id="btnValidarOrc">✓ Validar orçamento</button>
@@ -2416,7 +2416,7 @@ function validarOrcamento(){
   APP.orcamentoValidado = true;
   _refreshBtnValidarOrc();
   const h=document.getElementById("orcValidaHint");
-  if(h){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Curva ABC, Histograma e Insumos liberados no menu lateral.</span>'; }
+  if(h){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Histograma e Insumos liberados no menu lateral.</span>'; }
   applyProjectGuards();
   return true;
 }
@@ -2428,8 +2428,8 @@ function _refreshBtnValidarOrc(){
     else { b.textContent="✓ Validar orçamento"; b.classList.add("btn-primary"); b.classList.remove("btn-success"); b.disabled=false; }
   }
   if(h){
-    if(APP.orcamentoValidado){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Curva ABC, Histograma e Insumos liberados no menu lateral.</span>'; }
-    else { h.classList.add("alert-info"); h.classList.remove("alert-success"); h.innerHTML='<span>📝</span><span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, a Curva ABC, o Histograma e os Insumos.</span>'; }
+    if(APP.orcamentoValidado){ h.classList.remove("alert-info"); h.classList.add("alert-success"); h.innerHTML='<span>✅</span><span><b>Orçamento validado.</b> Cronograma, Histograma e Insumos liberados no menu lateral.</span>'; }
+    else { h.classList.add("alert-info"); h.classList.remove("alert-success"); h.innerHTML='<span>📝</span><span>Revise os <b>códigos e quantidades</b> acima (lápis ✎). Quando estiver tudo certo, clique em <b>✓ Validar orçamento</b> para liberar o Cronograma, o Histograma e os Insumos. (A <b>Curva ABC</b> já está liberada — use-a para achar os serviços mais caros e ajustar o orçamento.)</span>'; }
   }
 }
 document.getElementById("btnValidarOrc").addEventListener("click", validarOrcamento);
@@ -3173,10 +3173,16 @@ function showTool(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el=document.getElementById('screen-'+name); if(el) el.classList.add('active');
   _navActive(name);
-  // Ferramentas derivadas do orçamento exigem ORÇAMENTO validado
-  if(['abc','hist','insumos'].includes(name)){
-    const val=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length && APP.orcamentoValidado);
-    if(!val){
+  const temProjeto=!!(APP.analysisResult && APP.analysisResult.quantitativos && APP.analysisResult.quantitativos.length);
+  // Curva ABC: liberada SEM validação (ajuda a achar gargalos e corrigir o próprio orçamento) — só precisa de projeto analisado
+  if(name==='abc' && !temProjeto){
+    const host=document.getElementById('abcContent');
+    if(host) host.innerHTML='<div class="alert alert-error">📂 Gere o orçamento primeiro — vá em <b>Orçamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(4)">↩ Ir para Orçamento</button></div>';
+    window.scrollTo(0,0); return;
+  }
+  // Histograma e Insumos exigem ORÇAMENTO validado
+  if(['hist','insumos'].includes(name)){
+    if(!(temProjeto && APP.orcamentoValidado)){
       const host=document.getElementById(name+'Content');
       if(host) host.innerHTML='<div class="alert alert-error">🔒 Valide o orçamento primeiro — vá em <b>Orçamento</b>, ajuste os itens e clique em <b>✓ Validar orçamento</b>. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(4)">↩ Ir para Orçamento</button></div>';
       window.scrollTo(0,0); return;
@@ -3221,8 +3227,10 @@ function _coletarItensOrcamento(){
   });
   return {itens, bdi};
 }
-function buildABC(){
+async function buildABC(){
   const host=document.getElementById('abcContent'); if(!host) return;
+  // garante a base SINAPI do estado carregada (a ABC pode ser aberta antes do Orçamento)
+  try { await loadSinapiDB(APP.estado || (document.getElementById('stateSelect')||{}).value || 'PE'); } catch(e){}
   const data=_coletarItensOrcamento();
   if(!data || !data.itens.length){ host.innerHTML='<div class="alert alert-error">Gere o orçamento primeiro (etapa 4 — Orçamento SINAPI) para ver a Curva ABC.</div>'; return; }
   const itens=data.itens.slice().sort((a,b)=>b.total-a.total);
