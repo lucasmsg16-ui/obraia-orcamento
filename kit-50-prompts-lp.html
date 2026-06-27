@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>50 Prompts da Obra Perfeita — Comandos de IA prontos para engenheiros | Mar Aberto Engenharia</title>
+<meta name="description" content="50 prompts prontos para usar no ChatGPT ou Claude Free — EAP, orçamento, cronograma, fiscalização e entrega. Do planejamento à obra concluída.">
+
+<meta property="og:type"        content="website">
+<meta property="og:title"       content="50 Prompts da Obra Perfeita — Comandos de IA prontos para engenheiros">
+<meta property="og:description" content="50 prompts prontos para usar no ChatGPT grátis. EAP, orçamento SINAPI, cronograma, fiscalização e documentação — tudo pronto para copiar e colar.">
+<meta property="og:image"       content="https://marabertoeng.com.br/og-vendas.png">
+<meta property="og:locale"      content="pt_BR">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- ⚠️ ANTES DE PUBLICAR:
+  1. Troque TODOS os  href="LINK_KIWIFY_KIT"  pelo checkout do Kiwify
+  2. Troque 5581997977068 pelo seu número (ex: 5581999999999)
+-->
+
+<style>
+  :root{
+    --navy:#002B40; --navy2:#013a55; --blue:#1792C0; --ia:#4db8e8;
+    --ink:#0f2230; --muted:#5b7081; --line:#e3edf3; --bg:#f3f8fb; --white:#fff;
+    --amber:#f5a623; --green:#1faa6c;
+    --radius:14px; --shadow:0 18px 50px rgba(0,43,64,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Poppins',system-ui,Arial,sans-serif;color:var(--ink);background:var(--white);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  a{text-decoration:none;color:inherit}
+  h1,h2,h3{line-height:1.15;letter-spacing:-.02em}
+
+  /* BOTÕES */
+  .btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:17px;padding:16px 32px;border-radius:50px;cursor:pointer;border:0;transition:.2s;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),var(--ia));color:#fff;box-shadow:0 12px 30px rgba(23,146,192,.4)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(23,146,192,.55)}
+  .btn-lg{font-size:19px;padding:19px 44px}
+  .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.35)}
+  .btn-ghost:hover{background:rgba(255,255,255,.2)}
+
+  /* NAV */
+  header{position:sticky;top:0;z-index:50;background:rgba(0,43,64,.95);backdrop-filter:blur(8px)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:17px}
+  .logo small{display:block;font-size:10px;font-weight:500;letter-spacing:3px;color:#9fc6da;margin-top:-2px}
+  .nav-price{color:var(--ia);font-size:14px;font-weight:700}
+  .nav-price span{color:rgba(255,255,255,.5);font-size:12px;text-decoration:line-through;margin-right:6px;font-weight:400}
+  @media(max-width:600px){.nav-cta{display:none}}
+
+  /* HERO */
+  .hero{background:radial-gradient(1100px 480px at 70% -10%,#0a4a68 0,var(--navy) 58%);color:#fff;padding:64px 0 80px;overflow:hidden;position:relative}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:70px;background:var(--white);
+    -webkit-mask:radial-gradient(70px 70px at 50% 0,transparent 98%,#000);mask:none}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:rgba(77,184,232,.18);border:1px solid rgba(77,184,232,.4);
+    color:#bfe3f6;font-size:13px;font-weight:600;padding:6px 14px;border-radius:50px;margin-bottom:18px}
+  .hero h1{font-size:44px;font-weight:800;max-width:640px}
+  .hero h1 em{color:var(--ia);font-style:normal}
+  .hero .sub{font-size:18px;color:#cfe3ef;margin:16px 0 0;max-width:520px;line-height:1.6}
+  .trust-chips{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0 32px}
+  .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.8);
+    font-size:13px;font-weight:600;padding:6px 14px;border-radius:6px}
+  .hero-price{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:28px}
+  .hero-price .from{font-size:14px;color:rgba(255,255,255,.5);text-decoration:line-through}
+  .hero-price .to{font-size:38px;font-weight:800;color:#fff;line-height:1}
+  .hero-price .per{font-size:13px;color:rgba(255,255,255,.6);margin-left:2px}
+
+  /* PROVA SOCIAL RÁPIDA */
+  .proof-bar{background:var(--bg);border-bottom:1px solid var(--line);padding:18px 0}
+  .proof-row{display:flex;gap:32px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .proof-item{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--navy)}
+  .proof-item span{color:var(--muted);font-weight:400}
+
+  /* SAMPLE PROMPT */
+  .sample{padding:56px 0;background:var(--white)}
+  .kicker{color:var(--blue);font-weight:700;letter-spacing:2px;font-size:12px;text-transform:uppercase;margin-bottom:8px}
+  .sample h2{font-size:30px;font-weight:800;color:var(--navy);margin-bottom:8px}
+  .sample .sub2{font-size:16px;color:var(--muted);margin-bottom:32px;max-width:560px}
+  .prompt-demo{background:#f0f7fb;border:1px solid #c5dfe9;border-left:4px solid var(--blue);border-radius:10px;padding:24px 28px;font-size:14px;color:#1a3040;line-height:1.8;white-space:pre-wrap;font-family:'Poppins',sans-serif;position:relative}
+  .prompt-demo .label{position:absolute;top:-14px;left:20px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:3px 12px;border-radius:20px;letter-spacing:1px}
+  .prompt-result{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px 24px;margin-top:20px}
+  .prompt-result .rtitle{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+  .eap-item{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid #f0f4f7;font-size:14px}
+  .eap-item:last-child{border:none}
+  .eap-item .num{color:var(--blue);font-weight:700;min-width:28px;flex-shrink:0}
+  .eap-item.milestone{color:var(--navy);font-weight:700}
+
+  /* MÓDULOS */
+  .modules{padding:56px 0;background:var(--bg)}
+  .modules h2{font-size:30px;font-weight:800;color:var(--navy);text-align:center;margin-bottom:8px}
+  .modules .sub2{text-align:center;color:var(--muted);font-size:16px;margin-bottom:36px}
+  .mod-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .mod-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px;transition:.18s}
+  .mod-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#c5dfe9}
+  .mod-icon{font-size:32px;margin-bottom:12px}
+  .mod-num{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--blue);text-transform:uppercase;margin-bottom:4px}
+  .mod-card h3{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:8px}
+  .mod-card ul{list-style:none;padding:0}
+  .mod-card li{font-size:13px;color:var(--muted);padding:3px 0;display:flex;gap:7px;align-items:flex-start}
+  .mod-card li::before{content:"›";color:var(--blue);font-weight:700;flex-shrink:0}
+  .mod-count{display:inline-block;background:var(--bg);border-radius:4px;font-size:11px;font-weight:700;color:var(--blue);padding:2px 10px;margin-top:10px}
+  @media(max-width:700px){.mod-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.mod-grid{grid-template-columns:1fr}}
+
+  /* PARA QUEM */
+  .forwho{padding:56px 0}
+  .forwho h2{font-size:30px;font-weight:800;color:var(--navy);text-align:center;margin-bottom:32px}
+  .fw-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:720px;margin:0 auto}
+  .fw-card{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:22px 24px}
+  .fw-card .ic{font-size:28px;margin-bottom:10px}
+  .fw-card h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px}
+  .fw-card p{font-size:14px;color:var(--muted);line-height:1.6}
+  @media(max-width:520px){.fw-grid{grid-template-columns:1fr}}
+
+  /* PREÇO */
+  .price-section{padding:56px 0;background:var(--bg)}
+  .price-center{max-width:520px;margin:0 auto;text-align:center}
+  .price-card{background:linear-gradient(160deg,var(--navy),#013a55);border-radius:20px;padding:40px 36px;box-shadow:0 24px 60px rgba(0,43,64,.22);position:relative;overflow:hidden;color:#fff;margin-top:28px}
+  .price-card::before{content:"";position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(77,184,232,.1)}
+  .price-card .badge{background:var(--amber);color:#3a2a00;font-size:12px;font-weight:800;padding:5px 18px;border-radius:20px;display:inline-block;margin-bottom:20px}
+  .price-card .old{color:#8fb6cc;text-decoration:line-through;font-size:16px}
+  .price-card .price{font-size:64px;font-weight:800;line-height:1;color:#fff;margin:6px 0 4px}
+  .price-card .price small{font-size:22px;font-weight:600;color:#cfe3ef;vertical-align:super;margin-left:-4px}
+  .price-card .desc{font-size:14px;color:#b0cfe0;margin-bottom:24px}
+  .price-card .includes{text-align:left;margin-bottom:24px}
+  .price-card .inc-item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px;color:rgba(255,255,255,.85)}
+  .price-card .inc-item:last-child{border:none}
+  .price-card .inc-item .ck{color:#4deb8f;font-weight:800;flex-shrink:0}
+  .price-card .btn{width:100%;justify-content:center;font-size:17px;padding:17px}
+  .price-card .safe{font-size:12px;color:#8fb6cc;margin-top:14px;text-align:center}
+  .wpp-include{display:flex;align-items:center;gap:10px;background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.25);border-radius:8px;padding:10px 14px;margin-top:10px}
+  .wpp-include span{font-size:13px;color:#4deb8f;font-weight:600}
+
+  /* GARANTIA */
+  .guarantee{max-width:680px;margin:0 auto;display:flex;gap:20px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px 28px;box-shadow:0 4px 18px rgba(0,43,64,.06)}
+  .seal{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,var(--green),#16c172);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;flex:none;line-height:1.1;font-size:22px}
+  .seal small{font-size:10px;font-weight:600}
+
+  /* FAQ */
+  .faq-wrap{max-width:680px;margin:0 auto}
+  details{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:4px 20px}
+  summary{cursor:pointer;font-weight:600;color:var(--navy);padding:14px 0;list-style:none;display:flex;justify-content:space-between;align-items:center;font-size:15px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--blue);font-size:22px;font-weight:700}
+  details[open] summary::after{content:"–"}
+  details p{color:var(--muted);padding:0 0 14px;font-size:14px;line-height:1.6}
+
+  /* CTA FINAL */
+  .final-cta{background:radial-gradient(900px 400px at 50% 0,#0a4a68,var(--navy));color:#fff;text-align:center;padding:64px 0}
+  .final-cta h2{color:#fff;font-size:32px;font-weight:800;margin-bottom:12px}
+  .final-cta p{color:#cfe3ef;font-size:16px;max-width:520px;margin:0 auto 28px}
+
+  /* FOOTER */
+  footer{background:#011d2b;color:#9fc6da;padding:36px 0;font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;align-items:center}
+  .footer-links{display:flex;gap:16px}
+  .footer-links a{color:#6b97b0;font-size:12px}
+
+  section{padding:56px 0}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header>
+  <div class="wrap">
+    <a href="#" class="logo">
+      <img src="https://marabertoeng.com.br/logo-branco.png?v=2" alt="Mar Aberto Engenharia" style="height:40px;width:auto">
+    </a>
+    <div style="display:flex;align-items:center;gap:20px">
+      <div class="nav-price"><span>R$97</span> R$ 47</div>
+      <a href="LINK_KIWIFY_KIT" class="btn btn-primary nav-cta" style="font-size:14px;padding:11px 22px">Quero o Kit →</a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <span class="pill">⚡ Kit Digital — Mar Aberto Engenharia</span>
+    <h1>50 Prompts da <em>Obra Perfeita</em></h1>
+    <p class="sub">Comandos prontos para usar no ChatGPT ou Claude <strong style="color:#fff">gratuitamente</strong>.<br>Do planejamento à entrega — sem precisar de curso de IA.</p>
+
+    <div class="trust-chips">
+      <span class="chip">✔ Funciona no ChatGPT Free</span>
+      <span class="chip">✔ Funciona no Claude Free</span>
+      <span class="chip">✔ 100% Copiar e Colar</span>
+      <span class="chip">✔ Contexto SINAPI + Lei 14.133</span>
+      <span class="chip">💬 Suporte via WhatsApp</span>
+    </div>
+
+    <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:14px;color:rgba(255,255,255,.5);text-decoration:line-through;margin-bottom:2px">de R$ 97,00</div>
+        <div style="font-size:52px;font-weight:800;line-height:1;color:#fff">R$&nbsp;47</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:4px">pagamento único · acesso imediato</div>
+      </div>
+      <a href="LINK_KIWIFY_KIT" class="btn btn-primary btn-lg">Quero os 50 Prompts →</a>
+    </div>
+
+    <div style="margin-top:16px;color:rgba(255,255,255,.45);font-size:13px">
+      🔒 Pagamento seguro via Kiwify · Pix ou cartão · Garantia de 7 dias
+    </div>
+  </div>
+</section>
+
+<!-- PROVA RÁPIDA -->
+<div class="proof-bar">
+  <div class="proof-row wrap">
+    <div class="proof-item">📋 <span>50 prompts organizados em 5 módulos</span></div>
+    <div class="proof-item">⚡ <span>Acesso imediato após o pagamento</span></div>
+    <div class="proof-item">🇧🇷 <span>Contexto SINAPI e normas brasileiras</span></div>
+    <div class="proof-item">💬 <span>Suporte por WhatsApp incluído</span></div>
+  </div>
+</div>
+
+<!-- SAMPLE PROMPT -->
+<section class="sample">
+  <div class="wrap">
+    <div class="kicker">Veja um exemplo real</div>
+    <h2>Você copia. Cola. Em 40 segundos, tem isso:</h2>
+    <p class="sub2">Este é um dos 50 prompts do kit — pronto para usar agora no ChatGPT ou Claude gratuito.</p>
+
+    <!-- MOCK VISUAL -->
+    <div style="background:#fff;border:1px solid #dde8ef;border-radius:14px;overflow:hidden;box-shadow:0 12px 40px rgba(0,43,64,.10)">
+
+      <!-- Barra topo do documento -->
+      <div style="background:var(--navy);padding:12px 18px;display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:10px">
+          <img src="https://marabertoeng.com.br/logo-branco.png?v=2" alt="Mar Aberto" style="height:22px;width:auto">
+          <span style="color:rgba(255,255,255,.5);font-size:11px">|</span>
+          <span style="color:rgba(255,255,255,.75);font-size:12px;font-weight:600">Residência Unifamiliar — 140 m²</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span style="background:rgba(77,184,232,.2);border:1px solid rgba(77,184,232,.4);color:#4db8e8;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:1px">IA ✓</span>
+          <span style="background:rgba(31,170,108,.2);border:1px solid rgba(31,170,108,.35);color:#4deb8f;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">⏱ 38s</span>
+        </div>
+      </div>
+
+      <!-- Abas -->
+      <div style="background:#f5f8fb;border-bottom:1px solid #e3edf3;display:flex;gap:0">
+        <div style="padding:9px 18px;font-size:12px;font-weight:700;color:var(--blue);border-bottom:2px solid var(--blue);background:#fff">📋 EAP</div>
+        <div style="padding:9px 18px;font-size:12px;color:#8a9db0">💰 Orçamento</div>
+        <div style="padding:9px 18px;font-size:12px;color:#8a9db0">📅 Cronograma</div>
+      </div>
+
+      <div style="padding:16px 18px">
+
+        <!-- EAP TREE -->
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#8a9db0;text-transform:uppercase;margin-bottom:10px">Estrutura Analítica do Projeto — EAP</div>
+
+        <!-- Cat 1 -->
+        <div style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;background:#edf6fc;border-left:3px solid #1792C0;border-radius:0 6px 6px 0;padding:7px 12px">
+            <span style="background:#1792C0;color:#fff;font-size:10px;font-weight:800;border-radius:4px;padding:1px 7px;flex-shrink:0">1</span>
+            <span style="font-size:12px;font-weight:700;color:#002B40">★ SERVIÇOS PRELIMINARES</span>
+            <span style="margin-left:auto;font-size:10px;color:#1792C0;font-weight:600">15 dias</span>
+          </div>
+          <div style="display:flex;gap:14px;padding:4px 12px 2px 32px">
+            <span style="font-size:11px;color:#5b7081">1.1 Canteiro de obras</span>
+            <span style="font-size:11px;color:#5b7081">1.2 Locação e nivelamento</span>
+          </div>
+        </div>
+
+        <!-- Cat 2 -->
+        <div style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;background:#fef0f2;border-left:3px solid #e11d48;border-radius:0 6px 6px 0;padding:7px 12px">
+            <span style="background:#e11d48;color:#fff;font-size:10px;font-weight:800;border-radius:4px;padding:1px 7px;flex-shrink:0">2</span>
+            <span style="font-size:12px;font-weight:700;color:#002B40">★ FUNDAÇÕES</span>
+            <span style="margin-left:auto;font-size:10px;color:#e11d48;font-weight:600">20 dias ⚠ crítico</span>
+          </div>
+          <div style="display:flex;gap:14px;padding:4px 12px 2px 32px;flex-wrap:wrap">
+            <span style="font-size:11px;color:#5b7081">2.1 Escavação</span>
+            <span style="font-size:11px;color:#5b7081">2.2 Sapatas corridas</span>
+            <span style="font-size:11px;color:#5b7081">2.3 Baldrame + impermeabiliz.</span>
+          </div>
+        </div>
+
+        <!-- Cat 3 -->
+        <div style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;background:#fff8ec;border-left:3px solid #f5a623;border-radius:0 6px 6px 0;padding:7px 12px">
+            <span style="background:#f5a623;color:#fff;font-size:10px;font-weight:800;border-radius:4px;padding:1px 7px;flex-shrink:0">3</span>
+            <span style="font-size:12px;font-weight:700;color:#002B40">★ ESTRUTURA</span>
+            <span style="margin-left:auto;font-size:10px;color:#f5a623;font-weight:600">30 dias</span>
+          </div>
+          <div style="display:flex;gap:14px;padding:4px 12px 2px 32px;flex-wrap:wrap">
+            <span style="font-size:11px;color:#5b7081">3.1 Fôrmas</span>
+            <span style="font-size:11px;color:#5b7081">3.2 Armação CA-50</span>
+            <span style="font-size:11px;color:#5b7081">3.3 Concretagem</span>
+          </div>
+        </div>
+
+        <!-- Cat 4 -->
+        <div style="margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;background:#edfbf4;border-left:3px solid #1faa6c;border-radius:0 6px 6px 0;padding:7px 12px">
+            <span style="background:#1faa6c;color:#fff;font-size:10px;font-weight:800;border-radius:4px;padding:1px 7px;flex-shrink:0">4</span>
+            <span style="font-size:12px;font-weight:700;color:#002B40">INSTALAÇÕES ELÉTRICAS + HIDRÁULICAS</span>
+            <span style="margin-left:auto;font-size:10px;color:#1faa6c;font-weight:600">25 dias</span>
+          </div>
+        </div>
+
+        <!-- Mais categorias colapsadas -->
+        <div style="text-align:center;padding:6px 0;font-size:11px;font-weight:600;color:#1792C0;background:#f5f8fb;border-radius:6px;margin-top:2px">
+          + 7 categorias: Alvenaria · Cobertura · Revestimentos · Esquadrias · Pintura · Urbanização · Entrega ↓
+        </div>
+
+        <!-- MINI GANTT -->
+        <div style="margin-top:14px;border-top:1px solid #e8f0f5;padding-top:12px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#8a9db0;text-transform:uppercase;margin-bottom:8px">Cronograma — 8 meses</div>
+          <div style="display:grid;gap:4px">
+            <!-- Fases com barras -->
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center">
+              <span style="font-size:10px;color:#5b7081;text-align:right">Serv. Preliminares</span>
+              <div style="background:#e8f0f5;border-radius:3px;height:10px;position:relative">
+                <div style="position:absolute;left:0;width:12%;background:#1792C0;height:100%;border-radius:3px"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center">
+              <span style="font-size:10px;color:#5b7081;text-align:right">Fundações</span>
+              <div style="background:#e8f0f5;border-radius:3px;height:10px;position:relative">
+                <div style="position:absolute;left:10%;width:18%;background:#e11d48;height:100%;border-radius:3px"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center">
+              <span style="font-size:10px;color:#5b7081;text-align:right">Estrutura</span>
+              <div style="background:#e8f0f5;border-radius:3px;height:10px;position:relative">
+                <div style="position:absolute;left:24%;width:26%;background:#f5a623;height:100%;border-radius:3px"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center">
+              <span style="font-size:10px;color:#5b7081;text-align:right">Instalações</span>
+              <div style="background:#e8f0f5;border-radius:3px;height:10px;position:relative">
+                <div style="position:absolute;left:42%;width:22%;background:#1faa6c;height:100%;border-radius:3px"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;align-items:center">
+              <span style="font-size:10px;color:#5b7081;text-align:right">Acabamentos</span>
+              <div style="background:#e8f0f5;border-radius:3px;height:10px;position:relative">
+                <div style="position:absolute;left:60%;width:34%;background:#4db8e8;height:100%;border-radius:3px"></div>
+              </div>
+            </div>
+            <!-- Linha de meses -->
+            <div style="display:grid;grid-template-columns:110px 1fr;gap:6px;margin-top:2px">
+              <span></span>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:9px;color:#aab8c2">Mês 1</span>
+                <span style="font-size:9px;color:#aab8c2">Mês 3</span>
+                <span style="font-size:9px;color:#aab8c2">Mês 5</span>
+                <span style="font-size:9px;color:#aab8c2">Mês 8</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RODAPÉ DO MOCK -->
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #e8f0f5;display:flex;gap:8px;flex-wrap:wrap">
+          <span style="background:#edf6fc;color:#1792C0;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">SINAPI ✓</span>
+          <span style="background:#edfbf4;color:#1faa6c;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">Curva ABC ✓</span>
+          <span style="background:#fff8ec;color:#c47d00;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">Excel Download ✓</span>
+          <span style="background:#f5f0fb;color:#7c4daa;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px">Caminho Crítico ✓</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Legenda abaixo do mock -->
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-top:12px;background:#f5f8fb;border-radius:8px;padding:12px 16px">
+      <span style="font-size:20px;flex-shrink:0">⏱</span>
+      <p style="font-size:13px;color:var(--muted);line-height:1.5"><strong style="color:var(--navy)">Esse resultado saiu em 38 segundos</strong> após colar o prompt no ChatGPT gratuito. O kit tem mais 49 prompts assim — orçamento SINAPI, cronograma, boletim de medição, notificação de NC, laudo técnico, proposta de honorários e muito mais.</p>
+    </div>
+
+    <div style="background:var(--bg);border-radius:10px;padding:18px 22px;margin-top:24px;display:flex;gap:14px;align-items:center">
+      <span style="font-size:24px">💡</span>
+      <p style="font-size:14px;color:var(--navy)"><strong>E os outros 49 prompts?</strong> Cobrem orçamento com contexto SINAPI, cronograma físico-financeiro, boletim de medição, notificação de não conformidade, laudo técnico, proposta de honorários, contrato de serviços e muito mais — tudo com linguagem brasileira e referências às normas técnicas corretas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MÓDULOS -->
+<section class="modules">
+  <div class="wrap">
+    <div class="kicker center">O que está dentro do kit</div>
+    <h2>5 módulos. 50 prompts. A trilha completa da obra.</h2>
+    <p class="sub2">Cada módulo cobre uma fase do projeto — do planejamento à entrega. Use na ordem ou escolha o que precisa agora.</p>
+
+    <div class="mod-grid">
+      <div class="mod-card">
+        <div class="mod-icon">🧭</div>
+        <div class="mod-num">Módulo 01</div>
+        <h3>Planejamento e Viabilidade</h3>
+        <ul>
+          <li>EAP completa em hierarquia</li>
+          <li>Memorial descritivo técnico</li>
+          <li>Estimativa rápida por m²</li>
+          <li>Análise de viabilidade de terreno</li>
+          <li>Escopo de serviços para proposta</li>
+          <li>Identificação de riscos técnicos</li>
+        </ul>
+        <span class="mod-count">10 prompts</span>
+      </div>
+
+      <div class="mod-card">
+        <div class="mod-icon">💰</div>
+        <div class="mod-num">Módulo 02</div>
+        <h3>Orçamento e Quantitativos</h3>
+        <ul>
+          <li>Levantamento por ambiente</li>
+          <li>Composição de BDI (público/privado)</li>
+          <li>Curva ABC dos serviços críticos</li>
+          <li>Comparativo técnico de propostas</li>
+          <li>Reajuste SINAPI/INCC</li>
+          <li>Itens frequentemente esquecidos</li>
+        </ul>
+        <span class="mod-count">10 prompts</span>
+      </div>
+
+      <div class="mod-card">
+        <div class="mod-icon">📅</div>
+        <div class="mod-num">Módulo 03</div>
+        <h3>Cronograma e Planejamento</h3>
+        <ul>
+          <li>Cronograma físico-financeiro</li>
+          <li>Caminho crítico verbal</li>
+          <li>Reprogramação com justificativa técnica</li>
+          <li>Curva S narrativa para relatório</li>
+          <li>Análise de desvio de prazo</li>
+          <li>Linha de balanço</li>
+        </ul>
+        <span class="mod-count">8 prompts</span>
+      </div>
+
+      <div class="mod-card">
+        <div class="mod-icon">👷</div>
+        <div class="mod-num">Módulo 04</div>
+        <h3>Fiscalização e Controle</h3>
+        <ul>
+          <li>Diário de obra completo</li>
+          <li>Boletim de medição com cálculos</li>
+          <li>Notificação de não conformidade</li>
+          <li>Glosa de medição justificada</li>
+          <li>Ata de reunião de obra</li>
+          <li>Checklist de segurança por fase</li>
+        </ul>
+        <span class="mod-count">12 prompts</span>
+      </div>
+
+      <div class="mod-card">
+        <div class="mod-icon">📋</div>
+        <div class="mod-num">Módulo 05</div>
+        <h3>Documentação e Entrega</h3>
+        <ul>
+          <li>Laudo técnico de vistoria</li>
+          <li>Manual do proprietário (NBR 14037)</li>
+          <li>Proposta de honorários</li>
+          <li>Contrato de prestação de serviços</li>
+          <li>Parecer técnico para litígio</li>
+          <li>Checklist de ART/RRT</li>
+        </ul>
+        <span class="mod-count">10 prompts</span>
+      </div>
+
+      <div class="mod-card" style="background:linear-gradient(135deg,var(--navy),#013a55);border-color:transparent;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
+        <div style="font-size:42px;margin-bottom:14px">🤝</div>
+        <h3 style="color:#fff;margin-bottom:8px">Suporte via WhatsApp</h3>
+        <p style="color:rgba(255,255,255,.65);font-size:13px;line-height:1.6">Dúvida sobre como usar um prompt? A equipe da Mar Aberto Engenharia responde diretamente pelo WhatsApp.</p>
+        <span style="display:inline-block;background:rgba(77,184,232,.2);color:var(--ia);font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;margin-top:14px;letter-spacing:1px">INCLUSO NO KIT</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARA QUEM É -->
+<section class="forwho">
+  <div class="wrap">
+    <div class="kicker center">Para quem é</div>
+    <h2>Se você faz obras, esses prompts são para você</h2>
+    <div class="fw-grid">
+      <div class="fw-card">
+        <div class="ic">📐</div>
+        <h3>Engenheiros projetistas</h3>
+        <p>Que elaboram propostas técnicas, orçamentos e precisam de documentação rápida e profissional.</p>
+      </div>
+      <div class="fw-card">
+        <div class="ic">🏗️</div>
+        <h3>Engenheiros de obra</h3>
+        <p>Que fiscalizam, medem e registram — e querem diários, boletins e notificações prontos em minutos.</p>
+      </div>
+      <div class="fw-card">
+        <div class="ic">📊</div>
+        <h3>Fiscais de contrato</h3>
+        <p>Que precisam de pareceres técnicos, notificações de NC e relatórios com base em Lei 14.133/21.</p>
+      </div>
+      <div class="fw-card">
+        <div class="ic">🏢</div>
+        <h3>Escritórios e consultores</h3>
+        <p>Que querem padronizar a documentação técnica, reduzir o tempo por proposta e atender mais clientes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PREÇO -->
+<section class="price-section" id="comprar">
+  <div class="wrap">
+    <div class="kicker center">Acesso imediato</div>
+    <h2 style="text-align:center;font-size:30px;font-weight:800;color:var(--navy);margin-bottom:4px">Garanta o kit agora por R$ 47</h2>
+    <p style="text-align:center;color:var(--muted);font-size:16px;margin-bottom:0">Preço de lançamento · pagamento único · acesso definitivo</p>
+
+    <div class="price-center">
+      <div class="price-card">
+        <span class="badge">⚡ OFERTA DE LANÇAMENTO</span>
+        <div class="old">de R$ 97,00</div>
+        <div class="price"><small>R$</small> 47</div>
+        <div class="desc">Pagamento único · Pix ou cartão · Acesso imediato ao PDF</div>
+
+        <div class="includes">
+          <div class="inc-item"><span class="ck">✓</span><span><strong>50 prompts prontos</strong> para copiar e colar</span></div>
+          <div class="inc-item"><span class="ck">✓</span><span>5 módulos — da EAP à entrega final</span></div>
+          <div class="inc-item"><span class="ck">✓</span><span>Funciona no ChatGPT e Claude <strong>gratuitos</strong></span></div>
+          <div class="inc-item"><span class="ck">✓</span><span>Contexto SINAPI, Lei 14.133/21 e NBRs</span></div>
+          <div class="inc-item"><span class="ck">✓</span><span>Acesso definitivo — sem mensalidade</span></div>
+          <div class="inc-item"><span class="ck">✓</span><span>Garantia de 7 dias</span></div>
+        </div>
+
+        <div class="wpp-include">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.525 5.845L.057 23.5l5.816-1.452A11.956 11.956 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.88 0-3.638-.49-5.167-1.348l-.37-.218-3.449.861.876-3.363-.24-.386A9.961 9.961 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+          <span>💬 Suporte técnico via WhatsApp incluído</span>
+        </div>
+
+        <a href="LINK_KIWIFY_KIT" class="btn btn-primary" style="margin-top:20px">Quero os 50 Prompts por R$ 47 →</a>
+        <div class="safe">🔒 Pagamento seguro via Kiwify · Pix ou cartão em até 12x</div>
+      </div>
+
+      <!-- GARANTIA -->
+      <div class="guarantee" style="margin-top:20px">
+        <div class="seal">7<small>DIAS</small></div>
+        <div>
+          <h3 style="color:var(--navy);font-size:17px;margin-bottom:4px">Risco zero</h3>
+          <p style="color:var(--muted);font-size:14px">Se você não ficar satisfeito em 7 dias, devolvemos o valor integralmente. Sem perguntas.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="padding:48px 0">
+  <div class="wrap">
+    <div class="kicker center" style="margin-bottom:12px">Dúvidas</div>
+    <h2 style="text-align:center;font-size:28px;font-weight:800;color:var(--navy);margin-bottom:28px">Perguntas frequentes</h2>
+    <div class="faq-wrap">
+      <details open>
+        <summary>Preciso pagar pelo ChatGPT ou Claude para usar?</summary>
+        <p>Não. Todos os prompts foram testados e funcionam na versão gratuita do ChatGPT (chat.openai.com) e do Claude (claude.ai). Você não precisa assinar nenhum plano pago para aproveitar o kit completo.</p>
+      </details>
+      <details>
+        <summary>Como recebo o kit após o pagamento?</summary>
+        <p>Assim que o pagamento é confirmado no Kiwify (Pix é imediato; cartão em alguns minutos), você recebe um e-mail com o link para baixar o PDF do kit. O acesso é definitivo — não expira.</p>
+      </details>
+      <details>
+        <summary>Os prompts funcionam para obras públicas e privadas?</summary>
+        <p>Sim. O kit inclui contexto específico para obras públicas (Lei 14.133/21, SINAPI) e para obras privadas. Cada prompt indica quando é aplicável a um contexto específico.</p>
+      </details>
+      <details>
+        <summary>Tem suporte se eu tiver dúvidas?</summary>
+        <p>Sim. Ao adquirir o kit, você recebe o contato do WhatsApp da equipe Mar Aberto Engenharia para tirar dúvidas diretamente com engenheiros. Respondemos em até 24h úteis — sem chatbot, sem formulário.</p>
+      </details>
+      <details>
+        <summary>Qual a diferença deste kit e o sistema ObraIA?</summary>
+        <p>O kit é um guia manual — você usa os prompts no ChatGPT ou Claude e adapta os resultados. O ObraIA é o sistema que faz tudo automaticamente: você sobe a planta em PDF e em minutos recebe orçamento SINAPI, cronograma com Gantt e curva ABC prontos. O kit é a porta de entrada; o ObraIA é o sistema completo. <a href="https://marabertoeng.com.br/vendas.html" style="color:var(--blue);font-weight:600">Saiba mais sobre o ObraIA →</a></p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="final-cta">
+  <div class="wrap">
+    <h2>Comece a usar IA na sua obra ainda hoje</h2>
+    <p>50 prompts. 5 módulos. R$ 47 — pagamento único.<br>Acesso imediato. Suporte via WhatsApp.</p>
+    <a href="LINK_KIWIFY_KIT" class="btn btn-primary btn-lg">Garantir meu kit por R$ 47 →</a>
+    <div style="margin-top:16px;color:#9fc6da;font-size:13px">🔒 Pagamento seguro · Garantia de 7 dias · Acesso definitivo</div>
+    <div style="margin-top:28px;padding-top:28px;border-top:1px solid rgba(255,255,255,.1)">
+      <p style="font-size:14px;color:rgba(255,255,255,.55);margin-bottom:8px">Quer ainda mais velocidade? Conheça o ObraIA:</p>
+      <a href="https://marabertoeng.com.br/vendas.html" style="color:var(--ia);font-size:14px;font-weight:600">Do PDF ao orçamento SINAPI completo em 3 minutos →</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div>
+      <img src="https://marabertoeng.com.br/logo-branco.png?v=2" alt="Mar Aberto Engenharia" style="height:30px;width:auto;display:block;margin-bottom:6px">
+      <div>© 2026 Mar Aberto Engenharia · Todos os direitos reservados</div>
+    </div>
+    <div class="footer-links">
+      <a href="https://marabertoeng.com.br/vendas.html">ObraIA</a>
+      <a href="https://wa.me/5581997977068" target="_blank">💬 WhatsApp</a>
+    </div>
+  </div>
+</footer>
+
+<!-- BOTÃO WHATSAPP FLUTUANTE -->
+<a href="https://wa.me/5581997977068" target="_blank" rel="noopener"
+   style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25d366;color:#fff;font-weight:700;font-size:14px;padding:13px 20px;border-radius:50px;box-shadow:0 8px 24px rgba(37,211,102,.45);display:flex;align-items:center;gap:10px;text-decoration:none;transition:.2s"
+   onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 12px 30px rgba(37,211,102,.55)'"
+   onmouseout="this.style.transform='';this.style.boxShadow='0 8px 24px rgba(37,211,102,.45)'">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.525 5.845L.057 23.5l5.816-1.452A11.956 11.956 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.88 0-3.638-.49-5.167-1.348l-.37-.218-3.449.861.876-3.363-.24-.386A9.961 9.961 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+  Suporte via WhatsApp
+</a>
+
+</body>
+</html>
