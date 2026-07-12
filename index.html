@@ -601,6 +601,12 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
     </div>
   </div>
+
+  <div class="card" id="ambientesCard" style="display:none">
+    <div class="card-title"><span class="icon">📐</span> Levantamento por Ambiente (medição na planta)</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">A IA já estimou a área de cada ambiente a partir da planta. Para mais precisão, calibre a escala e meça o perímetro real de cada cômodo — os vãos (portas/janelas) são descontados automaticamente e o pé-direito acabado e no osso ficam registrados por ambiente. O resultado atualiza direto o quantitativo de alvenaria e a planilha.</p>
+    <div id="ambientesTableWrap" style="overflow-x:auto"></div>
+  </div>
 </div>
 
 <!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
@@ -2150,6 +2156,48 @@ function recalcularAlvenaria(r){
   item.quantidade = area;
   item._alvCalc = { Lparedes: Math.round(Lparedes * 100) / 100, peDireito: Math.round(peDireito * 100) / 100, vaos, platibanda, caixa, area, auto: true };
 }
+
+// Recalcula a alvenaria misturando ambientes MEDIDOS na planta (área já calculada por perímetro
+// real × pé-direito no osso − vãos traçados) com os ambientes ainda não medidos (fórmula estimada
+// pela IA). Chamada toda vez que o usuário aplica uma medição de ambiente (tkApply).
+function recalcularAlvenariaDeAmbientes() {
+  const r = APP.analysisResult; if (!r) return;
+  const ambientes = r.ambientes || [];
+  const item = (r.quantitativos || []).find(q => _ehItemAlvenaria(q));
+  if (!ambientes.length || !item) return;
+
+  const medidos = ambientes.filter(a => a._medido);
+  const naoMedidos = ambientes.filter(a => !a._medido);
+
+  // 1) soma direta das áreas já medidas na planta (perímetro real, pé-direito no osso, vãos traçados)
+  const areaMedida = medidos.reduce((s, a) => s + (Number(a.area_paredes_m2) || 0), 0);
+
+  // 2) fórmula estimada (igual recalcularAlvenaria) só para o que ainda falta medir
+  let areaEstimada = 0;
+  if (naoMedidos.length) {
+    let somaPerim = 0, peSum = 0, nPe = 0;
+    naoMedidos.forEach(a => {
+      const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
+      if (c > 0 && l > 0) somaPerim += 2 * (c + l);
+      const pe = Number(a.pe_direito_m) || 0; if (pe > 0) { peSum += pe; nPe++; }
+    });
+    const perimExt = Number(r.perimetro_externo_m) || 0;
+    const peDireito = nPe > 0 ? (peSum / nPe) : 2.8;
+    const vaos = Number(r.vaos_alvenaria_m2) || 0;
+    const platibanda = Number(r.platibanda_m2) || 0;
+    const caixa = Number(r.caixa_dagua_alvenaria_m2) || 0;
+    const Lparedes = (somaPerim + perimExt) / 2;
+    areaEstimada = Math.max(0, Lparedes * peDireito - vaos + platibanda + caixa);
+  }
+
+  const area = Math.round((areaMedida + areaEstimada) * 100) / 100;
+  if (area <= 0) return;
+  item.quantidade = area;
+  item._alvCalc = {
+    area, areaMedida: Math.round(areaMedida * 100) / 100, areaEstimada: Math.round(areaEstimada * 100) / 100,
+    ambientesMedidos: medidos.length, ambientesTotal: ambientes.length, auto: true, porAmbiente: true
+  };
+}
 // Abre a calculadora manual da alvenaria (ajuste/calibração)
 function calcAlvenaria(id){
   const r = APP.analysisResult; if(!r) return;
@@ -2173,7 +2221,7 @@ function calcAlvenaria(id){
       <label style="font-size:12px;font-weight:700">Área final (m²)<br><input id="acFinal" type="number" step="any" value="${Number(q.quantidade) || 0}" style="${inp};border-color:var(--green)"></label>
     </div>
     <div class="btn-group" style="margin-top:12px">
-      <button class="btn btn-primary" onclick="tkOpen(${id})">📐 Medir paredes na planta</button>
+      <button class="btn btn-primary" onclick="tkOpen('alvenaria', ${id})">📐 Medir paredes na planta</button>
       <button class="btn btn-success" onclick="aplicarAlvenaria(${id})">Aplicar à planilha</button>
       <button class="btn btn-outline" onclick="document.getElementById('alvCalcPanel').remove()">Cancelar</button>
     </div>`;
@@ -2658,6 +2706,59 @@ function buildEAP() {
       if (di === 0) { dh.classList.add("open"); dc.classList.add("open"); }
     });
   }
+
+  renderAmbientesLevantamento();
+}
+
+// Levantamento por ambiente: tabela com área estimada pela IA + medição calibrada na planta
+// (perímetro, pé-direito acabado/no osso, vãos descontados) por cômodo.
+function renderAmbientesLevantamento() {
+  const r = APP.analysisResult; if (!r) return;
+  const card = document.getElementById("ambientesCard");
+  const wrap = document.getElementById("ambientesTableWrap");
+  if (!card || !wrap) return;
+  const ambientes = r.ambientes || [];
+  if (!ambientes.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const rows = ambientes.map((a, i) => {
+    const medido = !!a._medido;
+    const areaIA = Number(a.area_m2) || 0;
+    const perim = medido ? nf(a.perimetro_medido_m) : "—";
+    const peAcab = medido ? nf(a.pe_direito_acabado_m) : (a.pe_direito_m ? nf(a.pe_direito_m) : "—");
+    const peOsso = medido ? nf(a.pe_direito_no_osso_m) : (a.pe_direito_m ? nf(a.pe_direito_m) : "—");
+    const vaos = medido ? nf(a.vaos_total_m2) : "—";
+    const areaParede = medido ? nf(a.area_paredes_m2) : "—";
+    const status = medido
+      ? `<span class="badge" style="background:rgba(22,163,74,0.12);color:var(--green)">✓ Medido</span>`
+      : `<span class="badge" style="background:rgba(148,163,184,0.2);color:var(--muted)">IA (estimado)</span>`;
+    return `<tr>
+      <td style="padding:6px 8px">${a.nome || "—"}</td>
+      <td style="padding:6px 8px;text-align:right">${nf(areaIA)}</td>
+      <td style="padding:6px 8px;text-align:right">${perim}</td>
+      <td style="padding:6px 8px;text-align:right">${peAcab}</td>
+      <td style="padding:6px 8px;text-align:right">${peOsso}</td>
+      <td style="padding:6px 8px;text-align:right">${vaos}</td>
+      <td style="padding:6px 8px;text-align:right">${areaParede}</td>
+      <td style="padding:6px 8px">${status}</td>
+      <td style="padding:6px 8px"><button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="tkOpen('ambiente', ${i})">📐 Medir</button></td>
+    </tr>`;
+  }).join("");
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1.5px solid var(--border);text-align:left">
+        <th style="padding:6px 8px">Ambiente</th>
+        <th style="padding:6px 8px;text-align:right">Área IA (m²)</th>
+        <th style="padding:6px 8px;text-align:right">Perímetro medido (m)</th>
+        <th style="padding:6px 8px;text-align:right">Pé-dir. acabado (m)</th>
+        <th style="padding:6px 8px;text-align:right">Pé-dir. no osso (m)</th>
+        <th style="padding:6px 8px;text-align:right">Vãos (m²)</th>
+        <th style="padding:6px 8px;text-align:right">Área parede (m²)</th>
+        <th style="padding:6px 8px">Status</th>
+        <th style="padding:6px 8px">Ação</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
 }
 
 // Renderiza a árvore Categoria → serviços dentro de um container
@@ -3412,11 +3513,20 @@ async function exportExcel() {
 
   // ── Sheet 3: Ambientes ──────────────────────────────────────
   if (r.ambientes?.length) {
-    const ambRows = [["AMBIENTE","ÁREA (m²)","PÉ DIREITO (m)"]];
-    r.ambientes.forEach(a => ambRows.push([a.nome, a.area_m2, a.pe_direito_m || "—"]));
-    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), ""]);
+    const ambRows = [["AMBIENTE","ÁREA IA (m²)","PERÍMETRO MEDIDO (m)","PÉ-DIREITO ACABADO (m)","PÉ-DIREITO NO OSSO (m)","VÃOS (m²)","ÁREA PAREDE (m²)","STATUS"]];
+    r.ambientes.forEach(a => ambRows.push([
+      a.nome,
+      a.area_m2 || 0,
+      a._medido ? (a.perimetro_medido_m || 0) : "—",
+      a._medido ? (a.pe_direito_acabado_m || 0) : (a.pe_direito_m || "—"),
+      a._medido ? (a.pe_direito_no_osso_m || 0) : (a.pe_direito_m || "—"),
+      a._medido ? (a.vaos_total_m2 || 0) : "—",
+      a._medido ? (a.area_paredes_m2 || 0) : "—",
+      a._medido ? "Medido na planta" : "IA (estimado)"
+    ]));
+    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), "", "", "", "", "", ""]);
     const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
-    ws3["!cols"] = [30,15,16].map(w => ({wch:w}));
+    ws3["!cols"] = [26,13,17,15,15,11,14,16].map(w => ({wch:w}));
     estilizarSheet(ws3, { headerRows:[0] });
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
   }
@@ -3800,8 +3910,12 @@ async function _execSinapiConsulta(){
   </svg>
 </a>
 
-</body>
-</html>="muted">Lista de <b>materiais</b> da obra, calculada a partir das composições oficiais do SINAPI (analítico): cada serviço foi "explodido" em seus insumos e somado. ${comComp} serviço(s) processado(s). Mão de obra e equipamentos não entram aqui (o custo deles já está no orçamento).</p>
+<!-- ⚠ BUG PRÉ-EXISTENTE ENCONTRADO E NEUTRALIZADO (2026-07-12): havia um "</body></html>" solto no meio
+     do arquivo aqui, seguido de um fragmento órfão/quebrado de uma versão mais completa do recurso
+     de exportar lista de materiais (com detalhamento de mão de obra e botão de download). O trecho
+     abaixo NUNCA executou (estava fora de qualquer <script>, depois do </html> real) — preservado
+     como comentário para referência, caso alguém queira terminar esse recurso depois.
+<p class="muted">Lista de <b>materiais</b> da obra, calculada a partir das composições oficiais do SINAPI (analítico): cada serviço foi "explodido" em seus insumos e somado. ${comComp} serviço(s) processado(s). Mão de obra e equipamentos não entram aqui (o custo deles já está no orçamento).</p>
   <div class="btn-group" style="margin:10px 0 16px"><button class="btn btn-success" onclick="exportInsumos()">⬇ Baixar lista de materiais (.xlsx)</button></div>
   <div style="overflow-x:auto"><table class="budget-table"><thead><tr><th>#</th><th>Código</th><th>Insumo / Material</th><th style="text-align:center">Un.</th><th class="num">Quantidade</th></tr></thead><tbody>${rows}</tbody></table></div>
   ${mo.length?`<details style="margin-top:16px"><summary style="cursor:pointer;font-weight:600;color:var(--navy)">Ver mão de obra e equipamentos (horas) — ${mo.length} itens</summary><div style="overflow-x:auto;margin-top:10px"><table class="budget-table"><thead><tr><th>Código</th><th>Item</th><th style="text-align:center">Un.</th><th class="num">Qtd</th></tr></thead><tbody>${mo.map(l=>`<tr><td style="font-family:monospace;font-size:11px">${l.ic}</td><td>${l.desc}</td><td style="text-align:center">${l.un}</td><td class="num">${fmtQ(l.qtd)}</td></tr>`).join('')}</tbody></table></div></details>`:''}
@@ -3818,56 +3932,85 @@ function exportInsumos(){
   XLSX.utils.book_append_sheet(wb,ws,'MATERIAIS');
   XLSX.writeFile(wb,'Materiais_'+((APP.projectName||'obra').replace(/\s+/g,'_'))+'.xlsx');
 }
-</script>
+-->
 
-<!-- ═══ FERRAMENTA: MEDIR PAREDES NA PLANTA (takeoff com escala calibrada) ═══ -->
+<!-- ═══ FERRAMENTA: MEDIR AMBIENTE NA PLANTA (takeoff com escala calibrada) ═══ -->
 <div id="takeoffModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65)">
   <div style="position:absolute;inset:2.5%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:10px 14px;background:#002B40;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <strong style="margin-right:6px">📐 Medir paredes na planta</strong>
+      <strong id="tkTitle" style="margin-right:6px">📐 Medir paredes na planta</strong>
       <select id="tkPage" onchange="tkRenderPage()" style="padding:5px 8px;border-radius:6px;border:none;max-width:220px"></select>
       <button class="btn" id="tkBtnCalib" style="padding:6px 10px" onclick="tkSetMode('calibrar')">1) Definir escala</button>
-      <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar paredes</button>
-      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar parede</button>
+      <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar perímetro</button>
+      <button class="btn" id="tkBtnVao" style="padding:6px 10px" onclick="tkSetMode('vao')">3) Marcar vãos</button>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar trecho</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkUndo()">↩ Desfazer ponto</button>
-      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar paredes</button>
+      <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar traçado</button>
       <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:380px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida.</span>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClose()">✕ Fechar</button>
     </div>
     <div id="tkCanvasWrap" style="flex:1;overflow:auto;background:#333;display:flex;justify-content:center;align-items:flex-start">
       <canvas id="tkCanvas" style="display:block;cursor:crosshair;max-width:100%"></canvas>
     </div>
-    <div style="padding:10px 14px;display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
+    <div style="padding:8px 14px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;border-top:1px solid var(--border);background:#f8fafc">
+      <span style="font-size:12px;font-weight:700;margin-right:4px">Vãos marcados:</span>
+      <div id="tkVaosList" style="display:flex;flex-wrap:wrap"></div>
+    </div>
+    <div style="padding:10px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
       <div style="font-size:13px"><b>Escala:</b> <span id="tkScale">não definida</span></div>
-      <div style="font-size:13px"><b>Comprimento de paredes:</b> <span id="tkLen" style="font-weight:700">0,00 m</span></div>
-      <label style="font-size:12px">Pé-direito (m)<br><input id="tkPe" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
-      <label style="font-size:12px">Vãos (m²)<br><input id="tkVaos" type="number" step="any" value="0" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
-      <div style="font-size:13px"><b>Área de alvenaria:</b> <span id="tkArea" style="color:var(--green);font-weight:700;font-size:16px">0,00 m²</span></div>
-      <button class="btn btn-success" style="margin-left:auto" onclick="tkApply()">✓ Aplicar à alvenaria</button>
+      <div style="font-size:13px"><b>Perímetro:</b> <span id="tkLen" style="font-weight:700">0,00 m</span></div>
+      <label style="font-size:12px">Pé-direito acabado (m)<br><input id="tkPeAcabado" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <label style="font-size:12px">Pé-direito no osso (m)<br><input id="tkPeOsso" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <label style="font-size:12px">Limite p/ desconto auto (m²)<br><input id="tkVaoThreshold" type="number" step="any" value="2" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <label style="font-size:12px">Vãos adicionais (m²)<br><input id="tkVaos" type="number" step="any" value="0" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
+      <div style="font-size:13px"><b>Total de vãos descontado:</b> <span id="tkVaosTotal">0,00 m²</span></div>
+      <div style="font-size:13px"><b>Área de parede:</b> <span id="tkArea" style="color:var(--green);font-weight:700;font-size:16px">0,00 m²</span></div>
+      <button class="btn btn-success" style="margin-left:auto" onclick="tkApply()">✓ Aplicar</button>
     </div>
   </div>
 </div>
 
 <script>
-// ── Ferramenta de medição de paredes na planta (escala calibrada + traçado) ──
-function tkState(){ if(!APP.takeoff) APP.takeoff={ gid:1, targetId:null, img:null, scale:null, mode:'idle', calib:[], runs:[], current:[] }; return APP.takeoff; }
-function tkOpen(id){
-  const t=tkState(); t.targetId=id; t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.mode='idle';
+// ── Ferramenta de medição na planta (escala calibrada + traçado de perímetro + vãos) ──
+// kind='ambiente' mede UM cômodo (grava em APP.analysisResult.ambientes[ambIdx]);
+// kind='alvenaria' (legado) mede direto o item de alvenaria da planilha.
+function tkState(){ if(!APP.takeoff) APP.takeoff={ gid:1, kind:'alvenaria', targetId:null, ambIdx:null, img:null, scale:null, mode:'idle', calib:[], runs:[], current:[], vaos:[], vaoStart:null }; return APP.takeoff; }
+function tkOpen(kind, id){
+  const t=tkState();
+  t.kind = kind || 'alvenaria'; t.targetId=null; t.ambIdx=null;
+  if (t.kind === 'ambiente') t.ambIdx = id; else t.targetId = id;
+  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.mode='idle';
   if(!APP.pages || !APP.pages.length){ alert("Nenhuma planta carregada nesta sessão. Faça o upload do projeto."); return; }
   const sel=document.getElementById("tkPage");
   sel.innerHTML=APP.pages.map((p,i)=>`<option value="${i+1}">${(p.fileName||"Folha").replace(/\.pdf$/i,"").slice(0,28)} · pág ${p.pageNum}</option>`).join("");
   // pré-seleciona a 1ª página selecionada na análise, se houver
   const sels=[...(APP.selectedPages||[])]; if(sels.length) sel.value=Math.min(...sels);
-  const item=(APP.analysisResult&&APP.analysisResult.quantitativos||[]).find(q=>q._id===id);
-  if(item && item._alvCalc && item._alvCalc.peDireito) document.getElementById("tkPe").value=item._alvCalc.peDireito;
+  const titleEl=document.getElementById("tkTitle");
+  let peAcab=2.8, peOsso=2.8;
+  if (t.kind === 'ambiente') {
+    const r=APP.analysisResult; const a=(r&&r.ambientes||[])[t.ambIdx];
+    if(titleEl) titleEl.textContent = "📐 Medir ambiente — " + (a && a.nome ? a.nome : "");
+    if(a){
+      peOsso = a.pe_direito_no_osso_m || a.pe_direito_m || 2.8;
+      peAcab = a.pe_direito_acabado_m || a.pe_direito_m || 2.8;
+    }
+  } else {
+    if(titleEl) titleEl.textContent = "📐 Medir paredes na planta";
+    const item=(APP.analysisResult&&APP.analysisResult.quantitativos||[]).find(q=>q._id===id);
+    if(item && item._alvCalc && item._alvCalc.peDireito){ peOsso=item._alvCalc.peDireito; peAcab=item._alvCalc.peDireito; }
+  }
+  document.getElementById("tkPeOsso").value=peOsso;
+  document.getElementById("tkPeAcabado").value=peAcab;
   document.getElementById("takeoffModal").style.display="block";
+  tkRenderVaosList();
   tkRenderPage();
 }
 function tkClose(){ document.getElementById("takeoffModal").style.display="none"; }
 async function tkRenderPage(){
   const t=tkState(); const gid=+document.getElementById("tkPage").value||1; t.gid=gid;
   const ent=APP.pages[gid-1]; if(!ent) return;
-  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.mode='idle'; tkSetMode('idle');
+  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.mode='idle'; tkSetMode('idle');
+  tkRenderVaosList();
   const page=await ent.doc.getPage(ent.pageNum);
   const wrap=document.getElementById("tkCanvasWrap");
   const targetW=Math.min(1600, Math.max(700,(wrap.clientWidth||1000)));
@@ -3882,13 +4025,17 @@ async function tkRenderPage(){
   tkRedraw(); tkUpdateReadout();
 }
 function tkSetMode(m){
-  const t=tkState(); t.mode=m;
-  const bc=document.getElementById("tkBtnCalib"), bw=document.getElementById("tkBtnWall"), st=document.getElementById("tkStatus");
+  const t=tkState(); t.mode=m; t.vaoStart=null;
+  const bc=document.getElementById("tkBtnCalib"), bw=document.getElementById("tkBtnWall"), bv=document.getElementById("tkBtnVao"), st=document.getElementById("tkStatus");
   if(bc) bc.style.outline=m==='calibrar'?'3px solid #FFD700':'';
   if(bw) bw.style.outline=m==='parede'?'3px solid #FFD700':'';
-  if(st){ if(m==='calibrar'){ t.calib=[]; st.innerHTML="Escala: clique nos <b>2 extremos</b> de uma cota conhecida (ex.: uma medida de 5,00 m)."; }
-    else if(m==='parede'){ st.innerHTML="Paredes: clique seguindo o eixo de cada parede. <b>Finalizar parede</b> encerra um trecho e começa outro."; }
-    else st.innerHTML="Passo 1: <b>Definir escala</b> · Passo 2: <b>Traçar paredes</b>."; }
+  if(bv) bv.style.outline=m==='vao'?'3px solid #FFD700':'';
+  if(st){
+    if(m==='calibrar'){ t.calib=[]; st.innerHTML="Escala: clique nos <b>2 extremos</b> de uma cota conhecida (ex.: uma medida de 5,00 m)."; }
+    else if(m==='parede'){ st.innerHTML="Perímetro: clique seguindo o eixo das paredes/perímetro. <b>Finalizar trecho</b> encerra um trecho e começa outro."; }
+    else if(m==='vao'){ st.innerHTML="Vãos: clique nos <b>2 cantos opostos</b> de cada porta/janela. Vãos ≥ limite são descontados automaticamente (dá pra ajustar no checkbox)."; }
+    else st.innerHTML="Passo 1: <b>Definir escala</b> · Passo 2: <b>Traçar perímetro</b> · Passo 3: <b>Marcar vãos</b>.";
+  }
   tkRedraw();
 }
 function tkClick(e){
@@ -3905,6 +4052,18 @@ function tkClick(e){
   } else if(t.mode==='parede'){
     if(!t.scale){ alert("Defina a escala primeiro (passo 1)."); return; }
     t.current.push({x,y});
+  } else if(t.mode==='vao'){
+    if(!t.scale){ alert("Defina a escala primeiro (passo 1)."); return; }
+    if(!t.vaoStart){ t.vaoStart={x,y}; }
+    else {
+      const x1=t.vaoStart.x, y1=t.vaoStart.y, x2=x, y2=y;
+      const wM=Math.abs(x2-x1)*t.scale, hM=Math.abs(y2-y1)*t.scale;
+      const area=Math.round(wM*hM*100)/100;
+      const thr=parseFloat(String(document.getElementById("tkVaoThreshold").value).replace(",","."))||2;
+      t.vaos.push({x1,y1,x2,y2,area,incluido:area>=thr});
+      t.vaoStart=null;
+      tkRenderVaosList();
+    }
   }
   tkRedraw(); tkUpdateReadout();
 }
@@ -3916,35 +4075,85 @@ function tkRedraw(){
   if(t.calib.length){ ctx.strokeStyle="#2563eb"; ctx.fillStyle="#2563eb"; ctx.lineWidth=3;
     ctx.beginPath(); t.calib.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
     t.calib.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,6.3);ctx.fill();}); }
-  // paredes (verde)
+  // perímetro (verde)
   ctx.strokeStyle="#16a34a"; ctx.fillStyle="#16a34a"; ctx.lineWidth=4; ctx.lineJoin="round"; ctx.lineCap="round";
   const drawRun=run=>{ if(!run||!run.length) return; ctx.beginPath(); run.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); run.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,6.3);ctx.fill();}); };
   t.runs.forEach(drawRun); drawRun(t.current);
+  // vãos (laranja=incluído no desconto, cinza=excluído)
+  ctx.lineWidth=2;
+  (t.vaos||[]).forEach(v=>{
+    ctx.strokeStyle = v.incluido ? "#f97316" : "#94a3b8";
+    ctx.fillStyle = v.incluido ? "rgba(249,115,22,0.15)" : "rgba(148,163,184,0.15)";
+    const x=Math.min(v.x1,v.x2), y=Math.min(v.y1,v.y2), w=Math.abs(v.x2-v.x1), h=Math.abs(v.y2-v.y1);
+    ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+  });
+  if(t.vaoStart){ ctx.fillStyle="#f97316"; ctx.beginPath(); ctx.arc(t.vaoStart.x,t.vaoStart.y,5,0,6.3); ctx.fill(); }
 }
 function tkFinishRun(){ const t=tkState(); if(t.current.length>=2) t.runs.push(t.current); t.current=[]; tkRedraw(); tkUpdateReadout(); }
 function tkUndo(){ const t=tkState(); if(t.current.length) t.current.pop(); else if(t.runs.length){ t.current=t.runs.pop(); t.current.pop(); } tkRedraw(); tkUpdateReadout(); }
-function tkClearWalls(){ const t=tkState(); t.runs=[]; t.current=[]; tkRedraw(); tkUpdateReadout(); }
+function tkClearWalls(){ const t=tkState(); t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; tkRenderVaosList(); tkRedraw(); tkUpdateReadout(); }
 function tkLengthM(){ const t=tkState(); if(!t.scale) return 0; let px=0; const seg=run=>{ for(let i=1;i<run.length;i++) px+=Math.hypot(run[i].x-run[i-1].x, run[i].y-run[i-1].y); }; t.runs.forEach(seg); seg(t.current); return px*t.scale; }
+function tkRenderVaosList(){
+  const t=tkState(); const el=document.getElementById("tkVaosList"); if(!el) return;
+  if(!t.vaos || !t.vaos.length){ el.innerHTML='<span class="muted" style="font-size:12px">Nenhum vão marcado.</span>'; return; }
+  const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  el.innerHTML = t.vaos.map((v,i)=>`
+    <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#fff;border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin:2px">
+      <input type="checkbox" ${v.incluido?"checked":""} onchange="tkToggleVao(${i})"> Vão ${i+1}: ${nf(v.area)} m²
+      <span onclick="tkRemoveVao(${i})" style="cursor:pointer;color:#dc2626;font-weight:700">✕</span>
+    </label>`).join("");
+}
+function tkToggleVao(i){ const t=tkState(); if(t.vaos[i]){ t.vaos[i].incluido=!t.vaos[i].incluido; tkRenderVaosList(); tkUpdateReadout(); } }
+function tkRemoveVao(i){ const t=tkState(); t.vaos.splice(i,1); tkRenderVaosList(); tkRedraw(); tkUpdateReadout(); }
 function tkUpdateReadout(){
   const t=tkState(); const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
   document.getElementById("tkScale").textContent = t.scale ? (nf(1/t.scale)+" px/m") : "não definida";
   const L=tkLengthM(); document.getElementById("tkLen").textContent=nf(L)+" m";
-  const pe=parseFloat(String(document.getElementById("tkPe").value).replace(",","."))||0;
-  const v=parseFloat(String(document.getElementById("tkVaos").value).replace(",","."))||0;
-  const area=Math.max(0, L*pe - v);
+  const peOsso=parseFloat(String(document.getElementById("tkPeOsso").value).replace(",","."))||0;
+  const peAcab=parseFloat(String(document.getElementById("tkPeAcabado").value).replace(",","."))||0;
+  const vTracadoIncl=(t.vaos||[]).filter(v=>v.incluido).reduce((s,v)=>s+v.area,0);
+  const vManual=parseFloat(String(document.getElementById("tkVaos").value).replace(",","."))||0;
+  const vTotal=vTracadoIncl+vManual;
+  const area=Math.max(0, L*peOsso - vTotal);
   document.getElementById("tkArea").textContent=nf(area)+" m²";
-  APP.takeoff._area=Math.round(area*100)/100; APP.takeoff._L=Math.round(L*100)/100; APP.takeoff._pe=pe; APP.takeoff._v=v;
+  document.getElementById("tkVaosTotal").textContent=nf(vTotal)+" m²";
+  APP.takeoff._area=Math.round(area*100)/100; APP.takeoff._L=Math.round(L*100)/100;
+  APP.takeoff._peOsso=peOsso; APP.takeoff._peAcabado=peAcab;
+  APP.takeoff._vTracado=Math.round(vTracadoIncl*100)/100; APP.takeoff._vManual=vManual; APP.takeoff._vTotal=Math.round(vTotal*100)/100;
 }
 function tkApply(){
   const t=tkState(); const r=APP.analysisResult; if(!r) return;
   if(!t.scale){ alert("Defina a escala antes (passo 1)."); return; }
-  const L=tkLengthM(); if(L<=0){ alert("Trace as paredes antes de aplicar."); return; }
+  const L=tkLengthM(); if(L<=0){ alert("Trace o perímetro antes de aplicar."); return; }
+
+  if (t.kind === 'ambiente') {
+    const a=(r.ambientes||[])[t.ambIdx];
+    if(!a){ alert("Ambiente não encontrado."); return; }
+    a.perimetro_medido_m = t._L;
+    a.pe_direito_no_osso_m = t._peOsso;
+    a.pe_direito_acabado_m = t._peAcabado;
+    a.vaos_medidos = (t.vaos||[]).map(v=>({area_m2:v.area, incluido:v.incluido}));
+    a.vaos_manual_m2 = t._vManual || 0;
+    a.vaos_total_m2 = t._vTotal;
+    a.area_paredes_m2 = t._area;
+    a._medido = true;
+    recalcularAlvenariaDeAmbientes();
+    tkClose();
+    buildEAP();
+    recalcBudget();
+    return;
+  }
+
+  // legado: aplica direto no item de alvenaria (sem passar por ambiente)
   let q=(r.quantitativos||[]).find(x=>x._id===t.targetId) || (r.quantitativos||[]).find(x=>_ehItemAlvenaria(x));
   if(!q){ alert("Não encontrei o item de alvenaria na planilha."); return; }
-  q.quantidade=t._area; q._alvCalc={ Lparedes:t._L, peDireito:t._pe, vaos:t._v, platibanda:0, caixa:0, area:t._area, auto:false, medidoNaPlanta:true };
+  q.quantidade=t._area; q._alvCalc={ Lparedes:t._L, peDireito:t._peOsso, vaos:t._vTotal, platibanda:0, caixa:0, area:t._area, auto:false, medidoNaPlanta:true };
   tkClose();
   const p=document.getElementById("alvCalcPanel"); if(p) p.remove();
   recalcBudget();
   goTo(4);
 }
-document.addEventListener("keydown",e=>{ if(e.key=
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const m=document.getElementById("takeoffModal"); if(m && m.style.display!=="none") tkClose(); } });
+</script>
+</body>
+</html>
