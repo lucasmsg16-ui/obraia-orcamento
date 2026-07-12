@@ -388,7 +388,6 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <nav class="sn-scroll">
     <div class="sn-sec">Projeto</div>
     <button class="nav-item active" data-view="1" onclick="goTo(1)"><span class="ic">📤</span><span class="lb">Upload</span></button>
-    <button class="nav-item" data-view="2" onclick="goTo(2)"><span class="ic">👷</span><span class="lb">Análise</span></button>
     <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">Levantamento</span></button>
     <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
@@ -409,10 +408,9 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
 <div class="steps-bar" id="stepsBar">
   <div class="step-tab active" data-step="1"><span class="num">1</span>Upload do Projeto</div>
-  <div class="step-tab" data-step="2"><span class="num">2</span>Análise</div>
-  <div class="step-tab" data-step="3"><span class="num">3</span>Levantamento (validação)</div>
-  <div class="step-tab" data-step="4"><span class="num">4</span>Orçamento SINAPI</div>
-  <div class="step-tab" data-step="5"><span class="num">5</span>Cronograma</div>
+  <div class="step-tab" data-step="3"><span class="num">2</span>Levantamento</div>
+  <div class="step-tab" data-step="4"><span class="num">3</span>Orçamento SINAPI</div>
+  <div class="step-tab" data-step="5"><span class="num">4</span>Cronograma</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ MAIN -->
@@ -579,6 +577,11 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <div class="alert" id="pstep2" style="display:none">⏳ Realizando o levantamento dos projetos…</div>
       <div class="alert" id="pstep3" style="display:none">⏳ Extraindo quantitativos…</div>
       <div class="alert" id="pstep4" style="display:none">⏳ Estruturando o levantamento…</div>
+    </div>
+
+    <div id="liveFeedWrap" style="margin-top:16px;display:none">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--navy)">👀 O que a IA está encontrando agora</div>
+      <div id="liveFeed" style="max-height:260px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;background:#fafafa;font-size:13px;line-height:1.9"></div>
     </div>
   </div>
 </div>
@@ -1055,7 +1058,10 @@ async function callAnthropic(payload, opts) {
           const ds = line.slice(5).trim();
           if (!ds || ds === "[DONE]") continue;
           let ev; try { ev = JSON.parse(ds); } catch(_) { continue; }
-          if (ev.type === "content_block_delta" && ev.delta && typeof ev.delta.text === "string") texto += ev.delta.text;
+          if (ev.type === "content_block_delta" && ev.delta && typeof ev.delta.text === "string") {
+            texto += ev.delta.text;
+            if (opts && typeof opts.onChunk === "function") { try { opts.onChunk(texto); } catch (_) {} }
+          }
           else if (ev.type === "error") throw new Error((ev.error && ev.error.message) || "Erro da IA durante a geração.");
           else if (ev.type === "mar_credits") {
             if (ev.creditos_restantes != null) creditos = ev.creditos_restantes;
@@ -1634,8 +1640,54 @@ function setProgress(pct, msg) {
   document.getElementById("statusMsg").textContent = msg;
 }
 
+// ── Feed de etapas ao vivo: mostra, conforme a IA vai gerando a resposta, os ambientes
+// e serviços que ela vai encontrando — pra dar a sensação de "ver a IA fazendo o levantamento"
+// (como no vídeo). Lê o texto ainda incompleto (JSON parcial) que está chegando via streaming.
+function feedReset() {
+  const wrap = document.getElementById("liveFeedWrap");
+  const el = document.getElementById("liveFeed");
+  if (wrap) wrap.style.display = "none";
+  if (el) el.innerHTML = "";
+  APP._feedAmbSeen = 0; APP._feedServSeen = 0;
+}
+function feedPush(msg) {
+  const wrap = document.getElementById("liveFeedWrap");
+  const el = document.getElementById("liveFeed");
+  if (!el) return;
+  if (wrap) wrap.style.display = "block";
+  const line = document.createElement("div");
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+// Reinicia os contadores do feed (chamado a cada novo grupo/disciplina, já que cada
+// chamada à IA começa um texto novo do zero).
+function feedResetGrupo() { APP._feedAmbSeen = 0; APP._feedServSeen = 0; }
+function feedScan(texto, lbl) {
+  if (!texto) return;
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  // ambientes: "nome":"..." seguido (não necessariamente logo em seguida) de "area_m2":N
+  const reAmb = /"nome"\s*:\s*"([^"]{1,60})"[\s\S]{0,120}?"area_m2"\s*:\s*([\d.]+)/g;
+  const ambs = []; let m;
+  while ((m = reAmb.exec(texto))) ambs.push(m);
+  for (let i = APP._feedAmbSeen || 0; i < ambs.length; i++) {
+    const nome = ambs[i][1], area = parseFloat(ambs[i][2]);
+    feedPush(`🏠 Ambiente identificado: ${nome}${area ? ` — ${nf(area)} m²` : ""}`);
+  }
+  APP._feedAmbSeen = ambs.length;
+  // serviços: cada item de "quantitativos" tem "descricao":"..."
+  const reServ = /"descricao"\s*:\s*"([^"]{1,70})"/g;
+  const servs = []; let m2;
+  while ((m2 = reServ.exec(texto))) servs.push(m2);
+  for (let i = APP._feedServSeen || 0; i < servs.length; i++) {
+    feedPush(`📋 Serviço identificado${lbl ? ` (${lbl})` : ""}: ${servs[i][1]}`);
+  }
+  APP._feedServSeen = servs.length;
+}
+
 // Lê UM grupo de folhas (de uma única disciplina) de forma isolada: texto→imagem, filtra e carimba _disciplina.
-async function analisarGrupo(grpPages, disc, apiKey) {
+// onChunk(texto), se informado, é chamado a cada pedaço novo do streaming (usado pelo feed ao vivo).
+async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
   let texto = "";
   for (const p of grpPages) {
     const ent = APP.pages[p - 1];
@@ -1649,16 +1701,17 @@ async function analisarGrupo(grpPages, disc, apiKey) {
   const minOk = (disc === "arquitetonico") ? 3 : 1;   // disciplinas específicas podem ter poucos itens
   let res;
   if (usarTexto && !muitas) {
-    res = await analisarTexto(texto, apiKey, disc);
+    res = await analisarTexto(texto, apiKey, disc, { onChunk });
     if (!res || !res.quantitativos || res.quantitativos.length < minOk) {
       // Fallback para análise por imagem: a análise de texto já debitou o crédito
       // (e armazenou refineToken); usamos semCredito:true para não cobrar duas vezes.
+      if (typeof feedResetGrupo === "function") feedResetGrupo();
       const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
-      res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { semCredito: true });
+      res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { semCredito: true, onChunk });
     }
   } else {
     const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
-    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc);
+    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk });
   }
   if (!res || !res.quantitativos) return null;
   filtrarPorDisciplina(res, disc);
@@ -1678,6 +1731,7 @@ async function startAnalysis() {
   document.getElementById("desonerSelect").value = APP.desoneracao ? "com" : "sem";
   updateRefLabel();
   goTo(2);
+  feedReset();
 
   try {
     // ── Passo 1: preparar folhas e agrupar por disciplina ──
@@ -1711,7 +1765,9 @@ async function startAnalysis() {
       const lbl = (DISCIPLINAS[g.disc] || {}).label || g.disc;
       setStep("pstep2", false, `Lendo ${lbl} — ${g.pages.length} folha(s) (${gi + 1}/${grupos.length})…`);
       setProgress(15 + (gi / grupos.length) * 55, `Levantando ${lbl}…`);
-      const res = await analisarGrupo(g.pages, g.disc, apiKey);
+      feedResetGrupo();
+      feedPush(`🔎 Lendo ${lbl}${g.pages.length > 1 ? ` (${g.pages.length} folhas)` : ""}…`);
+      const res = await analisarGrupo(g.pages, g.disc, apiKey, (texto) => feedScan(texto, lbl));
       if (res && res.quantitativos && res.quantitativos.length) { res._grupoDisc = g.disc; parts.push(res); }
       else console.warn(`disciplina ${g.disc}: nenhum serviço identificado`);
     }
@@ -1751,6 +1807,7 @@ async function startAnalysis() {
 
     // ── Passo 4: EAP ──
     setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
+    feedPush(`✅ Levantamento concluído — ${consolidado.quantitativos.length} serviço(s) em ${(consolidado.ambientes || []).length} ambiente(s)`);
     setTimeout(() => {
       setStep("pstep4", true, "EAP gerada com sucesso");
       setProgress(100, "Concluído!");
@@ -2617,7 +2674,7 @@ async function pageToText(gid) {
 }
 
 // Análise por TEXTO (modo econômico — sem imagens/visão)
-async function analisarTexto(texto, apiKey, disc) {
+async function analisarTexto(texto, apiKey, disc, opts) {
   disc = disc || APP.disciplina;
   const userText =
     "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, resumo de aço, legendas e memorial descritivo). " +
@@ -2625,7 +2682,7 @@ async function analisarTexto(texto, apiKey, disc) {
     "Se algum dado não estiver no texto, estime com bom senso técnico.\n\n" + focoDisciplina(disc) +
     "\n\nTEXTO DO PROJETO:\n" + texto +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
-  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: buildSystemPrompt(disc), messages: [{ role: "user", content: userText }] });
+  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, system: buildSystemPrompt(disc), messages: [{ role: "user", content: userText }] }, opts);
   const rawText = data.content[0].text;
   return parseIAJson(rawText);
 }
