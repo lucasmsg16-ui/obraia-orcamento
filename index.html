@@ -340,6 +340,38 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .crono-tbl .crit-row{background:#fef2f2}
 /* ====== Menu lateral + recursos novos ====== */
 :root{ --sidew:240px; --sidew-col:66px; }
+
+/* ══ Refinamento visual 2026-07 — impacto e identidade de marca ══ */
+.upload-zone {
+  border: 2px dashed rgba(23,146,192,.45); border-radius: 16px;
+  background: linear-gradient(180deg, #f6fbff 0%, #eef6fc 100%);
+  padding: 46px 30px;
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--blue);
+  background: linear-gradient(180deg, #eef7fe 0%, #e2f0fa 100%);
+  box-shadow: 0 0 0 4px rgba(23,146,192,.12), 0 12px 32px rgba(23,146,192,.16);
+  transform: translateY(-1px);
+}
+.upload-zone .upload-icon { margin-bottom: 14px; filter: drop-shadow(0 4px 10px rgba(23,146,192,.25)); }
+.upload-zone h3 { font-size: 17.5px; }
+.btn-upload {
+  background: linear-gradient(135deg, var(--blue) 0%, #0e6d94 100%);
+  border-radius: 10px; padding: 12px 34px;
+  box-shadow: 0 6px 18px rgba(23,146,192,.35);
+  transition: transform .15s, box-shadow .15s;
+}
+.btn-upload:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(23,146,192,.45); }
+.card { border-radius: 14px; border: 1px solid rgba(220,227,234,.8); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue) 0%, #0e6d94 100%);
+  box-shadow: 0 4px 14px rgba(23,146,192,.3);
+  transition: transform .15s, box-shadow .15s;
+}
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(23,146,192,.4); }
+.btn-success { transition: transform .15s, box-shadow .15s; }
+.btn-success:hover:not(:disabled) { transform: translateY(-2px); }
+
 #sidenav{ position:fixed; left:0; top:0; bottom:0; width:var(--sidew); background:var(--navy); color:#fff; z-index:200; display:flex; flex-direction:column; transition:width .2s; box-shadow:2px 0 14px rgba(0,0,0,.25); }
 body.nav-collapsed #sidenav{ width:var(--sidew-col); }
 body{ padding-left:var(--sidew); transition:padding-left .2s; }
@@ -448,14 +480,20 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     </div>
 
     <div class="upload-zone" id="uploadZone">
-      <div class="upload-icon">📄</div>
-      <h3>Selecione o(s) PDF(s) do projeto</h3>
+      <div class="upload-icon" aria-hidden="true">
+        <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <path d="M8 13h3v3H8zM8 16v2M13.5 13H16M13.5 16H16"/>
+        </svg>
+      </div>
+      <h3>Arraste os PDFs do projeto para cá</h3>
       <p>Arquitetônico, hidráulico, elétrico, estrutural — pode escolher vários · Máx. 50 MB cada</p>
       <div style="margin-top:18px;">
-        <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple
-          style="display:block; margin:0 auto; font-size:14px; cursor:pointer; padding:8px;">
+        <label for="fileInput" class="btn-upload">📂 Escolher arquivos</label>
+        <input type="file" id="fileInput" accept=".pdf,application/pdf" multiple style="display:none">
       </div>
-      <p style="margin-top:10px; font-size:11px; color:#94a3b8;">ou arraste os arquivos para cá · pode adicionar em várias vezes</p>
+      <p style="margin-top:12px; font-size:11px; color:#94a3b8;">ou clique no botão · pode adicionar em várias vezes · em minutos você terá o pacote técnico completo</p>
     </div>
     <div id="uploadStatus" style="display:none; margin-top:10px; padding:10px 14px; border-radius:6px; font-size:13px; font-weight:500;"></div>
 
@@ -1469,6 +1507,7 @@ const fileInput  = document.getElementById("fileInput");
 uploadZone.addEventListener("dragover",  e => { e.preventDefault(); uploadZone.classList.add("drag"); });
 uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag"));
 uploadZone.addEventListener("drop",      e => { e.preventDefault(); uploadZone.classList.remove("drag"); handleFiles(e.dataTransfer.files); });
+uploadZone.addEventListener("click",     e => { if (e.target.closest("label,input")) return; fileInput.click(); });
 fileInput.addEventListener("change",     e => handleFiles(e.target.files));
 
 function setUploadStatus(msg, color) {
