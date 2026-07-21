@@ -610,6 +610,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <p class="muted" style="font-size:12px;margin-bottom:10px">A IA já estimou a área de cada ambiente a partir da planta. Para mais precisão, calibre a escala e meça o perímetro real de cada cômodo — os vãos (portas/janelas) são descontados automaticamente e o pé-direito acabado e no osso ficam registrados por ambiente. O resultado atualiza direto o quantitativo de alvenaria e a planilha.</p>
     <div id="ambientesTableWrap" style="overflow-x:auto"></div>
   </div>
+
+  <div class="card" id="esquadriasCard" style="display:none">
+    <div class="card-title"><span class="icon">🚪</span> Quadro de Esquadrias (lido do projeto)</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">Portas e janelas lidas pela IA no projeto (quadro de esquadrias ou contagem em planta). <b>Confira e edite</b> dimensões e quantidades — a soma dos vãos alimenta o desconto da alvenaria. Validar aqui é assinar com segurança.</p>
+    <div id="esquadriasTableWrap" style="overflow-x:auto"></div>
+    <div id="esquadriasResumo" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <!-- ─── SCREEN 4: Budget ──────────────────────────────────── -->
@@ -1100,11 +1107,13 @@ METODOLOGIA DE LEITURA (projetos com várias folhas — siga NESTA ordem, é OBR
 4) FACHADAS/ELEVAÇÕES apenas CONFIRMAM acabamentos externos e esquadrias — NÃO some áreas já contadas na planta.
 5) QUADROS (de áreas / de esquadrias) são FONTE EXATA.
 REGRA DE OURO: NUNCA conte a mesma superfície, ambiente ou quantidade em mais de uma folha. Se o corte/fachada/detalhe mostra algo que a planta já mostrou, NÃO some de novo — use-o apenas para extrair a altura/medida que faltava.
+6) ESCALA E MEDIDAS (CRÍTICO): NUNCA "meça" distâncias visualmente pela imagem — a imagem pode estar redimensionada, fora de escala, ou a escala declarada na prancha (1:50, 1:75…) pode divergir do desenho real. A HIERARQUIA de fonte de dimensão é SEMPRE: (1º) COTAS numéricas escritas no desenho; (2º) QUADROS/TABELAS (áreas, esquadrias); (3º) dimensões declaradas em texto/memorial. A escala indicada no selo NUNCA serve para converter medida visual em metros. Se um AMBIENTE não tiver cota própria, derive as dimensões por CALIBRAÇÃO RELATIVA usando as cotas que EXISTEM na mesma planta, nesta ordem de preferência: (a) GEOMETRIA EM CADEIA — paredes compartilhadas e alinhamentos: se a cota total de um alinhamento é 7,00m e o ambiente vizinho cotado ocupa 4,50m dele, o ambiente sem cota tem 2,50m; some/subtraia segmentos cotados sempre que possível; (b) CALIBRAÇÃO POR COTA CONHECIDA — use um elemento cotado da MESMA planta como régua (ex.: a sala tem 5,00m de cota; o banheiro ao lado desenhado com ~2/5 desse comprimento tem ≈2,00m); (c) só em último caso, PROPORÇÃO com elementos de dimensão típica (porta ≈ 0,80m, peça sanitária, vaga ≈ 2,50×5,00m). Em (b) e (c), marque o item/ambiente com "confianca":"estimada"; em (a), a dimensão é derivada de cotas reais e vale como cota. DETALHES AMPLIADOS (1:20, 1:25) dentro da mesma folha NÃO são ambientes novos — ignore-os na contagem. Se a folha não tiver cotas legíveis, ou se houver conflito entre cota e quadro de áreas, REGISTRE o problema no array "alertas" do JSON (ex.: "Folha 2 sem cotas legíveis — áreas estimadas por proporção; recomendo medir na planta").
 
 REGRAS OBRIGATÓRIAS:
 1. Analise TODAS as plantas, cortes e detalhes presentes nas imagens.
 2. Identifique os ambientes e suas dimensões. CALCULE "area_construida_m2" = soma das áreas internas dos ambientes × nº de pavimentos. NÃO confunda com a área do TERRENO/lote (essa NÃO entra na área construída). Conte cada ambiente UMA única vez; se a MESMA planta/pavimento aparecer em mais de uma folha (planta, corte, detalhe), NÃO some de novo. Nunca deixe area_construida_m2 = 0. Da mesma forma, NÃO duplique quantitativos: cada serviço deve ser somado uma única vez no total da obra.
 2b. QUADROS/TABELAS: se houver QUADRO DE ÁREAS ou QUADRO DE ESQUADRIAS, use-os como FONTE EXATA (áreas dos ambientes; quantidade e dimensões de portas/janelas). Em projetos de várias folhas (cada uma marcada como "Folha N"), preencha "fonte" com a folha de origem de cada item e não conte o mesmo serviço em folhas diferentes.
+2c. ESQUADRIAS (OBRIGATÓRIO em projetos arquitetônicos): liste TODAS as portas e janelas no array "esquadrias" do JSON. Use o QUADRO DE ESQUADRIAS quando existir (fonte exata); senão, conte na planta baixa. Para cada tipo: "codigo" (P01, P02, J01… como no projeto; crie sequencial se não houver), "tipo" (Porta/Janela/Portão), "largura_m" e "altura_m" em metros, "material" se indicado, "quantidade" total e "colocacao" com os ambientes onde aparece (separados por "; "). A soma de largura×altura×quantidade de todas as esquadrias deve ser coerente com "vaos_alvenaria_m2".
 3. Calcule os quantitativos descontando vãos de portas e janelas nas paredes.
 4. Use cotas visíveis nas plantas; se não visíveis, estime com base em proporções e escala.
 5. Organize por categorias SINAPI.
@@ -1245,6 +1254,10 @@ FORMATO DE RESPOSTA (JSON puro):
   "ambientes": [
     { "nome": "Sala de Estar", "comprimento_m": 5.0, "largura_m": 4.0, "area_m2": 20.0, "pe_direito_m": 2.80 }
   ],
+  "esquadrias": [
+    { "codigo": "P01", "tipo": "Porta", "largura_m": 0.80, "altura_m": 2.10, "material": "madeira", "quantidade": 3, "colocacao": "Quarto 1; Quarto 2; Banheiro", "fonte": "Quadro de esquadrias (Folha 2)" }
+  ],
+  "alertas": ["Somente se houver problema de leitura: folha sem cotas, conflito cota × quadro, escala divergente, prancha ilegível…"],
   "quantitativos": [
     {
       "sinapi_codigo": "",
@@ -1254,10 +1267,12 @@ FORMATO DE RESPOSTA (JSON puro):
       "preco_unitario": 56.45,
       "categoria": "5. ALVENARIA",
       "fonte": "Folha 1 (planta baixa)",
+      "confianca": "cota",
       "memoria_calculo": "L paredes=(Σ perím. ambientes + perím. externo)/2 x pé-direito − vãos + platibanda + caixa d'água"
     }
   ]
 }
+Em "confianca" use: "cota" (dimensão lida de cota do desenho), "quadro" (lida de quadro/tabela) ou "estimada" (sem cota — estimada por proporção; o sistema destacará esse item para o engenheiro validar). "alertas" só deve existir quando houver problema real de leitura.
 OBRIGATÓRIO para o cálculo da ALVENARIA: preencha na raiz "perimetro_externo_m" e "vaos_alvenaria_m2" (e "platibanda_m2"/"caixa_dagua_alvenaria_m2" quando houver), e em CADA ambiente "comprimento_m" e "largura_m" (dimensões internas em planta) — o sistema usa esses dados para calcular a área de alvenaria.
 
 CAMPO ADICIONAL OBRIGATÓRIO: inclua sempre "disciplina_detectada" no JSON raiz, com um destes valores conforme o que você efetivamente leu nas pranchas: "arquitetonico", "estrutural", "eletrico" ou "hidrossanitario". Quando for "estrutural", inclua também "subtipo_estrutural": "forma_armacao" (a prancha traz geometria de fôrma E detalhamento de armadura) ou "armacao" (apenas detalhamento de ferragem/aço).`;
@@ -1358,14 +1373,19 @@ async function classificarPaginas(pages, forcar){
 }
 // Junta os resultados de cada disciplina SEM somar entre disciplinas (cada item mantém _disciplina).
 function consolidarDisciplinas(parts){
-  const out={projeto:"",area_construida_m2:0,pavimentos:1,tipologia:"",ambientes:[],quantitativos:[],_multi:true};
-  const ambSet=new Set();
+  const out={projeto:"",area_construida_m2:0,pavimentos:1,tipologia:"",ambientes:[],esquadrias:[],quantitativos:[],_multi:true};
+  const ambSet=new Set(); const esqSet=new Set();
   parts.forEach(r=>{ if(!r) return;
     if(!out.projeto&&r.projeto) out.projeto=r.projeto;
     if(!out.tipologia&&r.tipologia) out.tipologia=r.tipologia;
     out.area_construida_m2=Math.max(out.area_construida_m2, Number(r.area_construida_m2)||0);
     out.pavimentos=Math.max(out.pavimentos, Number(r.pavimentos)||1);
+    ["perimetro_externo_m","vaos_alvenaria_m2","platibanda_m2","caixa_dagua_alvenaria_m2"].forEach(k=>{
+      if(Number(r[k])>Number(out[k]||0)) out[k]=Number(r[k]);
+    });
     (r.ambientes||[]).forEach(a=>{ const k=String(a.nome||"").toLowerCase().trim(); if(k&&!ambSet.has(k)){ ambSet.add(k); out.ambientes.push(a); } });
+    (r.esquadrias||[]).forEach(e=>{ const k=String(e.codigo||`${e.tipo}|${e.largura_m}x${e.altura_m}`).toLowerCase().trim(); if(k&&!esqSet.has(k)){ esqSet.add(k); out.esquadrias.push(e); } });
+    (r.alertas||[]).forEach(al=>{ out.alertas=out.alertas||[]; if(!out.alertas.includes(al)) out.alertas.push(al); });
     (r.quantitativos||[]).forEach(q=>out.quantitativos.push(q));
   });
   return out;
@@ -1597,28 +1617,66 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
 const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
-const IMG_MAX_WIDTH = 1400;   // largura máxima — boa resolução p/ ler cotas, mais leve/rápido (anti-timeout)
+const IMG_LONG_EDGE = 1568;    // borda longa máxima que a IA lê sem reescalonar (acima disso ela reduz e perde cota)
+const PAYLOAD_BUDGET = 3500000;      // orçamento de payload (requer edge function com MAX_PAYLOAD_BYTES ≥ 4,5MB)
+const PAYLOAD_BUDGET_LEGACY = 440000; // fallback p/ backend antigo (limite 512KB)
 
-async function pageToBase64(gid) {
-  if (APP.pageImages[gid]) return APP.pageImages[gid];
+// Renderiza uma página (ou um RECORTE dela) como JPEG base64.
+// - longEdge: tamanho-alvo da borda longa do recorte (px). PERMITE AMPLIAR folhas pequenas
+//   (o código antigo tinha Math.min(1.0, …): folha A4/A3 virava imagem de 595–842px e a IA
+//   não conseguia ler cota nenhuma — causa nº 1 de levantamento errado).
+// - region: {x,y,w,h} em fração da página (0..1) para gerar ampliações.
+async function renderPageJpeg(gid, longEdge, quality, region) {
   const ent = APP.pages[gid - 1];
   if (!ent) return "";
   const page = await ent.doc.getPage(ent.pageNum);
-
-  // Calcula scale para que a largura não ultrapasse IMG_MAX_WIDTH
-  const baseViewport = page.getViewport({ scale: 1 });
-  const scale = Math.min(1.0, IMG_MAX_WIDTH / baseViewport.width);
+  const base = page.getViewport({ scale: 1 });
+  const reg = region || { x: 0, y: 0, w: 1, h: 1 };
+  const cropLong = Math.max(base.width * reg.w, base.height * reg.h);
+  const scale = Math.min(longEdge / cropLong, 6);   // cap 6x contra canvas gigante
   const viewport = page.getViewport({ scale });
-
   const canvas = document.createElement("canvas");
-  canvas.width  = viewport.width;
-  canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+  canvas.width  = Math.round(viewport.width  * reg.w);
+  canvas.height = Math.round(viewport.height * reg.h);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);  // JPEG sem alfa
+  ctx.translate(-Math.round(viewport.width * reg.x), -Math.round(viewport.height * reg.y));
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL("image/jpeg", quality).split(",")[1];
+}
 
-  // JPEG a 65% — legível para IA, payload reduzido
-  const base64 = canvas.toDataURL("image/jpeg", 0.65).split(",")[1];
-  APP.pageImages[gid] = base64;
-  return base64;
+async function pageToBase64(gid) {
+  const ck = gid + "|full";
+  if (APP.pageImages[ck]) return APP.pageImages[ck];
+  APP.pageImages[ck] = await renderPageJpeg(gid, IMG_LONG_EDGE, 0.8);
+  return APP.pageImages[ck];
+}
+
+// Ampliações: divide a folha em 2 metades (na direção maior, com 6% de sobreposição)
+// renderizadas na borda longa máxima — dobra a resolução efetiva para leitura de cotas.
+async function pageHalvesBase64(gid) {
+  const ent = APP.pages[gid - 1];
+  if (!ent) return [];
+  const page = await ent.doc.getPage(ent.pageNum);
+  const base = page.getViewport({ scale: 1 });
+  const landscape = base.width >= base.height;
+  const regs = landscape
+    ? [{ x: 0, y: 0, w: 0.53, h: 1 }, { x: 0.47, y: 0, w: 0.53, h: 1 }]
+    : [{ x: 0, y: 0, w: 1, h: 0.53 }, { x: 0, y: 0.47, w: 1, h: 0.53 }];
+  const out = [];
+  for (let i = 0; i < regs.length; i++) {
+    const ck = gid + "|h" + i;
+    if (!APP.pageImages[ck]) APP.pageImages[ck] = await renderPageJpeg(gid, IMG_LONG_EDGE, 0.8, regs[i]);
+    out.push(APP.pageImages[ck]);
+  }
+  return out;
+}
+
+// Estimativa do tamanho do payload (imagens base64 + texto + overhead de prompt/sistema)
+function payloadBytes(imgs, texto) {
+  let n = 0;
+  (imgs || []).forEach(i => { n += (i && i.data ? i.data.length : (typeof i === "string" ? i.length : 0)); });
+  return n + (texto ? texto.length : 0) + 80000;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1662,7 +1720,7 @@ function feedPush(msg) {
 }
 // Reinicia os contadores do feed (chamado a cada novo grupo/disciplina, já que cada
 // chamada à IA começa um texto novo do zero).
-function feedResetGrupo() { APP._feedAmbSeen = 0; APP._feedServSeen = 0; }
+function feedResetGrupo() { APP._feedAmbSeen = 0; APP._feedServSeen = 0; APP._feedEsqSeen = 0; }
 function feedScan(texto, lbl) {
   if (!texto) return;
   const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -1675,6 +1733,15 @@ function feedScan(texto, lbl) {
     feedPush(`🏠 Ambiente identificado: ${nome}${area ? ` — ${nf(area)} m²` : ""}`);
   }
   APP._feedAmbSeen = ambs.length;
+  // esquadrias: "codigo":"P01" … "tipo":"Porta" … dimensões
+  const reEsq = /"codigo"\s*:\s*"([A-Za-z]{1,3}\d{1,3})"[\s\S]{0,140}?"tipo"\s*:\s*"([^"]{1,20})"(?:[\s\S]{0,120}?"largura_m"\s*:\s*([\d.]+)[\s\S]{0,60}?"altura_m"\s*:\s*([\d.]+))?/g;
+  const esqs = []; let me_;
+  while ((me_ = reEsq.exec(texto))) esqs.push(me_);
+  for (let i = APP._feedEsqSeen || 0; i < esqs.length; i++) {
+    const [, cod, tipo, lg, alt] = esqs[i];
+    feedPush(`🚪 Esquadria identificada: ${cod} · ${tipo}${lg && alt ? ` — ${nf(lg)}×${nf(alt)}m` : ""}`);
+  }
+  APP._feedEsqSeen = esqs.length;
   // serviços: cada item de "quantitativos" tem "descricao":"..."
   const reServ = /"descricao"\s*:\s*"([^"]{1,70})"/g;
   const servs = []; let m2;
@@ -1685,33 +1752,60 @@ function feedScan(texto, lbl) {
   APP._feedServSeen = servs.length;
 }
 
-// Lê UM grupo de folhas (de uma única disciplina) de forma isolada: texto→imagem, filtra e carimba _disciplina.
+// Lê UM grupo de folhas (de uma única disciplina) de forma isolada, filtra e carimba _disciplina.
 // onChunk(texto), se informado, é chamado a cada pedaço novo do streaming (usado pelo feed ao vivo).
+//
+// CORREÇÃO CRÍTICA: a versão anterior analisava SÓ O TEXTO do PDF quando havia camada de texto
+// (≥600 chars, ≤5 folhas) — ou seja, na maioria dos projetos vetoriais a IA NUNCA VIA o desenho
+// e "estimava com bom senso" os quantitativos. Agora a análise é SEMPRE por imagem (a IA vê a
+// planta), com o texto extraído como fonte auxiliar exata (quadros/tabelas).
 async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
   let texto = "";
   for (const p of grpPages) {
     const ent = APP.pages[p - 1];
     const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
     const t = await getPageText(p);
-    if (t) texto += `\n--- ${lbl} ---\n${t}`;
+    if (t) texto += `\n--- Folha ${p} (${lbl}) ---\n${t}`;
   }
-  const textoLimpo = texto.replace(/\s+/g, " ").trim();
-  const usarTexto = textoLimpo.length >= 600;
-  const muitas = grpPages.length > 5;
-  const minOk = (disc === "arquitetonico") ? 3 : 1;   // disciplinas específicas podem ter poucos itens
-  let res;
-  if (usarTexto && !muitas) {
-    res = await analisarTexto(texto, apiKey, disc, { onChunk });
-    if (!res || !res.quantitativos || res.quantitativos.length < minOk) {
-      // Fallback para análise por imagem: a análise de texto já debitou o crédito
-      // (e armazenou refineToken); usamos semCredito:true para não cobrar duas vezes.
-      if (typeof feedResetGrupo === "function") feedResetGrupo();
-      const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
-      res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { semCredito: true, onChunk });
+  if (texto.length > 60000) texto = texto.slice(0, 60000) + "\n[TEXTO TRUNCADO]";
+
+  // Monta as imagens: vista completa de cada folha + ampliações (metades) quando o grupo é pequeno.
+  const usarAmpliacoes = grpPages.length <= 3;
+  const imgs = [];
+  for (const p of grpPages) {
+    const ent = APP.pages[p - 1];
+    const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
+    imgs.push({ _gid: p, label: `Folha ${p} (${lbl}) — VISTA COMPLETA`, data: await pageToBase64(p) });
+    if (usarAmpliacoes) {
+      const halves = await pageHalvesBase64(p);
+      halves.forEach((h, i) => imgs.push({ _gid: p, _amp: true,
+        label: `Folha ${p} — AMPLIAÇÃO ${i + 1}/2 (recorte da MESMA folha acima, use apenas para ler cotas/textos pequenos — NÃO conte itens de novo)`,
+        data: h }));
     }
-  } else {
-    const imgs = []; for (const p of grpPages) imgs.push(await pageToBase64(p));
+  }
+  // Orçamento de payload: derruba ampliações e recomprime até caber no limite do backend.
+  if (payloadBytes(imgs, texto) > PAYLOAD_BUDGET) {
+    for (let i = imgs.length - 1; i >= 0 && payloadBytes(imgs, texto) > PAYLOAD_BUDGET; i--) {
+      if (imgs[i]._amp) imgs.splice(i, 1);
+    }
+  }
+  if (payloadBytes(imgs, texto) > PAYLOAD_BUDGET) {
+    for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1300, 0.55);
+  }
+
+  let res;
+  try {
     res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk });
+  } catch (e) {
+    // Backend antigo (limite 512KB) ou payload rejeitado: refaz compacto, só vistas completas.
+    if (/payload/i.test(String(e && e.message))) {
+      if (typeof feedResetGrupo === "function") feedResetGrupo();
+      const compact = [];
+      for (const p of grpPages) compact.push({ _gid: p, label: `Folha ${p} — VISTA COMPLETA`, data: await renderPageJpeg(p, 1200, 0.5) });
+      let txt2 = texto;
+      while (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY && txt2.length > 4000) txt2 = txt2.slice(0, Math.floor(txt2.length / 2));
+      res = await chamarIA(compact, apiKey, 1, 1, txt2, disc, { onChunk });
+    } else throw e;
   }
   if (!res || !res.quantitativos) return null;
   filtrarPorDisciplina(res, disc);
@@ -1721,6 +1815,7 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
 }
 
 async function startAnalysis() {
+  APP._t0 = Date.now();   // cronômetro do levantamento (exibido na EAP — prova do tempo economizado)
   APP.projectName = document.getElementById("projectName").value.trim() || APP.pdfFile?.name || "Projeto";
   // Estado é definido aqui (necessário p/ refino de preços). Desoneração é escolhida na etapa de Orçamento.
   APP.estado = document.getElementById("estadoSelect1").value;
@@ -1807,7 +1902,10 @@ async function startAnalysis() {
 
     // ── Passo 4: EAP ──
     setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
+    APP._levSeg = Math.max(1, Math.round((Date.now() - (APP._t0 || Date.now())) / 1000));
+    const _lm = Math.floor(APP._levSeg / 60), _ls = APP._levSeg % 60;
     feedPush(`✅ Levantamento concluído — ${consolidado.quantitativos.length} serviço(s) em ${(consolidado.ambientes || []).length} ambiente(s)`);
+    feedPush(`⏱ Tempo total do levantamento: ${_lm > 0 ? _lm + "min " : ""}${_ls}s — no processo manual isso levaria dias.`);
     setTimeout(() => {
       setStep("pstep4", true, "EAP gerada com sucesso");
       setProgress(100, "Concluído!");
@@ -1878,7 +1976,14 @@ function parseIAJson(rawText) {
 async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
   disc = disc || APP.disciplina;
   const aiContent = [];
-  images.forEach(img => aiContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: img } }));
+  let temAmp = false;
+  images.forEach(img => {
+    const data  = (img && typeof img === "object") ? img.data  : img;
+    const label = (img && typeof img === "object") ? img.label : "";
+    if (img && img._amp) temAmp = true;
+    if (label) aiContent.push({ type: "text", text: "▼ " + label });
+    aiContent.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } });
+  });
   if (textoFolhas && textoFolhas.trim()) {
     aiContent.push({ type: "text", text:
       "TEXTO EXTRAÍDO DO PDF (use os QUADROS/TABELAS daqui como FONTE EXATA de quantidades — quadro de áreas, quadro de esquadrias; cada folha está marcada como 'Folha N'):\n" + textoFolhas });
@@ -1888,6 +1993,7 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
     "PROJETO COM VÁRIAS FOLHAS: siga a METODOLOGIA DE LEITURA — a PLANTA BAIXA é a base (áreas/contagens), os CORTES servem só para ALTURAS, e você COMBINA planta × altura para o quantitativo real. Classifique cada folha (planta, corte, fachada, cobertura, elétrica, hidráulica, estrutural/fôrma/armação, QUADRO, detalhe). " +
     "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias, resumo de aço). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
     "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
+    (temAmp ? "ATENÇÃO — AMPLIAÇÕES: algumas imagens são RECORTES ampliados de folhas já mostradas na íntegra (estão rotuladas como 'AMPLIAÇÃO'). Use-as SOMENTE para ler cotas, textos e quadros pequenos com precisão. NUNCA conte ambientes, esquadrias ou serviços a partir delas — a contagem sai apenas da VISTA COMPLETA de cada folha.\n\n" : "") +
     "Retorne o JSON conforme especificado (inclua disciplina_detectada). Seja preciso — os valores gerarão um orçamento real.\n\n" +
     focoDisciplina(disc) +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
@@ -1908,8 +2014,9 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
 // Mescla resultados de vários lotes: soma quantitativos por código+unidade+categoria,
 // deduplica ambientes e mantém os dados de projeto.
 function mesclarResultados(parts) {
-  const out = { projeto: "", area_construida_m2: 0, pavimentos: 1, tipologia: "", ambientes: [], quantitativos: [] };
+  const out = { projeto: "", area_construida_m2: 0, pavimentos: 1, tipologia: "", ambientes: [], esquadrias: [], quantitativos: [] };
   const ambSet = new Set();
+  const esqSet = new Set();
   const qMap = new Map();
   for (const r of parts) {
     if (!r) continue;
@@ -1920,6 +2027,10 @@ function mesclarResultados(parts) {
     (r.ambientes || []).forEach(a => {
       const k = String(a.nome || "").toLowerCase().trim();
       if (k && !ambSet.has(k)) { ambSet.add(k); out.ambientes.push(a); }
+    });
+    (r.esquadrias || []).forEach(e => {
+      const k = String(e.codigo || `${e.tipo}|${e.largura_m}x${e.altura_m}`).toLowerCase().trim();
+      if (k && !esqSet.has(k)) { esqSet.add(k); out.esquadrias.push(e); }
     });
     (r.quantitativos || []).forEach(q => {
       const chave = (String(q.sinapi_codigo || "").trim() || String(q.descricao || "").toLowerCase().trim())
@@ -2715,14 +2826,41 @@ function buildEAP() {
     }
   }
 
+  // Alertas de leitura da IA (escala divergente, folha sem cota, conflito cota × quadro…)
+  let alertHost = document.getElementById("eapLeituraAlertas");
+  if (!alertHost && eapAlert) {
+    alertHost = document.createElement("div");
+    alertHost.id = "eapLeituraAlertas";
+    eapAlert.parentNode.insertBefore(alertHost, eapAlert.nextSibling);
+  }
+  if (alertHost) {
+    const als = r.alertas || [];
+    const nEst = (r.quantitativos || []).filter(q => String(q.confianca || "").toLowerCase() === "estimada").length;
+    let html = "";
+    if (als.length) {
+      html += `<div class="alert" style="background:#fef3c7;color:#92400e;border:1px solid #f5b93f;margin-top:8px">
+        <b>⚠️ Atenção na leitura do projeto:</b><ul style="margin:6px 0 0 18px">${als.map(a => `<li>${a}</li>`).join("")}</ul></div>`;
+    }
+    if (nEst > 0) {
+      html += `<div class="alert" style="background:#fef3c7;color:#92400e;border:1px solid #f5b93f;margin-top:8px">
+        <b>≈ ${nEst} item(ns) estimados sem cota</b> — marcados na lista abaixo. Valide-os (ou meça na planta) antes de gerar o orçamento. IA não assina ART — você assina.</div>`;
+    }
+    alertHost.innerHTML = html;
+  }
+
   // Project info cards
   const grid = document.getElementById("projectInfoGrid");
-  grid.innerHTML = [
+  const infoCards = [
     { label: "Projeto",        value: r.projeto || APP.projectName,     sub: r.tipologia || "" },
     { label: "Área Construída",value: `${areaDoProjeto(r).toFixed(1)} m²`, sub: `${r.pavimentos||1} pavimento(s)` },
     { label: "Ambientes",      value: r.ambientes?.length || "—",       sub: "identificados" },
     { label: "Serviços",       value: r.quantitativos?.length || 0,     sub: "no levantamento" },
-  ].map(i => `
+  ];
+  if (APP._levSeg) {
+    const m = Math.floor(APP._levSeg / 60), s = APP._levSeg % 60;
+    infoCards.push({ label: "⏱ Tempo do levantamento", value: (m > 0 ? `${m}min ${s}s` : `${s}s`), sub: "do clique à EAP — valide e assine" });
+  }
+  grid.innerHTML = infoCards.map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
       <div class="value">${i.value}</div>
@@ -2765,6 +2903,7 @@ function buildEAP() {
   }
 
   renderAmbientesLevantamento();
+  renderEsquadrias();
 }
 
 // Levantamento por ambiente: tabela com área estimada pela IA + medição calibrada na planta
@@ -2818,6 +2957,74 @@ function renderAmbientesLevantamento() {
     </table>`;
 }
 
+// ── Quadro de Esquadrias: o usuário ENXERGA o que a IA leu e valida/edita antes do orçamento ──
+function esquadriasVaosTotal(r) {
+  return (r.esquadrias || []).reduce((s, e) =>
+    s + (Number(e.largura_m) || 0) * (Number(e.altura_m) || 0) * (Number(e.quantidade) || 0), 0);
+}
+function renderEsquadrias() {
+  const r = APP.analysisResult; if (!r) return;
+  const card = document.getElementById("esquadriasCard");
+  const wrap = document.getElementById("esquadriasTableWrap");
+  const resumo = document.getElementById("esquadriasResumo");
+  if (!card || !wrap) return;
+  const esq = r.esquadrias || [];
+  if (!esq.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const inp = (i, campo, val, w) =>
+    `<input type="text" value="${val}" style="width:${w}px;padding:4px 6px;border:1.5px solid var(--border);border-radius:5px;font-size:13px;text-align:right" onchange="esqEdit(${i},'${campo}',this.value)">`;
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1.5px solid var(--border);text-align:left">
+        <th style="padding:6px 8px">Cód.</th><th style="padding:6px 8px">Tipo</th>
+        <th style="padding:6px 8px;text-align:right">Larg. (m)</th><th style="padding:6px 8px;text-align:right">Alt. (m)</th>
+        <th style="padding:6px 8px;text-align:right">Qtd.</th><th style="padding:6px 8px;text-align:right">Vão total (m²)</th>
+        <th style="padding:6px 8px">Material</th><th style="padding:6px 8px">Onde está</th><th style="padding:6px 8px"></th>
+      </tr></thead>
+      <tbody>${esq.map((e, i) => `<tr>
+        <td style="padding:6px 8px;font-weight:700">${e.codigo || "—"}</td>
+        <td style="padding:6px 8px">${e.tipo || "—"}</td>
+        <td style="padding:6px 8px;text-align:right">${inp(i, "largura_m", nf(e.largura_m), 62)}</td>
+        <td style="padding:6px 8px;text-align:right">${inp(i, "altura_m", nf(e.altura_m), 62)}</td>
+        <td style="padding:6px 8px;text-align:right">${inp(i, "quantidade", Number(e.quantidade) || 0, 48)}</td>
+        <td style="padding:6px 8px;text-align:right">${nf((Number(e.largura_m)||0)*(Number(e.altura_m)||0)*(Number(e.quantidade)||0))}</td>
+        <td style="padding:6px 8px">${e.material || "—"}</td>
+        <td style="padding:6px 8px;color:var(--muted);font-size:12px" title="${e.fonte || ""}">${e.colocacao || "—"}</td>
+        <td style="padding:6px 8px"><span style="cursor:pointer;color:#b91c1c;font-weight:700" title="Remover" onclick="esqRemove(${i})">✕</span></td>
+      </tr>`).join("")}</tbody>
+    </table>`;
+  const soma = esquadriasVaosTotal(r);
+  const vaosIA = Number(r.vaos_alvenaria_m2) || 0;
+  const diverge = vaosIA > 0 && Math.abs(soma - vaosIA) / vaosIA > 0.10;
+  resumo.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="badge" style="background:rgba(23,146,192,0.1)">Σ vãos das esquadrias: <b>${nf(soma)} m²</b></span>
+      <span class="badge" style="background:${diverge ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)"}">
+        ${diverge ? "⚠️" : "✓"} Vãos usados na alvenaria: <b>${nf(vaosIA)} m²</b>${diverge ? " — divergência > 10%" : ""}</span>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12px" onclick="esqAplicarVaos()">Usar a soma das esquadrias como vãos da alvenaria</button>
+    </div>`;
+}
+function esqEdit(i, campo, val) {
+  const r = APP.analysisResult; if (!r || !r.esquadrias || !r.esquadrias[i]) return;
+  const num = parseFloat(String(val).replace(",", "."));
+  if (isNaN(num) || num < 0) { renderEsquadrias(); return; }
+  r.esquadrias[i][campo] = num;
+  r.esquadrias[i]._editado = true;
+  renderEsquadrias();
+}
+function esqRemove(i) {
+  const r = APP.analysisResult; if (!r || !r.esquadrias) return;
+  r.esquadrias.splice(i, 1);
+  renderEsquadrias();
+}
+function esqAplicarVaos() {
+  const r = APP.analysisResult; if (!r) return;
+  r.vaos_alvenaria_m2 = Math.round(esquadriasVaosTotal(r) * 100) / 100;
+  if (typeof recalcularAlvenariaDeAmbientes === "function") recalcularAlvenariaDeAmbientes();
+  buildEAP();
+}
+
 // Renderiza a árvore Categoria → serviços dentro de um container
 function renderEapCategorias(container, quantitativos) {
   const byCat = {};
@@ -2839,9 +3046,20 @@ function renderEapCategorias(container, quantitativos) {
       row.className = "eap-item";
       row.innerHTML = `
         <span class="codigo">${catIdx + 1}.${idx + 1} · ${q.sinapi_codigo || "—"}</span>
-        <span>${q.descricao}${q.fonte ? ` <span style="color:var(--muted);font-size:10px">· ${q.fonte}</span>` : ""}</span>
-        <span class="qtd">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})}</span>
+        <span>${q.descricao}${q.fonte ? ` <span style="color:var(--muted);font-size:10px">· ${q.fonte}</span>` : ""}${String(q.confianca || "").toLowerCase() === "estimada" ? ` <span style="color:#b45309;font-size:10px;font-weight:700" title="Dimensão estimada por proporção — sem cota no desenho. Valide antes de orçar.">· ≈ estimado sem cota</span>` : ""}${q._editadoManual ? ` <span style="color:var(--green);font-size:10px">· ✓ ajustado por você</span>` : ""}</span>
+        <span class="qtd" style="cursor:pointer;text-decoration:underline dotted" title="Clique para editar a quantidade">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})} ✎</span>
         <span class="un">${q.unidade}</span>`;
+      const qtdEl = row.querySelector(".qtd");
+      qtdEl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const nv = prompt(`Nova quantidade (${q.unidade}) para:\n${q.descricao}`, q.quantidade);
+        if (nv == null) return;
+        const num = parseFloat(String(nv).replace(",", "."));
+        if (isNaN(num) || num < 0) return;
+        q.quantidade = num;
+        q._editadoManual = true;
+        buildEAP();
+      });
 
       if (q.memoria_calculo) {
         const memoToggle = document.createElement("span");
@@ -3586,6 +3804,22 @@ async function exportExcel() {
     ws3["!cols"] = [26,13,17,15,15,11,14,16].map(w => ({wch:w}));
     estilizarSheet(ws3, { headerRows:[0] });
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
+  }
+
+  // ── Sheet 3b: Quadro de Esquadrias (lido do projeto e validado pelo usuário) ──
+  if (r.esquadrias?.length) {
+    const esqRows = [["CÓDIGO","TIPO","LARGURA (m)","ALTURA (m)","QTD.","VÃO TOTAL (m²)","MATERIAL","COLOCAÇÃO","FONTE"]];
+    let vaoTot = 0;
+    r.esquadrias.forEach(e => {
+      const vao = Math.round((Number(e.largura_m)||0) * (Number(e.altura_m)||0) * (Number(e.quantidade)||0) * 100) / 100;
+      vaoTot += vao;
+      esqRows.push([e.codigo || "—", e.tipo || "—", e.largura_m || 0, e.altura_m || 0, e.quantidade || 0, vao, e.material || "—", e.colocacao || "—", e.fonte || "—"]);
+    });
+    esqRows.push([], ["", "", "", "", "Σ VÃOS", Math.round(vaoTot*100)/100, "", "", ""]);
+    const wsE = XLSX.utils.aoa_to_sheet(esqRows);
+    wsE["!cols"] = [10,10,12,11,7,14,16,34,24].map(w => ({wch:w}));
+    estilizarSheet(wsE, { headerRows:[0] });
+    XLSX.utils.book_append_sheet(wb, wsE, "ESQUADRIAS");
   }
 
   // ── Sheet 4: Cronograma físico-financeiro + Caminho Crítico ─

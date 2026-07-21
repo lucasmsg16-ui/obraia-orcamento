@@ -242,24 +242,39 @@
         </div>
       </div>
 
-      <!-- Mock do sistema -->
+      <!-- Mock do sistema — SIMULAÇÃO AO VIVO do levantamento (o "momento uau") -->
       <div class="shot">
         <div class="bar"><i></i><i></i><i></i></div>
         <div class="scr">
-          <div class="top"><span>Orçamento — Residência Unifamiliar</span><span>SINAPI ✓</span></div>
+          <div class="top"><span>Residência Unifamiliar — planta.pdf</span><span style="display:inline-flex;align-items:center;gap:6px"><span id="heroTimer" style="font-family:monospace;font-weight:700">00:00</span><span id="heroStatus">⏳ analisando…</span></span></div>
           <div class="body">
-            <table>
-              <tr><td>Alvenaria de vedação</td><td class="r">R$ 18.430,00</td></tr>
-              <tr><td>Estrutura (pilares/vigas/laje)</td><td class="r">R$ 42.110,00</td></tr>
-              <tr><td>Cobertura</td><td class="r">R$ 15.880,00</td></tr>
-              <tr><td>Revestimentos</td><td class="r">R$ 22.640,00</td></tr>
-            </table>
-            <div class="line m"></div><div class="line s"></div>
-            <div style="font-size:11px;color:var(--muted);margin-top:10px">Cronograma · caminho crítico</div>
-            <div class="gantt"><span class="c"></span><span class="c"></span><span class="b"></span><span></span><span class="b"></span><span class="c"></span></div>
+            <div id="heroFeed" style="font-size:11.5px;line-height:1.8;min-height:96px;font-family:monospace"></div>
+            <div id="heroPacote" style="display:none">
+              <table>
+                <tr><td>Alvenaria de vedação</td><td class="r">R$ 18.430,00</td></tr>
+                <tr><td>Estrutura (pilares/vigas/laje)</td><td class="r">R$ 42.110,00</td></tr>
+                <tr><td>Cobertura</td><td class="r">R$ 15.880,00</td></tr>
+                <tr><td>Revestimentos</td><td class="r">R$ 22.640,00</td></tr>
+              </table>
+              <div class="line m"></div><div class="line s"></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:10px">Cronograma · caminho crítico</div>
+              <div class="gantt"><span class="c"></span><span class="c"></span><span class="b"></span><span></span><span class="b"></span><span class="c"></span></div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAIXA DE IMPACTO -->
+<section style="background:#0b1c2c;padding:26px 0;border-top:1px solid rgba(77,184,232,.15);border-bottom:1px solid rgba(77,184,232,.15)">
+  <div class="wrap">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;text-align:center">
+      <div><div style="font-size:34px;font-weight:800;color:#4db8e8">2-3 dias → min</div><div style="font-size:13px;color:#9fb8c9">do upload do PDF ao pacote técnico completo</div></div>
+      <div><div style="font-size:34px;font-weight:800;color:#4db8e8">27 estados</div><div style="font-size:13px;color:#9fb8c9">tabela SINAPI oficial, com e sem desoneração</div></div>
+      <div><div style="font-size:34px;font-weight:800;color:#4db8e8">6 entregas</div><div style="font-size:13px;color:#9fb8c9">orçamento, EAP, cronograma, Curva ABC, insumos e Excel</div></div>
+      <div><div style="font-size:34px;font-weight:800;color:#4db8e8">Você valida</div><div style="font-size:13px;color:#9fb8c9">a IA levanta e mostra tudo; a assinatura é sua</div></div>
     </div>
   </div>
 </section>
@@ -525,6 +540,8 @@
     <!-- ⚠️ Substitua pelo link do Kiwify -->
     <a href="COLE_AQUI_O_LINK_DO_KIWIFY" data-checkout class="btn btn-primary btn-lg">Garantir meu acesso ao ObraIA — R$ 397/ano →</a>
     <div style="margin-top:16px;color:#9fc6da;font-size:14px">🔒 Pagamento seguro · Pix ou cartão · Garantia de 7 dias · 💬 Suporte via WhatsApp</div>
+    <div style="margin-top:22px;font-size:14px;color:#9fc6da">Ainda não sabe se está pronto para usar IA na sua rotina?<br>
+      <a href="diagnostico-nave.html" style="color:#4db8e8;font-weight:700">→ Faça o Diagnóstico NAVE gratuito (3 minutos)</a> e descubra em que etapa da travessia você está.</div>
   </div>
 </section>
 
@@ -548,6 +565,52 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.525 5.845L.057 23.5l5.816-1.452A11.956 11.956 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.88 0-3.638-.49-5.167-1.348l-.37-.218-3.449.861.876-3.363-.24-.386A9.961 9.961 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
   Suporte via WhatsApp
 </a>
+
+<script>
+// ── Simulação ao vivo do levantamento no hero (loop) ─────────────
+(function(){
+  const feed = document.getElementById("heroFeed");
+  const pac  = document.getElementById("heroPacote");
+  const tEl  = document.getElementById("heroTimer");
+  const sEl  = document.getElementById("heroStatus");
+  if (!feed || !pac || !tEl || !sEl) return;
+  const LINHAS = [
+    "🔎 Lendo planta.pdf — 4 folhas…",
+    "🏠 Ambiente: Sala de Estar — 18,40 m²",
+    "🏠 Ambiente: Cozinha — 9,75 m²",
+    "🏠 Ambiente: Quarto 1 — 12,10 m²",
+    "🚪 Esquadria: P01 · Porta — 0,80×2,10m",
+    "🚪 Esquadria: J02 · Janela — 1,50×1,20m",
+    "📋 Alvenaria de vedação — 214,6 m²",
+    "📋 Forro em placas de gesso — 96,2 m²",
+    "📐 Vãos descontados da alvenaria ✓",
+    "💰 Cruzando com SINAPI do seu estado…",
+    "📅 Gerando cronograma + caminho crítico…"
+  ];
+  let i = 0, seg = 0, timerId = null, lineId = null;
+  function fmt(s){ const m = Math.floor(s/60); return String(m).padStart(2,"0") + ":" + String(s%60).padStart(2,"0"); }
+  function reset(){
+    feed.innerHTML = ""; feed.style.display = ""; pac.style.display = "none";
+    i = 0; seg = 0; tEl.textContent = "00:00"; sEl.textContent = "⏳ analisando…";
+    timerId = setInterval(() => { seg += 7; tEl.textContent = fmt(seg); }, 500);
+    lineId  = setInterval(passo, 900);
+  }
+  function passo(){
+    if (i < LINHAS.length) {
+      const d = document.createElement("div");
+      d.textContent = LINHAS[i++];
+      feed.appendChild(d);
+      while (feed.children.length > 6) feed.removeChild(feed.firstChild);
+    } else {
+      clearInterval(lineId); clearInterval(timerId);
+      feed.style.display = "none"; pac.style.display = "";
+      tEl.textContent = "07:32"; sEl.textContent = "✅ Pacote pronto";
+      setTimeout(reset, 6000);
+    }
+  }
+  reset();
+})();
+</script>
 
 </body>
 </html>
