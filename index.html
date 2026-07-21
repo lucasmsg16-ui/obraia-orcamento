@@ -1692,7 +1692,16 @@ async function renderThumbnails() {
     // Auto-select all pages
     togglePage(thumb, gid, true);
   }
-  document.getElementById("btnAnalyze").disabled = APP.pages.length === 0;
+  // Garantia final: se alguma folha ficou sem seleção (renders concorrentes ao
+  // adicionar arquivos em sequência), marca todas — o padrão é analisar tudo.
+  document.querySelectorAll(".page-thumb").forEach(el => {
+    const n = +el.dataset.page;
+    if (!APP.selectedPages.has(n) && APP.selectedPages.size < MAX_PAGES_TOTAL) {
+      APP.selectedPages.add(n); el.classList.add("selected");
+    }
+  });
+  updateSelectedCount();
+  document.getElementById("btnAnalyze").disabled = APP.selectedPages.size === 0;
   montarRevisaoDisc();   // classifica e mostra a revisão de disciplina por folha (modo "auto")
 }
 
@@ -1831,10 +1840,10 @@ function feedReset() {
 // confiança; caso contrário, apenas a varredura corre (nunca
 // desenhamos um retângulo em lugar que não foi realmente lido).
 // ═══════════════════════════════════════════════════════════════
-const SCAN = { img: null, marcas: [], y: 0, raf: null, ativo: false, t0: 0 };
+const SCAN = { img: null, marcas: [], servicos: [], y: 0, raf: null, ativo: false, t0: 0 };
 
 function scanReset() {
-  SCAN.ativo = false; SCAN.marcas = []; SCAN.y = 0; SCAN.img = null;
+  SCAN.ativo = false; SCAN.marcas = []; SCAN.servicos = []; SCAN.y = 0; SCAN.img = null;
   if (SCAN.raf) cancelAnimationFrame(SCAN.raf), SCAN.raf = null;
   const w = document.getElementById("scanWrap"); if (w) w.style.display = "none";
   const c = document.getElementById("scanCount"); if (c) c.textContent = "0 ambientes";
@@ -1879,18 +1888,57 @@ function scanLoop() {
   ctx.beginPath(); ctx.moveTo(0, SCAN.y); ctx.lineTo(W, SCAN.y); ctx.stroke(); ctx.shadowBlur = 0;
 
   // Ambientes já identificados (apenas os que vieram com bbox)
+  const agora = Date.now();
   SCAN.marcas.forEach(m => {
     const x = m.bbox[0] * W, y = m.bbox[1] * H, w = (m.bbox[2] - m.bbox[0]) * W, h = (m.bbox[3] - m.bbox[1]) * H;
-    ctx.fillStyle = "rgba(45,212,191,.14)"; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    const idade = (agora - (m.t || agora)) / 1000;
+
+    // Preenchimento + hachura diagonal = "esta área já foi levantada"
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.fillStyle = "rgba(45,212,191,.13)"; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "rgba(45,212,191,.30)"; ctx.lineWidth = 1.2;
+    for (let d = -h; d < w; d += 11) { ctx.beginPath(); ctx.moveTo(x + d, y + h); ctx.lineTo(x + d + h, y); ctx.stroke(); }
+    ctx.restore();
+
+    // Pulso de confirmação nos 1,6 s seguintes à detecção — o "achei!"
+    if (idade < 1.6) {
+      const p = idade / 1.6, exp = 26 * p;
+      ctx.strokeStyle = `rgba(45,212,191,${(1 - p) * 0.85})`; ctx.lineWidth = 3;
+      ctx.strokeRect(x - exp, y - exp, w + exp * 2, h + exp * 2);
+    }
+
+    // Contorno + cantos de mira (linguagem de instrumento de medição)
+    ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 2; ctx.setLineDash([7, 4]);
     ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
-    const rot = `${m.nome}${m.area ? " · " + m.area.toLocaleString("pt-BR", {maximumFractionDigits:2}) + " m²" : ""}`;
+    const cl = Math.min(16, w / 3, h / 3);
+    ctx.lineWidth = 3; ctx.strokeStyle = "#5eead4";
+    [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]].forEach(([cx, cy, sx, sy]) => {
+      ctx.beginPath(); ctx.moveTo(cx + sx * cl, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * cl); ctx.stroke();
+    });
+
+    // Etiqueta com nome, área e ícone de confirmação
+    const rot = `✓ ${m.nome}${m.area ? " · " + m.area.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) + " m²" : ""}`;
     ctx.font = "600 13px 'Segoe UI', sans-serif";
-    const tw = ctx.measureText(rot).width + 14;
-    const ty = y > 24 ? y - 22 : y + h + 4;
-    ctx.fillStyle = "#0b8f7f"; ctx.fillRect(x, ty, tw, 20);
-    ctx.fillStyle = "#eafcf9"; ctx.fillText(rot, x + 7, ty + 14);
+    const tw = ctx.measureText(rot).width + 16;
+    const ty = y > 26 ? y - 24 : y + h + 4;
+    ctx.fillStyle = "#0b8f7f"; ctx.beginPath();
+    (ctx.roundRect ? ctx.roundRect(x, ty, tw, 21, 5) : ctx.rect(x, ty, tw, 21)); ctx.fill();
+    ctx.fillStyle = "#eafcf9"; ctx.fillText(rot, x + 8, ty + 15);
   });
+
+  // Serviços sendo identificados: pastilhas empilhadas no canto (prova de trabalho)
+  if (SCAN.servicos.length) {
+    const vis = SCAN.servicos.slice(-4);
+    ctx.font = "600 12px 'Segoe UI', sans-serif";
+    vis.forEach((s, i) => {
+      const txt = "📋 " + (s.length > 44 ? s.slice(0, 42) + "…" : s);
+      const tw = ctx.measureText(txt).width + 18, ty = H - 14 - (vis.length - 1 - i) * 26;
+      ctx.fillStyle = "rgba(7,26,43,.88)"; ctx.beginPath();
+      (ctx.roundRect ? ctx.roundRect(12, ty - 16, tw, 22, 5) : ctx.rect(12, ty - 16, tw, 22)); ctx.fill();
+      ctx.fillStyle = "#bfe3f7"; ctx.fillText(txt, 21, ty);
+    });
+  }
 
   SCAN.y += Math.max(1.4, H / 420);
   if (SCAN.y > H) SCAN.y = 0;   // varredura contínua enquanto a IA lê
@@ -1902,7 +1950,7 @@ function scanMarcar(nome, area, bbox) {
   if (!SCAN.ativo) return;
   if (Array.isArray(bbox) && bbox.length === 4) {
     const ok = bbox.every(v => typeof v === "number" && v >= 0 && v <= 1) && bbox[2] > bbox[0] && bbox[3] > bbox[1];
-    if (ok && !SCAN.marcas.some(m => m.nome === nome)) SCAN.marcas.push({ nome, area, bbox });
+    if (ok && !SCAN.marcas.some(m => m.nome === nome)) SCAN.marcas.push({ nome, area, bbox, t: Date.now() });
   }
   const c = document.getElementById("scanCount");
   const n = (APP._feedAmbSeen || 0);
@@ -1973,6 +2021,13 @@ function feedScan(texto, lbl) {
   while ((m2 = reServ.exec(texto))) servs.push(m2);
   for (let i = APP._feedServSeen || 0; i < servs.length; i++) {
     feedPush(`📋 Serviço identificado${lbl ? ` (${lbl})` : ""}: ${servs[i][1]}`);
+    if (SCAN.ativo) {
+      SCAN.servicos.push(servs[i][1]);
+      const foot = document.getElementById("scanFoot");
+      if (foot) foot.textContent = `Levantando: ${servs[i][1]}`;
+      const c = document.getElementById("scanCount");
+      if (c) c.textContent = `${SCAN.marcas.length || (APP._feedAmbSeen||0)} ambientes · ${servs.length} serviços`;
+    }
   }
   APP._feedServSeen = servs.length;
 }
