@@ -4852,7 +4852,15 @@ function exportInsumos(){
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar trecho</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkUndo()">↩ Desfazer ponto</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar traçado</button>
-      <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:380px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida.</span>
+      <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,.12);border-radius:8px;padding:3px 6px;margin-left:6px">
+        <button class="btn btn-outline" title="Afastar (ou role a roda do mouse)" style="padding:3px 9px;color:#fff;border-color:rgba(255,255,255,.5);font-size:15px;line-height:1" onclick="tkZoomBtn(1/1.3)">−</button>
+        <span id="tkZoomLbl" style="font-size:12px;min-width:42px;text-align:center;font-weight:700">100%</span>
+        <button class="btn btn-outline" title="Aproximar (ou role a roda do mouse)" style="padding:3px 9px;color:#fff;border-color:rgba(255,255,255,.5);font-size:15px;line-height:1" onclick="tkZoomBtn(1.3)">+</button>
+        <button class="btn btn-outline" title="Ajustar à tela" style="padding:3px 8px;color:#fff;border-color:rgba(255,255,255,.5);font-size:12px" onclick="tkZoomFit()">⤢</button>
+        <button class="btn btn-outline" id="tkBtnLupa" title="Lupa de precisão (liga/desliga)" style="padding:3px 8px;color:#fff;border-color:rgba(255,255,255,.5);font-size:12px;outline:3px solid #FFD700" onclick="tkToggleLupa()">🔍</button>
+      </span>
+      <span id="tkCoord" style="font-size:11px;color:#9fd0e8;min-width:120px"></span>
+      <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:340px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida. <span style="opacity:.75">Roda do mouse = zoom · Shift+arrastar = mover</span></span>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClose()">✕ Fechar</button>
     </div>
     <div id="tkCanvasWrap" style="flex:1;overflow:auto;background:#333;display:flex;justify-content:center;align-items:flex-start">
@@ -4880,7 +4888,57 @@ function exportInsumos(){
 // ── Ferramenta de medição na planta (escala calibrada + traçado de perímetro + vãos) ──
 // kind='ambiente' mede UM cômodo (grava em APP.analysisResult.ambientes[ambIdx]);
 // kind='alvenaria' (legado) mede direto o item de alvenaria da planilha.
-function tkState(){ if(!APP.takeoff) APP.takeoff={ gid:1, kind:'alvenaria', targetId:null, ambIdx:null, img:null, scale:null, mode:'idle', calib:[], runs:[], current:[], vaos:[], vaoStart:null }; return APP.takeoff; }
+function tkState(){ if(!APP.takeoff) APP.takeoff={ gid:1, kind:'alvenaria', targetId:null, ambIdx:null, img:null, scale:null, mode:'idle', calib:[], runs:[], current:[], vaos:[], vaoStart:null, z:1, ox:0, oy:0, lupa:true, cursor:null }; return APP.takeoff; }
+
+// ═══ ZOOM / PAN / LUPA ═══════════════════════════════════════════
+// Cotas de prancha grande são ilegíveis em 100%. O canvas passa a
+// desenhar sob transformação (z, ox, oy) e TODOS os pontos continuam
+// guardados em coordenadas da IMAGEM — a medição não muda com o zoom.
+function tkView(){ const t=tkState(); if(t.z==null){ t.z=1; t.ox=0; t.oy=0; } return t; }
+function tkToImg(cx, cy){            // coordenada da tela → coordenada da imagem
+  const t=tkView(); return { x:(cx - t.ox)/t.z, y:(cy - t.oy)/t.z };
+}
+function tkZoomAt(fator, cx, cy){    // zoom mantendo fixo o ponto sob o cursor
+  const t=tkView();
+  const z2=Math.max(0.4, Math.min(14, t.z*fator));
+  if(z2===t.z) return;
+  t.ox = cx - (cx - t.ox) * (z2/t.z);
+  t.oy = cy - (cy - t.oy) * (z2/t.z);
+  t.z = z2;
+  tkRedraw(); tkZoomLabel();
+}
+function tkZoomBtn(f){ const cv=document.getElementById("tkCanvas"); if(cv) tkZoomAt(f, cv.width/2, cv.height/2); }
+function tkZoomFit(){ const t=tkView(); t.z=1; t.ox=0; t.oy=0; tkRedraw(); tkZoomLabel(); }
+function tkZoomLabel(){ const e=document.getElementById("tkZoomLbl"); if(e) e.textContent = Math.round(tkView().z*100)+"%"; }
+function tkToggleLupa(){ const t=tkView(); t.lupa=!t.lupa;
+  const b=document.getElementById("tkBtnLupa"); if(b) b.style.outline=t.lupa?'3px solid #FFD700':'';
+  tkRedraw();
+}
+// Lupa: recorte ampliado ao redor do cursor — permite clicar exatamente
+// no extremo da cota sem precisar dar zoom em toda a prancha.
+function tkDrawLupa(ctx, cv){
+  const t=tkView(); if(!t.lupa || !t.cursor || !t.img) return;
+  const R=92, AMP=3.2, m=18;
+  const cx=t.cursor.x, cy=t.cursor.y;
+  let lx = cx + R + m, ly = cy - R - m;                    // canto oposto ao cursor
+  if(lx + R > cv.width)  lx = cx - R - m;
+  if(ly - R < 0)         ly = cy + R + m;
+  const src = tkToImg(cx, cy);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(lx, ly, R, 0, 6.3); ctx.closePath();
+  ctx.fillStyle="#fff"; ctx.fill(); ctx.clip();
+  ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(t.img, src.x - R/AMP, src.y - R/AMP, (R*2)/AMP, (R*2)/AMP, lx - R, ly - R, R*2, R*2);
+  // mira central
+  ctx.strokeStyle="rgba(239,68,68,.9)"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(lx-14,ly); ctx.lineTo(lx-4,ly); ctx.moveTo(lx+4,ly); ctx.lineTo(lx+14,ly);
+  ctx.moveTo(lx,ly-14); ctx.lineTo(lx,ly-4); ctx.moveTo(lx,ly+4); ctx.lineTo(lx,ly+14); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(lx,ly,R,0,6.3); ctx.strokeStyle="#002B40"; ctx.lineWidth=3; ctx.stroke();
+  ctx.beginPath(); ctx.arc(lx,ly,R,0,6.3); ctx.strokeStyle="#2dd4bf"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.font="700 11px 'Segoe UI',sans-serif"; ctx.fillStyle="#002B40";
+  ctx.fillText(`${AMP}× lupa`, lx-24, ly+R+16);
+}
 function tkOpen(kind, id){
   const t=tkState();
   t.kind = kind || 'alvenaria'; t.targetId=null; t.ambIdx=null;
@@ -4919,7 +4977,9 @@ async function tkRenderPage(){
   tkRenderVaosList();
   const page=await ent.doc.getPage(ent.pageNum);
   const wrap=document.getElementById("tkCanvasWrap");
-  const targetW=Math.min(1600, Math.max(700,(wrap.clientWidth||1000)));
+  // Renderiza em resolução ALTA (2× a largura útil, teto 3000px): dar zoom numa
+  // imagem pequena só amplia borrão — para ler cota é preciso pixel de verdade.
+  const targetW=Math.min(3000, Math.max(1400,(wrap.clientWidth||1000)*2));
   const base=page.getViewport({scale:1});
   const sc=targetW/base.width;
   const vp=page.getViewport({scale:sc});
@@ -4927,8 +4987,40 @@ async function tkRenderPage(){
   await page.render({canvasContext:off.getContext("2d"),viewport:vp}).promise;
   t.img=off;
   const cv=document.getElementById("tkCanvas"); cv.width=off.width; cv.height=off.height;
+  t.z=1; t.ox=0; t.oy=0; t.cursor=null;
   cv.onclick=tkClick;
-  tkRedraw(); tkUpdateReadout();
+
+  // Zoom com a roda do mouse, centrado no ponto sob o cursor
+  cv.onwheel = (e) => {
+    e.preventDefault();
+    const rect=cv.getBoundingClientRect(), k=cv.width/rect.width;
+    tkZoomAt(e.deltaY < 0 ? 1.18 : 1/1.18, (e.clientX-rect.left)*k, (e.clientY-rect.top)*k);
+  };
+  // Pan: arrastar com botão direito, com a roda, ou segurando espaço/Shift
+  cv.oncontextmenu = e => e.preventDefault();
+  let arrast=null;
+  cv.onmousedown = (e) => {
+    const panBtn = (e.button===1 || e.button===2 || e.shiftKey || tkState()._espaco);
+    if(!panBtn) return;
+    e.preventDefault();
+    const rect=cv.getBoundingClientRect(), k=cv.width/rect.width;
+    arrast={ x:(e.clientX-rect.left)*k, y:(e.clientY-rect.top)*k, ox:tkView().ox, oy:tkView().oy };
+    cv.style.cursor="grabbing";
+  };
+  cv.onmousemove = (e) => {
+    const rect=cv.getBoundingClientRect(), k=cv.width/rect.width;
+    const cx=(e.clientX-rect.left)*k, cy=(e.clientY-rect.top)*k;
+    const t2=tkView(); t2.cursor={x:cx,y:cy};
+    if(arrast){ t2.ox = arrast.ox + (cx-arrast.x); t2.oy = arrast.oy + (cy-arrast.y); }
+    tkRedraw();
+    // leitura viva da posição em metros (quando a escala já está definida)
+    const st=document.getElementById("tkCoord");
+    if(st && t2.scale){ const p=tkToImg(cx,cy); st.textContent = `x ${(p.x*t2.scale).toFixed(2)} m · y ${(p.y*t2.scale).toFixed(2)} m`; }
+  };
+  const soltar = () => { arrast=null; cv.style.cursor = "crosshair"; };
+  cv.onmouseup = soltar; cv.onmouseleave = () => { soltar(); const t2=tkView(); t2.cursor=null; tkRedraw(); };
+
+  tkZoomLabel(); tkRedraw(); tkUpdateReadout();
 }
 function tkSetMode(m){
   const t=tkState(); t.mode=m; t.vaoStart=null;
@@ -4946,7 +5038,9 @@ function tkSetMode(m){
 }
 function tkClick(e){
   const t=tkState(); const cv=document.getElementById("tkCanvas"); const rect=cv.getBoundingClientRect();
-  const x=(e.clientX-rect.left)*(cv.width/rect.width), y=(e.clientY-rect.top)*(cv.height/rect.height);
+  if(e.shiftKey || t._espaco) return;   // shift/espaço = pan, não marca ponto
+  const cx=(e.clientX-rect.left)*(cv.width/rect.width), cy=(e.clientY-rect.top)*(cv.height/rect.height);
+  const _p=tkToImg(cx,cy); const x=_p.x, y=_p.y;   // sempre em coordenadas da IMAGEM
   if(t.mode==='calibrar'){
     t.calib.push({x,y});
     if(t.calib.length>=2){
@@ -4975,7 +5069,10 @@ function tkClick(e){
 }
 function tkRedraw(){
   const t=tkState(); const cv=document.getElementById("tkCanvas"); if(!cv) return; const ctx=cv.getContext("2d");
-  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle="#333"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save();
+  ctx.setTransform(t.z||1, 0, 0, t.z||1, t.ox||0, t.oy||0);   // zoom + pan
   if(t.img) ctx.drawImage(t.img,0,0);
   // escala (azul)
   if(t.calib.length){ ctx.strokeStyle="#2563eb"; ctx.fillStyle="#2563eb"; ctx.lineWidth=3;
@@ -4994,6 +5091,9 @@ function tkRedraw(){
     ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
   });
   if(t.vaoStart){ ctx.fillStyle="#f97316"; ctx.beginPath(); ctx.arc(t.vaoStart.x,t.vaoStart.y,5,0,6.3); ctx.fill(); }
+  ctx.restore();
+  ctx.setTransform(1,0,0,1,0,0);
+  tkDrawLupa(ctx, cv);        // lupa desenhada FORA da transformação (tamanho fixo na tela)
 }
 function tkFinishRun(){ const t=tkState(); if(t.current.length>=2) t.runs.push(t.current); t.current=[]; tkRedraw(); tkUpdateReadout(); }
 function tkUndo(){ const t=tkState(); if(t.current.length) t.current.pop(); else if(t.runs.length){ t.current=t.runs.pop(); t.current.pop(); } tkRedraw(); tkUpdateReadout(); }
@@ -5087,7 +5187,21 @@ function tkApply(){
   recalcBudget();
   goTo(4);
 }
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const m=document.getElementById("takeoffModal"); if(m && m.style.display!=="none") tkClose(); } });
+document.addEventListener("keydown",e=>{
+  const m=document.getElementById("takeoffModal");
+  const aberto = m && m.style.display!=="none";
+  if(e.key==="Escape" && aberto){ tkClose(); return; }
+  if(!aberto) return;
+  const t=tkState();
+  if(e.code==="Space"){ e.preventDefault(); t._espaco=true; const cv=document.getElementById("tkCanvas"); if(cv) cv.style.cursor="grab"; }
+  else if(e.key==="+"||e.key==="="){ e.preventDefault(); tkZoomBtn(1.3); }
+  else if(e.key==="-"||e.key==="_"){ e.preventDefault(); tkZoomBtn(1/1.3); }
+  else if(e.key==="0"){ e.preventDefault(); tkZoomFit(); }
+  else if(e.key.toLowerCase()==="l"){ e.preventDefault(); tkToggleLupa(); }
+});
+document.addEventListener("keyup",e=>{
+  if(e.code==="Space"){ const t=tkState(); t._espaco=false; const cv=document.getElementById("tkCanvas"); if(cv) cv.style.cursor="crosshair"; }
+});
 </script>
 </body>
 </html>
