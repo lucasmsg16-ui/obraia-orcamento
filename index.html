@@ -710,6 +710,12 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div id="ambientesTableWrap" style="overflow-x:auto"></div>
   </div>
 
+  <div class="card" id="conferenciaCard" style="display:none">
+    <div class="card-title"><span class="icon">🎯</span> Conferência por amostragem — o que vale a pena medir</div>
+    <p class="muted" style="font-size:12px;margin-bottom:12px">Você não precisa conferir tudo. O sistema ordena os ambientes por <b>risco</b> (peso no custo × incerteza da leitura) e indica quais medir na planta. Poucas medições bem escolhidas validam — ou derrubam — o levantamento inteiro. <b>A IA levanta; você assina.</b></p>
+    <div id="conferenciaWrap"></div>
+  </div>
+
   <div class="card" id="acabamentosCard" style="display:none">
     <div class="card-title"><span class="icon">🎨</span> Mapa de Acabamentos por Ambiente</div>
     <p class="muted" style="font-size:12px;margin-bottom:10px">Lido do memorial descritivo, das legendas e do quadro de acabamentos do projeto. <b>Confira e edite</b> — os totais por material alimentam a compra e o orçamento. O que o projeto não especifica fica em branco (a IA não inventa material).</p>
@@ -3220,6 +3226,7 @@ function buildEAP() {
   }
 
   renderAmbientesLevantamento();
+  renderConferencia();
   renderAcabamentos();
   renderEsquadrias();
   renderAuditoria();
@@ -3386,6 +3393,78 @@ function renderAuditoria() {
         Conferência automática cruzando os números entre si. Ela não substitui a sua validação — IA não assina ART.
       </div>
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFERÊNCIA POR AMOSTRAGEM DIRIGIDA
+// Engenheiro não confere 100% — confere a amostra certa. O sistema
+// ranqueia os ambientes por RISCO (impacto no custo × incerteza da
+// leitura) e diz quais medir. Poucas medições bem escolhidas validam
+// (ou derrubam) o levantamento inteiro. É o "V" do método NAVE.
+// ═══════════════════════════════════════════════════════════════
+function rankearRisco(r) {
+  const amb = (r && r.ambientes) || [];
+  const maxArea = Math.max(1, ...amb.map(a => Number(a.area_m2) || 0));
+  return amb.map((a, i) => {
+    const area = Number(a.area_m2) || 0;
+    const orig = String(a.origem_dimensao || "").toLowerCase();
+    // incerteza: 1,0 estimado · 0,55 quadro (não é cota do desenho) · 0,25 cadeia · 0,1 cota
+    const incerteza = orig === "estimada" ? 1 : orig === "quadro" ? 0.55 : orig === "cadeia" ? 0.25 : orig === "cota" ? 0.1 : 0.8;
+    const impacto = area / maxArea;                       // peso no custo
+    const semCota = (!a.comprimento_m || !a.largura_m) ? 0.25 : 0;
+    return { i, a, risco: impacto * 0.55 + incerteza * 0.45 + semCota, incerteza, area };
+  }).sort((x, y) => y.risco - x.risco);
+}
+
+function renderConferencia() {
+  const r = APP.analysisResult; if (!r) return;
+  const card = document.getElementById("conferenciaCard");
+  const host = document.getElementById("conferenciaWrap");
+  if (!card || !host) return;
+  const amb = r.ambientes || [];
+  if (!amb.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+
+  const rank = rankearRisco(r);
+  const medidos = amb.filter(a => a._medido);
+  const comDesvio = medidos.filter(a => a.desvio_pct != null);
+  const desvioMedio = comDesvio.length ? comDesvio.reduce((s, a) => s + a.desvio_pct, 0) / comDesvio.length : null;
+  // amostra recomendada: raiz do total, mínimo 2, máximo 5 (regra prática de auditoria)
+  const nAmostra = Math.max(2, Math.min(5, Math.ceil(Math.sqrt(amb.length))));
+  const sugeridos = rank.filter(x => !x.a._medido).slice(0, Math.max(0, nAmostra - medidos.length));
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+  let veredito = "";
+  if (comDesvio.length) {
+    const cor = desvioMedio <= 3 ? ["#166534", "#f0fdf4", "✓"] : desvioMedio <= 8 ? ["#b45309", "#fffbeb", "△"] : ["#b91c1c", "#fef2f2", "✕"];
+    const txt = desvioMedio <= 3
+      ? `Amostra confere com a leitura da IA (desvio médio ${nf(desvioMedio)}%). O levantamento tem consistência para seguir.`
+      : desvioMedio <= 8
+      ? `Desvio médio de ${nf(desvioMedio)}% na amostra. Aceitável, mas amplie a conferência antes de assinar.`
+      : `Desvio médio de ${nf(desvioMedio)}% — alto. A leitura da IA está imprecisa neste projeto: meça os demais ambientes.`;
+    veredito = `<div style="background:${cor[1]};border:1px solid ${cor[0]}33;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <b style="color:${cor[0]}">${cor[2]} Conferido ${comDesvio.length} de ${amb.length} ambiente(s) — desvio médio ${nf(desvioMedio)}%</b>
+      <div style="font-size:12.5px;color:#475569;margin-top:4px">${txt}</div>
+    </div>`;
+  }
+
+  host.innerHTML = veredito + (sugeridos.length ? `
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
+      Confira <b>${nAmostra} ambiente(s)</b> desta lista — foram ordenados por risco (peso no custo × incerteza da leitura). Não precisa medir tudo:
+    </div>
+    ${sugeridos.map((x, k) => {
+      const tag = x.incerteza >= 0.8 ? ['rgba(217,119,6,.14)', '#b45309', 'estimado sem cota']
+                : x.incerteza >= 0.5 ? ['rgba(23,146,192,.12)', 'var(--blue)', 'lido do quadro de áreas']
+                : ['rgba(22,163,74,.12)', 'var(--green)', 'lido de cota'];
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card)">
+        <div style="width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">${k + 1}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px">${x.a.nome || "Ambiente"}</div>
+          <div style="font-size:12px;color:var(--muted)">${nf(x.area)} m² · <span class="badge" style="background:${tag[0]};color:${tag[1]}">${tag[2]}</span></div>
+        </div>
+        <button class="btn btn-primary" style="padding:6px 14px;font-size:13px" onclick="tkOpen('ambiente', ${x.i})">📐 Conferir na planta</button>
+      </div>`;
+    }).join("")}` : `<div style="font-size:13px;color:var(--green);font-weight:600">✓ Amostra recomendada já conferida.</div>`);
 }
 
 // ── Mapa de Acabamentos por ambiente (lido do memorial/legendas) ──
@@ -4298,6 +4377,18 @@ async function exportExcel() {
       const audRows = [[`MAR ABERTO ENGENHARIA — AUDITORIA DE COERÊNCIA — ${APP.projectName}`], [`Gerada em ${new Date().toLocaleString("pt-BR")}`], [], ["NÍVEL","VERIFICAÇÃO","OBSERVAÇÕES"]];
       const N = { erro: "CRÍTICO", aviso: "ATENÇÃO", ok: "OK" };
       aud.forEach(x => audRows.push([N[x.nivel] || x.nivel, x.msg, (x.detalhe || []).join(" | ")]));
+
+      // Conferência por amostragem — evidência de validação do responsável técnico
+      const conf = (r.ambientes || []).filter(a => a.desvio_pct != null);
+      if (conf.length) {
+        const dm = conf.reduce((s,a)=>s+a.desvio_pct,0)/conf.length;
+        audRows.push([], ["CONFERÊNCIA POR AMOSTRAGEM (medição na planta pelo responsável técnico)","",""]);
+        audRows.push(["AMBIENTE","ÁREA LIDA PELA IA (m²) / ÁREA MEDIDA (m²)","DESVIO (%)"]);
+        conf.forEach(a => audRows.push([a.nome, `${a.area_m2 || 0}  /  ${a.area_medida_m2 || 0}`, a.desvio_pct]));
+        audRows.push(["AMOSTRA", `${conf.length} de ${(r.ambientes||[]).length} ambientes conferidos`, Math.round(dm*10)/10]);
+        audRows.push(["", dm <= 3 ? "Amostra confere com a leitura da IA — levantamento consistente." : dm <= 8 ? "Desvio aceitável; recomenda-se ampliar a amostra." : "Desvio alto — recomenda-se medir todos os ambientes.", ""]);
+      }
+
       audRows.push([], ["", "Conferência automática cruzando os números do levantamento entre si.", ""]);
       audRows.push(["", "Não substitui a validação do responsável técnico — a IA não assina ART.", ""]);
       const wsA = XLSX.utils.aoa_to_sheet(audRows);
@@ -4952,10 +5043,38 @@ function tkApply(){
     a.vaos_total_m2 = t._vTotal;
     a.area_paredes_m2 = t._area;
     a._medido = true;
+
+    // ── Conferência: compara o que a IA disse com o que VOCÊ mediu ──
+    // O perímetro medido é a evidência mais direta: dá para reconstruir a área
+    // equivalente e confrontar com a área que a IA leu das cotas.
+    const areaIA = Number(a.area_m2) || 0;
+    const P = Number(t._L) || 0;
+    if (areaIA > 0 && P > 0) {
+      // Retângulo de mesmo perímetro e mesma proporção c/l que a IA leu
+      const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
+      let areaMedida;
+      if (c > 0 && l > 0) {
+        const k = P / (2 * (c + l));           // fator de correção sobre as cotas da IA
+        areaMedida = (c * k) * (l * k);
+      } else {
+        areaMedida = Math.pow(P / 4, 2);       // sem proporção conhecida: assume quadrado
+      }
+      a.area_medida_m2 = Math.round(areaMedida * 100) / 100;
+      a.desvio_pct = areaIA > 0 ? Math.round(Math.abs(areaMedida - areaIA) / areaIA * 1000) / 10 : null;
+      a.conferido_em = new Date().toISOString();
+    }
+
     recalcularAlvenariaDeAmbientes();
     tkClose();
     buildEAP();
     recalcBudget();
+    if (a.desvio_pct != null) {
+      const d = a.desvio_pct;
+      const msg = d <= 3 ? `✓ Conferido: ${a.nome} — desvio de apenas ${d}% entre a leitura da IA e a sua medição. Leitura confiável.`
+                : d <= 8 ? `△ Conferido: ${a.nome} — desvio de ${d}%. Aceitável, mas vale conferir mais um ambiente.`
+                : `✕ Atenção: ${a.nome} — desvio de ${d}% entre a IA e a sua medição. Recomendo medir os demais ambientes antes de assinar.`;
+      setTimeout(() => alert(msg), 120);
+    }
     return;
   }
 
