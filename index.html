@@ -395,6 +395,15 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .feed-body div:last-child { border-left-color: #2dd4bf; color: #eafcf9; }
 @keyframes feedin { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
 
+/* Varredura visual da planta — a IA lendo o projeto, ao vivo */
+.scan-shell { border-radius: 12px; overflow: hidden; border: 1px solid #12314a; box-shadow: 0 14px 38px rgba(0,25,42,.35); margin-bottom: 12px; }
+.scan-head { display: flex; align-items: center; background: #071a2b; padding: 9px 14px; }
+.scan-title { font-size: 11px; font-weight: 800; letter-spacing: 1.4px; color: #7fa8c4; }
+.scan-count { margin-left: auto; font-size: 11px; font-weight: 800; color: #2dd4bf; }
+.scan-stage { background: #04121f; padding: 10px; display: flex; justify-content: center; }
+.scan-stage canvas { max-width: 100%; height: auto; border-radius: 6px; display: block; }
+.scan-foot { background: #071a2b; padding: 8px 14px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #8fb8d2; }
+
 /* Tabelas orçamentárias com presença */
 .budget-table thead th, table.budget-table th { background: var(--navy) !important; color: #fff !important; }
 .budget-table tbody tr:nth-child(even) { background: #f6fafd; }
@@ -652,6 +661,17 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <div class="alert" id="pstep4" style="display:none">⏳ Estruturando o levantamento…</div>
     </div>
 
+    <div id="scanWrap" style="margin-top:16px;display:none">
+      <div class="scan-shell">
+        <div class="scan-head">
+          <span class="scan-title">VARREDURA DO PROJETO</span>
+          <span id="scanCount" class="scan-count">0 ambientes</span>
+        </div>
+        <div class="scan-stage"><canvas id="scanCanvas"></canvas></div>
+        <div class="scan-foot" id="scanFoot">Preparando a folha…</div>
+      </div>
+    </div>
+
     <div id="liveFeedWrap" style="margin-top:16px;display:none">
       <div class="feed-shell">
         <div class="feed-head">
@@ -688,6 +708,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="card-title"><span class="icon">📐</span> Levantamento por Ambiente (medição na planta)</div>
     <p class="muted" style="font-size:12px;margin-bottom:10px">A IA já estimou a área de cada ambiente a partir da planta. Para mais precisão, calibre a escala e meça o perímetro real de cada cômodo — os vãos (portas/janelas) são descontados automaticamente e o pé-direito acabado e no osso ficam registrados por ambiente. O resultado atualiza direto o quantitativo de alvenaria e a planilha.</p>
     <div id="ambientesTableWrap" style="overflow-x:auto"></div>
+  </div>
+
+  <div class="card" id="acabamentosCard" style="display:none">
+    <div class="card-title"><span class="icon">🎨</span> Mapa de Acabamentos por Ambiente</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">Lido do memorial descritivo, das legendas e do quadro de acabamentos do projeto. <b>Confira e edite</b> — os totais por material alimentam a compra e o orçamento. O que o projeto não especifica fica em branco (a IA não inventa material).</p>
+    <div id="acabamentosTableWrap" style="overflow-x:auto"></div>
+    <div id="acabamentosResumo"></div>
   </div>
 
   <div class="card" id="esquadriasCard" style="display:none">
@@ -1331,7 +1358,8 @@ FORMATO DE RESPOSTA (JSON puro):
   "platibanda_m2": 0.0,
   "caixa_dagua_alvenaria_m2": 0.0,
   "ambientes": [
-    { "nome": "Sala de Estar", "comprimento_m": 5.0, "largura_m": 4.0, "area_m2": 20.0, "pe_direito_m": 2.80 }
+    { "nome": "Sala de Estar", "comprimento_m": 5.0, "largura_m": 4.0, "area_m2": 20.0, "pe_direito_m": 2.80, "origem_dimensao": "cota", "folha": 1, "bbox": [0.12, 0.30, 0.38, 0.62],
+      "acabamentos": { "piso": "Porcelanato 60x60", "parede": "Massa única + tinta látex", "teto": "Forro em placas de gesso", "rodape": "Poliestireno H=10cm" } }
   ],
   "esquadrias": [
     { "codigo": "P01", "tipo": "Porta", "largura_m": 0.80, "altura_m": 2.10, "material": "madeira", "quantidade": 3, "colocacao": "Quarto 1; Quarto 2; Banheiro", "fonte": "Quadro de esquadrias (Folha 2)" }
@@ -1352,6 +1380,12 @@ FORMATO DE RESPOSTA (JSON puro):
   ]
 }
 Em "confianca" use: "cota" (dimensão lida de cota do desenho), "quadro" (lida de quadro/tabela) ou "estimada" (sem cota — estimada por proporção; o sistema destacará esse item para o engenheiro validar). "alertas" só deve existir quando houver problema real de leitura.
+
+CAMPOS ADICIONAIS DE CADA AMBIENTE (preencha sempre que possível):
+- "origem_dimensao": "cota" (li cota explícita), "cadeia" (derivei somando/subtraindo cotas vizinhas), "quadro" (quadro de áreas) ou "estimada" (proporção).
+- "folha": número da folha onde o ambiente aparece na planta baixa.
+- "bbox": [x0,y0,x1,y1] — posição APROXIMADA do ambiente na folha, em FRAÇÃO da largura/altura da imagem (0 = topo/esquerda, 1 = base/direita). Use a VISTA COMPLETA como referência, nunca as ampliações. Se não tiver confiança razoável na posição, OMITA o campo — é melhor não informar do que informar errado.
+- "acabamentos": { "piso", "parede", "teto", "rodape" } — leia do MEMORIAL DESCRITIVO/legendas/quadro de acabamentos quando existir no texto do projeto; se o projeto não especificar para aquele ambiente, omita a chave correspondente. NÃO invente material.
 OBRIGATÓRIO para o cálculo da ALVENARIA: preencha na raiz "perimetro_externo_m" e "vaos_alvenaria_m2" (e "platibanda_m2"/"caixa_dagua_alvenaria_m2" quando houver), e em CADA ambiente "comprimento_m" e "largura_m" (dimensões internas em planta) — o sistema usa esses dados para calcular a área de alvenaria.
 
 CAMPO ADICIONAL OBRIGATÓRIO: inclua sempre "disciplina_detectada" no JSON raiz, com um destes valores conforme o que você efetivamente leu nas pranchas: "arquitetonico", "estrutural", "eletrico" ou "hidrossanitario". Quando for "estrutural", inclua também "subtipo_estrutural": "forma_armacao" (a prancha traz geometria de fôrma E detalhamento de armadura) ou "armacao" (apenas detalhamento de ferragem/aço).`;
@@ -1787,6 +1821,112 @@ function feedReset() {
   if (wrap) wrap.style.display = "none";
   if (el) el.innerHTML = "";
   APP._feedAmbSeen = 0; APP._feedServSeen = 0;
+  scanReset();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VARREDURA VISUAL — mostra a folha real sendo lida: linha de scan
+// percorrendo a prancha e cada ambiente sendo marcado quando a IA
+// o identifica. Só marca posição quando a IA devolve bbox com
+// confiança; caso contrário, apenas a varredura corre (nunca
+// desenhamos um retângulo em lugar que não foi realmente lido).
+// ═══════════════════════════════════════════════════════════════
+const SCAN = { img: null, marcas: [], y: 0, raf: null, ativo: false, t0: 0 };
+
+function scanReset() {
+  SCAN.ativo = false; SCAN.marcas = []; SCAN.y = 0; SCAN.img = null;
+  if (SCAN.raf) cancelAnimationFrame(SCAN.raf), SCAN.raf = null;
+  const w = document.getElementById("scanWrap"); if (w) w.style.display = "none";
+  const c = document.getElementById("scanCount"); if (c) c.textContent = "0 ambientes";
+}
+
+async function scanInit(gid) {
+  const wrap = document.getElementById("scanWrap");
+  const cv = document.getElementById("scanCanvas");
+  if (!wrap || !cv) return;
+  let b64 = "";
+  try { b64 = await pageToBase64(gid); } catch (_) { return; }
+  if (!b64) return;
+  const img = new Image();
+  await new Promise(res => { img.onload = res; img.onerror = res; img.src = "data:image/jpeg;base64," + b64; });
+  if (!img.width) return;
+  const W = 760, H = Math.round(img.height * (W / img.width));
+  cv.width = W; cv.height = H;
+  SCAN.img = img; SCAN.y = 0; SCAN.ativo = true; SCAN.t0 = Date.now();
+  wrap.style.display = "block";
+  const foot = document.getElementById("scanFoot");
+  if (foot) foot.textContent = "Varrendo a prancha…";
+  scanLoop();
+}
+
+function scanLoop() {
+  const cv = document.getElementById("scanCanvas");
+  if (!cv || !SCAN.img || !SCAN.ativo) return;
+  const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(SCAN.img, 0, 0, W, H);
+
+  // Área já varrida: leve véu escuro azulado (dá a sensação de "processado")
+  ctx.fillStyle = "rgba(4,18,31,.42)";
+  ctx.fillRect(0, 0, W, SCAN.y);
+
+  // Linha de varredura com rastro
+  const grad = ctx.createLinearGradient(0, SCAN.y - 60, 0, SCAN.y);
+  grad.addColorStop(0, "rgba(45,212,191,0)");
+  grad.addColorStop(1, "rgba(45,212,191,.35)");
+  ctx.fillStyle = grad; ctx.fillRect(0, Math.max(0, SCAN.y - 60), W, Math.min(60, SCAN.y));
+  ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 2; ctx.shadowColor = "#2dd4bf"; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.moveTo(0, SCAN.y); ctx.lineTo(W, SCAN.y); ctx.stroke(); ctx.shadowBlur = 0;
+
+  // Ambientes já identificados (apenas os que vieram com bbox)
+  SCAN.marcas.forEach(m => {
+    const x = m.bbox[0] * W, y = m.bbox[1] * H, w = (m.bbox[2] - m.bbox[0]) * W, h = (m.bbox[3] - m.bbox[1]) * H;
+    ctx.fillStyle = "rgba(45,212,191,.14)"; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x, y, w, h); ctx.setLineDash([]);
+    const rot = `${m.nome}${m.area ? " · " + m.area.toLocaleString("pt-BR", {maximumFractionDigits:2}) + " m²" : ""}`;
+    ctx.font = "600 13px 'Segoe UI', sans-serif";
+    const tw = ctx.measureText(rot).width + 14;
+    const ty = y > 24 ? y - 22 : y + h + 4;
+    ctx.fillStyle = "#0b8f7f"; ctx.fillRect(x, ty, tw, 20);
+    ctx.fillStyle = "#eafcf9"; ctx.fillText(rot, x + 7, ty + 14);
+  });
+
+  SCAN.y += Math.max(1.4, H / 420);
+  if (SCAN.y > H) SCAN.y = 0;   // varredura contínua enquanto a IA lê
+  SCAN.raf = requestAnimationFrame(scanLoop);
+}
+
+// Marca um ambiente na folha (chamado pelo feed conforme a IA vai devolvendo)
+function scanMarcar(nome, area, bbox) {
+  if (!SCAN.ativo) return;
+  if (Array.isArray(bbox) && bbox.length === 4) {
+    const ok = bbox.every(v => typeof v === "number" && v >= 0 && v <= 1) && bbox[2] > bbox[0] && bbox[3] > bbox[1];
+    if (ok && !SCAN.marcas.some(m => m.nome === nome)) SCAN.marcas.push({ nome, area, bbox });
+  }
+  const c = document.getElementById("scanCount");
+  const n = (APP._feedAmbSeen || 0);
+  if (c) c.textContent = `${n} ambiente${n === 1 ? "" : "s"}`;
+  const foot = document.getElementById("scanFoot");
+  if (foot) foot.textContent = `Identificado: ${nome}${area ? " — " + area.toLocaleString("pt-BR",{maximumFractionDigits:2}) + " m²" : ""}`;
+}
+
+function scanFinalizar(totalAmb, totalServ) {
+  SCAN.ativo = false;
+  if (SCAN.raf) cancelAnimationFrame(SCAN.raf), SCAN.raf = null;
+  const cv = document.getElementById("scanCanvas");
+  if (cv && SCAN.img) {   // frame final limpo: planta + marcações, sem véu
+    const ctx = cv.getContext("2d"), W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H); ctx.drawImage(SCAN.img, 0, 0, W, H);
+    SCAN.marcas.forEach(m => {
+      const x = m.bbox[0]*W, y = m.bbox[1]*H, w = (m.bbox[2]-m.bbox[0])*W, h = (m.bbox[3]-m.bbox[1])*H;
+      ctx.fillStyle = "rgba(45,212,191,.16)"; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#0b8f7f"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+    });
+  }
+  const seg = Math.max(1, Math.round((Date.now() - SCAN.t0) / 1000));
+  const foot = document.getElementById("scanFoot");
+  if (foot) foot.innerHTML = `<span style="color:#2dd4bf;font-weight:700">✓ Varredura concluída</span> — ${totalAmb} ambiente(s) e ${totalServ} serviço(s) em ${Math.floor(seg/60) ? Math.floor(seg/60)+"min " : ""}${seg%60}s`;
 }
 function feedPush(msg) {
   const wrap = document.getElementById("liveFeedWrap");
@@ -1805,12 +1945,17 @@ function feedScan(texto, lbl) {
   if (!texto) return;
   const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
   // ambientes: "nome":"..." seguido (não necessariamente logo em seguida) de "area_m2":N
-  const reAmb = /"nome"\s*:\s*"([^"]{1,60})"[\s\S]{0,120}?"area_m2"\s*:\s*([\d.]+)/g;
+  const reAmb = /"nome"\s*:\s*"([^"]{1,60})"([\s\S]{0,400}?)"area_m2"\s*:\s*([\d.]+)/g;
   const ambs = []; let m;
   while ((m = reAmb.exec(texto))) ambs.push(m);
   for (let i = APP._feedAmbSeen || 0; i < ambs.length; i++) {
-    const nome = ambs[i][1], area = parseFloat(ambs[i][2]);
+    const nome = ambs[i][1], area = parseFloat(ambs[i][3]);
+    APP._feedAmbSeen = i + 1;
     feedPush(`🏠 Ambiente identificado: ${nome}${area ? ` — ${nf(area)} m²` : ""}`);
+    // bbox pode vir depois do area_m2 no mesmo objeto — procura na janela seguinte
+    const resto = texto.slice(ambs[i].index, ambs[i].index + 700);
+    const mb = resto.match(/"bbox"\s*:\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*\]/);
+    scanMarcar(nome, area, mb ? [parseFloat(mb[1]), parseFloat(mb[2]), parseFloat(mb[3]), parseFloat(mb[4])] : null);
   }
   APP._feedAmbSeen = ambs.length;
   // esquadrias: "codigo":"P01" … "tipo":"Porta" … dimensões
@@ -1958,6 +2103,7 @@ async function startAnalysis() {
       setStep("pstep2", false, `Lendo ${lbl} — ${g.pages.length} folha(s) (${gi + 1}/${grupos.length})…`);
       setProgress(15 + (gi / grupos.length) * 55, `Levantando ${lbl}…`);
       feedResetGrupo();
+      try { await scanInit(g.pages[0]); } catch (_) {}
       feedPush(`🔎 Lendo ${lbl}${g.pages.length > 1 ? ` (${g.pages.length} folhas)` : ""}…`);
       const res = await analisarGrupo(g.pages, g.disc, apiKey, (texto) => feedScan(texto, lbl));
       if (res && res.quantitativos && res.quantitativos.length) { res._grupoDisc = g.disc; parts.push(res); }
@@ -2001,6 +2147,7 @@ async function startAnalysis() {
     setStep("pstep4", false, "Montando Estrutura Analítica do Projeto…");
     APP._levSeg = Math.max(1, Math.round((Date.now() - (APP._t0 || Date.now())) / 1000));
     const _lm = Math.floor(APP._levSeg / 60), _ls = APP._levSeg % 60;
+    try { scanFinalizar((consolidado.ambientes || []).length, consolidado.quantitativos.length); } catch (_) {}
     feedPush(`✅ Levantamento concluído — ${consolidado.quantitativos.length} serviço(s) em ${(consolidado.ambientes || []).length} ambiente(s)`);
     feedPush(`⏱ Tempo total do levantamento: ${_lm > 0 ? _lm + "min " : ""}${_ls}s — no processo manual isso levaria dias.`);
     setTimeout(() => {
@@ -3018,7 +3165,9 @@ function buildEAP() {
   }
 
   renderAmbientesLevantamento();
+  renderAcabamentos();
   renderEsquadrias();
+  renderAuditoria();
 }
 
 // Levantamento por ambiente: tabela com área estimada pela IA + medição calibrada na planta
@@ -3040,9 +3189,17 @@ function renderAmbientesLevantamento() {
     const peOsso = medido ? nf(a.pe_direito_no_osso_m) : (a.pe_direito_m ? nf(a.pe_direito_m) : "—");
     const vaos = medido ? nf(a.vaos_total_m2) : "—";
     const areaParede = medido ? nf(a.area_paredes_m2) : "—";
+    const ORIG = {
+      cota:    ['rgba(22,163,74,0.12)', 'var(--green)', '✓ Cota do projeto'],
+      cadeia:  ['rgba(22,163,74,0.12)', 'var(--green)', '✓ Derivado de cotas'],
+      quadro:  ['rgba(23,146,192,0.12)', 'var(--blue)', '✓ Quadro de áreas'],
+      estimada:['rgba(217,119,6,0.14)',  '#b45309',     '≈ Estimado sem cota']
+    };
+    const o = ORIG[String(a.origem_dimensao || "").toLowerCase()];
     const status = medido
-      ? `<span class="badge" style="background:rgba(22,163,74,0.12);color:var(--green)">✓ Medido</span>`
-      : `<span class="badge" style="background:rgba(148,163,184,0.2);color:var(--muted)">IA (estimado)</span>`;
+      ? `<span class="badge" style="background:rgba(22,163,74,0.12);color:var(--green)">✓ Medido por você</span>`
+      : o ? `<span class="badge" style="background:${o[0]};color:${o[1]}" title="Origem da dimensão lida pela IA">${o[2]}</span>`
+          : `<span class="badge" style="background:rgba(148,163,184,0.2);color:var(--muted)">IA (estimado)</span>`;
     return `<tr>
       <td style="padding:6px 8px">${a.nome || "—"}</td>
       <td style="padding:6px 8px;text-align:right">${nf(areaIA)}</td>
@@ -3070,6 +3227,159 @@ function renderAmbientesLevantamento() {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDITOR DE COERÊNCIA — confronta os números da IA ENTRE SI.
+// Não pergunta à IA se ela acertou (IA não é boa juíza de si mesma):
+// roda aritmética determinística sobre o que ela devolveu. Se dois
+// caminhos independentes de cálculo divergem, algo foi lido errado.
+// ═══════════════════════════════════════════════════════════════
+function auditarCoerencia(r) {
+  const A = [];   // {nivel:'erro'|'aviso'|'ok', msg, detalhe}
+  if (!r) return A;
+  const amb = r.ambientes || [];
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+  const pct = (a, b) => (b > 0 ? Math.abs(a - b) / b : 0);
+
+  // 1) c × l = área declarada? (consistência INTERNA de cada ambiente)
+  const inconsist = [];
+  amb.forEach(a => {
+    const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0, ar = Number(a.area_m2) || 0;
+    if (c > 0 && l > 0 && ar > 0 && pct(c * l, ar) > 0.10) {
+      inconsist.push(`${a.nome}: ${nf(c)}×${nf(l)} = ${nf(c * l)} m², mas a área informada é ${nf(ar)} m²`);
+    }
+  });
+  if (inconsist.length) A.push({ nivel: "erro", msg: `${inconsist.length} ambiente(s) com cotas que não fecham com a área`, detalhe: inconsist });
+
+  // 2) Σ áreas dos ambientes × área construída declarada
+  const somaAmb = amb.reduce((s, a) => s + (Number(a.area_m2) || 0), 0);
+  const areaDecl = Number(r.area_construida_m2) || 0;
+  if (somaAmb > 0 && areaDecl > 0) {
+    const d = pct(somaAmb, areaDecl);
+    if (d > 0.25) A.push({ nivel: "erro", msg: `Área construída (${nf(areaDecl)} m²) diverge ${Math.round(d*100)}% da soma dos ambientes (${nf(somaAmb)} m²)`, detalhe: ["Pode faltar ambiente no levantamento, ou a área construída inclui paredes/circulação não medidas."] });
+    else if (d > 0.12) A.push({ nivel: "aviso", msg: `Área construída ${Math.round(d*100)}% acima da soma dos ambientes — coerente se inclui paredes e circulação`, detalhe: [] });
+    else A.push({ nivel: "ok", msg: `Áreas coerentes: soma dos ambientes ${nf(somaAmb)} m² × área construída ${nf(areaDecl)} m²`, detalhe: [] });
+  }
+
+  // 3) Perímetro externo × área construída (teste de forma: P ≥ 4·√A para qualquer polígono)
+  const perim = Number(r.perimetro_externo_m) || 0;
+  if (perim > 0 && areaDecl > 0) {
+    const minTeorico = 4 * Math.sqrt(areaDecl / (Number(r.pavimentos) || 1));
+    if (perim < minTeorico * 0.92) A.push({ nivel: "erro", msg: `Perímetro externo (${nf(perim)} m) é geometricamente impossível para ${nf(areaDecl)} m²`, detalhe: [`O mínimo teórico (quadrado perfeito) seria ${nf(minTeorico)} m.`] });
+    else if (perim > minTeorico * 2.2) A.push({ nivel: "aviso", msg: `Perímetro externo (${nf(perim)} m) muito alto para a área — confira se não incluiu muros ou divisas`, detalhe: [] });
+  }
+
+  // 4) Vãos das esquadrias × vãos usados na alvenaria
+  const vaosEsq = (r.esquadrias || []).reduce((s, e) => s + (Number(e.largura_m)||0) * (Number(e.altura_m)||0) * (Number(e.quantidade)||0), 0);
+  const vaosAlv = Number(r.vaos_alvenaria_m2) || 0;
+  if (vaosEsq > 0 && vaosAlv > 0 && pct(vaosEsq, vaosAlv) > 0.10) {
+    A.push({ nivel: "aviso", msg: `Vãos divergem: esquadrias somam ${nf(vaosEsq)} m², mas a alvenaria descontou ${nf(vaosAlv)} m²`, detalhe: ["Use o botão do Quadro de Esquadrias para aplicar a soma real."] });
+  }
+
+  // 5) Ordem de grandeza — pega erro de escala/vírgula (o mais perigoso e o mais silencioso)
+  const fora = [];
+  amb.forEach(a => {
+    const ar = Number(a.area_m2) || 0, pe = Number(a.pe_direito_m) || 0;
+    if (ar > 0 && (ar < 0.8 || ar > 200)) fora.push(`${a.nome}: área de ${nf(ar)} m² fora da faixa usual (0,8 a 200 m²)`);
+    if (pe > 0 && (pe < 2.1 || pe > 6)) fora.push(`${a.nome}: pé-direito de ${nf(pe)} m fora da faixa usual (2,10 a 6,00 m)`);
+  });
+  if (fora.length) A.push({ nivel: "erro", msg: `${fora.length} medida(s) fora de ordem de grandeza — possível erro de escala ou vírgula`, detalhe: fora });
+
+  // 6) Cobertura de origem: quanto do levantamento veio de cota real?
+  if (amb.length) {
+    const comCota = amb.filter(a => ["cota","cadeia","quadro"].includes(String(a.origem_dimensao||"").toLowerCase())).length;
+    const p = Math.round(comCota / amb.length * 100);
+    A.push({ nivel: p >= 80 ? "ok" : p >= 50 ? "aviso" : "erro",
+      msg: `${p}% dos ambientes dimensionados por cota/quadro do projeto (${comCota} de ${amb.length})`,
+      detalhe: p < 80 ? ["Os demais foram estimados por proporção — meça-os na planta antes de assinar."] : [] });
+  }
+  return A;
+}
+
+function renderAuditoria() {
+  const r = APP.analysisResult; if (!r) return;
+  let host = document.getElementById("auditoriaBox");
+  if (!host) {
+    const alertHost = document.getElementById("eapLeituraAlertas");
+    if (!alertHost) return;
+    host = document.createElement("div");
+    host.id = "auditoriaBox";
+    host.style.marginTop = "10px";
+    alertHost.parentNode.insertBefore(host, alertHost.nextSibling);
+  }
+  const A = auditarCoerencia(r);
+  if (!A.length) { host.innerHTML = ""; return; }
+  const erros = A.filter(x => x.nivel === "erro").length;
+  const avisos = A.filter(x => x.nivel === "aviso").length;
+  const cor = erros ? "#b91c1c" : avisos ? "#92400e" : "#166534";
+  const bg  = erros ? "#fef2f2" : avisos ? "#fffbeb" : "#f0fdf4";
+  const ico = { erro: "✕", aviso: "△", ok: "✓" };
+  const icoCor = { erro: "#b91c1c", aviso: "#b45309", ok: "#16a34a" };
+  host.innerHTML = `
+    <div style="border:1px solid ${cor}33;background:${bg};border-radius:10px;padding:14px 16px">
+      <div style="font-weight:700;color:${cor};font-size:14px;margin-bottom:8px">
+        🔍 Auditoria de coerência — ${erros ? `${erros} inconsistência(s) crítica(s)` : avisos ? `${avisos} ponto(s) de atenção` : "tudo coerente"}
+      </div>
+      <div style="font-size:12.5px;color:#334155;line-height:1.75">
+        ${A.map(x => `<div style="margin-bottom:4px">
+            <b style="color:${icoCor[x.nivel]}">${ico[x.nivel]}</b> ${x.msg}
+            ${(x.detalhe && x.detalhe.length) ? `<div style="margin:2px 0 6px 16px;color:#64748b;font-size:12px">${x.detalhe.map(d=>`• ${d}`).join("<br>")}</div>` : ""}
+          </div>`).join("")}
+      </div>
+      <div style="margin-top:8px;font-size:11.5px;color:#64748b">
+        Conferência automática cruzando os números entre si. Ela não substitui a sua validação — IA não assina ART.
+      </div>
+    </div>`;
+}
+
+// ── Mapa de Acabamentos por ambiente (lido do memorial/legendas) ──
+function renderAcabamentos() {
+  const r = APP.analysisResult; if (!r) return;
+  const card = document.getElementById("acabamentosCard");
+  const wrap = document.getElementById("acabamentosTableWrap");
+  if (!card || !wrap) return;
+  const amb = (r.ambientes || []).filter(a => a.acabamentos && Object.keys(a.acabamentos).length);
+  if (!amb.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const nf = v => (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cel = (i, campo, val) => `<td style="padding:6px 8px"><input type="text" value="${(val||"").replace(/"/g,'&quot;')}" placeholder="—"
+      style="width:100%;min-width:120px;padding:4px 6px;border:1.5px solid var(--border);border-radius:5px;font-size:12.5px"
+      onchange="acabEdit(${i},'${campo}',this.value)"></td>`;
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1.5px solid var(--border);text-align:left">
+        <th style="padding:6px 8px">Ambiente</th><th style="padding:6px 8px;text-align:right">Área</th>
+        <th style="padding:6px 8px">Piso</th><th style="padding:6px 8px">Parede</th>
+        <th style="padding:6px 8px">Teto / forro</th><th style="padding:6px 8px">Rodapé</th>
+      </tr></thead>
+      <tbody>${(r.ambientes||[]).map((a, i) => {
+        const ac = a.acabamentos || {};
+        return `<tr>
+          <td style="padding:6px 8px;font-weight:600">${a.nome || "—"}</td>
+          <td style="padding:6px 8px;text-align:right">${nf(a.area_m2)} m²</td>
+          ${cel(i,"piso",ac.piso)}${cel(i,"parede",ac.parede)}${cel(i,"teto",ac.teto)}${cel(i,"rodape",ac.rodape)}
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+  // Totais por material de piso (é o que vira quantitativo de compra)
+  const porPiso = {};
+  (r.ambientes||[]).forEach(a => {
+    const m = ((a.acabamentos||{}).piso || "").trim(); if (!m) return;
+    porPiso[m] = (porPiso[m] || 0) + (Number(a.area_m2) || 0);
+  });
+  const resumo = document.getElementById("acabamentosResumo");
+  if (resumo) resumo.innerHTML = Object.keys(porPiso).length
+    ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${Object.entries(porPiso)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([m,v]) => `<span class="badge" style="background:rgba(23,146,192,0.1)">${m}: <b>${nf(v)} m²</b></span>`).join("")}</div>`
+    : "";
+}
+function acabEdit(i, campo, val) {
+  const r = APP.analysisResult; if (!r || !r.ambientes || !r.ambientes[i]) return;
+  r.ambientes[i].acabamentos = r.ambientes[i].acabamentos || {};
+  r.ambientes[i].acabamentos[campo] = val.trim();
+  renderAcabamentos();
 }
 
 // ── Quadro de Esquadrias: o usuário ENXERGA o que a IA leu e valida/edita antes do orçamento ──
@@ -3903,23 +4213,67 @@ async function exportExcel() {
 
   // ── Sheet 3: Ambientes ──────────────────────────────────────
   if (r.ambientes?.length) {
-    const ambRows = [["AMBIENTE","ÁREA IA (m²)","PERÍMETRO MEDIDO (m)","PÉ-DIREITO ACABADO (m)","PÉ-DIREITO NO OSSO (m)","VÃOS (m²)","ÁREA PAREDE (m²)","STATUS"]];
+    const ORIGEM_LBL = { cota:"Cota do projeto", cadeia:"Derivado de cotas vizinhas", quadro:"Quadro de áreas", estimada:"ESTIMADO (sem cota)" };
+    const ambRows = [["AMBIENTE","COMPR. (m)","LARG. (m)","ÁREA IA (m²)","PERÍMETRO MEDIDO (m)","PÉ-DIREITO ACABADO (m)","PÉ-DIREITO NO OSSO (m)","VÃOS (m²)","ÁREA PAREDE (m²)","ORIGEM DA DIMENSÃO","FOLHA","STATUS"]];
     r.ambientes.forEach(a => ambRows.push([
       a.nome,
+      a.comprimento_m || "—",
+      a.largura_m || "—",
       a.area_m2 || 0,
       a._medido ? (a.perimetro_medido_m || 0) : "—",
       a._medido ? (a.pe_direito_acabado_m || 0) : (a.pe_direito_m || "—"),
       a._medido ? (a.pe_direito_no_osso_m || 0) : (a.pe_direito_m || "—"),
       a._medido ? (a.vaos_total_m2 || 0) : "—",
       a._medido ? (a.area_paredes_m2 || 0) : "—",
-      a._medido ? "Medido na planta" : "IA (estimado)"
+      a._medido ? "Medido na planta pelo engenheiro" : (ORIGEM_LBL[String(a.origem_dimensao||"").toLowerCase()] || "Não informada"),
+      a.folha || "—",
+      a._medido ? "Medido na planta" : "IA (validar)"
     ]));
-    ambRows.push([], ["TOTAL", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), "", "", "", "", "", ""]);
+    ambRows.push([], ["TOTAL", "", "", r.ambientes.reduce((s,a) => s + (a.area_m2||0), 0).toFixed(2), "", "", "", "", "", "", "", ""]);
     const ws3 = XLSX.utils.aoa_to_sheet(ambRows);
-    ws3["!cols"] = [26,13,17,15,15,11,14,16].map(w => ({wch:w}));
+    ws3["!cols"] = [26,11,11,13,17,15,15,11,14,30,8,20].map(w => ({wch:w}));
     estilizarSheet(ws3, { headerRows:[0] });
     XLSX.utils.book_append_sheet(wb, ws3, "AMBIENTES");
   }
+
+  // ── Sheet 3c: Auditoria de coerência (defesa perante cliente e fiscalização) ──
+  try {
+    const aud = auditarCoerencia(r);
+    if (aud.length) {
+      const audRows = [[`MAR ABERTO ENGENHARIA — AUDITORIA DE COERÊNCIA — ${APP.projectName}`], [`Gerada em ${new Date().toLocaleString("pt-BR")}`], [], ["NÍVEL","VERIFICAÇÃO","OBSERVAÇÕES"]];
+      const N = { erro: "CRÍTICO", aviso: "ATENÇÃO", ok: "OK" };
+      aud.forEach(x => audRows.push([N[x.nivel] || x.nivel, x.msg, (x.detalhe || []).join(" | ")]));
+      audRows.push([], ["", "Conferência automática cruzando os números do levantamento entre si.", ""]);
+      audRows.push(["", "Não substitui a validação do responsável técnico — a IA não assina ART.", ""]);
+      const wsA = XLSX.utils.aoa_to_sheet(audRows);
+      wsA["!cols"] = [12, 82, 70].map(w => ({ wch: w }));
+      wsA["!merges"] = [{s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:2}}];
+      estilizarSheet(wsA, { titulo:0, subtitulo:1, headerRows:[3] });
+      XLSX.utils.book_append_sheet(wb, wsA, "AUDITORIA");
+    }
+  } catch (_) {}
+
+  // ── Sheet 3d: Mapa de acabamentos por ambiente ──
+  try {
+    const comAcab = (r.ambientes || []).filter(a => a.acabamentos && Object.keys(a.acabamentos).length);
+    if (comAcab.length) {
+      const acRows = [["AMBIENTE","ÁREA (m²)","PISO","PAREDE","TETO / FORRO","RODAPÉ"]];
+      (r.ambientes || []).forEach(a => {
+        const ac = a.acabamentos || {};
+        acRows.push([a.nome || "—", Number(a.area_m2) || 0, ac.piso || "—", ac.parede || "—", ac.teto || "—", ac.rodape || "—"]);
+      });
+      const porPiso = {};
+      (r.ambientes || []).forEach(a => { const m = ((a.acabamentos||{}).piso || "").trim(); if (m) porPiso[m] = (porPiso[m]||0) + (Number(a.area_m2)||0); });
+      if (Object.keys(porPiso).length) {
+        acRows.push([], ["TOTAIS POR MATERIAL DE PISO","","","","",""]);
+        Object.entries(porPiso).sort((a,b)=>b[1]-a[1]).forEach(([m,v]) => acRows.push([m, Math.round(v*100)/100, "", "", "", ""]));
+      }
+      const wsAc = XLSX.utils.aoa_to_sheet(acRows);
+      wsAc["!cols"] = [26,12,30,30,26,24].map(w => ({ wch: w }));
+      estilizarSheet(wsAc, { headerRows:[0] });
+      XLSX.utils.book_append_sheet(wb, wsAc, "ACABAMENTOS");
+    }
+  } catch (_) {}
 
   // ── Sheet 3b: Quadro de Esquadrias (lido do projeto e validado pelo usuário) ──
   if (r.esquadrias?.length) {
