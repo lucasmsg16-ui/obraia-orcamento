@@ -372,6 +372,41 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .btn-success { transition: transform .15s, box-shadow .15s; }
 .btn-success:hover:not(:disabled) { transform: translateY(-2px); }
 
+/* Steps como jornada */
+.steps-bar { background: linear-gradient(90deg, var(--navy) 0%, #003a56 100%); }
+.step-tab { padding: 12px 22px; font-size: 12.5px; letter-spacing: .3px; }
+.step-tab.active { text-shadow: 0 0 14px rgba(77,184,232,.8); }
+.step-tab.active .num { box-shadow: 0 0 12px rgba(23,146,192,.8); }
+
+/* Feed ao vivo — terminal de radar (o frame que o engenheiro printa) */
+.feed-shell { border-radius: 12px; overflow: hidden; border: 1px solid #12314a; box-shadow: 0 14px 38px rgba(0,25,42,.35); }
+.feed-head { display: flex; align-items: center; gap: 6px; background: #071a2b; padding: 9px 14px; }
+.feed-dot { width: 10px; height: 10px; border-radius: 50%; background: #1d3a55; }
+.feed-dot:nth-child(1){ background:#e8615a } .feed-dot:nth-child(2){ background:#f5b93f } .feed-dot:nth-child(3){ background:#39c26d }
+.feed-title { margin-left: 8px; font-size: 11px; font-weight: 800; letter-spacing: 1.4px; color: #7fa8c4; text-transform: uppercase; }
+.feed-live { margin-left: auto; font-size: 10.5px; font-weight: 800; color: #ff5b5b; animation: feedblink 1.2s infinite; }
+@keyframes feedblink { 0%,60%{opacity:1} 61%,100%{opacity:.25} }
+.feed-body {
+  max-height: 280px; overflow-y: auto; background: #04121f;
+  padding: 14px 16px; font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12.8px; line-height: 2; color: #bfe3f7;
+}
+.feed-body div { animation: feedin .3s ease; border-left: 2px solid rgba(45,212,191,.35); padding-left: 10px; margin-bottom: 2px; }
+.feed-body div:last-child { border-left-color: #2dd4bf; color: #eafcf9; }
+@keyframes feedin { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+
+/* Tabelas orçamentárias com presença */
+.budget-table thead th, table.budget-table th { background: var(--navy) !important; color: #fff !important; }
+.budget-table tbody tr:nth-child(even) { background: #f6fafd; }
+.budget-table tbody tr:hover { background: #eaf4fb; }
+
+/* EAP — nós com respiro e hierarquia */
+.eap-node { border-radius: 10px; overflow: hidden; }
+.eap-node-header { transition: background .15s; }
+.eap-node-header:hover { background: rgba(23,146,192,.07); }
+.info-box { border-radius: 12px; transition: transform .15s, box-shadow .15s; }
+.info-box:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(26,60,94,.14); }
+
 #sidenav{ position:fixed; left:0; top:0; bottom:0; width:var(--sidew); background:var(--navy); color:#fff; z-index:200; display:flex; flex-direction:column; transition:width .2s; box-shadow:2px 0 14px rgba(0,0,0,.25); }
 body.nav-collapsed #sidenav{ width:var(--sidew-col); }
 body{ padding-left:var(--sidew); transition:padding-left .2s; }
@@ -434,7 +469,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.06.20</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.20</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -618,8 +653,14 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     </div>
 
     <div id="liveFeedWrap" style="margin-top:16px;display:none">
-      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--navy)">👀 O que a IA está encontrando agora</div>
-      <div id="liveFeed" style="max-height:260px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;background:#fafafa;font-size:13px;line-height:1.9"></div>
+      <div class="feed-shell">
+        <div class="feed-head">
+          <span class="feed-dot"></span><span class="feed-dot"></span><span class="feed-dot"></span>
+          <span class="feed-title">LEVANTAMENTO AO VIVO — o que a IA está encontrando agora</span>
+          <span class="feed-live">● REC</span>
+        </div>
+        <div id="liveFeed" class="feed-body"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1808,8 +1849,14 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
   }
   if (texto.length > 60000) texto = texto.slice(0, 60000) + "\n[TEXTO TRUNCADO]";
 
+  // Modo legado: enquanto o backend antigo (limite 512KB) estiver no ar, payloads grandes
+  // derrubam a conexão ("Failed to fetch"). Após a 1ª falha, memoriza por 48h e já monta compacto.
+  const legacyTs = parseInt(localStorage.getItem("mar_payload_legacy") || "0", 10);
+  const modoLegado = legacyTs > 0 && (Date.now() - legacyTs) < 48 * 3600 * 1000;
+  const budget = modoLegado ? PAYLOAD_BUDGET_LEGACY : PAYLOAD_BUDGET;
+
   // Monta as imagens: vista completa de cada folha + ampliações (metades) quando o grupo é pequeno.
-  const usarAmpliacoes = grpPages.length <= 3;
+  const usarAmpliacoes = !modoLegado && grpPages.length <= 3;
   const imgs = [];
   for (const p of grpPages) {
     const ent = APP.pages[p - 1];
@@ -1823,26 +1870,37 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
     }
   }
   // Orçamento de payload: derruba ampliações e recomprime até caber no limite do backend.
-  if (payloadBytes(imgs, texto) > PAYLOAD_BUDGET) {
-    for (let i = imgs.length - 1; i >= 0 && payloadBytes(imgs, texto) > PAYLOAD_BUDGET; i--) {
+  if (payloadBytes(imgs, texto) > budget) {
+    for (let i = imgs.length - 1; i >= 0 && payloadBytes(imgs, texto) > budget; i--) {
       if (imgs[i]._amp) imgs.splice(i, 1);
     }
   }
-  if (payloadBytes(imgs, texto) > PAYLOAD_BUDGET) {
+  if (payloadBytes(imgs, texto) > budget) {
     for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1300, 0.55);
+  }
+  if (payloadBytes(imgs, texto) > budget) {
+    for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1050, 0.45);
+    while (payloadBytes(imgs, texto) > budget && texto.length > 4000) texto = texto.slice(0, Math.floor(texto.length / 2));
   }
 
   let res;
   try {
     res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk });
   } catch (e) {
-    // Backend antigo (limite 512KB) ou payload rejeitado: refaz compacto, só vistas completas.
-    if (/payload/i.test(String(e && e.message))) {
+    // Payload rejeitado (400 do backend) OU conexão derrubada pelo limite do backend antigo
+    // ("Failed to fetch"/"NetworkError"/"Load failed"): memoriza o modo legado e refaz compacto.
+    const msg = String(e && e.message || "");
+    if (/payload|muito grande|failed to fetch|networkerror|load failed|fetch failed/i.test(msg)) {
+      try { localStorage.setItem("mar_payload_legacy", String(Date.now())); } catch (_) {}
       if (typeof feedResetGrupo === "function") feedResetGrupo();
+      if (typeof feedPush === "function") feedPush("📡 Conexão limitada — reenviando em modo compacto…");
       const compact = [];
       for (const p of grpPages) compact.push({ _gid: p, label: `Folha ${p} — VISTA COMPLETA`, data: await renderPageJpeg(p, 1200, 0.5) });
       let txt2 = texto;
       while (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY && txt2.length > 4000) txt2 = txt2.slice(0, Math.floor(txt2.length / 2));
+      if (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY) {
+        for (const im of compact) im.data = await renderPageJpeg(im._gid, 1000, 0.42);
+      }
       res = await chamarIA(compact, apiKey, 1, 1, txt2, disc, { onChunk });
     } else throw e;
   }
