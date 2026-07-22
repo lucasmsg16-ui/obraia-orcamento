@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.21d</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.22</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -1144,6 +1144,9 @@ async function callAnthropic(payload, opts) {
     const base = { chave, payload };
     if (opts && opts.task) base.task = opts.task;   // metodologia é montada NO SERVIDOR a partir de task+disc
     if (opts && opts.disc) base.disc = opts.disc;
+    if (opts && opts.mode) base.mode = opts.mode;
+    if (opts && typeof opts.hasAmp !== "undefined") base.hasAmp = opts.hasAmp;
+    if (opts && typeof opts.hasText !== "undefined") base.hasText = opts.hasText;
     if (semCredito && APP.refineToken) return { ...base, refine_token: APP.refineToken };
     return base;
   }
@@ -1245,18 +1248,7 @@ const DISCIPLINAS = {
 };
 
 
-// Linha de foco injetada no prompt do usuário conforme a disciplina
-const DISC_FOCUS = {
-  arquitetonico: "Foque em: alvenaria (paredes menos vãos), estrutura (pilares/vigas/lajes), cobertura (área do telhado), pisos, revestimentos, esquadrias (qtd e dimensões — use o quadro de esquadrias se houver).",
-  estrutural: "FOQUE EXCLUSIVAMENTE NA ESTRUTURA: leia o quadro/resumo de aço (bitola×comprimento×qtd = peso em kg), os volumes de concreto por elemento (m³) e a área de fôrma (m²). Se a prancha for só de armação, levante APENAS o aço. IGNORE qualquer serviço que não seja estrutural.",
-  eletrico: "FOQUE EXCLUSIVAMENTE NAS INSTALAÇÕES ELÉTRICAS: conte cada ponto pela legenda/simbologia e some as metragens de eletroduto e cabo por bitola. IGNORE serviços de outras disciplinas.",
-  hidrossanitario: "FOQUE EXCLUSIVAMENTE NO HIDROSSANITÁRIO: some as tubulações por diâmetro (água/esgoto/pluvial) e conte conexões, peças e aparelhos. IGNORE serviços de outras disciplinas.",
-  auto: "Primeiro identifique a disciplina. Se for de disciplina única (estrutural/elétrico/hidrossanitário), levante SOMENTE os serviços dela; se for arquitetura completa, foque em: alvenaria, estrutura, cobertura, pisos, revestimentos e esquadrias."
-};
-
-function focoDisciplina(disc) {
-  return DISC_FOCUS[disc] || DISC_FOCUS.auto;
-}
+// (DISC_FOCUS / focoDisciplina foram movidos para o SERVIDOR — metodologia protegida.)
 function catNum(cat) {
   const m = String(cat || "").match(/^\s*(\d+)/);
   return m ? parseInt(m[1], 10) : 99;
@@ -2139,22 +2131,15 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
     aiContent.push({ type: "text", text:
       "TEXTO EXTRAÍDO DO PDF (use os QUADROS/TABELAS daqui como FONTE EXATA de quantidades — quadro de áreas, quadro de esquadrias; cada folha está marcada como 'Folha N'):\n" + textoFolhas });
   }
-  aiContent.push({ type: "text", text:
-    `Analise o projeto (imagens${textoFolhas ? " + texto acima" : ""}) e faça o levantamento de quantitativos.\n\n` +
-    "PROJETO COM VÁRIAS FOLHAS: siga a METODOLOGIA DE LEITURA — a PLANTA BAIXA é a base (áreas/contagens), os CORTES servem só para ALTURAS, e você COMBINA planta × altura para o quantitativo real. Classifique cada folha (planta, corte, fachada, cobertura, elétrica, hidráulica, estrutural/fôrma/armação, QUADRO, detalhe). " +
-    "Use os QUADROS/TABELAS como fonte exata (áreas, esquadrias, resumo de aço). NÃO some o mesmo serviço de folhas diferentes — cortes/fachadas repetem o que a planta já mostra; cada serviço entra UMA única vez. " +
-    "Em cada item preencha o campo 'fonte' com a folha de origem.\n\n" +
-    (temAmp ? "ATENÇÃO — AMPLIAÇÕES: algumas imagens são RECORTES ampliados de folhas já mostradas na íntegra (estão rotuladas como 'AMPLIAÇÃO'). Use-as SOMENTE para ler cotas, textos e quadros pequenos com precisão. NUNCA conte ambientes, esquadrias ou serviços a partir delas — a contagem sai apenas da VISTA COMPLETA de cada folha.\n\n" : "") +
-    "Retorne o JSON conforme especificado (inclua disciplina_detectada). Seja preciso — os valores gerarão um orçamento real.\n\n" +
-    focoDisciplina(disc) +
-    (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "")
-  });
+  // A metodologia de leitura é injetada NO SERVIDOR (task="analise"); o cliente
+  // envia só os dados (imagens, texto extraído) e as flags mode/hasAmp/hasText.
+  if (APP.projectName) aiContent.push({ type: "text", text: `Nome do projeto: ${APP.projectName}` });
 
   const apiData = await callAnthropic({
     model: "claude-sonnet-4-6",
     max_tokens: 32000,
     messages: [{ role: "user", content: aiContent }]
-  }, Object.assign({}, opts, { task: "analise", disc }));
+  }, Object.assign({}, opts, { task: "analise", disc, mode: "img", hasAmp: temAmp, hasText: !!(textoFolhas && textoFolhas.trim()) }));
   const rawText = apiData.content[0].text;
   const parsed = parseIAJson(rawText);
   if (!parsed) throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. Início: " + rawText.substring(0, 300));
@@ -2937,13 +2922,11 @@ async function pageToText(gid) {
 // Análise por TEXTO (modo econômico — sem imagens/visão)
 async function analisarTexto(texto, apiKey, disc, opts) {
   disc = disc || APP.disciplina;
+  // Instrução/metodologia é montada NO SERVIDOR (task="analise", mode="txt").
   const userText =
-    "Abaixo está o TEXTO extraído do PDF do projeto (camada de texto: nomes de ambientes, cotas, áreas, quadros/tabelas de esquadrias, resumo de aço, legendas e memorial descritivo). " +
-    "Faça o levantamento de quantitativos a partir destes dados, respeitando a disciplina. Use as áreas e dimensões explícitas quando houver e PREENCHA area_construida_m2 (quando aplicável). Inclua disciplina_detectada. " +
-    "Se algum dado não estiver no texto, estime com bom senso técnico.\n\n" + focoDisciplina(disc) +
-    "\n\nTEXTO DO PROJETO:\n" + texto +
+    "TEXTO DO PROJETO:\n" + texto +
     (APP.projectName ? `\n\nNome do projeto: ${APP.projectName}` : "");
-  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, messages: [{ role: "user", content: userText }] }, Object.assign({}, opts, { task: "analise", disc }));
+  const data = await callAnthropic({ model: "claude-sonnet-4-6", max_tokens: 32000, messages: [{ role: "user", content: userText }] }, Object.assign({}, opts, { task: "analise", disc, mode: "txt" }));
   const rawText = data.content[0].text;
   return parseIAJson(rawText);
 }
