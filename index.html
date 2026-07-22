@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.22</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.22b</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -4684,6 +4684,7 @@ function exportInsumos(){
     <div style="padding:10px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
       <div style="font-size:13px"><b>Escala:</b> <span id="tkScale">não definida</span></div>
       <div style="font-size:13px"><b>Perímetro:</b> <span id="tkLen" style="font-weight:700">0,00 m</span></div>
+      <div style="font-size:13px" id="tkAreaPisoWrap"><b>Área do contorno:</b> <span id="tkAreaPiso" style="font-weight:700;color:#002B40">—</span></div>
       <label style="font-size:12px">Pé-direito acabado (m)<br><input id="tkPeAcabado" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
       <label style="font-size:12px">Pé-direito no osso (m)<br><input id="tkPeOsso" type="number" step="any" value="2.8" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
       <label style="font-size:12px">Altura padrão do vão (m)<br><input id="tkVaoAltura" type="number" step="any" value="2.10" title="Porta ≈ 2,10 · Janela ≈ 1,20 — você confirma a cada vão" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
@@ -4853,7 +4854,14 @@ function tkSetMode(m){
   const st=document.getElementById("tkStatus");
   if(st){
     if(m==='calibrar'){ t.calib=[]; st.innerHTML="<b>Passo 1 de 3 — Escala:</b> clique nos 2 extremos de uma cota conhecida (ex.: 3,00 m) e digite o valor. Depois vá ao Passo 2."; }
-    else if(m==='parede'){ st.innerHTML="<b>Passo 2 de 3 — Perímetro:</b> clique nos cantos do cômodo seguindo as paredes; o contorno fecha sozinho. Depois vá ao Passo 3."; }
+    else if(m==='parede'){
+      let alvo="do cômodo";
+      if(t.kind==='ambiente' && t.ambIdx!=null){
+        const a=(APP.analysisResult&&APP.analysisResult.ambientes||[])[t.ambIdx];
+        if(a&&a.nome) alvo="do ambiente <b>"+a.nome+"</b>";
+      }
+      st.innerHTML="<b>Passo 2 de 3 — Contorno:</b> clique nos cantos "+alvo+" seguindo as paredes; o contorno fecha sozinho e a <b>área aparece embaixo</b>. Depois vá ao Passo 3.";
+    }
     else if(m==='vao'){ st.innerHTML="<b>Passo 3 de 3 — Vãos:</b> clique nas 2 pontas de cada porta/janela e escolha a altura. Ao terminar, clique em <b>✓ Aplicar</b> (embaixo)."; }
     else st.innerHTML="Comece pelo <b>Passo 1: Definir escala</b>.";
   }
@@ -4968,6 +4976,23 @@ function tkLengthM(){
   t.runs.forEach(seg); seg(t.current);
   return px*t.scale;
 }
+// Todos os pontos do contorno (trechos finalizados + trecho atual), em ordem.
+function tkPolyPointsAll(){
+  const t=tkState(); const pts=[];
+  (t.runs||[]).forEach(r=>{ if(r) r.forEach(p=>pts.push(p)); });
+  (t.current||[]).forEach(p=>pts.push(p));
+  return pts;
+}
+// Área FECHADA pelo contorno (fórmula de Gauss / shoelace), em m².
+// É a métrica OBJETIVA: dois cômodos de formas diferentes podem ter o mesmo
+// perímetro, mas a área fechada só bate se você contornou a forma certa.
+function tkPolyAreaM2(){
+  const t=tkState(); if(!t.scale) return 0;
+  const pts=tkPolyPointsAll(); if(pts.length<3) return 0;
+  let a=0;
+  for(let i=0;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length]; a += p.x*q.y - q.x*p.y; }
+  return Math.abs(a/2)*t.scale*t.scale;
+}
 function tkRenderVaosList(){
   const t=tkState(); const el=document.getElementById("tkVaosList"); if(!el) return;
   if(!t.vaos || !t.vaos.length){ el.innerHTML='<span class="muted" style="font-size:12px">Nenhum vão marcado.</span>'; return; }
@@ -5030,25 +5055,37 @@ function tkUpdateReadout(){
   APP.takeoff._peOsso=peOsso; APP.takeoff._peAcabado=peAcab;
   APP.takeoff._vTracado=Math.round(vTracadoIncl*100)/100; APP.takeoff._vManual=vManual; APP.takeoff._vTotal=Math.round(vTotal*100)/100;
 
-  // ── Conferência AO VIVO: a razão de traçar o perímetro ──
-  // Enquanto você traça, mostra o que a IA leu nas cotas × o que você está medindo.
+  // ── Orientação + conferência OBJETIVA por ÁREA do contorno ──
+  // (1) mostra SEMPRE qual ambiente medir e o alvo lido pela IA (orientação);
+  // (2) quando o contorno fecha, compara a ÁREA medida × área da IA — métrica
+  //     objetiva (perímetro sozinho não prova que a forma certa foi contornada).
+  const Aptraco = (t.kind==='ambiente') ? tkPolyAreaM2() : 0;
+  const areaPisoEl=document.getElementById("tkAreaPiso");
+  const areaPisoWrap=document.getElementById("tkAreaPisoWrap");
+  if(areaPisoWrap) areaPisoWrap.style.display = (t.kind==='ambiente') ? '' : 'none';
+  if(areaPisoEl) areaPisoEl.textContent = Aptraco>0 ? nf(Aptraco)+" m²" : "—";
   const cmp=document.getElementById("tkCompareBar");
   if(cmp){
     let html="";
     if(t.kind==='ambiente' && t.ambIdx!=null){
       const a=(APP.analysisResult&&APP.analysisResult.ambientes||[])[t.ambIdx];
       if(a){
+        const nome=a.nome||"este ambiente";
         const c=Number(a.comprimento_m)||0, lg=Number(a.largura_m)||0;
-        const perimIA=(c>0&&lg>0)?2*(c+lg):0;
-        if(perimIA>0 && L>0){
-          const d=Math.round(Math.abs(L-perimIA)/perimIA*1000)/10;
+        const areaIA=Number(a.area_m2)|| (c>0&&lg>0? c*lg : 0);
+        const dimTxt=(c>0&&lg>0)? `${nf(c)} × ${nf(lg)} m` : (areaIA>0? `área ${nf(areaIA)} m²` : "sem cotas lidas");
+        const alvo=`🎯 <b>Medindo: <span style="color:#002B40">${nome}</span></b> &nbsp;·&nbsp; a IA leu <b>${dimTxt}</b>`+(areaIA>0&&c>0&&lg>0? ` → área <b>${nf(areaIA)} m²</b>`:"");
+        if(Aptraco>0 && areaIA>0){
+          const d=Math.round(Math.abs(Aptraco-areaIA)/areaIA*1000)/10;
           const cor=d<=5?"#16a34a":d<=12?"#d97706":"#dc2626";
           const ic=d<=5?"✓":d<=12?"△":"✕";
-          html=`<b>Conferência ao vivo:</b> a IA leu cotas <b>${nf(c)}×${nf(lg)} m</b> → perímetro ~<b>${nf(perimIA)} m</b> · você mediu <b>${nf(L)} m</b> `+
-               `<span style="color:${cor};font-weight:700">${ic} desvio ${nf(d)}%</span>`+
-               (d>12?` — vale revisar o traçado ou as cotas`:"");
-        } else if(L>0){
-          html=`<b>Conferência ao vivo:</b> a IA não trouxe cotas deste ambiente — sua medição de <b>${nf(L)} m</b> passa a ser a fonte.`;
+          html=`${alvo}<br><b style="color:#16a34a">✓ Contorno fechado</b> — sua área medida <b>${nf(Aptraco)} m²</b> `+
+               `<span style="color:${cor};font-weight:700">${ic} desvio ${nf(d)}% vs. IA</span>`+
+               (d>12?` — reveja o traçado (clicou fora de algum canto?) ou as cotas da IA`:d<=5?` — leitura confiável`:"");
+        } else if(Aptraco>0){
+          html=`${alvo}<br><b style="color:#16a34a">✓ Contorno fechado</b> — área medida <b>${nf(Aptraco)} m²</b>. A IA não trouxe cotas: sua medição passa a ser a fonte.`;
+        } else {
+          html=`${alvo}<br><span style="opacity:.85">👉 Contorne <b>${nome}</b> clicando em cada canto. O contorno fecha sozinho e a <b>área medida</b> aparece aqui para conferir.</span>`;
         }
       }
     }
@@ -5073,22 +5110,14 @@ function tkApply(){
     a.area_paredes_m2 = t._area;
     a._medido = true;
 
-    // ── Conferência: compara o que a IA disse com o que VOCÊ mediu ──
-    // O perímetro medido é a evidência mais direta: dá para reconstruir a área
-    // equivalente e confrontar com a área que a IA leu das cotas.
+    // ── Conferência OBJETIVA: área fechada do contorno × área da IA ──
+    // A área do polígono traçado (shoelace) é a evidência direta — não depende
+    // de proporção assumida nem reconstrução por perímetro.
     const areaIA = Number(a.area_m2) || 0;
-    const P = Number(t._L) || 0;
-    if (areaIA > 0 && P > 0) {
-      // Retângulo de mesmo perímetro e mesma proporção c/l que a IA leu
-      const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
-      let areaMedida;
-      if (c > 0 && l > 0) {
-        const k = P / (2 * (c + l));           // fator de correção sobre as cotas da IA
-        areaMedida = (c * k) * (l * k);
-      } else {
-        areaMedida = Math.pow(P / 4, 2);       // sem proporção conhecida: assume quadrado
-      }
-      a.area_medida_m2 = Math.round(areaMedida * 100) / 100;
+    const areaMedida = Math.round(tkPolyAreaM2() * 100) / 100;
+    if (areaMedida > 0) {
+      a.area_medida_m2 = areaMedida;
+      a.perimetro_medido_m = t._L;
       a.desvio_pct = areaIA > 0 ? Math.round(Math.abs(areaMedida - areaIA) / areaIA * 1000) / 10 : null;
       a.conferido_em = new Date().toISOString();
     }
