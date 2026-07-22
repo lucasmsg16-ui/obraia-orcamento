@@ -1,9 +1,24 @@
 <!DOCTYPE html>
+<!--
+  ============================================================================
+  ObraIA © 2026 Mar Aberto Engenharia — TODOS OS DIREITOS RESERVADOS.
+  Software PROPRIETÁRIO. A metodologia de levantamento, os fluxos, o layout,
+  o código-fonte e a marca "ObraIA" / "Método NAVE" são propriedade exclusiva
+  de Mar Aberto Engenharia (Lucas Sousa). É PROIBIDO copiar, reproduzir,
+  descompilar, redistribuir ou criar obras derivadas, no todo ou em parte,
+  sem autorização por escrito. A violação sujeita o infrator às sanções da
+  Lei 9.610/98 (Direitos Autorais) e da Lei 9.279/96 (Propriedade Industrial),
+  além de responsabilização civil e criminal. Contato: marabertoeng.com.br
+  ============================================================================
+-->
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ObraIA | Mar Aberto Engenharia — Orçamento de Obras com IA | SINAPI 27 Estados</title>
+<meta name="author" content="Mar Aberto Engenharia — Lucas Sousa">
+<meta name="copyright" content="© 2026 Mar Aberto Engenharia. Software proprietário — todos os direitos reservados.">
+<meta name="rights" content="Proprietary. Uso proibido sem autorização — Lei 9.610/98 e Lei 9.279/96.">
 
 <!-- SEO -->
 <meta name="description" content="Transforme plantas em PDF em orçamento SINAPI completo em minutos. IA analisa projetos arquitetônicos, estruturais, elétricos e hidrossanitários — gera planilha Excel com Curva ABC, cronograma e EAP para todos os 27 estados.">
@@ -478,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.21b</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.21c</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -1904,12 +1919,18 @@ function scanLoop() {
     const x = m.bbox[0] * W, y = m.bbox[1] * H, w = (m.bbox[2] - m.bbox[0]) * W, h = (m.bbox[3] - m.bbox[1]) * H;
     const idade = (agora - (m.t || agora)) / 1000;
 
-    // Preenchimento + hachura diagonal = "esta área já foi levantada"
+    // Preenchimento com COR "entrando" no ambiente — a tinta preenche em ~0,9 s
+    // conforme a IA identifica o cômodo (efeito de "pintar" a área levantada).
+    const fillIn = Math.min(1, idade / 0.9);                 // 0 → 1
     ctx.save();
     ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-    ctx.fillStyle = "rgba(45,212,191,.13)"; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = "rgba(45,212,191,.30)"; ctx.lineWidth = 1.2;
-    for (let d = -h; d < w; d += 11) { ctx.beginPath(); ctx.moveTo(x + d, y + h); ctx.lineTo(x + d + h, y); ctx.stroke(); }
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, `rgba(45,212,191,${0.34 * fillIn})`);
+    g.addColorStop(1, `rgba(16,160,145,${0.24 * fillIn})`);
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    // hachura diagonal sutil por cima da cor
+    ctx.strokeStyle = `rgba(94,234,212,${0.28 * fillIn})`; ctx.lineWidth = 1.1;
+    for (let d = -h; d < w; d += 13) { ctx.beginPath(); ctx.moveTo(x + d, y + h); ctx.lineTo(x + d + h, y); ctx.stroke(); }
     ctx.restore();
 
     // Pulso de confirmação nos 1,6 s seguintes à detecção — o "achei!"
@@ -1979,7 +2000,9 @@ function scanFinalizar(totalAmb, totalServ) {
     ctx.clearRect(0, 0, W, H); ctx.drawImage(SCAN.img, 0, 0, W, H);
     SCAN.marcas.forEach(m => {
       const x = m.bbox[0]*W, y = m.bbox[1]*H, w = (m.bbox[2]-m.bbox[0])*W, h = (m.bbox[3]-m.bbox[1])*H;
-      ctx.fillStyle = "rgba(45,212,191,.16)"; ctx.fillRect(x, y, w, h);
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, "rgba(45,212,191,.34)"); g.addColorStop(1, "rgba(16,160,145,.24)");
+      ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = "#0b8f7f"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
     });
   }
