@@ -478,7 +478,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.21</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.21b</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -697,11 +697,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <span>Levantamento concluído. Revise os quantitativos abaixo antes de gerar o orçamento.</span>
     </div>
     <div class="eap-tree" id="eapTree"></div>
-
-    <div class="btn-group">
-      <button class="btn btn-primary" id="btnGoToBudget">📊 Revisar e gerar Orçamento →</button>
-      <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
-    </div>
+    <p class="muted" style="font-size:12px;margin-top:10px">👇 Revise as seções abaixo (ambientes, esquadrias, acabamentos e auditoria). O botão para <b>gerar o orçamento</b> fica no <b>fim da página</b>, depois de você validar tudo.</p>
   </div>
 
   <div class="card" id="ambientesCard" style="display:none">
@@ -728,6 +724,15 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <p class="muted" style="font-size:12px;margin-bottom:10px">Portas e janelas lidas pela IA no projeto (quadro de esquadrias ou contagem em planta). <b>Confira e edite</b> dimensões e quantidades — a soma dos vãos alimenta o desconto da alvenaria. Validar aqui é assinar com segurança.</p>
     <div id="esquadriasTableWrap" style="overflow-x:auto"></div>
     <div id="esquadriasResumo" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" id="finalizarCard" style="border:2px solid var(--green)">
+    <div class="card-title"><span class="icon">✅</span> Concluir e gerar o orçamento</div>
+    <p class="muted" style="font-size:12px;margin-bottom:12px">Conferiu os ambientes, as esquadrias, os acabamentos e a auditoria acima? Então gere o orçamento SINAPI a partir dos quantitativos que <b>você validou</b>. A IA levanta; você assina.</p>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnGoToBudget">📊 Revisar e gerar Orçamento →</button>
+      <button class="btn btn-outline" id="btnRestart">↩ Novo Projeto</button>
+    </div>
   </div>
 </div>
 
@@ -4989,7 +4994,7 @@ function tkClose(){ document.getElementById("takeoffModal").style.display="none"
 async function tkRenderPage(){
   const t=tkState(); const gid=+document.getElementById("tkPage").value||1; t.gid=gid;
   const ent=APP.pages[gid-1]; if(!ent) return;
-  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle'; tkSetMode('idle');
+  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle'; tkSetMode('calibrar');
   tkRenderVaosList();
   const page=await ent.doc.getPage(ent.pageNum);
   const wrap=document.getElementById("tkCanvasWrap");
@@ -5039,18 +5044,32 @@ async function tkRenderPage(){
   tkZoomLabel(); tkRedraw(); tkUpdateReadout();
 }
 function tkSetMode(m){
-  const t=tkState(); t.mode=m; t.vaoStart=null;
-  const bc=document.getElementById("tkBtnCalib"), bw=document.getElementById("tkBtnWall"), bv=document.getElementById("tkBtnVao"), st=document.getElementById("tkStatus");
-  if(bc) bc.style.outline=m==='calibrar'?'3px solid #FFD700':'';
-  if(bw) bw.style.outline=m==='parede'?'3px solid #FFD700':'';
-  if(bv) bv.style.outline=m==='vao'?'3px solid #FFD700':'';
+  const t=tkState(); t.mode=m; t.vaoStart=null; t.vaoPend=null;
+  const st=document.getElementById("tkStatus");
   if(st){
-    if(m==='calibrar'){ t.calib=[]; st.innerHTML="Escala: clique nos <b>2 extremos</b> de uma cota conhecida (ex.: uma medida de 5,00 m)."; }
-    else if(m==='parede'){ st.innerHTML="Perímetro: clique nos <b>cantos do cômodo</b> seguindo as paredes — o contorno fecha sozinho no fim (linha tracejada)."; }
-    else if(m==='vao'){ st.innerHTML="Vãos: clique nas <b>2 pontas da abertura</b> (a largura). Em seguida você confirma a <b>altura</b> (porta ≈ 2,10 · janela ≈ 1,20)."; }
-    else st.innerHTML="Passo 1: <b>Definir escala</b> · Passo 2: <b>Traçar perímetro</b> · Passo 3: <b>Marcar vãos</b>.";
+    if(m==='calibrar'){ t.calib=[]; st.innerHTML="<b>Passo 1 de 3 — Escala:</b> clique nos 2 extremos de uma cota conhecida (ex.: 3,00 m) e digite o valor. Depois vá ao Passo 2."; }
+    else if(m==='parede'){ st.innerHTML="<b>Passo 2 de 3 — Perímetro:</b> clique nos cantos do cômodo seguindo as paredes; o contorno fecha sozinho. Depois vá ao Passo 3."; }
+    else if(m==='vao'){ st.innerHTML="<b>Passo 3 de 3 — Vãos:</b> clique nas 2 pontas de cada porta/janela e escolha a altura. Ao terminar, clique em <b>✓ Aplicar</b> (embaixo)."; }
+    else st.innerHTML="Comece pelo <b>Passo 1: Definir escala</b>.";
   }
+  tkUpdateSteps();
   tkRedraw();
+}
+// Guia visual dos 3 passos: marca ✓ o que já foi feito e destaca o passo atual.
+function tkUpdateSteps(){
+  const t=tkState();
+  const nPts=(t.runs||[]).reduce((s,r)=>s+(r?r.length:0),0)+((t.current||[]).length);
+  [ ["tkBtnCalib","1) Definir escala", !!t.scale,            t.mode==='calibrar'],
+    ["tkBtnWall", "2) Traçar perímetro", nPts>=2,            t.mode==='parede'],
+    ["tkBtnVao",  "3) Marcar vãos",     (t.vaos||[]).length>0, t.mode==='vao']
+  ].forEach(([id,label,done,active])=>{
+    const b=document.getElementById(id); if(!b) return;
+    b.innerHTML=(done?"✓ ":"")+label;
+    b.style.outline     = active ? '3px solid #FFD700' : '';
+    b.style.background   = (done && !active) ? 'var(--green)' : '';
+    b.style.color        = (done && !active) ? '#fff' : '';
+    b.style.borderColor  = (done && !active) ? 'var(--green)' : '';
+  });
 }
 function tkClick(e){
   const t=tkState(); const cv=document.getElementById("tkCanvas"); const rect=cv.getBoundingClientRect();
@@ -5230,6 +5249,7 @@ function tkUpdateReadout(){
     }
     if(html){ cmp.innerHTML=html; cmp.style.display="block"; } else { cmp.style.display="none"; }
   }
+  tkUpdateSteps();
 }
 function tkApply(){
   const t=tkState(); const r=APP.analysisResult; if(!r) return;
