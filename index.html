@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.22b</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.24</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2469,36 +2469,60 @@ function recalcularAlvenariaDeAmbientes() {
   const item = (r.quantitativos || []).find(q => _ehItemAlvenaria(q));
   if (!ambientes.length || !item) return;
 
-  const medidos = ambientes.filter(a => a._medido);
-  const naoMedidos = ambientes.filter(a => !a._medido);
+  // ─────────────────────────────────────────────────────────────────────────
+  // CORREÇÃO (2026-07-23) — MODELO ÚNICO DE CONTAGEM.
+  // A versão anterior SOMAVA a área de parede dos ambientes medidos e ainda
+  // aplicava a fórmula do PRÉDIO INTEIRO no restante. Isso contava três vezes:
+  //   (1) as paredes internas (a fórmula divide por 2 porque cada parede
+  //       interna é compartilhada por 2 ambientes — a soma direta não dividia);
+  //   (2) o perímetro EXTERNO inteiro, somado de novo no subconjunto;
+  //   (3) os vãos totais, descontados de novo no subconjunto.
+  // Efeito real medido: medir 1 ambiente inflava ~14% e medir todos ~33%,
+  // MESMO quando a medição confirmava a estimativa. Era a causa da alvenaria
+  // "mudar sozinha" no mesmo projeto.
+  // Agora medir NÃO muda o modelo: apenas troca o perímetro ESTIMADO pelo
+  // perímetro REAL medido dentro da MESMA fórmula. Se a medição confirma a
+  // estimativa, o total permanece igual (que é o comportamento correto).
+  // ─────────────────────────────────────────────────────────────────────────
+  let somaPerim = 0, peSum = 0, nPe = 0, nMed = 0, perimMedidos = 0;
+  ambientes.forEach(a => {
+    const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
+    const pEst = (c > 0 && l > 0) ? 2 * (c + l) : 0;
+    const pMed = Number(a.perimetro_medido_m) || 0;
+    const medido = !!a._medido && pMed > 0;
+    const p = medido ? pMed : pEst;          // perímetro real tem precedência
+    somaPerim += p;
+    if (medido) { perimMedidos += p; nMed++; }
+    // pé-direito: no ambiente medido, o "no osso" é o que vale para alvenaria
+    const pe = (medido ? (Number(a.pe_direito_no_osso_m) || 0) : 0) || Number(a.pe_direito_m) || 0;
+    if (pe > 0) { peSum += pe; nPe++; }
+  });
+  if (somaPerim <= 0) return;
 
-  // 1) soma direta das áreas já medidas na planta (perímetro real, pé-direito no osso, vãos traçados)
-  const areaMedida = medidos.reduce((s, a) => s + (Number(a.area_paredes_m2) || 0), 0);
+  const perimExt   = Number(r.perimetro_externo_m) || 0;
+  const peDireito  = nPe > 0 ? (peSum / nPe) : 2.8;
+  const platibanda = Number(r.platibanda_m2) || 0;
+  const caixa      = Number(r.caixa_dagua_alvenaria_m2) || 0;
 
-  // 2) fórmula estimada (igual recalcularAlvenaria) só para o que ainda falta medir
-  let areaEstimada = 0;
-  if (naoMedidos.length) {
-    let somaPerim = 0, peSum = 0, nPe = 0;
-    naoMedidos.forEach(a => {
-      const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
-      if (c > 0 && l > 0) somaPerim += 2 * (c + l);
-      const pe = Number(a.pe_direito_m) || 0; if (pe > 0) { peSum += pe; nPe++; }
-    });
-    const perimExt = Number(r.perimetro_externo_m) || 0;
-    const peDireito = nPe > 0 ? (peSum / nPe) : 2.8;
-    const vaos = Number(r.vaos_alvenaria_m2) || 0;
-    const platibanda = Number(r.platibanda_m2) || 0;
-    const caixa = Number(r.caixa_dagua_alvenaria_m2) || 0;
-    const Lparedes = (somaPerim + perimExt) / 2;
-    areaEstimada = Math.max(0, Lparedes * peDireito - vaos + platibanda + caixa);
-  }
+  // Vãos: usa os vãos REAIS traçados nos ambientes medidos + a parcela
+  // proporcional (por perímetro) do total lido pela IA no que falta medir.
+  // Sem nenhum ambiente medido, é exatamente o total da IA (compatível).
+  const vaosIA      = Number(r.vaos_alvenaria_m2) || 0;
+  const vaosMedidos = ambientes.reduce((s, a) => s + ((a._medido && Number(a.perimetro_medido_m) > 0) ? (Number(a.vaos_total_m2) || 0) : 0), 0);
+  const fracNaoMed  = somaPerim > 0 ? Math.max(0, 1 - perimMedidos / somaPerim) : 1;
+  const vaos        = nMed ? (vaosMedidos + vaosIA * fracNaoMed) : vaosIA;
 
-  const area = Math.round((areaMedida + areaEstimada) * 100) / 100;
+  const Lparedes = (somaPerim + perimExt) / 2;
+  const area = Math.round(Math.max(0, Lparedes * peDireito - vaos + platibanda + caixa) * 100) / 100;
   if (area <= 0) return;
   item.quantidade = area;
   item._alvCalc = {
-    area, areaMedida: Math.round(areaMedida * 100) / 100, areaEstimada: Math.round(areaEstimada * 100) / 100,
-    ambientesMedidos: medidos.length, ambientesTotal: ambientes.length, auto: true, porAmbiente: true
+    Lparedes: Math.round(Lparedes * 100) / 100,
+    peDireito: Math.round(peDireito * 100) / 100,
+    vaos: Math.round(vaos * 100) / 100,
+    platibanda, caixa, area,
+    auto: true, porAmbiente: true,
+    ambientesMedidos: nMed, ambientesTotal: ambientes.length
   };
 }
 // Abre a calculadora manual da alvenaria (ajuste/calibração)
@@ -3073,7 +3097,7 @@ function renderAmbientesLevantamento() {
       : o ? `<span class="badge" style="background:${o[0]};color:${o[1]}" title="Origem da dimensão lida pela IA">${o[2]}</span>`
           : `<span class="badge" style="background:rgba(148,163,184,0.2);color:var(--muted)">IA (estimado)</span>`;
     return `<tr>
-      <td style="padding:6px 8px">${a.nome || "—"}</td>
+      <td style="padding:6px 8px">${a.nome || "—"}${(Number.isFinite(Number(a.folha)) && Number(a.folha)>=1) ? ` <span style="font-weight:600;font-size:10.5px;color:#fff;background:var(--navy);border-radius:4px;padding:1px 6px">F${Number(a.folha)}</span>` : ""}</td>
       <td style="padding:6px 8px;text-align:right">${nf(areaIA)}</td>
       <td style="padding:6px 8px;text-align:right">${perim}</td>
       <td style="padding:6px 8px;text-align:right">${peAcab}</td>
@@ -3157,6 +3181,31 @@ function auditarCoerencia(r) {
     if (pe > 0 && (pe < 2.1 || pe > 6)) fora.push(`${a.nome}: pé-direito de ${nf(pe)} m fora da faixa usual (2,10 a 6,00 m)`);
   });
   if (fora.length) A.push({ nivel: "erro", msg: `${fora.length} medida(s) fora de ordem de grandeza — possível erro de escala ou vírgula`, detalhe: fora });
+
+  // 5b) ALVENARIA — o item mais caro do orçamento nunca era auditado.
+  // Confere (i) se a quantidade bate com a própria memória de cálculo e
+  // (ii) se a razão área de parede / área construída é plausível.
+  const itemAlv = (r.quantitativos || []).find(q => _ehItemAlvenaria(q));
+  if (itemAlv) {
+    const qtdAlv = Number(itemAlv.quantidade) || 0;
+    const c = itemAlv._alvCalc || {};
+    if (qtdAlv > 0 && c.Lparedes > 0 && c.peDireito > 0) {
+      const recalc = c.Lparedes * c.peDireito - (Number(c.vaos) || 0) + (Number(c.platibanda) || 0) + (Number(c.caixa) || 0);
+      if (recalc > 0 && pct(recalc, qtdAlv) > 0.02) {
+        A.push({ nivel: "aviso", msg: `Alvenaria (${nf(qtdAlv)} m²) não confere com sua memória de cálculo (${nf(recalc)} m²)`,
+          detalhe: [`Memória: ${nf(c.Lparedes)} m de parede × ${nf(c.peDireito)} m − ${nf(c.vaos||0)} m² de vãos. Quantidade pode ter sido editada à mão.`] });
+      }
+    }
+    if (qtdAlv > 0 && areaDecl > 0) {
+      const razao = qtdAlv / areaDecl;
+      if (razao < 1.2 || razao > 6) {
+        A.push({ nivel: "erro", msg: `Alvenaria de ${nf(qtdAlv)} m² é ${razao < 1.2 ? "baixa" : "alta"} demais para ${nf(areaDecl)} m² construídos (razão ${razao.toFixed(1)}×)`,
+          detalhe: ["O usual em obra convencional é 2,0× a 4,5× a área construída. Confira o comprimento de paredes, o pé-direito e o desconto de vãos."] });
+      } else {
+        A.push({ nivel: "ok", msg: `Alvenaria coerente: ${nf(qtdAlv)} m² para ${nf(areaDecl)} m² construídos (razão ${razao.toFixed(1)}×)`, detalhe: [] });
+      }
+    }
+  }
 
   // 6) Cobertura de origem: quanto do levantamento veio de cota real?
   if (amb.length) {
@@ -3258,7 +3307,10 @@ function renderConferencia() {
     </div>`;
   }
 
-  host.innerHTML = veredito + (sugeridos.length ? `
+  const laudoBtn = medidos.some(a => a.evidencia_img)
+    ? `<div style="margin:10px 0 6px"><button class="btn btn-outline" style="padding:7px 14px;font-size:13px" onclick="exportarLaudoConferencia()">📄 Baixar laudo de conferência (evidências)</button> <span class="muted" style="font-size:11.5px">— PDF com o contorno medido de cada ambiente (rastreabilidade · Lei 14.133).</span></div>`
+    : "";
+  host.innerHTML = veredito + laudoBtn + (sugeridos.length ? `
     <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
       Confira <b>${nAmostra} ambiente(s)</b> desta lista — foram ordenados por risco (peso no custo × incerteza da leitura). Não precisa medir tudo:
     </div>
@@ -3269,7 +3321,7 @@ function renderConferencia() {
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card)">
         <div style="width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">${k + 1}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px">${x.a.nome || "Ambiente"}</div>
+          <div style="font-weight:700;font-size:14px">${x.a.nome || "Ambiente"}${(Number.isFinite(Number(x.a.folha)) && Number(x.a.folha)>=1) ? ` <span style="font-weight:600;font-size:11px;color:#fff;background:var(--navy);border-radius:5px;padding:1px 7px;margin-left:4px">Folha ${Number(x.a.folha)}</span>` : ""}</div>
           <div style="font-size:12px;color:var(--muted)">${nf(x.area)} m² · <span class="badge" style="background:${tag[0]};color:${tag[1]}">${tag[2]}</span></div>
         </div>
         <button class="btn btn-primary" style="padding:6px 14px;font-size:13px" onclick="tkOpen('ambiente', ${x.i})">📐 Conferir na planta</button>
@@ -4773,23 +4825,34 @@ function tkOpen(kind, id){
   t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle';
   if(!APP.pages || !APP.pages.length){ alert("Nenhuma planta carregada nesta sessão. Faça o upload do projeto."); return; }
   const sel=document.getElementById("tkPage");
-  sel.innerHTML=APP.pages.map((p,i)=>`<option value="${i+1}">${(p.fileName||"Folha").replace(/\.pdf$/i,"").slice(0,28)} · pág ${p.pageNum}</option>`).join("");
-  // pré-seleciona a 1ª página selecionada na análise, se houver
-  const sels=[...(APP.selectedPages||[])]; if(sels.length) sel.value=Math.min(...sels);
+  sel.innerHTML=APP.pages.map((p,i)=>`<option value="${i+1}">Folha ${i+1} · ${(p.fileName||"Folha").replace(/\.pdf$/i,"").slice(0,24)} · pág ${p.pageNum}</option>`).join("");
+  t.hintBbox=null; t.hintGid=null; t.hintNome="";   // destaque do cômodo na folha (só ambiente c/ bbox)
   const titleEl=document.getElementById("tkTitle");
-  let peAcab=2.8, peOsso=2.8;
+  let peAcab=2.8, peOsso=2.8, alvoGid=null;
   if (t.kind === 'ambiente') {
     const r=APP.analysisResult; const a=(r&&r.ambientes||[])[t.ambIdx];
-    if(titleEl) titleEl.textContent = "📐 Medir ambiente — " + (a && a.nome ? a.nome : "");
+    const folhaNum = a && Number(a.folha);
+    // Abre NA folha onde a IA localizou o ambiente (quando informou folha válida);
+    // se vier ausente/fora de faixa (às vezes a IA devolve o nº do carimbo), cai na 1ª selecionada.
+    if (Number.isFinite(folhaNum) && folhaNum>=1 && folhaNum<=APP.pages.length) alvoGid=folhaNum;
+    if(titleEl) titleEl.textContent = "📐 Medir ambiente — " + (a && a.nome ? a.nome : "") + (alvoGid ? "  ·  Folha "+alvoGid : "");
     if(a){
       peOsso = a.pe_direito_no_osso_m || a.pe_direito_m || 2.8;
       peAcab = a.pe_direito_acabado_m || a.pe_direito_m || 2.8;
+      // posição do cômodo na folha (bbox fracionário 0..1), p/ apontar QUAL ambiente medir
+      const bb=a.bbox;
+      if (alvoGid && Array.isArray(bb) && bb.length===4 && bb.every(v=>typeof v==="number"&&v>=0&&v<=1) && bb[2]>bb[0] && bb[3]>bb[1]) {
+        t.hintBbox=bb.slice(); t.hintGid=alvoGid; t.hintNome=a.nome||"";
+      }
     }
   } else {
     if(titleEl) titleEl.textContent = "📐 Medir paredes na planta";
     const item=(APP.analysisResult&&APP.analysisResult.quantitativos||[]).find(q=>q._id===id);
     if(item && item._alvCalc && item._alvCalc.peDireito){ peOsso=item._alvCalc.peDireito; peAcab=item._alvCalc.peDireito; }
   }
+  // Seleciona a folha-alvo (do ambiente) ou, no modo alvenaria, a 1ª página analisada.
+  if (alvoGid==null){ const sels=[...(APP.selectedPages||[])]; if(sels.length) alvoGid=Math.min(...sels); }
+  if (alvoGid!=null) sel.value=alvoGid;
   document.getElementById("tkPeOsso").value=peOsso;
   document.getElementById("tkPeAcabado").value=peAcab;
   document.getElementById("takeoffModal").style.display="block";
@@ -4924,6 +4987,20 @@ function tkRedraw(){
   ctx.save();
   ctx.setTransform(t.z||1, 0, 0, t.z||1, t.ox||0, t.oy||0);   // zoom + pan
   if(t.img) ctx.drawImage(t.img,0,0);
+  // Destaque do cômodo em conferência: retângulo na posição (bbox) que a IA informou —
+  // orienta QUAL ambiente medir (ex.: qual DML, em qual folha/pavimento). Só na folha certa.
+  if(t.kind==='ambiente' && t.hintBbox && t.img && t.gid===t.hintGid){
+    const W=t.img.width, H=t.img.height, b=t.hintBbox, z=t.z||1;
+    const x=b[0]*W, y=b[1]*H, w=(b[2]-b[0])*W, h=(b[3]-b[1])*H;
+    ctx.save();
+    ctx.fillStyle="rgba(245,158,11,.16)"; ctx.fillRect(x,y,w,h);
+    ctx.strokeStyle="#f59e0b"; ctx.lineWidth=4/z; ctx.setLineDash([]); ctx.strokeRect(x,y,w,h);
+    const fs=13/z; ctx.font="700 "+fs+"px 'Segoe UI',sans-serif";
+    const lbl="📍 "+(t.hintNome||"medir aqui"); const tw=ctx.measureText(lbl).width;
+    ctx.fillStyle="#b45309"; ctx.fillRect(x, y-fs-6/z, tw+10/z, fs+6/z);
+    ctx.fillStyle="#fff"; ctx.fillText(lbl, x+5/z, y-4/z);
+    ctx.restore();
+  }
   // escala (azul)
   if(t.calib.length){ ctx.strokeStyle="#2563eb"; ctx.fillStyle="#2563eb"; ctx.lineWidth=3;
     ctx.beginPath(); t.calib.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
@@ -5093,6 +5170,74 @@ function tkUpdateReadout(){
   }
   tkUpdateSteps();
 }
+// Snapshot do canvas de medição (planta + contorno traçado) em JPEG base64 reduzido.
+function tkSnapshot(maxW){
+  const cv=document.getElementById("tkCanvas"); if(!cv||!cv.width) return "";
+  try{
+    const mw=maxW||1000, sc=Math.min(1, mw/cv.width);
+    const o=document.createElement("canvas"); o.width=Math.round(cv.width*sc); o.height=Math.round(cv.height*sc);
+    const c=o.getContext("2d"); c.fillStyle="#fff"; c.fillRect(0,0,o.width,o.height);
+    c.drawImage(cv,0,0,o.width,o.height);
+    return o.toDataURL("image/jpeg", 0.72);
+  }catch(e){ return ""; }
+}
+// Laudo de Conferência: reúne as evidências (contorno medido) de cada ambiente conferido,
+// com área da IA × área medida e desvio — documento de rastreabilidade (Lei 14.133/21).
+function exportarLaudoConferencia(){
+  const r=APP.analysisResult; if(!r){ alert("Gere o levantamento primeiro."); return; }
+  const conf=(r.ambientes||[]).filter(a=>a && a._medido && a.evidencia_img);
+  if(!conf.length){ alert("Nenhum ambiente conferido com evidência ainda.\nMeça um ambiente na planta (📐 Conferir na planta) e o laudo será gerado com a imagem do contorno."); return; }
+  const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const proj=(APP.projectName||r.projeto||"Projeto").toString();
+  const estado=APP.estado||(document.getElementById("stateSelect")||{}).value||"";
+  const dataStr=new Date().toLocaleString("pt-BR");
+  const desvios=conf.filter(a=>a.desvio_pct!=null);
+  const dm=desvios.length?desvios.reduce((s,a)=>s+a.desvio_pct,0)/desvios.length:null;
+  const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const blocos=conf.map((a,i)=>{
+    const folha=Number.isFinite(Number(a.folha))?`Folha ${Number(a.folha)}`:"—";
+    const d=a.desvio_pct; const cor=d==null?"#64748b":d<=3?"#166534":d<=8?"#b45309":"#b91c1c";
+    return `<div class="amb">
+      <div class="amb-h"><span class="n">${i+1}</span><b>${esc(a.nome)||"Ambiente"}</b><span class="folha">${folha}</span></div>
+      <div class="grid">
+        <div><span>Área IA</span><b>${nf(a.area_m2)} m²</b></div>
+        <div><span>Área medida (contorno)</span><b>${a.area_medida_m2!=null?nf(a.area_medida_m2)+" m²":"—"}</b></div>
+        <div><span>Perímetro medido</span><b>${a.perimetro_medido_m!=null?nf(a.perimetro_medido_m)+" m":"—"}</b></div>
+        <div><span>Desvio IA × medido</span><b style="color:${cor}">${d==null?"—":nf(d)+"%"}</b></div>
+      </div>
+      <img src="${a.evidencia_img}" alt="Contorno medido — ${esc(a.nome)}">
+    </div>`;
+  }).join("");
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Laudo de Conferência — ${esc(proj)}</title>
+  <style>@page{size:A4;margin:14mm}*{box-sizing:border-box;font-family:'Helvetica Neue',Arial,sans-serif;color:#1a2743}
+   body{margin:0}.top{border-bottom:3px solid #0e7490;padding-bottom:8px;margin-bottom:14px}
+   .top .b{font-size:11px;letter-spacing:2px;color:#0e7490;font-weight:800;text-transform:uppercase}
+   h1{font-size:19px;margin:4px 0}.meta{font-size:12px;color:#5a6b85}
+   .resumo{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 12px;margin:12px 0;font-size:12.5px;line-height:1.5}
+   .amb{border:1px solid #e2e8f2;border-radius:10px;padding:12px;margin-bottom:12px;break-inside:avoid}
+   .amb-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+   .amb-h .n{background:#0a1120;color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+   .amb-h b{font-size:15px}.folha{margin-left:auto;background:#0a1120;color:#fff;font-size:11px;padding:2px 8px;border-radius:5px}
+   .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+   .grid>div{background:#f8fafc;border:1px solid #eef2f7;border-radius:6px;padding:6px 8px}
+   .grid span{display:block;font-size:10px;color:#64748b}.grid b{font-size:13px}
+   img{width:100%;border:1px solid #cbd5e1;border-radius:6px;display:block}
+   .foot{margin-top:18px;border-top:1px solid #e2e8f2;padding-top:10px;font-size:11px;color:#5a6b85;line-height:1.5}
+   .sign{margin-top:30px;display:flex;justify-content:space-between;gap:40px}
+   .sign>div{flex:1;border-top:1px solid #1a2743;padding-top:4px;font-size:11px;text-align:center}
+  </style></head><body>
+   <div class="top"><div class="b">Mar Aberto Engenharia · ObraIA</div>
+     <h1>Laudo de Conferência de Medições</h1>
+     <div class="meta">Projeto: <b>${esc(proj)}</b>${estado?` · ${esc(estado)}`:""} · Emitido em ${dataStr}</div></div>
+   <div class="resumo"><b>Conferência por amostragem:</b> ${conf.length} ambiente(s) medido(s) na planta pelo responsável técnico${dm!=null?` · desvio médio de <b>${nf(dm)}%</b> entre a leitura da IA e a medição`:""}. Cada evidência abaixo mostra o contorno efetivamente traçado sobre a planta pelo engenheiro.</div>
+   ${blocos}
+   <div class="foot">Documento de rastreabilidade da validação técnica — a IA produz o levantamento; a conferência, a validação e a assinatura são de responsabilidade do engenheiro (defesa perante fiscalização, Lei 14.133/2021).</div>
+   <div class="sign"><div>Responsável Técnico — nome / CREA</div><div>Data</div></div>
+  </body></html>`;
+  const win=window.open("","_blank");
+  if(!win){ alert("Permita pop-ups para gerar o laudo de conferência."); return; }
+  win.document.write(html); win.document.close(); win.onload=()=>{ win.focus(); win.print(); };
+}
 function tkApply(){
   const t=tkState(); const r=APP.analysisResult; if(!r) return;
   if(!t.scale){ alert("Defina a escala antes (passo 1)."); return; }
@@ -5121,6 +5266,10 @@ function tkApply(){
       a.desvio_pct = areaIA > 0 ? Math.round(Math.abs(areaMedida - areaIA) / areaIA * 1000) / 10 : null;
       a.conferido_em = new Date().toISOString();
     }
+
+    // Evidência visual: snapshot do contorno traçado sobre a planta — rastreabilidade
+    // da validação técnica (defesa perante fiscalização, Lei 14.133/21).
+    try { tkZoomFit(); a.evidencia_img = tkSnapshot(1000); } catch(e){ /* evidência é opcional */ }
 
     recalcularAlvenariaDeAmbientes();
     tkClose();
