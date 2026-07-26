@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.24</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.25b</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -725,6 +725,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="card-title"><span class="icon">🎯</span> Conferência por amostragem — o que vale a pena medir</div>
     <p class="muted" style="font-size:12px;margin-bottom:12px">Você não precisa conferir tudo. O sistema ordena os ambientes por <b>risco</b> (peso no custo × incerteza da leitura) e indica quais medir na planta. Poucas medições bem escolhidas validam — ou derrubam — o levantamento inteiro. <b>A IA levanta; você assina.</b></p>
     <div id="conferenciaWrap"></div>
+  </div>
+
+  <div class="card" id="molhadasCard" style="display:none">
+    <div class="card-title"><span class="icon">💧</span> Áreas Molhadas — revestimento cerâmico de parede</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px">O sistema identifica as áreas molhadas pelo <b>memorial/legenda</b> quando o projeto informa e, na falta disso, pelo <b>nome do ambiente</b> (critério técnico, não chute). A <b>altura do revestimento não é legível em planta baixa</b> — é decisão de projeto, então vem com padrão de mercado e você ajusta. Marcar/desmarcar recalcula o quantitativo na hora.</p>
+    <div id="molhadasWrap" style="overflow-x:auto"></div>
+    <div id="molhadasResumo" style="margin-top:8px"></div>
   </div>
 
   <div class="card" id="acabamentosCard" style="display:none">
@@ -2434,6 +2441,104 @@ function confirmarIncluirServico() {
 function _ehItemAlvenaria(q){
   return catNum(q.categoria) === 5 && /alvenaria/i.test(q.descricao || "") && !/verga|contraverga/i.test(q.descricao || "");
 }
+// ═════════════════════════════════════════════════════════════════════════════
+// ÁREAS MOLHADAS — classificação determinística (auditável), não "achismo" da IA.
+// Hierarquia de decisão, da mais forte para a mais fraca:
+//   1) o que o ENGENHEIRO marcou na tela  (_molhadaUser)
+//   2) o que a IA leu do memorial/legenda/louças  (area_molhada)
+//   3) o NOME do ambiente, por dicionário técnico  (fallback determinístico)
+// A ALTURA do revestimento não é legível em planta baixa — é decisão de projeto.
+// Por isso ela tem padrão por tipo de ambiente e é sempre editável pelo usuário.
+// ═════════════════════════════════════════════════════════════════════════════
+function _norm(s){ return String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
+const AMB_MOLHADOS_RE = /(banheiro|banho\b|\bwc\b|w\.c|sanitari|lavabo|toalete|toilette|vestiari|chuveiro|\bbox\b|cozinha|copa|churrasqueira|gourmet|area de servico|lavanderia|tanque|\bdml\b|deposito de material de limpeza|expurgo|utilidades|lactari|piscina|sauna|area molhada)/;
+function _ehAreaMolhada(nome){ const n=_norm(nome); return !!n && AMB_MOLHADOS_RE.test(n); }
+function _alturaRevestPadrao(nome){
+  const n=_norm(nome);
+  if(/banheiro|banho\b|\bwc\b|w\.c|sanitari|lavabo|toalete|vestiari|chuveiro|\bbox\b|expurgo/.test(n)) return 1.80; // até 1,80 m (prática usual)
+  if(/cozinha|copa|churrasqueira|gourmet/.test(n))                                                     return 1.50; // acima da bancada
+  if(/area de servico|lavanderia|tanque|\bdml\b|utilidades|lactari/.test(n))                            return 1.50;
+  return 1.50;
+}
+function _ambienteMolhado(a){
+  if(!a) return false;
+  if(a._molhadaUser != null)            return !!a._molhadaUser;      // decisão do engenheiro
+  if(typeof a.area_molhada === "boolean") return a.area_molhada;      // leitura da IA (memorial/louças)
+  return _ehAreaMolhada(a.nome);                                      // dicionário técnico
+}
+function _origemMolhada(a){
+  if(a && a._molhadaUser != null) return "engenheiro";
+  if(a && typeof a.area_molhada === "boolean") return "memorial/projeto (IA)";
+  return "nome do ambiente";
+}
+function _alturaRevest(a){
+  const u = Number(a && a._alturaRevestUser) || 0; if(u > 0) return u;
+  const ia = Number(a && a.altura_revestimento_m) || 0; if(ia > 0) return ia;
+  return _alturaRevestPadrao(a && a.nome);
+}
+// Perímetro do ambiente: medido na planta tem precedência sobre o estimado pelas cotas.
+function _perimetroAmbiente(a){
+  const pm = Number(a && a.perimetro_medido_m) || 0;
+  if(a && a._medido && pm > 0) return pm;
+  const c = Number(a && a.comprimento_m) || 0, l = Number(a && a.largura_m) || 0;
+  return (c > 0 && l > 0) ? 2 * (c + l) : 0;
+}
+function _ehItemRevestParede(q){
+  const d = _norm(q && q.descricao);
+  if(!d || /piso|contrapiso|rodape|soleira|peitoril/.test(d)) return false;
+  return /(revestimento ceramico.*parede|azulejo|ceramic.*(parede|azulej))/.test(d);
+}
+// Recalcula o REVESTIMENTO CERÂMICO DE PAREDE a partir dos ambientes molhados,
+// gerando as PARCELAS (uma linha por ambiente) que alimentam a planilha de memória.
+function recalcularRevestimentoMolhado(){
+  const r = APP.analysisResult; if(!r) return;
+  const item = (r.quantitativos || []).find(q => _ehItemRevestParede(q));
+  if(!item || !(r.ambientes || []).length) return;
+  const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const parcelas = []; let total = 0;
+  (r.ambientes || []).forEach(a => {
+    if(!_ambienteMolhado(a)) return;
+    const perim = _perimetroAmbiente(a); if(perim <= 0) return;
+    const h = _alturaRevest(a);
+    const bruta = perim * h;
+    // desconta apenas vãos REALMENTE medidos naquele ambiente (nunca "estima" desconto)
+    const vaos = Math.min(Number(a.vaos_total_m2) || 0, bruta * 0.9);
+    const res = Math.round((bruta - vaos) * 100) / 100;
+    if(res <= 0) return;
+    parcelas.push({ amb: a.nome || "Ambiente", a: Math.round(perim*100)/100, b: Math.round(h*100)/100, c: null, n: 1,
+      tipo: "area", formula: "perímetro × altura" + (vaos > 0 ? " − vãos" : ""), desconto: Math.round(vaos*100)/100,
+      resultado: res, origem: _origemMolhada(a) });
+    total += res;
+  });
+  if(!parcelas.length) return;
+  item.quantidade = Math.round(total * 100) / 100;
+  item._parcelas = parcelas;
+  item.memoria_calculo = "Áreas molhadas (perímetro × altura de revestimento): "
+    + parcelas.map(p => `${p.amb} ${nf(p.a)} m × ${nf(p.b)} m${p.desconto>0?` − vãos ${nf(p.desconto)} m²`:""} = ${nf(p.resultado)} m²`).join("; ")
+    + `. Total = ${nf(item.quantidade)} m².`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEMÓRIA DE CÁLCULO DA ALVENARIA — gerada a partir dos números REALMENTE usados.
+// Antes, a memória exibida era o texto livre escrito pela IA, e o sistema
+// recalculava a quantidade SEM atualizar esse texto. Resultado: a memória
+// descrevia um cálculo (ex.: "= 98,50 m² líquidos") enquanto a planilha
+// mostrava outro valor (ex.: 161,8 m²) — documento inútil para defesa técnica.
+// Agora a memória é derivada de _alvCalc, então SEMPRE fecha com a quantidade.
+// ─────────────────────────────────────────────────────────────────────────────
+function _memoriaAlvenaria(c){
+  if(!c || !(Number(c.Lparedes) > 0) || !(Number(c.peDireito) > 0)) return "";
+  const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const bruta = Number(c.Lparedes) * Number(c.peDireito);
+  let t = `Comprimento de paredes = (Σ perímetros dos ambientes + perímetro externo) ÷ 2 = ${nf(c.Lparedes)} m`;
+  if (c.porAmbiente && c.ambientesMedidos) t += ` (${c.ambientesMedidos} de ${c.ambientesTotal} ambiente(s) com perímetro MEDIDO na planta pelo engenheiro)`;
+  t += ` × pé-direito ${nf(c.peDireito)} m = ${nf(bruta)} m²`;
+  t += ` − vãos ${nf(c.vaos)} m²`;
+  if (Number(c.platibanda)) t += ` + platibanda ${nf(c.platibanda)} m²`;
+  if (Number(c.caixa))      t += ` + caixa d'água ${nf(c.caixa)} m²`;
+  t += ` = ${nf(c.area)} m². Divide-se por 2 porque cada parede interna é compartilhada por dois ambientes.`;
+  return t;
+}
 // Recalcula a quantidade de alvenaria a partir das dimensões dos ambientes (comprimento de paredes
 // = (Σ perímetros dos ambientes + perímetro externo)/2) × pé-direito − vãos + platibanda + caixa d'água.
 function recalcularAlvenaria(r){
@@ -2458,6 +2563,7 @@ function recalcularAlvenaria(r){
   if(!item) return;
   item.quantidade = area;
   item._alvCalc = { Lparedes: Math.round(Lparedes * 100) / 100, peDireito: Math.round(peDireito * 100) / 100, vaos, platibanda, caixa, area, auto: true };
+  const _m = _memoriaAlvenaria(item._alvCalc); if (_m) item.memoria_calculo = _m;
 }
 
 // Recalcula a alvenaria misturando ambientes MEDIDOS na planta (área já calculada por perímetro
@@ -2524,6 +2630,7 @@ function recalcularAlvenariaDeAmbientes() {
     auto: true, porAmbiente: true,
     ambientesMedidos: nMed, ambientesTotal: ambientes.length
   };
+  const _m = _memoriaAlvenaria(item._alvCalc); if (_m) item.memoria_calculo = _m;
 }
 // Abre a calculadora manual da alvenaria (ajuste/calibração)
 function calcAlvenaria(id){
@@ -2566,6 +2673,8 @@ function aplicarAlvenaria(id){
   const g = idf => parseFloat(String(document.getElementById(idf).value).replace(",", ".")) || 0;
   q.quantidade = g("acFinal");
   q._alvCalc = { Lparedes: g("acL"), peDireito: g("acH") || 2.8, vaos: g("acV"), platibanda: g("acP"), caixa: g("acC"), area: g("acFinal"), auto: false };
+  const _m = _memoriaAlvenaria(q._alvCalc);
+  q.memoria_calculo = (_m ? _m + " " : "") + "Valores conferidos/ajustados pelo engenheiro responsável.";
   const p = document.getElementById("alvCalcPanel"); if(p) p.remove();
   recalcBudget();
 }
@@ -3061,6 +3170,7 @@ function buildEAP() {
 
   renderAmbientesLevantamento();
   renderConferencia();
+  renderMolhadas();
   renderAcabamentos();
   renderEsquadrias();
   renderAuditoria();
@@ -3207,6 +3317,29 @@ function auditarCoerencia(r) {
     }
   }
 
+  // 5c) MEMÓRIA DE CÁLCULO × QUANTIDADE — a memória é o documento que defende o
+  // número perante fiscalização. Se ela "fecha" num valor diferente do que está na
+  // planilha, é pior do que não ter memória. Sinaliza item a item.
+  const memoRuim = [];
+  (r.quantitativos || []).forEach(q => {
+    const qtd = Number(q.quantidade) || 0;
+    const txt = String(q.memoria_calculo || "");
+    if (qtd <= 0 || txt.length < 12) return;
+    if (/informada manualmente/i.test(txt)) return;   // já está declarado como manual
+    // extrai números em pt-BR (1.234,56 / 48,64 / 136)
+    const nums = (txt.match(/\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d+(?:,\d+)?/g) || [])
+      .map(s => parseFloat(s.replace(/\./g, "").replace(",", ".")))
+      .filter(n => isFinite(n) && n > 0);
+    if (!nums.length) return;
+    // a memória é coerente se ALGUM número dela bate com a quantidade (tolerância 2%)
+    const bate = nums.some(n => Math.abs(n - qtd) / qtd <= 0.02);
+    if (!bate) memoRuim.push(`${(q.descricao || "item").slice(0, 60)}: planilha ${nf(qtd)} ${q.unidade || ""} — memória não fecha nesse valor`);
+  });
+  if (memoRuim.length) {
+    A.push({ nivel: "aviso", msg: `${memoRuim.length} item(ns) com memória de cálculo que não fecha com a quantidade`,
+      detalhe: memoRuim.slice(0, 8).concat(memoRuim.length > 8 ? [`… e mais ${memoRuim.length - 8}`] : []) });
+  }
+
   // 6) Cobertura de origem: quanto do levantamento veio de cota real?
   if (amb.length) {
     const comCota = amb.filter(a => ["cota","cadeia","quadro"].includes(String(a.origem_dimensao||"").toLowerCase())).length;
@@ -3327,6 +3460,73 @@ function renderConferencia() {
         <button class="btn btn-primary" style="padding:6px 14px;font-size:13px" onclick="tkOpen('ambiente', ${x.i})">📐 Conferir na planta</button>
       </div>`;
     }).join("")}` : `<div style="font-size:13px;color:var(--green);font-weight:600">✓ Amostra recomendada já conferida.</div>`);
+}
+
+// ── Áreas molhadas: quais ambientes levam revestimento cerâmico de parede ──
+function renderMolhadas() {
+  const r = APP.analysisResult; if (!r) return;
+  const card = document.getElementById("molhadasCard");
+  const wrap = document.getElementById("molhadasWrap");
+  const res  = document.getElementById("molhadasResumo");
+  if (!card || !wrap) return;
+  const amb = r.ambientes || [];
+  if (!amb.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  recalcularRevestimentoMolhado();
+  const item = (r.quantitativos || []).find(q => _ehItemRevestParede(q));
+
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="border-bottom:1.5px solid var(--border);text-align:left">
+        <th style="padding:6px 8px">Molhada?</th><th style="padding:6px 8px">Ambiente</th>
+        <th style="padding:6px 8px;text-align:right">Perímetro (m)</th>
+        <th style="padding:6px 8px;text-align:right">Altura revest. (m)</th>
+        <th style="padding:6px 8px;text-align:right">Área parede (m²)</th>
+        <th style="padding:6px 8px">Critério</th>
+      </tr></thead>
+      <tbody>${amb.map((a,i)=>{
+        const mol = _ambienteMolhado(a);
+        const per = _perimetroAmbiente(a);
+        const h   = _alturaRevest(a);
+        const vao = Math.min(Number(a.vaos_total_m2)||0, per*h*0.9);
+        const ar  = mol && per>0 ? Math.max(0, per*h - vao) : 0;
+        const org = _origemMolhada(a);
+        const cor = org==="engenheiro" ? ["rgba(22,163,74,.12)","var(--green)"]
+                  : org.indexOf("memorial")===0 ? ["rgba(23,146,192,.12)","var(--blue)"]
+                  : ["rgba(148,163,184,.18)","var(--muted)"];
+        return `<tr style="${mol?"":"opacity:.55"}">
+          <td style="padding:6px 8px"><input type="checkbox" ${mol?"checked":""} onchange="molToggle(${i},this.checked)"></td>
+          <td style="padding:6px 8px">${a.nome||"—"}${a._medido?' <span class="badge" style="background:rgba(22,163,74,.12);color:var(--green)">medido</span>':""}</td>
+          <td style="padding:6px 8px;text-align:right">${per>0?nf(per):"—"}</td>
+          <td style="padding:6px 8px;text-align:right"><input type="number" step="any" value="${h.toFixed(2)}" ${mol?"":"disabled"}
+              onchange="molAltura(${i},this.value)" style="width:78px;padding:4px 6px;border:1.5px solid var(--border);border-radius:5px;text-align:right;font-size:12.5px"></td>
+          <td style="padding:6px 8px;text-align:right;font-weight:${mol?700:400}">${mol&&ar>0?nf(ar):"—"}</td>
+          <td style="padding:6px 8px"><span class="badge" style="background:${cor[0]};color:${cor[1]};font-size:11px">${org}</span></td>
+        </tr>`;}).join("")}</tbody>
+    </table>`;
+
+  const nMol = amb.filter(a=>_ambienteMolhado(a)).length;
+  if (res) {
+    res.innerHTML = item
+      ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:9px 12px;font-size:12.5px">
+           <b>${nMol} ambiente(s) molhado(s)</b> → revestimento cerâmico de parede: <b>${nf(item.quantidade)} m²</b>.
+           Esse total já foi aplicado na planilha, com a memória de cálculo detalhada por ambiente.
+         </div>`
+      : `<div class="muted" style="font-size:12.5px">${nMol} ambiente(s) molhado(s) identificado(s). O item de revestimento cerâmico de parede não está na planilha — se o projeto prevê, adicione-o para que o cálculo seja aplicado.</div>`;
+  }
+}
+function molToggle(i, val){
+  const r = APP.analysisResult; const a = (r&&r.ambientes||[])[i]; if(!a) return;
+  a._molhadaUser = !!val;
+  renderMolhadas(); buildEAP(); recalcBudget();
+}
+function molAltura(i, val){
+  const r = APP.analysisResult; const a = (r&&r.ambientes||[])[i]; if(!a) return;
+  const h = parseFloat(String(val).replace(",", "."));
+  if(!(h > 0) || h > 6){ renderMolhadas(); return; }
+  a._alturaRevestUser = h;
+  renderMolhadas(); buildEAP(); recalcBudget();
 }
 
 // ── Mapa de Acabamentos por ambiente (lido do memorial/legendas) ──
@@ -3479,6 +3679,11 @@ function renderEapCategorias(container, quantitativos) {
         if (isNaN(num) || num < 0) return;
         q.quantidade = num;
         q._editadoManual = true;
+        // A memória descreve o cálculo automático; se a quantidade foi trocada à mão,
+        // o texto deixa de valer como memória — registra isso em vez de exibir algo falso.
+        if (q.memoria_calculo && !/informada manualmente/i.test(q.memoria_calculo)) {
+          q.memoria_calculo = `Quantidade informada manualmente pelo engenheiro responsável. Memória automática anterior (não corresponde mais ao valor atual): ${q.memoria_calculo}`;
+        }
         buildEAP();
       });
 
@@ -4207,6 +4412,56 @@ async function exportExcel() {
   estilizarSheet(ws2, { titulo:0, headerRows:[2] });
   XLSX.utils.book_append_sheet(wb, ws2, "EAP");
 
+  // ── Sheet 2b: MEMÓRIA DE CÁLCULO estruturada (a / b / c → resultado) ──────
+  // Cada serviço abre em PARCELAS com as dimensões em colunas próprias, para
+  // conferência linha a linha (padrão de planilha de quantitativos de obra).
+  {
+    const n2 = v => (v == null || v === "") ? "" : Math.round(Number(v) * 1000) / 1000;
+    const memRows = [
+      [`MAR ABERTO ENGENHARIA — MEMÓRIA DE CÁLCULO — ${APP.projectName || ""}`],
+      [`Gerada em ${new Date().toLocaleString("pt-BR")} · a = comprimento/perímetro · b = largura · c = altura · n = repetições`],
+      [],
+      ["ITEM","SERVIÇO / PARCELA","UN","COMPR. (a)","LARG. (b)","ALT. (c)","QTD (n)","FÓRMULA","RESULTADO"]
+    ];
+    let it = 0;
+    (r.quantitativos || []).forEach(q => {
+      it++;
+      const un = q.unidade || "";
+      memRows.push([String(it), q.descricao || "", un, "", "", "", "", "", n2(q.quantidade)]);
+
+      // (a) Parcelas estruturadas — uma linha por ambiente (revestimento de áreas molhadas etc.)
+      if (Array.isArray(q._parcelas) && q._parcelas.length) {
+        q._parcelas.forEach(p => {
+          const f = p.tipo === "volume" ? "a × b × c" : p.tipo === "linear" ? "a" : "a × b";
+          memRows.push(["", "   └ " + (p.amb || ""), un, n2(p.a), n2(p.b), n2(p.c), n2(p.n || 1),
+                        f + (p.desconto > 0 ? ` − vãos ${n2(p.desconto)}` : ""), n2(p.resultado)]);
+        });
+        return;
+      }
+      // (b) Alvenaria — desdobra a fórmula do sistema em etapas conferíveis
+      const c = q._alvCalc;
+      if (c && Number(c.Lparedes) > 0 && Number(c.peDireito) > 0) {
+        memRows.push(["", "   └ Comprimento de paredes = (Σ perímetros dos ambientes + perímetro externo) ÷ 2",
+                      "m", n2(c.Lparedes), "", "", 1, "a", n2(c.Lparedes)]);
+        memRows.push(["", "   └ Área bruta de parede", "m²", n2(c.Lparedes), "", n2(c.peDireito), 1, "a × c",
+                      n2(Number(c.Lparedes) * Number(c.peDireito))]);
+        if (Number(c.vaos))       memRows.push(["", "   └ (−) Vãos de portas e janelas", "m²", "", "", "", 1, "subtrair", n2(-Number(c.vaos))]);
+        if (Number(c.platibanda)) memRows.push(["", "   └ (+) Platibanda", "m²", "", "", "", 1, "somar", n2(c.platibanda)]);
+        if (Number(c.caixa))      memRows.push(["", "   └ (+) Caixa d'água", "m²", "", "", "", 1, "somar", n2(c.caixa)]);
+        memRows.push(["", "   └ TOTAL", un, "", "", "", "", "", n2(c.area)]);
+        return;
+      }
+      // (c) Demais itens — mantém a memória textual como está (não inventa parcela)
+      if (q.memoria_calculo) memRows.push(["", "   └ memória", un, "", "", "", "", String(q.memoria_calculo).slice(0, 300), n2(q.quantidade)]);
+    });
+
+    const wsM = XLSX.utils.aoa_to_sheet(memRows);
+    wsM["!cols"] = [8, 62, 7, 12, 12, 12, 9, 46, 14].map(w => ({ wch: w }));
+    wsM["!merges"] = [{ s:{r:0,c:0}, e:{r:0,c:8} }, { s:{r:1,c:0}, e:{r:1,c:8} }];
+    estilizarSheet(wsM, { titulo:0, subtitulo:1, headerRows:[3] });
+    XLSX.utils.book_append_sheet(wb, wsM, "MEMÓRIA DE CÁLCULO");
+  }
+
   // ── Sheet 3: Ambientes ──────────────────────────────────────
   if (r.ambientes?.length) {
     const ORIGEM_LBL = { cota:"Cota do projeto", cadeia:"Derivado de cotas vizinhas", quadro:"Quadro de áreas", estimada:"ESTIMADO (sem cota)" };
@@ -4711,6 +4966,7 @@ function exportInsumos(){
       <button class="btn" id="tkBtnCalib" style="padding:6px 10px" onclick="tkSetMode('calibrar')">1) Definir escala</button>
       <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar perímetro</button>
       <button class="btn" id="tkBtnVao" style="padding:6px 10px" onclick="tkSetMode('vao')">3) Marcar vãos</button>
+      <button class="btn" id="tkBtnRobot" title="Detecta o contorno do ambiente e traça sozinho (exige escala calibrada)" style="padding:6px 12px;background:#FFD700;color:#002B40;font-weight:700;border-color:#FFD700" onclick="tkRobotMedir()">🤖 Medir sozinho</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar trecho</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkUndo()">↩ Desfazer ponto</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar traçado</button>
@@ -4745,6 +5001,21 @@ function exportInsumos(){
       <div style="font-size:13px"><b>Total de vãos descontado:</b> <span id="tkVaosTotal">0,00 m²</span></div>
       <div style="font-size:13px"><b>Área de parede:</b> <span id="tkArea" style="color:var(--green);font-weight:700;font-size:16px">0,00 m²</span></div>
       <button class="btn btn-success" style="margin-left:auto" onclick="tkApply()">✓ Aplicar</button>
+    </div>
+    <!-- Cotas de ALTURA: pé-direito (não é legível em planta baixa) -->
+    <div id="tkPePop" style="display:none;position:fixed;z-index:10001;background:#fff;border:2px solid #FFD700;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px 14px;min-width:250px">
+      <div style="font-size:12.5px;font-weight:700;color:#002B40;margin-bottom:3px">🤖 Contorno medido — agora a cota de altura</div>
+      <div style="font-size:11.5px;color:#5a6b85;margin-bottom:8px">O pé-direito não aparece na planta baixa (só no corte). Confirme:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+        <button class="btn btn-outline" style="padding:5px 9px;font-size:12px" onclick="tkPickPe(2.60)">2,60</button>
+        <button class="btn btn-outline" style="padding:5px 9px;font-size:12px" onclick="tkPickPe(2.80)">2,80</button>
+        <button class="btn btn-outline" style="padding:5px 9px;font-size:12px" onclick="tkPickPe(3.00)">3,00</button>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="tkPePopVal" type="number" step="any" placeholder="outro (m)" style="width:96px;padding:6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px">
+        <button class="btn btn-success" style="padding:5px 12px;font-size:12px" onclick="tkPickPe()">Confirmar</button>
+        <button class="btn btn-outline" style="padding:5px 9px;font-size:12px" onclick="tkCancelPe()">Pular</button>
+      </div>
     </div>
     <!-- Seletor de altura do vão (aparece após marcar a largura nas 2 pontas) -->
     <div id="tkVaoPop" style="display:none;position:fixed;z-index:10001;background:#fff;border:2px solid #002B40;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:11px 13px;min-width:236px">
@@ -4952,6 +5223,7 @@ function tkClick(e){
   if(e.shiftKey || t._espaco) return;   // shift/espaço = pan, não marca ponto
   const cx=(e.clientX-rect.left)*(cv.width/rect.width), cy=(e.clientY-rect.top)*(cv.height/rect.height);
   const _p=tkToImg(cx,cy); const x=_p.x, y=_p.y;   // sempre em coordenadas da IMAGEM
+  if(t.mode==='robot-seed'){ tkRobotExecutar(x,y); return; }   // ponto-semente do robô
   if(t.mode==='calibrar'){
     t.calib.push({x,y});
     if(t.calib.length>=2){
@@ -5032,6 +5304,20 @@ function tkRedraw(){
     ctx.beginPath(); ctx.moveTo(t.vaoPend.x1,t.vaoPend.y1); ctx.lineTo(t.vaoPend.x2,t.vaoPend.y2); ctx.stroke(); ctx.restore(); }
   ctx.lineWidth=2; ctx.lineCap="butt";
   if(t.vaoStart){ ctx.fillStyle="#f97316"; ctx.beginPath(); ctx.arc(t.vaoStart.x,t.vaoStart.y,5,0,6.3); ctx.fill(); }
+  // Cursor do robô: mostra AO VIVO onde a medição automática está passando.
+  if(t.robotCursor){
+    const z=t.z||1, rx=t.robotCursor.x, ry=t.robotCursor.y;
+    ctx.save();
+    ctx.fillStyle="rgba(255,215,0,.30)";
+    ctx.beginPath(); ctx.arc(rx,ry,11/z,0,6.3); ctx.fill();
+    ctx.strokeStyle="#FFD700"; ctx.lineWidth=2.5/z;
+    ctx.beginPath(); ctx.arc(rx,ry,11/z,0,6.3); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(rx-17/z,ry); ctx.lineTo(rx-4/z,ry); ctx.moveTo(rx+4/z,ry); ctx.lineTo(rx+17/z,ry);
+    ctx.moveTo(rx,ry-17/z); ctx.lineTo(rx,ry-4/z); ctx.moveTo(rx,ry+4/z); ctx.lineTo(rx,ry+17/z);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
   ctx.setTransform(1,0,0,1,0,0);
   tkDrawLupa(ctx, cv);        // lupa desenhada FORA da transformação (tamanho fixo na tela)
@@ -5170,6 +5456,255 @@ function tkUpdateReadout(){
   }
   tkUpdateSteps();
 }
+// ═════════════════════════════════════════════════════════════════════════════
+// ROBÔ DE MEDIÇÃO — detecta o contorno do ambiente e traça sozinho.
+//
+// Estratégia (funciona em planta VETORIAL e ESCANEADA, pois opera sobre o raster
+// já renderizado): binariza a folha → "flood fill" a partir de um ponto dentro do
+// cômodo → o preenchimento para nas paredes → extrai o contorno da região.
+//
+// TRAVAS DE SEGURANÇA (o que separa um robô confiável de um chute automatizado):
+//  • VAZAMENTO: se o preenchimento escapar por um vão de porta, a área explode.
+//    Detectamos e RECUSAMOS em vez de entregar um número errado.
+//  • SEMENTE EM PAREDE: se o ponto cair sobre uma linha, tenta pontos vizinhos.
+//  • QUALIDADE: contorno com poucos pontos ou área irrisória → recusa com aviso.
+// Toda medida continua ancorada na ESCALA calibrada pelo engenheiro (rastreável).
+// ═════════════════════════════════════════════════════════════════════════════
+function _tkMascara(maxLado){
+  const t = tkState(); const img = t.img; if(!img) return null;
+  const W0 = img.width, H0 = img.height;
+  const s = Math.min(1, (maxLado || 1400) / Math.max(W0, H0));
+  const W = Math.max(1, Math.round(W0 * s)), H = Math.max(1, Math.round(H0 * s));
+  const off = document.createElement("canvas"); off.width = W; off.height = H;
+  const c = off.getContext("2d", { willReadFrequently: true });
+  c.drawImage(img, 0, 0, W, H);
+  let d;
+  try { d = c.getImageData(0, 0, W, H).data; } catch(e){ return null; }
+  const parede = new Uint8Array(W * H);
+  let escuros = 0;
+  for (let i = 0, p = 0; p < W * H; i += 4, p++) {
+    const lum = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+    if (d[i+3] > 32 && lum < 150) { parede[p] = 1; escuros++; }
+  }
+  return { parede, W, H, s, densidade: escuros / (W * H) };
+}
+function _tkFlood(m, sx, sy){
+  const { parede, W, H } = m;
+  if (sx < 0 || sy < 0 || sx >= W || sy >= H) return null;
+  if (parede[sy * W + sx]) return null;                 // semente sobre parede
+  const vis = new Uint8Array(W * H);
+  const fila = new Int32Array(W * H);
+  let qi = 0, qn = 0, n = 0;
+  const ini = sy * W + sx; fila[qn++] = ini; vis[ini] = 1;
+  let minX = sx, maxX = sx, minY = sy, maxY = sy;
+  while (qi < qn) {
+    const p = fila[qi++]; n++;
+    const x = p % W, y = (p - x) / W;
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (x > 0)     { const q = p - 1; if (!vis[q] && !parede[q]) { vis[q] = 1; fila[qn++] = q; } }
+    if (x < W - 1) { const q = p + 1; if (!vis[q] && !parede[q]) { vis[q] = 1; fila[qn++] = q; } }
+    if (y > 0)     { const q = p - W; if (!vis[q] && !parede[q]) { vis[q] = 1; fila[qn++] = q; } }
+    if (y < H - 1) { const q = p + W; if (!vis[q] && !parede[q]) { vis[q] = 1; fila[qn++] = q; } }
+  }
+  return { vis, n, minX, maxX, minY, maxY };
+}
+// Contorno da região preenchida (Moore-neighbor tracing, 8-conexo).
+function _tkContorno(vis, W, H){
+  const dentro = (x, y) => x >= 0 && y >= 0 && x < W && y < H && vis[y * W + x] === 1;
+  let sx = -1, sy = -1;
+  for (let y = 0; y < H && sy < 0; y++) for (let x = 0; x < W; x++) if (dentro(x, y)) { sx = x; sy = y; break; }
+  if (sx < 0) return [];
+  const viz = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+  const pts = []; let cx = sx, cy = sy, dir = 6, iter = 0;
+  const maxIter = 8 * (W + H) * 6;
+  do {
+    pts.push([cx, cy]);
+    let achou = false;
+    for (let k = 0; k < 8; k++) {
+      const d = (dir + k) % 8;
+      const nx = cx + viz[d][0], ny = cy + viz[d][1];
+      if (dentro(nx, ny)) { cx = nx; cy = ny; dir = (d + 6) % 8; achou = true; break; }
+    }
+    if (!achou) break;
+    iter++;
+  } while ((cx !== sx || cy !== sy) && iter < maxIter);
+  return pts;
+}
+// Simplificação de vértices (Douglas-Peucker iterativo — sem risco de estouro de pilha).
+function _tkSimplificar(pts, eps){
+  if (pts.length < 3) return pts.slice();
+  let base = pts;
+  if (base.length > 2400) { const passo = Math.ceil(base.length / 2400); base = base.filter((_, i) => i % passo === 0); }
+  const n = base.length;
+  const manter = new Uint8Array(n); manter[0] = 1; manter[n-1] = 1;
+  const dist2 = (p, a, b) => {
+    const dx = b[0]-a[0], dy = b[1]-a[1], L = dx*dx + dy*dy;
+    if (L === 0) return (p[0]-a[0])**2 + (p[1]-a[1])**2;
+    let tt = ((p[0]-a[0])*dx + (p[1]-a[1])*dy) / L; tt = Math.max(0, Math.min(1, tt));
+    return (p[0]-(a[0]+tt*dx))**2 + (p[1]-(a[1]+tt*dy))**2;
+  };
+  const pilha = [[0, n-1]];
+  while (pilha.length) {
+    const [i0, i1] = pilha.pop();
+    let maxD = -1, idx = -1;
+    for (let i = i0 + 1; i < i1; i++) { const d = dist2(base[i], base[i0], base[i1]); if (d > maxD) { maxD = d; idx = i; } }
+    if (idx > 0 && maxD > eps * eps) { manter[idx] = 1; pilha.push([i0, idx], [idx, i1]); }
+  }
+  return base.filter((_, i) => manter[i]);
+}
+// Detecta o ambiente a partir de um ponto-semente em coordenadas da IMAGEM.
+// Retorna { ok, pts (coords da imagem), motivo, retangular }
+function tkRobotDetectar(seedImgX, seedImgY){
+  const m = _tkMascara(1400);
+  if (!m) return { ok:false, motivo:"Não consegui ler a imagem da folha." };
+  const sx0 = Math.round(seedImgX * m.s), sy0 = Math.round(seedImgY * m.s);
+  // se a semente cair sobre uma linha, procura um vizinho livre em espiral curta
+  let r = null;
+  const tentativas = [[0,0]];
+  for (let raio = 2; raio <= 14 && tentativas.length < 60; raio += 3)
+    for (let ang = 0; ang < 8; ang++) tentativas.push([Math.round(raio*Math.cos(ang*Math.PI/4)), Math.round(raio*Math.sin(ang*Math.PI/4))]);
+  for (const [dx, dy] of tentativas) { r = _tkFlood(m, sx0 + dx, sy0 + dy); if (r) break; }
+  if (!r) return { ok:false, motivo:"O ponto indicado caiu sobre uma parede ou hachura." };
+
+  const totalPx = m.W * m.H;
+  const larg = r.maxX - r.minX + 1, alt = r.maxY - r.minY + 1;
+  // VAZOU pelo vão da porta? (região tomou a folha inteira)
+  if (r.n > totalPx * 0.35 || (larg > m.W * 0.85 && alt > m.H * 0.85))
+    return { ok:false, motivo:"O contorno vazou por uma abertura (porta/vão sem fechamento no desenho)." };
+  if (r.n < totalPx * 0.00015)
+    return { ok:false, motivo:"A região encontrada é pequena demais — provável ruído do desenho." };
+
+  const preenchimento = r.n / (larg * alt);
+  let ptsMask;
+  if (preenchimento > 0.90) {
+    // cômodo retangular: usa a própria caixa (resultado exato e sem serrilhado)
+    ptsMask = [[r.minX, r.minY], [r.maxX, r.minY], [r.maxX, r.maxY], [r.minX, r.maxY]];
+  } else {
+    const cont = _tkContorno(r.vis, m.W, m.H);
+    if (cont.length < 8) return { ok:false, motivo:"Não consegui traçar o contorno da região." };
+    ptsMask = _tkSimplificar(cont, Math.max(2.5, Math.min(m.W, m.H) * 0.006));
+    if (ptsMask.length < 3) return { ok:false, motivo:"Contorno simplificado ficou inválido." };
+    if (ptsMask.length > 40) ptsMask = _tkSimplificar(cont, Math.max(5, Math.min(m.W, m.H) * 0.012));
+  }
+  const pts = ptsMask.map(p => ({ x: p[0] / m.s, y: p[1] / m.s }));
+  return { ok:true, pts, retangular: preenchimento > 0.90, densidade: m.densidade };
+}
+// Anima o cursor percorrendo o contorno, ponto a ponto (o "robô" trabalhando).
+function tkAnimarTracado(pts, aoTerminar){
+  const t = tkState();
+  t.runs = []; t.current = []; t.robotCursor = null;
+  const st = document.getElementById("tkStatus");
+  const seq = pts.concat([pts[0]]);         // volta ao início para fechar o contorno
+  let i = 0;
+  const passoMs = Math.max(90, Math.min(320, 1600 / Math.max(1, pts.length)));
+  const irPara = () => {
+    if (i >= seq.length) {
+      t.robotCursor = null; t.current = pts.slice(); tkRedraw(); tkUpdateReadout();
+      if (typeof aoTerminar === "function") aoTerminar();
+      return;
+    }
+    const alvo = seq[i];
+    const ini = t.robotCursor ? { x: t.robotCursor.x, y: t.robotCursor.y } : alvo;
+    const t0 = performance.now(), dur = passoMs;
+    const anda = (agora) => {
+      const k = Math.min(1, (agora - t0) / dur);
+      t.robotCursor = { x: ini.x + (alvo.x - ini.x) * k, y: ini.y + (alvo.y - ini.y) * k };
+      tkRedraw();
+      if (k < 1) { requestAnimationFrame(anda); return; }
+      if (i < pts.length) t.current.push(alvo);   // fixa o vértice
+      if (st) st.innerHTML = `<b>🤖 Robô medindo…</b> vértice ${Math.min(i+1, pts.length)} de ${pts.length}`;
+      tkRedraw(); tkUpdateReadout();
+      i++; setTimeout(irPara, 40);
+    };
+    requestAnimationFrame(anda);
+  };
+  irPara();
+}
+// ── Orquestração do robô: semente → detecção → animação → cotas de altura ──
+function tkRobotMedir(){
+  const t = tkState();
+  const st = document.getElementById("tkStatus");
+  if(!t.scale){
+    if(st) st.innerHTML = "<b>⚠ Calibre a escala primeiro (Passo 1).</b> O robô mede sobre a escala que VOCÊ definiu — é isso que torna a medida rastreável.";
+    tkSetMode('calibrar');
+    alert("Antes do robô, faça o Passo 1: marque os 2 extremos de uma cota conhecida e informe o valor.\n\nA escala é calibrada UMA vez por folha — depois disso o robô mede todos os ambientes dela.");
+    return;
+  }
+  let seed = null;
+  if(t.kind === 'ambiente' && t.hintBbox && t.gid === t.hintGid && t.img){
+    const b = t.hintBbox, W = t.img.width, H = t.img.height;
+    seed = { x: (b[0]+b[2])/2*W, y: (b[1]+b[3])/2*H };   // centro do ambiente lido pela IA
+  }
+  if(!seed){
+    t.mode = 'robot-seed';
+    if(st) st.innerHTML = "🤖 <b>Clique DENTRO do ambiente</b> que eu devo medir (um ponto qualquer no piso, longe de móveis e textos).";
+    tkRedraw();
+    return;
+  }
+  tkRobotExecutar(seed.x, seed.y);
+}
+function tkRobotExecutar(x, y){
+  const t = tkState();
+  const st = document.getElementById("tkStatus");
+  if(st) st.innerHTML = "🤖 <b>Analisando a folha…</b> identificando as paredes do ambiente.";
+  tkRedraw();
+  setTimeout(() => {
+    let res;
+    try { res = tkRobotDetectar(x, y); }
+    catch(e){ res = { ok:false, motivo:"Falha ao processar a imagem (" + (e && e.message ? e.message : e) + ")." }; }
+    if(!res.ok){ tkRobotFalhou(res.motivo); return; }
+    tkSetMode('parede');
+    tkAnimarTracado(res.pts, () => tkRobotConcluiu(res));
+  }, 60);
+}
+function tkRobotFalhou(motivo){
+  const t = tkState(); t.robotCursor = null; tkRedraw();
+  const st = document.getElementById("tkStatus");
+  if(st) st.innerHTML = `<b style="color:#fca5a5">🤖 Não consegui medir automaticamente.</b> ${motivo} — meça manualmente (Passo 2).`;
+  tkSetMode('parede');
+  setTimeout(() => alert(
+    "🤖 MEDIÇÃO AUTOMÁTICA NÃO CONCLUÍDA\n\n" + motivo +
+    "\n\n⚠ ATENÇÃO: isso costuma ocorrer em plantas ESCANEADAS, de baixa resolução, com hachuras densas ou com paredes que não fecham no desenho. Nesses casos, insistir no traçado automático PODE GERAR ERRO DE QUANTITATIVO.\n\nRecomendação:\n• Use uma planta VETORIAL (PDF exportado do CAD/Revit) — é o cenário em que o robô é preciso; ou\n• Meça manualmente no Passo 2, que continua disponível e é 100% rastreável.\n\nO orçamento é assinado por você: prefira a medida conferida à medida automática duvidosa."
+  ), 120);
+}
+function tkRobotConcluiu(res){
+  const t = tkState();
+  const st = document.getElementById("tkStatus");
+  const L = tkLengthM(), A = tkPolyAreaM2();
+  const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!(L > 0)){ tkRobotFalhou("O contorno traçado não gerou perímetro válido."); return; }
+  if(st) st.innerHTML = `<b>🤖 Contorno pronto:</b> perímetro ${nf(L)} m · área ${nf(A)} m². Agora <b>confirme o pé-direito</b> (não é legível em planta baixa).`;
+  tkShowPePop();
+}
+// Cotas de ALTURA: a planta baixa não mostra pé-direito — o engenheiro confirma.
+function tkShowPePop(){
+  const pop = document.getElementById("tkPePop"); if(!pop) return;
+  const atual = parseFloat(String((document.getElementById("tkPeOsso")||{}).value || "2.8").replace(",",".")) || 2.8;
+  const inp = document.getElementById("tkPePopVal"); if(inp) inp.value = atual.toFixed(2);
+  pop.style.display = "block";
+  const cv = document.getElementById("tkCanvas");
+  const rc = cv ? cv.getBoundingClientRect() : { left: 80, top: 120 };
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - (pop.offsetWidth||260) - 8, rc.left + 40)) + "px";
+  pop.style.top  = Math.max(8, rc.top + 60) + "px";
+}
+function tkPickPe(h){
+  if(h == null){
+    const v = parseFloat(String((document.getElementById("tkPePopVal")||{}).value || "").replace(",","."));
+    if(!(v > 0) || v > 8){ alert("Informe um pé-direito válido em metros (ex.: 2,80)."); return; }
+    h = v;
+  }
+  const po = document.getElementById("tkPeOsso"), pa = document.getElementById("tkPeAcabado");
+  if(po) po.value = h.toFixed(2);
+  if(pa && !(parseFloat(String(pa.value).replace(",",".")) > 0)) pa.value = h.toFixed(2);
+  const pop = document.getElementById("tkPePop"); if(pop) pop.style.display = "none";
+  tkUpdateReadout();
+  tkSetMode('vao');
+  const st = document.getElementById("tkStatus");
+  if(st) st.innerHTML = "<b>Passo 3 de 3 — Vãos:</b> clique nas 2 pontas de cada porta/janela e confirme a altura de cada uma. Depois clique em <b>✓ Aplicar</b> (embaixo).";
+}
+function tkCancelPe(){ const p = document.getElementById("tkPePop"); if(p) p.style.display = "none"; tkSetMode('vao'); }
+
 // Snapshot do canvas de medição (planta + contorno traçado) em JPEG base64 reduzido.
 function tkSnapshot(maxW){
   const cv=document.getElementById("tkCanvas"); if(!cv||!cv.width) return "";
@@ -5289,6 +5824,7 @@ function tkApply(){
   let q=(r.quantitativos||[]).find(x=>x._id===t.targetId) || (r.quantitativos||[]).find(x=>_ehItemAlvenaria(x));
   if(!q){ alert("Não encontrei o item de alvenaria na planilha."); return; }
   q.quantidade=t._area; q._alvCalc={ Lparedes:t._L, peDireito:t._peOsso, vaos:t._vTotal, platibanda:0, caixa:0, area:t._area, auto:false, medidoNaPlanta:true };
+  { const _m=_memoriaAlvenaria(q._alvCalc); if(_m) q.memoria_calculo=_m.replace("(Σ perímetros dos ambientes + perímetro externo) ÷ 2 = ","MEDIDO na planta pelo engenheiro = ")+" Traçado diretamente sobre a planta com escala calibrada."; }
   tkClose();
   const p=document.getElementById("alvCalcPanel"); if(p) p.remove();
   recalcBudget();
