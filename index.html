@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.25b</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.26</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -3174,6 +3174,12 @@ function buildEAP() {
   renderAcabamentos();
   renderEsquadrias();
   renderAuditoria();
+  _agendarSalvar();          // autosave silencioso (debounced)
+}
+let _salvarTm = null;
+function _agendarSalvar(){
+  clearTimeout(_salvarTm);
+  _salvarTm = setTimeout(() => { try{ salvarSessao(true); }catch(e){} }, 1500);
 }
 
 // Levantamento por ambiente: tabela com área estimada pela IA + medição calibrada na planta
@@ -3207,7 +3213,7 @@ function renderAmbientesLevantamento() {
       : o ? `<span class="badge" style="background:${o[0]};color:${o[1]}" title="Origem da dimensão lida pela IA">${o[2]}</span>`
           : `<span class="badge" style="background:rgba(148,163,184,0.2);color:var(--muted)">IA (estimado)</span>`;
     return `<tr>
-      <td style="padding:6px 8px">${a.nome || "—"}${(Number.isFinite(Number(a.folha)) && Number(a.folha)>=1) ? ` <span style="font-weight:600;font-size:10.5px;color:#fff;background:var(--navy);border-radius:4px;padding:1px 6px">F${Number(a.folha)}</span>` : ""}</td>
+      <td style="padding:6px 8px">${a.nome || "—"}${_selosLocal(a)}</td>
       <td style="padding:6px 8px;text-align:right">${nf(areaIA)}</td>
       <td style="padding:6px 8px;text-align:right">${perim}</td>
       <td style="padding:6px 8px;text-align:right">${peAcab}</td>
@@ -3291,6 +3297,17 @@ function auditarCoerencia(r) {
     if (pe > 0 && (pe < 2.1 || pe > 6)) fora.push(`${a.nome}: pé-direito de ${nf(pe)} m fora da faixa usual (2,10 a 6,00 m)`);
   });
   if (fora.length) A.push({ nivel: "erro", msg: `${fora.length} medida(s) fora de ordem de grandeza — possível erro de escala ou vírgula`, detalhe: fora });
+
+  // 5a) PÉ-DIREITO NÃO INFORMADO — o sistema assume 2,80 m quando a IA não acha o
+  // corte. Como o pé-direito multiplica TODA a alvenaria, um projeto com 3,00 m
+  // lido como 2,80 erra ~7% no maior item do orçamento. Antes isso era silencioso.
+  const semPe = amb.filter(a => !a._medido && !(Number(a.pe_direito_m) > 0));
+  if (semPe.length) {
+    A.push({ nivel: semPe.length === amb.length ? "erro" : "aviso",
+      msg: `${semPe.length} de ${amb.length} ambiente(s) sem pé-direito lido no projeto — assumido 2,80 m`,
+      detalhe: ["O pé-direito só aparece no CORTE. Se o projeto tem outro valor (ex.: 3,00 m), a alvenaria e a pintura saem erradas — confira no corte ou meça o ambiente na planta.",
+                semPe.slice(0, 6).map(a => a.nome || "—").join(", ") + (semPe.length > 6 ? "…" : "")] });
+  }
 
   // 5b) ALVENARIA — o item mais caro do orçamento nunca era auditado.
   // Confere (i) se a quantidade bate com a própria memória de cálculo e
@@ -3454,12 +3471,112 @@ function renderConferencia() {
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--card)">
         <div style="width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">${k + 1}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:14px">${x.a.nome || "Ambiente"}${(Number.isFinite(Number(x.a.folha)) && Number(x.a.folha)>=1) ? ` <span style="font-weight:600;font-size:11px;color:#fff;background:var(--navy);border-radius:5px;padding:1px 7px;margin-left:4px">Folha ${Number(x.a.folha)}</span>` : ""}</div>
+          <div style="font-weight:700;font-size:14px">${x.a.nome || "Ambiente"}${_selosLocal(x.a)}</div>
           <div style="font-size:12px;color:var(--muted)">${nf(x.area)} m² · <span class="badge" style="background:${tag[0]};color:${tag[1]}">${tag[2]}</span></div>
         </div>
         <button class="btn btn-primary" style="padding:6px 14px;font-size:13px" onclick="tkOpen('ambiente', ${x.i})">📐 Conferir na planta</button>
       </div>`;
     }).join("")}` : `<div style="font-size:13px;color:var(--green);font-weight:600">✓ Amostra recomendada já conferida.</div>`);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PERSISTÊNCIA — salvar e retomar o levantamento.
+// Antes, fechar a aba perdia TODO o trabalho (inclusive medições feitas à mão na
+// planta). Para quem assina ART, perder um levantamento no meio é inaceitável.
+// As evidências (prints em base64) NÃO são salvas: estourariam a cota do
+// navegador. O levantamento e as medições — que é o que custa tempo — são.
+// ═════════════════════════════════════════════════════════════════════════════
+const MAR_SESSAO_KEY = "mar_sessao_v1";
+function _dadosParaSalvar(){
+  const r = APP.analysisResult; if(!r) return null;
+  const clone = JSON.parse(JSON.stringify(r, (k, v) => (k === "evidencia_img" ? undefined : v)));
+  return {
+    v: 1, quando: Date.now(),
+    projeto: APP.projectName || "",
+    estado: APP.estado || "",
+    desoneracao: !!APP.desoneracao,
+    validado: !!APP.orcamentoValidado,
+    resultado: clone
+  };
+}
+function salvarSessao(silencioso){
+  try{
+    const d = _dadosParaSalvar(); if(!d) return false;
+    localStorage.setItem(MAR_SESSAO_KEY, JSON.stringify(d));
+    if(!silencioso) _toastSessao("💾 Levantamento salvo neste navegador.");
+    return true;
+  }catch(e){
+    // cota estourada ou navegador em modo privado: avisa em vez de fingir que salvou
+    if(!silencioso) _toastSessao("⚠ Não consegui salvar (armazenamento cheio). Exporte o Excel para não perder o trabalho.", true);
+    return false;
+  }
+}
+function _sessaoGuardada(){
+  try{ const s = localStorage.getItem(MAR_SESSAO_KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function retomarSessao(){
+  const d = _sessaoGuardada();
+  if(!d || !d.resultado){ alert("Não há levantamento salvo neste navegador."); return; }
+  APP.analysisResult = d.resultado;
+  APP.projectName = d.projeto || APP.projectName;
+  if(d.estado) APP.estado = d.estado;
+  APP.desoneracao = !!d.desoneracao;
+  APP.orcamentoValidado = !!d.validado;
+  try{
+    buildEAP(); recalcBudget(); goTo(3);
+    _toastSessao("✅ Levantamento retomado. Atenção: as plantas em PDF não são salvas — para medir na planta de novo, reenvie o arquivo.");
+  }catch(e){ alert("Não consegui retomar o levantamento salvo: " + (e && e.message ? e.message : e)); }
+}
+function descartarSessao(){
+  try{ localStorage.removeItem(MAR_SESSAO_KEY); }catch(e){}
+  const b = document.getElementById("barraRetomar"); if(b) b.remove();
+}
+function _toastSessao(msg, alerta){
+  let t = document.getElementById("marToast");
+  if(!t){
+    t = document.createElement("div"); t.id = "marToast";
+    t.style.cssText = "position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:99999;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 26px rgba(0,0,0,.25);max-width:90vw;text-align:center";
+    document.body.appendChild(t);
+  }
+  t.style.background = alerta ? "#fef2f2" : "#0a1120";
+  t.style.color = alerta ? "#b91c1c" : "#e6edf7";
+  t.style.border = alerta ? "1px solid #fca5a5" : "1px solid #2dd4bf";
+  t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._tm); t._tm = setTimeout(() => { t.style.display = "none"; }, 6000);
+}
+// Oferece retomar, se houver trabalho salvo de outra sessão.
+function ofereceRetomar(){
+  const d = _sessaoGuardada(); if(!d || !d.resultado) return;
+  if(APP.analysisResult) return;                     // já há levantamento em tela
+  const host = document.querySelector(".container") || document.body;
+  if(document.getElementById("barraRetomar")) return;
+  const dias = Math.floor((Date.now() - (d.quando||0)) / 86400000);
+  const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+  const div = document.createElement("div");
+  div.id = "barraRetomar"; div.className = "card";
+  div.style.cssText = "border:2px solid var(--green);background:#f0fdf4;margin-bottom:14px";
+  div.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:20px">💾</span>
+      <span style="flex:1;min-width:220px;font-size:13.5px">
+        <b>Você tem um levantamento salvo</b> — ${d.projeto ? `"${d.projeto}"` : "sem nome"}, de ${quando}.
+        <span class="muted" style="display:block;font-size:12px">Retomar traz de volta ambientes, quantitativos e as medições que você já conferiu.</span>
+      </span>
+      <button class="btn btn-success" style="padding:7px 16px" onclick="retomarSessao()">Retomar</button>
+      <button class="btn btn-outline" style="padding:7px 12px" onclick="descartarSessao()">Descartar</button>
+    </div>`;
+  host.insertBefore(div, host.firstChild);
+}
+
+// Selos de LOCALIZAÇÃO do ambiente (pavimento + folha). Num hospital com 4 "DML",
+// é isso que diz ao engenheiro QUAL DML ele está conferindo.
+function _selosLocal(a){
+  if(!a) return "";
+  let s = "";
+  const pav = (a.pavimento || "").toString().trim();
+  if(pav) s += ` <span style="font-weight:700;font-size:10.5px;color:#fff;background:#0e7490;border-radius:4px;padding:1px 7px;margin-left:4px" title="Pavimento lido do projeto">${pav}</span>`;
+  const f = Number(a.folha);
+  if(Number.isFinite(f) && f >= 1) s += ` <span style="font-weight:600;font-size:10.5px;color:#fff;background:var(--navy);border-radius:4px;padding:1px 6px;margin-left:3px" title="Folha onde o ambiente aparece">F${f}</span>`;
+  return s;
 }
 
 // ── Áreas molhadas: quais ambientes levam revestimento cerâmico de parede ──
@@ -4789,6 +4906,7 @@ function buildInsumos(){
 
 function renderInsumos(host,itens,fmt){
   itens.sort((a,b)=>b.val-a.val);
+  APP._insumosLista = itens;      // guarda para a exportação (.xlsx)
   const total=itens.reduce((s,x)=>s+x.val,0);
   const rows=itens.map(it=>`
     <tr>
@@ -4801,11 +4919,38 @@ function renderInsumos(host,itens,fmt){
     </tr>`).join('');
   host.innerHTML=`
     <p class="muted" style="margin-bottom:8px">Total de insumos (sem BDI): <b>${fmt(total)}</b> · ${itens.length} item${itens.length!==1?'s':''}</p>
+    <div class="btn-group" style="margin-bottom:12px"><button class="btn btn-success" onclick="exportInsumos()">⬇ Baixar lista de insumos (.xlsx)</button></div>
     <div style="overflow-x:auto">
     <table class="budget-table">
       <thead><tr><th>Descrição</th><th>Categoria</th><th>Cód. SINAPI</th><th style="text-align:right">Qtd/Un</th><th style="text-align:right">Preço unit.</th><th style="text-align:right">Total</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+}
+// Exportação da lista de insumos — reescrita para usar os dados que a aba REALMENTE
+// possui. (A versão antiga dependia de APP._insumosMateriais, que nunca era
+// preenchido: o botão existia dentro de um comentário HTML e estava morto.)
+function exportInsumos(){
+  const itens = APP._insumosLista;
+  if(!itens || !itens.length){ alert("Abra a aba Insumos e gere a lista primeiro."); return; }
+  const total = itens.reduce((s,x)=>s+(Number(x.val)||0),0);
+  const aoa = [
+    ["MAR ABERTO ENGENHARIA"],
+    ["Lista de Insumos — " + (APP.projectName || "") + " | " + new Date().toLocaleDateString("pt-BR")],
+    [],
+    ["ITEM","DESCRIÇÃO","CATEGORIA","CÓD. SINAPI","QUANTIDADE","UN","PREÇO UNIT. (R$)","TOTAL (R$)"]
+  ];
+  itens.forEach((x,i)=>aoa.push([
+    i+1, x.descricao || "", (x.categoria||"").replace(/^\d+\.\s*/,""), x.codigo || "",
+    +(Math.round((Number(x.quantidade)||0)*1000)/1000), x.unidade || "",
+    +(Math.round((Number(x.valUnit)||0)*100)/100), +(Math.round((Number(x.val)||0)*100)/100)
+  ]));
+  aoa.push([], ["","TOTAL (sem BDI)","","","","","", +(Math.round(total*100)/100)]);
+  const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [6,58,26,14,14,7,17,15].map(w=>({wch:w}));
+  ws["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+  if(typeof estilizarSheet === "function") estilizarSheet(ws,{titulo:0,subtitulo:1,headerRows:[3]});
+  XLSX.utils.book_append_sheet(wb, ws, "INSUMOS");
+  XLSX.writeFile(wb, "Insumos_" + ((APP.projectName||"obra").replace(/\s+/g,"_")) + ".xlsx");
 }
 
 /* ═══════════════════════════════════════════════════
@@ -4981,6 +5126,19 @@ function exportInsumos(){
       <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:340px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida. <span style="opacity:.75">Roda do mouse = zoom · Shift+arrastar = mover</span></span>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClose()">✕ Fechar</button>
     </div>
+    <!-- Painel-guia: mostra em que passo o usuário está e o que o robô está fazendo -->
+    <div id="tkWizard" style="position:absolute;top:70px;left:14px;z-index:60;width:270px;background:rgba(255,255,255,.97);border:2px solid #002B40;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.28);padding:12px 13px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px">
+        <span style="font-size:15px">🧭</span>
+        <span id="tkWizTitulo" style="font-weight:800;color:#002B40;font-size:13px">Como medir este ambiente</span>
+        <span onclick="tkWizToggle()" title="Recolher/expandir" style="margin-left:auto;cursor:pointer;color:#5a6b85;font-size:15px;line-height:1">−</span>
+      </div>
+      <div id="tkWizBody">
+        <div id="tkWizPassos"></div>
+        <div id="tkWizAcao" style="margin-top:9px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:11.5px;color:#92400e;line-height:1.45"></div>
+        <div id="tkWizLog" style="margin-top:8px;font-size:10.5px;color:#5a6b85;max-height:86px;overflow:auto;display:none;border-top:1px solid #e2e8f2;padding-top:6px"></div>
+      </div>
+    </div>
     <div id="tkCanvasWrap" style="flex:1;overflow:auto;background:#333;display:flex;justify-content:center;align-items:flex-start">
       <canvas id="tkCanvas" style="display:block;cursor:crosshair;max-width:100%;height:auto"></canvas>
     </div>
@@ -5094,6 +5252,7 @@ function tkOpen(kind, id){
   t.kind = kind || 'alvenaria'; t.targetId=null; t.ambIdx=null;
   if (t.kind === 'ambiente') t.ambIdx = id; else t.targetId = id;
   t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle';
+  t.peConfirmado=false; t.robotCursor=null;
   if(!APP.pages || !APP.pages.length){ alert("Nenhuma planta carregada nesta sessão. Faça o upload do projeto."); return; }
   const sel=document.getElementById("tkPage");
   sel.innerHTML=APP.pages.map((p,i)=>`<option value="${i+1}">Folha ${i+1} · ${(p.fileName||"Folha").replace(/\.pdf$/i,"").slice(0,24)} · pág ${p.pageNum}</option>`).join("");
@@ -5134,7 +5293,8 @@ function tkClose(){ document.getElementById("takeoffModal").style.display="none"
 async function tkRenderPage(){
   const t=tkState(); const gid=+document.getElementById("tkPage").value||1; t.gid=gid;
   const ent=APP.pages[gid-1]; if(!ent) return;
-  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle'; tkSetMode('calibrar');
+  t.scale=null; t.calib=[]; t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; t.mode='idle';
+  t.peConfirmado=false; t.robotCursor=null; tkWizLimparLog(); tkSetMode('calibrar');
   tkRenderVaosList();
   const page=await ent.doc.getPage(ent.pageNum);
   const wrap=document.getElementById("tkCanvasWrap");
@@ -5200,6 +5360,7 @@ function tkSetMode(m){
     else st.innerHTML="Comece pelo <b>Passo 1: Definir escala</b>.";
   }
   tkUpdateSteps();
+  try{ tkWizRender(); }catch(e){}
   tkRedraw();
 }
 // Guia visual dos 3 passos: marca ✓ o que já foi feito e destaca o passo atual.
@@ -5277,6 +5438,17 @@ function tkRedraw(){
   if(t.calib.length){ ctx.strokeStyle="#2563eb"; ctx.fillStyle="#2563eb"; ctx.lineWidth=3;
     ctx.beginPath(); t.calib.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke();
     t.calib.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,5,0,6.3);ctx.fill();}); }
+  // PREENCHIMENTO do ambiente medido: mostra visualmente QUAL área foi capturada
+  // (antes só havia a linha, e o usuário não enxergava o que o robô tinha medido).
+  if(t.kind==='ambiente'){
+    const poly=(function(){ const p=[]; (t.runs||[]).forEach(r=>{ if(r) r.forEach(q=>p.push(q)); }); (t.current||[]).forEach(q=>p.push(q)); return p; })();
+    if(poly.length>=3){
+      ctx.save();
+      ctx.beginPath(); poly.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath();
+      ctx.fillStyle="rgba(45,212,191,.20)"; ctx.fill();
+      ctx.restore();
+    }
+  }
   // perímetro (verde)
   ctx.strokeStyle="#16a34a"; ctx.fillStyle="#16a34a"; ctx.lineWidth=4; ctx.lineJoin="round"; ctx.lineCap="round";
   const drawRun=run=>{ if(!run||!run.length) return; ctx.beginPath(); run.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.stroke(); run.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,6.3);ctx.fill();}); };
@@ -5455,6 +5627,7 @@ function tkUpdateReadout(){
     if(html){ cmp.innerHTML=html; cmp.style.display="block"; } else { cmp.style.display="none"; }
   }
   tkUpdateSteps();
+  try{ tkWizRender(); }catch(e){}
 }
 // ═════════════════════════════════════════════════════════════════════════════
 // ROBÔ DE MEDIÇÃO — detecta o contorno do ambiente e traça sozinho.
@@ -5621,6 +5794,77 @@ function tkAnimarTracado(pts, aoTerminar){
   };
   irPara();
 }
+// ═════════════════════════════════════════════════════════════════════════════
+// PAINEL-GUIA — mostra SEMPRE em que passo o usuário está, o que falta e o que
+// o robô está fazendo. Nasceu de um teste real: o robô media, mas não comunicava.
+// ═════════════════════════════════════════════════════════════════════════════
+function tkWizToggle(){
+  const b=document.getElementById("tkWizBody"); if(!b) return;
+  b.style.display = (b.style.display==="none") ? "" : "none";
+}
+function tkWizLog(msg, cor){
+  const el=document.getElementById("tkWizLog"); if(!el) return;
+  el.style.display="block";
+  const l=document.createElement("div");
+  l.style.cssText="padding:1px 0"+(cor?(";color:"+cor+";font-weight:700"):"");
+  l.textContent=msg;
+  el.appendChild(l); el.scrollTop=el.scrollHeight;
+}
+function tkWizLimparLog(){ const el=document.getElementById("tkWizLog"); if(el){ el.innerHTML=""; el.style.display="none"; } }
+function tkWizRender(){
+  const host=document.getElementById("tkWizPassos"); if(!host) return;
+  const t=tkState();
+  const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const L=tkLengthM(), A=(t.kind==='ambiente')?tkPolyAreaM2():0;
+  const peOsso=parseFloat(String((document.getElementById("tkPeOsso")||{}).value||"0").replace(",","."))||0;
+  const nVaos=(t.vaos||[]).length;
+
+  // título com o ambiente-alvo (some a dúvida "qual cômodo?")
+  const tit=document.getElementById("tkWizTitulo");
+  if(tit){
+    let nome="";
+    if(t.kind==='ambiente' && t.ambIdx!=null){
+      const a=(APP.analysisResult&&APP.analysisResult.ambientes||[])[t.ambIdx];
+      if(a&&a.nome) nome=a.nome;
+    }
+    tit.textContent = nome ? ("Medindo: "+nome) : "Como medir este ambiente";
+  }
+
+  const passos=[
+    { n:1, nome:"Definir escala",   ok:!!t.scale,  ativo:t.mode==='calibrar',
+      det: t.scale ? (nf(1/t.scale)+" px/m") : "clique em 2 pontas de uma cota" },
+    { n:2, nome:"Traçar contorno",  ok:L>0,        ativo:t.mode==='parede'||t.mode==='robot-seed',
+      det: L>0 ? (nf(L)+" m"+(A>0?" · "+nf(A)+" m²":"")) : "manual ou pelo robô" },
+    { n:3, nome:"Pé-direito",       ok:!!t.peConfirmado||peOsso>0, ativo:false,
+      det: peOsso>0 ? (nf(peOsso)+" m") : "não aparece na planta baixa" },
+    { n:4, nome:"Marcar vãos",      ok:nVaos>0,    ativo:t.mode==='vao',
+      det: nVaos>0 ? (nVaos+" vão(s)") : "portas e janelas (opcional)" }
+  ];
+  host.innerHTML = passos.map(p=>{
+    const cor = p.ok ? "#16a34a" : p.ativo ? "#b45309" : "#94a3b8";
+    const bg  = p.ativo ? "background:#fff7ed;border-color:#fcd34d;" : "";
+    const ic  = p.ok ? "✓" : String(p.n);
+    return `<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 7px;border:1px solid #eef2f7;border-radius:7px;margin-bottom:4px;${bg}">
+      <span style="flex:0 0 18px;height:18px;line-height:18px;text-align:center;border-radius:50%;background:${cor};color:#fff;font-size:11px;font-weight:800">${ic}</span>
+      <span style="flex:1;min-width:0">
+        <span style="font-weight:700;font-size:12px;color:${p.ok?"#166534":"#1a2743"}">${p.nome}</span>
+        <span style="display:block;font-size:10.5px;color:#5a6b85">${p.det}</span>
+      </span></div>`;
+  }).join("");
+
+  const acao=document.getElementById("tkWizAcao");
+  if(acao){
+    let txt;
+    if(!t.scale)                       txt="👉 <b>Comece pelo Passo 1.</b> Clique em <b>1) Definir escala</b> e marque as 2 pontas de uma cota conhecida (ex.: 3,00 m). Isso ancora todas as medidas.";
+    else if(t.mode==='robot-seed')     txt="🤖 <b>Clique dentro do ambiente</b> — num ponto do piso, longe de móveis e textos.";
+    else if(!(L>0))                    txt="👉 Agora o contorno: clique em <b>🤖 Medir sozinho</b> para o robô traçar, ou marque os cantos manualmente.";
+    else if(!(peOsso>0))               txt="👉 Confirme o <b>pé-direito</b> — ele só aparece no corte, não na planta baixa.";
+    else if(t.mode==='vao'&&nVaos===0) txt="👉 Marque as <b>portas e janelas</b>: clique nas 2 pontas de cada vão e confirme a altura. Se não houver, pode aplicar direto.";
+    else                               txt="✅ Tudo pronto. Clique em <b>✓ Aplicar</b> (embaixo à direita) para levar essa medição ao orçamento.";
+    acao.innerHTML=txt;
+  }
+}
+
 // ── Orquestração do robô: semente → detecção → animação → cotas de altura ──
 function tkRobotMedir(){
   const t = tkState();
@@ -5648,12 +5892,16 @@ function tkRobotExecutar(x, y){
   const t = tkState();
   const st = document.getElementById("tkStatus");
   if(st) st.innerHTML = "🤖 <b>Analisando a folha…</b> identificando as paredes do ambiente.";
+  tkWizLimparLog();
+  tkWizLog("🤖 Lendo a folha em alta resolução…");
   tkRedraw();
   setTimeout(() => {
     let res;
     try { res = tkRobotDetectar(x, y); }
     catch(e){ res = { ok:false, motivo:"Falha ao processar a imagem (" + (e && e.message ? e.message : e) + ")." }; }
-    if(!res.ok){ tkRobotFalhou(res.motivo); return; }
+    if(!res.ok){ tkWizLog("✕ " + res.motivo, "#b91c1c"); tkRobotFalhou(res.motivo); return; }
+    tkWizLog("Paredes identificadas. Contorno " + (res.retangular ? "retangular" : "irregular") + " com " + res.pts.length + " vértices.");
+    tkWizLog("Traçando sobre a planta…");
     tkSetMode('parede');
     tkAnimarTracado(res.pts, () => tkRobotConcluiu(res));
   }, 60);
@@ -5675,6 +5923,17 @@ function tkRobotConcluiu(res){
   const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
   if(!(L > 0)){ tkRobotFalhou("O contorno traçado não gerou perímetro válido."); return; }
   if(st) st.innerHTML = `<b>🤖 Contorno pronto:</b> perímetro ${nf(L)} m · área ${nf(A)} m². Agora <b>confirme o pé-direito</b> (não é legível em planta baixa).`;
+  tkWizLog(`✓ Medido: perímetro ${nf(L)} m · área ${nf(A)} m²`, "#166534");
+  // compara com a leitura da IA — deixa o acerto (ou o desvio) explícito na hora
+  if(t.kind==='ambiente' && t.ambIdx!=null){
+    const a=(APP.analysisResult&&APP.analysisResult.ambientes||[])[t.ambIdx];
+    const areaIA=a?Number(a.area_m2)||0:0;
+    if(areaIA>0 && A>0){
+      const d=Math.round(Math.abs(A-areaIA)/areaIA*1000)/10;
+      tkWizLog(`IA leu ${nf(areaIA)} m² → desvio ${nf(d)}%`, d<=5?"#166534":d<=12?"#b45309":"#b91c1c");
+    }
+  }
+  tkWizLog("→ Falta confirmar o pé-direito.");
   tkShowPePop();
 }
 // Cotas de ALTURA: a planta baixa não mostra pé-direito — o engenheiro confirma.
@@ -5698,6 +5957,8 @@ function tkPickPe(h){
   if(po) po.value = h.toFixed(2);
   if(pa && !(parseFloat(String(pa.value).replace(",",".")) > 0)) pa.value = h.toFixed(2);
   const pop = document.getElementById("tkPePop"); if(pop) pop.style.display = "none";
+  tkState().peConfirmado = true;
+  tkWizLog("✓ Pé-direito confirmado: " + h.toFixed(2).replace(".", ",") + " m", "#166534");
   tkUpdateReadout();
   tkSetMode('vao');
   const st = document.getElementById("tkStatus");
@@ -5845,6 +6106,8 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keyup",e=>{
   if(e.code==="Space"){ const t=tkState(); t._espaco=false; const cv=document.getElementById("tkCanvas"); if(cv) cv.style.cursor="crosshair"; }
 });
+// Ao abrir o app, oferece retomar um levantamento salvo (se houver).
+window.addEventListener("load", () => { setTimeout(() => { try{ ofereceRetomar(); }catch(e){} }, 400); });
 </script>
 </body>
 </html>
