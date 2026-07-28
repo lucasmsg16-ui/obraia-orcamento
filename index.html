@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.26</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.28</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2595,7 +2595,8 @@ function recalcularAlvenariaDeAmbientes() {
     const c = Number(a.comprimento_m) || 0, l = Number(a.largura_m) || 0;
     const pEst = (c > 0 && l > 0) ? 2 * (c + l) : 0;
     const pMed = Number(a.perimetro_medido_m) || 0;
-    const medido = !!a._medido && pMed > 0;
+    // medição de PISO/LINEAR não vale como perímetro de parede
+    const medido = !!a._medido && pMed > 0 && a._tipoMedicao !== "area" && a._tipoMedicao !== "linear";
     const p = medido ? pMed : pEst;          // perímetro real tem precedência
     somaPerim += p;
     if (medido) { perimMedidos += p; nMed++; }
@@ -5107,7 +5108,13 @@ function exportInsumos(){
   <div style="position:absolute;inset:2.5%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:10px 14px;background:#002B40;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <strong id="tkTitle" style="margin-right:6px">📐 Medir paredes na planta</strong>
+      <select id="tkFile" onchange="tkTrocarArquivo()" title="Projeto/arquivo a conferir" style="display:none;padding:5px 8px;border-radius:6px;border:none;max-width:190px"></select>
       <select id="tkPage" onchange="tkRenderPage()" style="padding:5px 8px;border-radius:6px;border:none;max-width:220px"></select>
+      <select id="tkTipoMed" onchange="tkSetTipo(this.value)" title="O que você está medindo" style="padding:5px 8px;border-radius:6px;border:none;max-width:190px;font-weight:700">
+        <option value="parede">🧱 Ambiente (paredes)</option>
+        <option value="area">▦ Área de piso / laje</option>
+        <option value="linear">📏 Comprimento (linear)</option>
+      </select>
       <button class="btn" id="tkBtnCalib" style="padding:6px 10px" onclick="tkSetMode('calibrar')">1) Definir escala</button>
       <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar perímetro</button>
       <button class="btn" id="tkBtnVao" style="padding:6px 10px" onclick="tkSetMode('vao')">3) Marcar vãos</button>
@@ -5124,14 +5131,15 @@ function exportInsumos(){
       </span>
       <span id="tkCoord" style="font-size:11px;color:#9fd0e8;min-width:120px"></span>
       <span id="tkStatus" style="font-size:12px;margin-left:auto;max-width:340px">Passo 1: clique em <b>Definir escala</b> e marque os 2 extremos de uma cota conhecida. <span style="opacity:.75">Roda do mouse = zoom · Shift+arrastar = mover</span></span>
+      <button class="btn btn-outline" id="tkBtnGuia" title="Abrir/fechar o guia passo a passo" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkWizToggleVisivel()">🧭 Guia</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClose()">✕ Fechar</button>
     </div>
     <!-- Painel-guia: mostra em que passo o usuário está e o que o robô está fazendo -->
-    <div id="tkWizard" style="position:absolute;top:70px;left:14px;z-index:60;width:270px;background:rgba(255,255,255,.97);border:2px solid #002B40;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.28);padding:12px 13px">
+    <div id="tkWizard" style="display:none;position:absolute;left:14px;bottom:14px;z-index:60;width:270px;background:rgba(255,255,255,.97);border:2px solid #002B40;border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.28);padding:12px 13px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px">
         <span style="font-size:15px">🧭</span>
         <span id="tkWizTitulo" style="font-weight:800;color:#002B40;font-size:13px">Como medir este ambiente</span>
-        <span onclick="tkWizToggle()" title="Recolher/expandir" style="margin-left:auto;cursor:pointer;color:#5a6b85;font-size:15px;line-height:1">−</span>
+        <span onclick="tkWizToggleVisivel()" title="Fechar o guia" style="margin-left:auto;cursor:pointer;color:#5a6b85;font-size:16px;line-height:1;font-weight:700">✕</span>
       </div>
       <div id="tkWizBody">
         <div id="tkWizPassos"></div>
@@ -5286,6 +5294,11 @@ function tkOpen(kind, id){
   document.getElementById("tkPeOsso").value=peOsso;
   document.getElementById("tkPeAcabado").value=peAcab;
   document.getElementById("takeoffModal").style.display="block";
+  // tipo de medição volta ao padrão a cada abertura (evita herdar 'área' sem querer)
+  const selT=document.getElementById("tkTipoMed"); if(selT) selT.value="parede";
+  tkSetTipo("parede");
+  tkMontarSeletorArquivo();
+  tkWizRestaurarPreferencia();
   tkRenderVaosList();
   tkRenderPage();
 }
@@ -5583,8 +5596,20 @@ function tkUpdateReadout(){
   const vTracadoIncl=(t.vaos||[]).filter(v=>v.incluido).reduce((s,v)=>s+v.area,0);
   const vManual=parseFloat(String(document.getElementById("tkVaos").value).replace(",","."))||0;
   const vTotal=vTracadoIncl+vManual;
-  const area=Math.max(0, L*peOsso - vTotal);
-  document.getElementById("tkArea").textContent=nf(area)+" m²";
+  const tipoM = tkTipoMed();
+  const area = (tipoM==="parede") ? Math.max(0, L*peOsso - vTotal) : 0;
+  const elArea=document.getElementById("tkArea");
+  const rotArea=elArea?elArea.previousElementSibling:null;
+  if(tipoM==="area"){
+    if(rotArea) rotArea.textContent="Área medida:";
+    if(elArea) elArea.textContent=nf(tkPolyAreaM2())+" m²";
+  } else if(tipoM==="linear"){
+    if(rotArea) rotArea.textContent="Comprimento:";
+    if(elArea) elArea.textContent=nf(L)+" m";
+  } else {
+    if(rotArea) rotArea.textContent="Área de parede:";
+    if(elArea) elArea.textContent=nf(area)+" m²";
+  }
   document.getElementById("tkVaosTotal").textContent=nf(vTotal)+" m²";
   APP.takeoff._area=Math.round(area*100)/100; APP.takeoff._L=Math.round(L*100)/100;
   APP.takeoff._peOsso=peOsso; APP.takeoff._peAcabado=peAcab;
@@ -5607,9 +5632,15 @@ function tkUpdateReadout(){
       if(a){
         const nome=a.nome||"este ambiente";
         const c=Number(a.comprimento_m)||0, lg=Number(a.largura_m)||0;
-        const areaIA=Number(a.area_m2)|| (c>0&&lg>0? c*lg : 0);
+        // "(2 unidades)" no nome: a IA soma as N peças, mas você mede UMA.
+        // Sem dividir, o desvio aparecia falsamente enorme (ex.: 22% numa medição correta).
+        const mUn=/\((\d+)\s*unidade/i.exec(nome);
+        const nUn=mUn?Math.max(1,parseInt(mUn[1],10)):1;
+        const areaIA=(Number(a.area_m2)|| (c>0&&lg>0? c*lg : 0)) / nUn;
         const dimTxt=(c>0&&lg>0)? `${nf(c)} × ${nf(lg)} m` : (areaIA>0? `área ${nf(areaIA)} m²` : "sem cotas lidas");
-        const alvo=`🎯 <b>Medindo: <span style="color:#002B40">${nome}</span></b> &nbsp;·&nbsp; a IA leu <b>${dimTxt}</b>`+(areaIA>0&&c>0&&lg>0? ` → área <b>${nf(areaIA)} m²</b>`:"");
+        const alvo=`🎯 <b>Medindo: <span style="color:#002B40">${nome}</span></b> &nbsp;·&nbsp; a IA leu <b>${dimTxt}</b>`
+          +(areaIA>0&&c>0&&lg>0? ` → área <b>${nf(areaIA)} m²</b>`:"")
+          +(nUn>1? ` <span style="color:#b45309">(comparando <b>1 de ${nUn}</b> unidades)</span>`:"");
         if(Aptraco>0 && areaIA>0){
           const d=Math.round(Math.abs(Aptraco-areaIA)/areaIA*1000)/10;
           const cor=d<=5?"#16a34a":d<=12?"#d97706":"#dc2626";
@@ -5798,9 +5829,68 @@ function tkAnimarTracado(pts, aoTerminar){
 // PAINEL-GUIA — mostra SEMPRE em que passo o usuário está, o que falta e o que
 // o robô está fazendo. Nasceu de um teste real: o robô media, mas não comunicava.
 // ═════════════════════════════════════════════════════════════════════════════
-function tkWizToggle(){
-  const b=document.getElementById("tkWizBody"); if(!b) return;
-  b.style.display = (b.style.display==="none") ? "" : "none";
+// O guia é ABERTO POR ESCOLHA (botão 🧭 Guia). Fica fechado por padrão para não
+// cobrir os botões da barra — e a preferência do usuário é lembrada.
+function tkWizToggleVisivel(force){
+  const w=document.getElementById("tkWizard"); if(!w) return;
+  const abrir = (force==null) ? (w.style.display==="none") : !!force;
+  w.style.display = abrir ? "block" : "none";
+  try{ localStorage.setItem("mar_guia_aberto", abrir?"1":"0"); }catch(e){}
+  const b=document.getElementById("tkBtnGuia");
+  if(b){ b.style.background = abrir?"#FFD700":""; b.style.color = abrir?"#002B40":"#fff"; b.style.borderColor = abrir?"#FFD700":"#fff"; }
+  if(abrir) tkWizRender();
+}
+function tkWizRestaurarPreferencia(){
+  let aberto=false;
+  try{ aberto = localStorage.getItem("mar_guia_aberto")==="1"; }catch(e){}
+  tkWizToggleVisivel(aberto);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TIPO DE MEDIÇÃO — nem tudo que se mede é um ambiente com paredes.
+// Uma passarela, um deck, uma laje ou um piso têm ÁREA, não têm pé-direito.
+// Pedir pé-direito nesses casos produzia "área de parede" sem sentido físico.
+//   parede → perímetro × pé-direito − vãos   (comportamento original, padrão)
+//   area   → apenas a área do contorno       (piso, laje, deck, passarela)
+//   linear → apenas o comprimento            (rodapé, meio-fio, calha)
+// ═════════════════════════════════════════════════════════════════════════════
+function tkTipoMed(){ const t=tkState(); return t.tipoMed || "parede"; }
+function tkSetTipo(v){
+  const t=tkState(); t.tipoMed = (v==="area"||v==="linear") ? v : "parede";
+  // campos de parede só fazem sentido no modo 'parede'
+  ["tkPeAcabado","tkPeOsso","tkVaoAltura","tkVaoThreshold","tkVaos"].forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    const lab=el.closest("label"); if(lab) lab.style.display = (t.tipoMed==="parede") ? "" : "none";
+  });
+  const wrapVaos=document.getElementById("tkVaosList");
+  if(wrapVaos && wrapVaos.parentElement) wrapVaos.parentElement.style.display = (t.tipoMed==="parede") ? "" : "none";
+  const bv=document.getElementById("tkBtnVao"); if(bv) bv.style.display = (t.tipoMed==="parede") ? "" : "none";
+  const pop=document.getElementById("tkPePop"); if(pop && t.tipoMed!=="parede") pop.style.display="none";
+  tkUpdateReadout();
+}
+// Seletor de ARQUIVO (projeto): filtra as folhas quando há vários PDFs enviados.
+function tkMontarSeletorArquivo(){
+  const selF=document.getElementById("tkFile"); if(!selF) return;
+  const arquivos=[...new Set((APP.pages||[]).map(p=>p.fileName||"Projeto"))];
+  if(arquivos.length<2){ selF.style.display="none"; return; }
+  selF.style.display="";
+  const atual=(APP.pages[(tkState().gid||1)-1]||{}).fileName || arquivos[0];
+  selF.innerHTML=arquivos.map(a=>`<option value="${a.replace(/"/g,'&quot;')}" ${a===atual?"selected":""}>📄 ${a.replace(/\.pdf$/i,"").slice(0,26)}</option>`).join("");
+  tkFiltrarFolhas(atual);
+}
+function tkFiltrarFolhas(arquivo){
+  const selP=document.getElementById("tkPage"); if(!selP) return;
+  const alvo=arquivo || (document.getElementById("tkFile")||{}).value;
+  const opts=(APP.pages||[]).map((p,i)=>({gid:i+1,p}))
+    .filter(x=>!alvo || (x.p.fileName||"Projeto")===alvo);
+  if(!opts.length) return;
+  const gidAtual=tkState().gid;
+  selP.innerHTML=opts.map(x=>`<option value="${x.gid}" ${x.gid===gidAtual?"selected":""}>Folha ${x.gid} · pág ${x.p.pageNum}</option>`).join("");
+  if(!opts.some(x=>x.gid===gidAtual)) selP.value=String(opts[0].gid);
+}
+function tkTrocarArquivo(){
+  tkFiltrarFolhas();
+  tkRenderPage();
 }
 function tkWizLog(msg, cor){
   const el=document.getElementById("tkWizLog"); if(!el) return;
@@ -5830,16 +5920,25 @@ function tkWizRender(){
     tit.textContent = nome ? ("Medindo: "+nome) : "Como medir este ambiente";
   }
 
+  const tipoM = tkTipoMed();
   const passos=[
     { n:1, nome:"Definir escala",   ok:!!t.scale,  ativo:t.mode==='calibrar',
       det: t.scale ? (nf(1/t.scale)+" px/m") : "clique em 2 pontas de uma cota" },
-    { n:2, nome:"Traçar contorno",  ok:L>0,        ativo:t.mode==='parede'||t.mode==='robot-seed',
-      det: L>0 ? (nf(L)+" m"+(A>0?" · "+nf(A)+" m²":"")) : "manual ou pelo robô" },
-    { n:3, nome:"Pé-direito",       ok:!!t.peConfirmado||peOsso>0, ativo:false,
-      det: peOsso>0 ? (nf(peOsso)+" m") : "não aparece na planta baixa" },
-    { n:4, nome:"Marcar vãos",      ok:nVaos>0,    ativo:t.mode==='vao',
-      det: nVaos>0 ? (nVaos+" vão(s)") : "portas e janelas (opcional)" }
+    { n:2, nome: tipoM==="linear" ? "Traçar o comprimento" : "Traçar contorno",
+      ok:L>0, ativo:t.mode==='parede'||t.mode==='robot-seed',
+      det: L>0 ? (nf(L)+" m"+(A>0&&tipoM!=="linear"?" · "+nf(A)+" m²":"")) : "manual ou pelo robô" }
   ];
+  // pé-direito e vãos só existem quando se mede PAREDE
+  if(tipoM==="parede"){
+    passos.push(
+      { n:3, nome:"Pé-direito", ok:!!t.peConfirmado||peOsso>0, ativo:false,
+        det: peOsso>0 ? (nf(peOsso)+" m") : "não aparece na planta baixa" },
+      { n:4, nome:"Marcar vãos", ok:nVaos>0, ativo:t.mode==='vao',
+        det: nVaos>0 ? (nVaos+" vão(s)") : "portas e janelas (opcional)" });
+  } else {
+    passos.push({ n:3, nome:"Aplicar", ok:false, ativo:L>0,
+      det: tipoM==="area" ? "medindo ÁREA — sem pé-direito" : "medindo COMPRIMENTO — sem pé-direito" });
+  }
   host.innerHTML = passos.map(p=>{
     const cor = p.ok ? "#16a34a" : p.ativo ? "#b45309" : "#94a3b8";
     const bg  = p.ativo ? "background:#fff7ed;border-color:#fcd34d;" : "";
@@ -5858,6 +5957,7 @@ function tkWizRender(){
     if(!t.scale)                       txt="👉 <b>Comece pelo Passo 1.</b> Clique em <b>1) Definir escala</b> e marque as 2 pontas de uma cota conhecida (ex.: 3,00 m). Isso ancora todas as medidas.";
     else if(t.mode==='robot-seed')     txt="🤖 <b>Clique dentro do ambiente</b> — num ponto do piso, longe de móveis e textos.";
     else if(!(L>0))                    txt="👉 Agora o contorno: clique em <b>🤖 Medir sozinho</b> para o robô traçar, ou marque os cantos manualmente.";
+    else if(tipoM!=="parede")          txt=`✅ ${tipoM==="area"?"Área":"Comprimento"} medido. Clique em <b>✓ Aplicar</b>. <span style="display:block;margin-top:3px;opacity:.85">Neste modo não há pé-direito nem vãos — é isso que você quer para piso, laje ou passarela.</span>`;
     else if(!(peOsso>0))               txt="👉 Confirme o <b>pé-direito</b> — ele só aparece no corte, não na planta baixa.";
     else if(t.mode==='vao'&&nVaos===0) txt="👉 Marque as <b>portas e janelas</b>: clique nas 2 pontas de cada vão e confirme a altura. Se não houver, pode aplicar direto.";
     else                               txt="✅ Tudo pronto. Clique em <b>✓ Aplicar</b> (embaixo à direita) para levar essa medição ao orçamento.";
@@ -5932,6 +6032,13 @@ function tkRobotConcluiu(res){
       const d=Math.round(Math.abs(A-areaIA)/areaIA*1000)/10;
       tkWizLog(`IA leu ${nf(areaIA)} m² → desvio ${nf(d)}%`, d<=5?"#166534":d<=12?"#b45309":"#b91c1c");
     }
+  }
+  if(tkTipoMed() !== "parede"){
+    // piso/laje/linear não têm pé-direito — encerra aqui, sem pedir o que não existe
+    tkWizLog("✓ Medição de " + (tkTipoMed()==="area" ? "ÁREA" : "COMPRIMENTO") + " concluída.", "#166534");
+    if(st) st.innerHTML = `<b>🤖 Pronto:</b> ${tkTipoMed()==="area" ? "área "+nf(A)+" m²" : "comprimento "+nf(L)+" m"}. Clique em <b>✓ Aplicar</b>.`;
+    tkUpdateReadout();
+    return;
   }
   tkWizLog("→ Falta confirmar o pé-direito.");
   tkShowPePop();
@@ -6042,6 +6149,29 @@ function tkApply(){
   if (t.kind === 'ambiente') {
     const a=(r.ambientes||[])[t.ambIdx];
     if(!a){ alert("Ambiente não encontrado."); return; }
+    // Medição de PISO/LAJE ou LINEAR: grava só o que foi medido e NÃO gera área de
+    // parede (uma passarela não tem pé-direito — antes o sistema inventava 49 m² de parede).
+    const tipo = tkTipoMed();
+    if (tipo !== "parede") {
+      a._tipoMedicao = tipo;
+      a._medido = true;
+      a.conferido_em = new Date().toISOString();
+      if (tipo === "area") {
+        const A = Math.round(tkPolyAreaM2()*100)/100;
+        if(!(A>0)){ alert("Trace o contorno fechado para medir a área."); return; }
+        a.area_medida_m2 = A;
+        const areaIA = Number(a.area_m2)||0;
+        a.desvio_pct = areaIA>0 ? Math.round(Math.abs(A-areaIA)/areaIA*1000)/10 : null;
+      } else {
+        a.comprimento_medido_m = Math.round(t._L*100)/100;
+      }
+      try{ tkZoomFit(); a.evidencia_img = tkSnapshot(1000); }catch(e){}
+      tkClose(); buildEAP(); recalcBudget();
+      setTimeout(()=>alert(tipo==="area"
+        ? `✓ Área medida: ${(a.area_medida_m2||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} m² — registrada em ${a.nome||"ambiente"} (sem cálculo de parede).`
+        : `✓ Comprimento medido: ${(a.comprimento_medido_m||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})} m — registrado em ${a.nome||"ambiente"}.`), 120);
+      return;
+    }
     a.perimetro_medido_m = t._L;
     a.pe_direito_no_osso_m = t._peOsso;
     a.pe_direito_acabado_m = t._peAcabado;
