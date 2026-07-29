@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.28</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.29c</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -509,6 +509,22 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
 <!-- ─── SCREEN 1: Upload ──────────────────────────────────── -->
 <div class="screen active" id="screen-1">
+  <!-- Porta de entrada: alinha a expectativa ANTES do primeiro upload -->
+  <div class="card" style="margin-bottom:16px;border:2px solid var(--green);background:linear-gradient(135deg,#f0fdf4,#ecfeff)">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <span style="font-size:30px">🚀</span>
+      <div style="flex:1;min-width:230px">
+        <div style="font-weight:800;font-size:16px;color:var(--navy)">Primeira vez aqui? Comece por aqui.</div>
+        <div class="muted" style="font-size:12.5px;margin-top:2px">
+          3 minutos de leitura que evitam o erro mais caro: <b>aceitar um preço sem conferir</b>.
+        </div>
+      </div>
+      <button class="btn btn-success" style="padding:11px 22px;font-size:14px;font-weight:700" onclick="abrirComecePorAqui()">
+        📖 Comece por aqui
+      </button>
+    </div>
+  </div>
+
   <!-- API Key banner -->
   <div id="apiKeyBanner" class="card" style="margin-bottom:16px; border-left:4px solid var(--amber);">
     <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de Acesso</div>
@@ -634,7 +650,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="pages-grid" id="pagesGrid"></div>
     <div style="margin-top:14px; font-size:12px; color:var(--muted);">
       <span id="selectedCount">0</span> página(s) selecionada(s)
-      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 24 páginas — processadas em lotes de 6. Selecione as plantas e folhas relevantes.</span>
+      <span id="pageWarning" style="display:none; color:#e67e22; margin-left:8px;">⚠️ Máx. 24 páginas. Quanto mais folhas, maior o custo e o tempo — selecione só as pranchas relevantes.</span>
     </div>
 
     <!-- Revisão de disciplina por folha (modo Detectar por folha) -->
@@ -1111,8 +1127,15 @@ function goTo(step) {
 function saveApiKey() {
   const key = document.getElementById("apiKeyInput").value.trim();
   if (!key) { alert("Digite a sua chave de acesso antes de salvar."); return; }
+  const anterior = (localStorage.getItem("mar_chave") || "").trim();
   localStorage.setItem("mar_chave", key);
   document.getElementById("apiKeyBanner").style.borderLeftColor = "var(--green)";
+  // Trocou de chave: a oferta de retomar tem de ser reavaliada no compartimento
+  // da chave NOVA — e a barra da chave anterior sai da tela imediatamente.
+  if (anterior !== key) {
+    const b = document.getElementById("barraRetomar"); if (b) b.remove();
+  }
+  try { if (typeof ofereceRetomar === "function") setTimeout(ofereceRetomar, 100); } catch (e) {}
   alert("✅ Chave de acesso salva neste navegador!");
 }
 
@@ -1154,7 +1177,11 @@ async function callAnthropic(payload, opts) {
     if (opts && opts.mode) base.mode = opts.mode;
     if (opts && typeof opts.hasAmp !== "undefined") base.hasAmp = opts.hasAmp;
     if (opts && typeof opts.hasText !== "undefined") base.hasText = opts.hasText;
-    if (semCredito && APP.refineToken) return { ...base, refine_token: APP.refineToken };
+    // CONTINUAÇÃO da mesma análise (2ª disciplina em diante): reaproveita o token
+    // emitido pelo servidor na 1ª chamada, para que o levantamento inteiro custe
+    // 1 CRÉDITO — independente de quantas disciplinas/PDFs o usuário enviou.
+    if ((semCredito || (opts && opts.continuacao)) && APP.refineToken)
+      return { ...base, refine_token: APP.refineToken };
     return base;
   }
 
@@ -1872,7 +1899,7 @@ function feedScan(texto, lbl) {
 // (≥600 chars, ≤5 folhas) — ou seja, na maioria dos projetos vetoriais a IA NUNCA VIA o desenho
 // e "estimava com bom senso" os quantitativos. Agora a análise é SEMPRE por imagem (a IA vê a
 // planta), com o texto extraído como fonte auxiliar exata (quadros/tabelas).
-async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
+async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
   let texto = "";
   for (const p of grpPages) {
     const ent = APP.pages[p - 1];
@@ -1918,7 +1945,7 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
 
   let res;
   try {
-    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk });
+    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk, continuacao });
   } catch (e) {
     // Payload rejeitado (400 do backend) OU conexão derrubada pelo limite do backend antigo
     // ("Failed to fetch"/"NetworkError"/"Load failed"): memoriza o modo legado e refaz compacto.
@@ -1934,7 +1961,7 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk) {
       if (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY) {
         for (const im of compact) im.data = await renderPageJpeg(im._gid, 1000, 0.42);
       }
-      res = await chamarIA(compact, apiKey, 1, 1, txt2, disc, { onChunk });
+      res = await chamarIA(compact, apiKey, 1, 1, txt2, disc, { onChunk, continuacao });
     } else throw e;
   }
   if (!res || !res.quantitativos) return null;
@@ -1985,6 +2012,9 @@ async function startAnalysis() {
 
     // ── Passo 2: uma passada de IA ISOLADA por disciplina (não confunde disciplinas) ──
     const parts = [];
+    // Token de continuação vale só DENTRO desta análise. Zerando aqui, a 1ª
+    // disciplina sempre debita 1 crédito e as seguintes não debitam nada.
+    APP.refineToken = null;
     for (let gi = 0; gi < grupos.length; gi++) {
       const g = grupos[gi];
       const lbl = (DISCIPLINAS[g.disc] || {}).label || g.disc;
@@ -1993,7 +2023,7 @@ async function startAnalysis() {
       feedResetGrupo();
       try { await scanInit(g.pages[0]); } catch (_) {}
       feedPush(`🔎 Lendo ${lbl}${g.pages.length > 1 ? ` (${g.pages.length} folhas)` : ""}…`);
-      const res = await analisarGrupo(g.pages, g.disc, apiKey, (texto) => feedScan(texto, lbl));
+      const res = await analisarGrupo(g.pages, g.disc, apiKey, (texto) => feedScan(texto, lbl), gi > 0);
       if (res && res.quantitativos && res.quantitativos.length) { res._grupoDisc = g.disc; parts.push(res); }
       else console.warn(`disciplina ${g.disc}: nenhum serviço identificado`);
     }
@@ -3487,12 +3517,36 @@ function renderConferencia() {
 // As evidências (prints em base64) NÃO são salvas: estourariam a cota do
 // navegador. O levantamento e as medições — que é o que custa tempo — são.
 // ═════════════════════════════════════════════════════════════════════════════
-const MAR_SESSAO_KEY = "mar_sessao_v1";
+// ─────────────────────────────────────────────────────────────────────────────
+// ISOLAMENTO POR CHAVE DE ACESSO (privacidade entre clientes).
+// A sessão salva fica em um "compartimento" próprio de cada chave. Num mesmo
+// computador (escritório com 2 engenheiros, ou uma demonstração na sua máquina),
+// o cliente B NUNCA vê — nem é informado da existência — do projeto do cliente A.
+// Sem chave preenchida, nada é salvo e nada é oferecido.
+// ─────────────────────────────────────────────────────────────────────────────
+const MAR_SESSAO_PREFIXO = "mar_sessao_v2_";
+function _chaveAtual(){ try{ return (localStorage.getItem("mar_chave") || "").trim(); }catch(e){ return ""; } }
+function _hashChave(k){
+  const s = String(k || "").trim(); if(!s) return "";
+  let h = 5381;
+  for(let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return ("00000000" + (h >>> 0).toString(16)).slice(-8);   // guarda o hash, nunca a chave
+}
+function _sessaoKey(){
+  const hp = _hashChave(_chaveAtual());
+  return hp ? (MAR_SESSAO_PREFIXO + hp) : "";
+}
+// Remove sessões do formato ANTIGO (global, sem vínculo com a chave). Elas foram
+// gravadas antes deste isolamento e poderiam ser vistas por outro cliente.
+function _limparSessaoLegado(){
+  try{ localStorage.removeItem("mar_sessao_v1"); }catch(e){}
+}
 function _dadosParaSalvar(){
   const r = APP.analysisResult; if(!r) return null;
   const clone = JSON.parse(JSON.stringify(r, (k, v) => (k === "evidencia_img" ? undefined : v)));
   return {
-    v: 1, quando: Date.now(),
+    v: 2, quando: Date.now(),
+    chaveHash: _hashChave(_chaveAtual()),   // confere na retomada (defesa em profundidade)
     projeto: APP.projectName || "",
     estado: APP.estado || "",
     desoneracao: !!APP.desoneracao,
@@ -3502,9 +3556,11 @@ function _dadosParaSalvar(){
 }
 function salvarSessao(silencioso){
   try{
+    const chaveStore = _sessaoKey();
+    if(!chaveStore) return false;                 // sem chave de acesso, não salva
     const d = _dadosParaSalvar(); if(!d) return false;
-    localStorage.setItem(MAR_SESSAO_KEY, JSON.stringify(d));
-    if(!silencioso) _toastSessao("💾 Levantamento salvo neste navegador.");
+    localStorage.setItem(chaveStore, JSON.stringify(d));
+    if(!silencioso) _toastSessao("💾 Levantamento salvo neste navegador (visível só para a sua chave).");
     return true;
   }catch(e){
     // cota estourada ou navegador em modo privado: avisa em vez de fingir que salvou
@@ -3513,7 +3569,16 @@ function salvarSessao(silencioso){
   }
 }
 function _sessaoGuardada(){
-  try{ const s = localStorage.getItem(MAR_SESSAO_KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+  try{
+    const chaveStore = _sessaoKey();
+    if(!chaveStore) return null;                                  // sem chave → nada a mostrar
+    const s = localStorage.getItem(chaveStore);
+    if(!s) return null;
+    const d = JSON.parse(s);
+    // dupla checagem: o registro tem de pertencer À CHAVE ATUAL
+    if(!d || d.chaveHash !== _hashChave(_chaveAtual())) return null;
+    return d;
+  }catch(e){ return null; }
 }
 function retomarSessao(){
   const d = _sessaoGuardada();
@@ -3529,7 +3594,7 @@ function retomarSessao(){
   }catch(e){ alert("Não consegui retomar o levantamento salvo: " + (e && e.message ? e.message : e)); }
 }
 function descartarSessao(){
-  try{ localStorage.removeItem(MAR_SESSAO_KEY); }catch(e){}
+  try{ const k = _sessaoKey(); if(k) localStorage.removeItem(k); }catch(e){}
   const b = document.getElementById("barraRetomar"); if(b) b.remove();
 }
 function _toastSessao(msg, alerta){
@@ -3547,6 +3612,8 @@ function _toastSessao(msg, alerta){
 }
 // Oferece retomar, se houver trabalho salvo de outra sessão.
 function ofereceRetomar(){
+  _limparSessaoLegado();                             // apaga registros antigos sem dono
+  if(!_chaveAtual()) return;                         // sem chave, não oferece nada
   const d = _sessaoGuardada(); if(!d || !d.resultado) return;
   if(APP.analysisResult) return;                     // já há levantamento em tela
   const host = document.querySelector(".container") || document.body;
@@ -5103,6 +5170,121 @@ function exportInsumos(){
 }
 -->
 
+<!-- ═══ COMECE POR AQUI — alinhamento de expectativa antes do 1º orçamento ═══ -->
+<div id="comeceModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.66);overflow:auto;padding:24px 12px">
+  <div style="max-width:760px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.4)">
+
+    <div style="background:var(--navy);color:#e6edf7;padding:22px 26px">
+      <div style="font-size:11px;letter-spacing:3px;color:#2dd4bf;font-weight:800;text-transform:uppercase">ObraIA · Método NAVE</div>
+      <div style="font-size:21px;font-weight:800;margin-top:6px">Comece por aqui</div>
+      <div style="font-size:13.5px;color:#b9c9de;margin-top:5px">
+        O ObraIA faz em minutos o que levava semanas. Mas ele <b style="color:#fff">levanta</b> — quem <b style="color:#fff">valida e assina</b> é você.
+      </div>
+    </div>
+
+    <div style="padding:22px 26px;font-size:14px;line-height:1.62;color:#26364f">
+
+      <div style="background:#f0f9ff;border-left:4px solid var(--blue);border-radius:8px;padding:13px 16px;margin-bottom:18px">
+        <b>Em uma frase:</b> a ferramenta lê o projeto, levanta os quantitativos e monta o orçamento.
+        Você confere as medidas, ajusta os preços ao seu mercado e assina. Sem essa segunda parte,
+        o número não vale.
+      </div>
+
+      <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-dk,#0e7490);margin:20px 0 10px">O caminho, em 4 passos</div>
+      <ol style="margin:0 0 6px 20px;padding:0">
+        <li style="margin-bottom:7px"><b>Envie o projeto</b> e marque só as pranchas que interessam. Menos folhas = leitura mais rápida, mais barata e mais precisa.</li>
+        <li style="margin-bottom:7px"><b>Confira o levantamento.</b> Meça alguns ambientes na planta (o robô ajuda) e compare com o que a IA leu. Os desvios aparecem na hora.</li>
+        <li style="margin-bottom:7px"><b>Audite os preços</b> — o passo que mais gente pula, e o mais caro. Explico abaixo.</li>
+        <li><b>Gere os documentos:</b> orçamento, Curva ABC, cronograma, histograma e lista de insumos.</li>
+      </ol>
+
+      <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:15px 17px;margin:22px 0">
+        <div style="font-weight:800;color:#b91c1c;font-size:15px;margin-bottom:7px">⚠️ O erro mais caro: aceitar o preço sem conferir</div>
+        <p style="margin:0 0 10px">
+          Os preços vêm da <b>tabela SINAPI do seu estado</b> ou de <b>composições próprias</b>. O sistema
+          escolhe o código pela descrição do serviço — e quando a descrição é genérica, ele pode acertar
+          o código e <b>errar o item</b>.
+        </p>
+        <p style="margin:0 0 10px">
+          Um exemplo real do tipo de coisa que acontece: um <i>revestimento cerâmico</i> pode vir com um
+          preço de <b>R$ 5.000,00/m²</b> — porque casou com uma composição de porcelanato técnico
+          importado, quando sua obra usa cerâmica popular. O número está "correto" na tabela e
+          <b>completamente errado</b> para a sua obra.
+        </p>
+        <p style="margin:0"><b>Como corrigir, item a item, na tela de Orçamento:</b></p>
+        <ul style="margin:6px 0 0 20px;padding:0">
+          <li><b>✎ Editar</b> — troque o código SINAPI ou a quantidade quando souber o item certo</li>
+          <li><b>➕ Inserir serviço</b> — acrescente o que faltou no levantamento</li>
+          <li><b>🗑 Excluir</b> — remova o que não existe na sua obra</li>
+          <li><b>🔍 Consultar SINAPI</b> — busque o código correto pela descrição antes de substituir</li>
+        </ul>
+        <p style="margin:10px 0 0;font-size:13px;color:#7f1d1d">
+          Fique atento à etiqueta de origem do preço: <b>SINAPI</b> (tabela oficial do seu estado),
+          <b>Próprio</b> (composição da casa) ou <b style="color:#b91c1c">IA</b> — esta última significa
+          <b>preço estimado, não oficial</b>, e sempre deve ser conferida.
+        </p>
+      </div>
+
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:15px 17px;margin-bottom:20px">
+        <div style="font-weight:800;color:#166534;font-size:15px;margin-bottom:7px">📊 Use a Curva ABC para não conferir tudo</div>
+        <p style="margin:0 0 9px">
+          Conferir item por item num orçamento de 120 linhas é inviável — e desnecessário. Numa obra,
+          cerca de <b>20% dos serviços concentram 80% do custo</b>.
+        </p>
+        <p style="margin:0 0 9px">
+          Abra <b>Curva ABC</b> no menu lateral. Os itens <b>classe A</b> são os que decidem o preço da
+          obra. Confira esses com rigor; os de classe C, por amostragem.
+        </p>
+        <p style="margin:0">
+          É também o melhor termômetro: se a alvenaria aparecer pesando 40% do orçamento,
+          <b>tem algo errado</b> — e a Curva ABC mostra isso em segundos, muito antes de você
+          entregar ao cliente.
+        </p>
+      </div>
+
+      <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-dk,#0e7490);margin:0 0 10px">O que o sistema faz por você — e o que não faz</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:18px">
+        <tr>
+          <td style="width:50%;vertical-align:top;padding:11px 13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px 0 0 8px">
+            <b style="color:#166534">✓ Ele faz</b>
+            <ul style="margin:6px 0 0 16px;padding:0">
+              <li>Lê as pranchas e levanta ambientes e quantitativos</li>
+              <li>Cruza com a SINAPI do seu estado</li>
+              <li>Aponta incoerências (área, perímetro, vãos, alvenaria)</li>
+              <li>Sinaliza o que foi estimado sem cota</li>
+              <li>Gera memória de cálculo rastreável</li>
+            </ul>
+          </td>
+          <td style="width:50%;vertical-align:top;padding:11px 13px;background:#fffbeb;border:1px solid #fde68a;border-left:none;border-radius:0 8px 8px 0">
+            <b style="color:#92400e">✕ Ele não faz</b>
+            <ul style="margin:6px 0 0 16px;padding:0">
+              <li><b>Não define acabamento sem memorial descritivo.</b> Com memorial, ele lê e aplica o que está especificado; sem memorial, não inventa material — quem decide o padrão é você</li>
+              <li>Não sabe o preço que <i>você</i> negocia</li>
+              <li>Não lê o que não está desenhado</li>
+              <li>Não assume responsabilidade técnica</li>
+              <li><b>Não assina ART — você assina</b></li>
+            </ul>
+          </td>
+        </tr>
+      </table>
+
+      <div style="background:var(--navy);color:#e6edf7;border-radius:10px;padding:15px 18px;font-size:14px;line-height:1.6">
+        <b style="color:#2dd4bf">A regra de ouro:</b> só entregue um orçamento que você
+        conseguiria <b>defender item a item</b> diante do cliente ou da fiscalização.
+        O ObraIA existe para te dar tempo de fazer essa defesa — não para substituí-la.
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;align-items:center">
+        <button class="btn btn-success" style="padding:11px 24px;font-size:14px;font-weight:700" onclick="fecharComecePorAqui()">Entendi, vamos começar →</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer">
+          <input type="checkbox" id="comeceNaoMostrar"> não mostrar automaticamente de novo
+        </label>
+        <span class="muted" style="font-size:12px;margin-left:auto">Pode reabrir a qualquer momento no botão <b>Comece por aqui</b>.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FERRAMENTA: MEDIR AMBIENTE NA PLANTA (takeoff com escala calibrada) ═══ -->
 <div id="takeoffModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65)">
   <div style="position:absolute;inset:2.5%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
@@ -6236,8 +6418,40 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keyup",e=>{
   if(e.code==="Space"){ const t=tkState(); t._espaco=false; const cv=document.getElementById("tkCanvas"); if(cv) cv.style.cursor="crosshair"; }
 });
+// ── "Comece por aqui": abre sozinho na 1ª visita, depois só a pedido ──
+function abrirComecePorAqui(){
+  const m = document.getElementById("comeceModal"); if(!m) return;
+  m.style.display = "block";
+  document.body.style.overflow = "hidden";
+}
+function fecharComecePorAqui(){
+  const m = document.getElementById("comeceModal"); if(!m) return;
+  const nao = document.getElementById("comeceNaoMostrar");
+  if(nao && nao.checked){ try{ localStorage.setItem("mar_guia_inicial_visto","1"); }catch(e){} }
+  m.style.display = "none";
+  document.body.style.overflow = "";
+}
+function _talvezAbrirGuiaInicial(){
+  let visto = false;
+  try{ visto = localStorage.getItem("mar_guia_inicial_visto") === "1"; }catch(e){}
+  if(visto) return;
+  // não atropela a barra de retomar levantamento
+  if(document.getElementById("barraRetomar")) return;
+  abrirComecePorAqui();
+}
+// fecha com Esc
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){
+    const m = document.getElementById("comeceModal");
+    if(m && m.style.display === "block") fecharComecePorAqui();
+  }
+});
+
 // Ao abrir o app, oferece retomar um levantamento salvo (se houver).
-window.addEventListener("load", () => { setTimeout(() => { try{ ofereceRetomar(); }catch(e){} }, 400); });
+window.addEventListener("load", () => {
+  setTimeout(() => { try{ ofereceRetomar(); }catch(e){} }, 400);
+  setTimeout(() => { try{ _talvezAbrirGuiaInicial(); }catch(e){} }, 900);
+});
 </script>
 </body>
 </html>
