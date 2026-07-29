@@ -493,7 +493,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.29c</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.29d</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -5185,14 +5185,16 @@ function exportInsumos(){
     <div style="padding:22px 26px;font-size:14px;line-height:1.62;color:#26364f">
 
       <div style="background:#f0f9ff;border-left:4px solid var(--blue);border-radius:8px;padding:13px 16px;margin-bottom:18px">
-        <b>Em uma frase:</b> a ferramenta lê o projeto, levanta os quantitativos e monta o orçamento.
-        Você confere as medidas, ajusta os preços ao seu mercado e assina. Sem essa segunda parte,
-        o número não vale.
+        <b>Em uma frase:</b> a ferramenta lê o projeto, levanta os quantitativos e monta o
+        <b>orçamento completo</b> — e a partir dele gera o <b>cronograma físico-financeiro</b>
+        (gráfico de Gantt, curva S e caminho crítico), a <b>Curva ABC</b>, o <b>histograma de
+        mão de obra</b> e a <b>lista de insumos</b>. Você confere as medidas, ajusta os preços ao
+        seu mercado e assina. <b>Sem essa segunda parte, o número não vale.</b>
       </div>
 
       <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--teal-dk,#0e7490);margin:20px 0 10px">O caminho, em 4 passos</div>
       <ol style="margin:0 0 6px 20px;padding:0">
-        <li style="margin-bottom:7px"><b>Envie o projeto</b> e marque só as pranchas que interessam. Menos folhas = leitura mais rápida, mais barata e mais precisa.</li>
+        <li style="margin-bottom:7px"><b>Envie o projeto</b> e marque as pranchas que interessam — plantas baixas, cortes e quadros. Selecionar só o que importa deixa a leitura mais rápida e mais precisa.</li>
         <li style="margin-bottom:7px"><b>Confira o levantamento.</b> Meça alguns ambientes na planta (o robô ajuda) e compare com o que a IA leu. Os desvios aparecem na hora.</li>
         <li style="margin-bottom:7px"><b>Audite os preços</b> — o passo que mais gente pula, e o mais caro. Explico abaixo.</li>
         <li><b>Gere os documentos:</b> orçamento, Curva ABC, cronograma, histograma e lista de insumos.</li>
@@ -5272,6 +5274,21 @@ function exportInsumos(){
         <b style="color:#2dd4bf">A regra de ouro:</b> só entregue um orçamento que você
         conseguiria <b>defender item a item</b> diante do cliente ou da fiscalização.
         O ObraIA existe para te dar tempo de fazer essa defesa — não para substituí-la.
+      </div>
+
+      <div style="border:1.5px solid #25D366;background:#f0fdf4;border-radius:10px;padding:15px 18px;margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:800;color:#166534;font-size:15px">Ficou com dúvida? Me chama.</div>
+          <div style="font-size:13.5px;color:#26364f;margin-top:3px">
+            Travou em algum passo, achou um número estranho ou quer opinião sobre um levantamento?
+            Fala comigo direto no WhatsApp — eu respondo pessoalmente.
+          </div>
+        </div>
+        <a href="https://wa.me/5581997977068?text=Ol%C3%A1%20Lucas!%20Estou%20usando%20o%20ObraIA%20e%20tenho%20uma%20d%C3%BAvida%3A"
+           target="_blank" rel="noopener noreferrer"
+           style="display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;font-weight:700;font-size:14px;padding:12px 20px;border-radius:8px;text-decoration:none;white-space:nowrap;box-shadow:0 4px 12px rgba(37,211,102,.35)">
+          <span style="font-size:17px">💬</span> Falar no WhatsApp
+        </a>
       </div>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;align-items:center">
