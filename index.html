@@ -15,7 +15,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ObraIA | Mar Aberto Engenharia — Orçamento de Obras com IA | SINAPI 27 Estados</title>
+<title>ObraIA — Orçamento de Obras com Inteligência Artificial | SINAPI 27 Estados</title>
 <meta name="author" content="Mar Aberto Engenharia — Lucas Sousa">
 <meta name="copyright" content="© 2026 Mar Aberto Engenharia. Software proprietário — todos os direitos reservados.">
 <meta name="rights" content="Proprietary. Uso proibido sem autorização — Lei 9.610/98 e Lei 9.279/96.">
@@ -28,15 +28,15 @@
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://marabertoeng.com.br/">
-<meta property="og:title" content="ObraIA | Mar Aberto Engenharia — Orçamento de Obras com IA">
+<meta property="og:title" content="ObraIA — Orçamento de Obras com Inteligência Artificial">
 <meta property="og:description" content="ObraIA: transforme plantas em PDF em orçamento SINAPI em minutos. Multi-disciplina, 27 estados, Curva ABC, Cronograma Físico-Financeiro e EAP. Desenvolvido pela Mar Aberto Engenharia.">
 <meta property="og:image" content="https://marabertoeng.com.br/logo-azul.png">
 <meta property="og:locale" content="pt_BR">
-<meta property="og:site_name" content="Mar Aberto Engenharia">
+<meta property="og:site_name" content="ObraIA">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ObraIA | Mar Aberto Engenharia — Orçamento de Obras com IA">
+<meta name="twitter:title" content="ObraIA — Orçamento de Obras com Inteligência Artificial">
 <meta name="twitter:description" content="Transforme plantas em PDF em orçamento SINAPI em minutos. 27 estados, multi-disciplina.">
 <meta name="twitter:image" content="https://marabertoeng.com.br/logo-azul.png">
 
@@ -438,6 +438,15 @@ body.nav-collapsed{ padding-left:var(--sidew-col); }
 #stepsBar{ display:none !important; }
 .sn-brand{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.10); min-height:60px; }
 .sn-brand img{ height:30px; width:auto; }
+/* Marca: ObraIA é o PRODUTO (protagonista); Mar Aberto assina discreto embaixo */
+.sn-marca{ display:flex; flex-direction:column; gap:3px; min-width:0 }
+.sn-obraia{ font-size:23px; font-weight:800; letter-spacing:-.6px; color:#fff; line-height:1 }
+.sn-obraia span{ color:#4db8e8 }
+.sn-porquem{ display:flex; align-items:center; gap:6px; opacity:.62 }
+.sn-porquem img{ height:13px; width:auto }
+.sn-porquem span{ font-size:9.5px; letter-spacing:.4px; text-transform:uppercase; color:#cfe3ef; white-space:nowrap }
+body.nav-collapsed .sn-porquem{ display:none }
+body.nav-collapsed .sn-obraia{ font-size:15px; letter-spacing:-.3px }
 body.nav-collapsed .sn-brand img{ display:none; }
 body.nav-collapsed .sn-brand{ justify-content:center; padding:14px 8px; }
 .sn-toggle{ margin-left:auto; background:rgba(255,255,255,.10); border:0; color:#cfe3ef; width:30px; height:30px; border-radius:7px; cursor:pointer; font-size:15px; flex:none; }
@@ -473,7 +482,13 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <!-- ═══════════════════════════════════════════════════════ HEADER -->
 <aside id="sidenav">
   <div class="sn-brand">
-    <img src="logo-branco.png?v=2" alt="Mar Aberto Engenharia">
+    <div class="sn-marca">
+      <div class="sn-obraia">Obra<span>IA</span></div>
+      <div class="sn-porquem">
+        <img src="logo-branco.png?v=2" alt="Mar Aberto Engenharia">
+        <span>um produto Mar Aberto</span>
+      </div>
+    </div>
     <button class="sn-toggle" onclick="toggleNav()" title="Recolher / expandir menu" aria-label="Recolher ou expandir menu lateral">☰</button>
   </div>
   <nav class="sn-scroll">
@@ -491,9 +506,9 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 </aside>
 <header>
   <div style="display:flex;align-items:center;gap:14px">
-    <div class="subtitle"><strong>ObraIA</strong> — Sistema de Orçamento de Obras com Inteligência Artificial · <span style="opacity:.7">Mar Aberto Engenharia</span></div>
+    <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · © Mar Aberto · <span title="versão da aplicação">v2026.07.29d</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span style="opacity:.6">ObraIA é um sistema Mar Aberto</span> · <span title="versão da aplicação">v2026.07.30</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2080,6 +2095,8 @@ async function startAnalysis() {
     const raw = String(e && e.message || e);
     const offline  = /failed to fetch|networkerror|load failed|fetch failed/i.test(raw);
     const semSaldo = /credit balance|too low|insufficient|billing/i.test(raw);
+    // ── Créditos do CLIENTE acabaram: não é erro, é a hora da oferta ──
+    if (/creditos acabaram|créditos acabaram|sem_creditos/i.test(raw)) { telaCreditosEsgotados(); return; }
     const titulo = semSaldo ? "Serviço de análise em manutenção"
                  : offline  ? "Servidor de análise indisponível"
                  : "Erro na Análise";
@@ -2877,7 +2894,7 @@ tr.cr{background:#fef2f2}
 </style></head><body>
 <div class="hd">
   <svg width="44" height="40" viewBox="0 0 130 118" fill="none"><g stroke="#ffffff" stroke-width="16" stroke-linecap="round"><path d="M8 24 C34 6 52 6 66 22 S104 40 122 22"/><path d="M8 59 C34 41 52 41 66 57 S104 75 122 57"/><path d="M8 94 C34 76 52 76 66 92 S104 110 122 92"/></g></svg>
-  <div><div class="nm">OBRA<span>IA</span></div><div class="sub">Mar Aberto Engenharia · Cronograma Físico-Financeiro & Caminho Crítico</div></div>
+  <div><div class="nm">OBRA<span>IA</span></div><div class="sub">Cronograma Físico-Financeiro &amp; Caminho Crítico</div></div>
   <div class="ttl">CRONOGRAMA<br>DA OBRA</div>
 </div>
 <div class="info">
@@ -2897,7 +2914,7 @@ tr.cr{background:#fef2f2}
 ${curva}
 <h2>Rede CPM — Atividades</h2>
 <table><thead><tr><th>#</th><th>Fase</th><th>Peso</th><th>Início</th><th>Duração</th><th>Conclusão</th><th>Folga</th><th>Crítico</th></tr></thead><tbody>${tableRows}</tbody></table>
-<div class="ft">Emitido em ${fmtData(new Date())} · ObraIA — Mar Aberto Engenharia · Referência SINAPI 05/2026</div>
+<div class="ft">Emitido em ${fmtData(new Date())} · Gerado com ObraIA · Referência SINAPI 05/2026</div>
 </body></html>`;
 
   const win = window.open("", "_blank");
@@ -4096,6 +4113,7 @@ async function loadDescricoes() {
   try {
     const r = await fetch("data/descricoes.json");
     APP.descricoesDB = r.ok ? await r.json() : null;
+    _limparCachePreco();   // o catálogo mudou: recalcula os preços
     if (!r.ok) console.warn("descricoes.json indisponível (HTTP " + r.status + ") — busca textual limitada ao catálogo interno.");
   } catch(e) {
     console.warn("descricoes.json não encontrado — busca textual limitada ao catálogo interno.", e.message);
@@ -4125,6 +4143,7 @@ async function loadSinapiDB(estado) {
     const r = await fetch(`data/sinapi_${estado}.json`);
     if (!r.ok) throw new Error("HTTP " + r.status);
     APP.sinapiDB = await r.json();
+    _limparCachePreco();
     APP.sinapiDBState = estado;
     return true;
   } catch(e) {
@@ -4138,7 +4157,27 @@ async function loadSinapiDB(estado) {
 // Resolve preço + código final + procedência para um serviço.
 // Retorna { preco, codigoFinal, fonte, sugerido }
 //   fonte: "estado" | "estado-desc" | "interno-desc" | "interno" | "ia" | "none"
+// ═════════════════════════════════════════════════════════════════════════════
+// CACHE DE RESOLUÇÃO DE PREÇO — corrige a lentidão ao navegar entre as telas.
+// resolveSinapi faz busca textual varrendo ~10.000 composições SINAPI. Isso rodava
+// para CADA item, a CADA render (Orçamento, Curva ABC, Histograma, Insumos…).
+// Num orçamento de 100 itens, ~1 MILHÃO de comparações por clique de menu.
+// A resposta só muda se mudar: código, descrição, categoria, preço, estado ou
+// desoneração — tudo isso entra na chave. Mesmo resultado, calculado uma vez.
+// ═════════════════════════════════════════════════════════════════════════════
+const _precoCache = new Map();
+function _limparCachePreco(){ _precoCache.clear(); }
 function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) {
+  const chave = (APP.estado||"") + "|" + (APP.desoneracao?1:0) + "|" + (codigo||"") + "|" +
+                (descricao||"") + "|" + (categoria||"") + "|" + (preco_unitario_ia||0) + "|" + (manual?1:0);
+  const hit = _precoCache.get(chave);
+  if (hit) return hit;
+  const res = _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual);
+  if (_precoCache.size > 4000) _precoCache.clear();   // trava de memória
+  _precoCache.set(chave, res);
+  return res;
+}
+function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
   const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false, alerta: false, descricaoOficial: "",
                 aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
@@ -4576,7 +4615,7 @@ async function exportExcel() {
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
   const eapRows = [
-    [`MAR ABERTO ENGENHARIA — EAP (Estrutura Analítica) — ${APP.projectName}`],
+    [`EAP — ESTRUTURA ANALÍTICA DO PROJETO — ${APP.projectName || ""}`],
     [],
     ["ID WBS","DESCRIÇÃO","NÍVEL","UN","QUANTIDADE","CÓDIGO SINAPI","MEMÓRIA DE CÁLCULO"],
   ];
@@ -4603,7 +4642,7 @@ async function exportExcel() {
   {
     const n2 = v => (v == null || v === "") ? "" : Math.round(Number(v) * 1000) / 1000;
     const memRows = [
-      [`MAR ABERTO ENGENHARIA — MEMÓRIA DE CÁLCULO — ${APP.projectName || ""}`],
+      [`MEMÓRIA DE CÁLCULO — ${APP.projectName || ""}`],
       [`Gerada em ${new Date().toLocaleString("pt-BR")} · a = comprimento/perímetro · b = largura · c = altura · n = repetições`],
       [],
       ["ITEM","SERVIÇO / PARCELA","UN","COMPR. (a)","LARG. (b)","ALT. (c)","QTD (n)","FÓRMULA","RESULTADO"]
@@ -4676,7 +4715,7 @@ async function exportExcel() {
   try {
     const aud = auditarCoerencia(r);
     if (aud.length) {
-      const audRows = [[`MAR ABERTO ENGENHARIA — AUDITORIA DE COERÊNCIA — ${APP.projectName}`], [`Gerada em ${new Date().toLocaleString("pt-BR")}`], [], ["NÍVEL","VERIFICAÇÃO","OBSERVAÇÕES"]];
+      const audRows = [[`AUDITORIA DE COERÊNCIA — ${APP.projectName || ""}`], [`Gerada em ${new Date().toLocaleString("pt-BR")}`], [], ["NÍVEL","VERIFICAÇÃO","OBSERVAÇÕES"]];
       const N = { erro: "CRÍTICO", aviso: "ATENÇÃO", ok: "OK" };
       aud.forEach(x => audRows.push([N[x.nivel] || x.nivel, x.msg, (x.detalhe || []).join(" | ")]));
 
@@ -5002,7 +5041,7 @@ function exportInsumos(){
   if(!itens || !itens.length){ alert("Abra a aba Insumos e gere a lista primeiro."); return; }
   const total = itens.reduce((s,x)=>s+(Number(x.val)||0),0);
   const aoa = [
-    ["MAR ABERTO ENGENHARIA"],
+    ["LISTA DE INSUMOS"],
     ["Lista de Insumos — " + (APP.projectName || "") + " | " + new Date().toLocaleDateString("pt-BR")],
     [],
     ["ITEM","DESCRIÇÃO","CATEGORIA","CÓD. SINAPI","QUANTIDADE","UN","PREÇO UNIT. (R$)","TOTAL (R$)"]
@@ -5044,7 +5083,7 @@ async function _execSinapiConsulta(){
   if(!APP.sinapiDB || APP.sinapiDBState !== estado){
     try{
       const r = await fetch(`data/sinapi_${estado}.json`);
-      if(r.ok){ APP.sinapiDB = await r.json(); APP.sinapiDBState = estado; }
+      if(r.ok){ APP.sinapiDB = await r.json(); APP.sinapiDBState = estado; _limparCachePreco(); }
     } catch(e){}
   }
   const isNumeric = /^\d+$/.test(q);
@@ -5304,7 +5343,7 @@ function exportInsumos(){
 
 <!-- ═══ FERRAMENTA: MEDIR AMBIENTE NA PLANTA (takeoff com escala calibrada) ═══ -->
 <div id="takeoffModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.65)">
-  <div style="position:absolute;inset:2.5%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
+  <div style="position:absolute;inset:1.2%;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:10px 14px;background:#002B40;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <strong id="tkTitle" style="margin-right:6px">📐 Medir paredes na planta</strong>
       <select id="tkFile" onchange="tkTrocarArquivo()" title="Projeto/arquivo a conferir" style="display:none;padding:5px 8px;border-radius:6px;border:none;max-width:190px"></select>
@@ -5350,11 +5389,20 @@ function exportInsumos(){
       <canvas id="tkCanvas" style="display:block;cursor:crosshair;max-width:100%;height:auto"></canvas>
     </div>
     <div id="tkCompareBar" style="padding:6px 14px;background:#eef6ff;border-top:1px solid var(--border);font-size:12.5px;display:none"></div>
-    <div style="padding:8px 14px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;border-top:1px solid var(--border);background:#f8fafc">
+    <div id="tkVaosBar" style="padding:6px 14px 0;display:flex;flex-wrap:wrap;gap:4px;align-items:center;border-top:1px solid var(--border);background:#f8fafc">
       <span style="font-size:12px;font-weight:700;margin-right:4px">Vãos marcados:</span>
       <div id="tkVaosList" style="display:flex;flex-wrap:wrap"></div>
     </div>
-    <div style="padding:10px 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
+    <!-- Barra COMPACTA sempre visível: o essencial em uma linha só -->
+    <div id="tkResumo" style="padding:8px 14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--border);background:#0a1120;color:#e6edf7;font-size:13px">
+      <span><b style="color:#2dd4bf">Escala:</b> <span id="tkResEscala">—</span></span>
+      <span><b style="color:#2dd4bf">Perímetro:</b> <span id="tkResPerim">—</span></span>
+      <span><b style="color:#2dd4bf">Resultado:</b> <span id="tkResFinal" style="font-weight:800;font-size:15px">—</span></span>
+      <button class="btn btn-outline" id="tkBtnDetalhes" style="padding:4px 12px;font-size:12px;color:#fff;border-color:rgba(255,255,255,.45);margin-left:auto"
+              onclick="tkToggleDetalhes()">⚙ Ajustes</button>
+      <button class="btn btn-success" style="padding:8px 20px;font-size:14px;font-weight:700" onclick="tkApply()">✓ Aplicar</button>
+    </div>
+    <div id="tkDetalhes" style="display:none;padding:10px 14px;gap:16px;flex-wrap:wrap;align-items:flex-end;border-top:1px solid var(--border);background:#f8fafc">
       <div style="font-size:13px"><b>Escala:</b> <span id="tkScale">não definida</span></div>
       <div style="font-size:13px"><b>Perímetro:</b> <span id="tkLen" style="font-weight:700">0,00 m</span></div>
       <div style="font-size:13px" id="tkAreaPisoWrap"><b>Área do contorno:</b> <span id="tkAreaPiso" style="font-weight:700;color:#002B40">—</span></div>
@@ -5365,7 +5413,6 @@ function exportInsumos(){
       <label style="font-size:12px">Vãos adicionais (m²)<br><input id="tkVaos" type="number" step="any" value="0" oninput="tkUpdateReadout()" style="padding:6px;border:1.5px solid var(--border);border-radius:6px;width:90px"></label>
       <div style="font-size:13px"><b>Total de vãos descontado:</b> <span id="tkVaosTotal">0,00 m²</span></div>
       <div style="font-size:13px"><b>Área de parede:</b> <span id="tkArea" style="color:var(--green);font-weight:700;font-size:16px">0,00 m²</span></div>
-      <button class="btn btn-success" style="margin-left:auto" onclick="tkApply()">✓ Aplicar</button>
     </div>
     <!-- Cotas de ALTURA: pé-direito (não é legível em planta baixa) -->
     <div id="tkPePop" style="display:none;position:fixed;z-index:10001;background:#fff;border:2px solid #FFD700;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px 14px;min-width:250px">
@@ -5858,6 +5905,36 @@ function tkUpdateReadout(){
   }
   tkUpdateSteps();
   try{ tkWizRender(); }catch(e){}
+  try{ tkAtualizarResumo(); }catch(e){}
+}
+// Barra compacta: o essencial numa linha só, para a PLANTA ocupar a maior área
+// possível. Os campos de ajuste ficam num painel que só abre quando preciso.
+function tkAtualizarResumo(){
+  const t=tkState();
+  const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  set("tkResEscala", t.scale ? (nf(1/t.scale)+" px/m") : "definir");
+  const L=tkLengthM();
+  set("tkResPerim", L>0 ? nf(L)+" m" : "—");
+  const tipo=tkTipoMed();
+  const elArea=document.getElementById("tkArea");
+  set("tkResFinal", elArea ? elArea.textContent : "—");
+  // rótulo do resultado muda conforme o que está sendo medido
+  const lbl=document.querySelector("#tkResumo b:nth-of-type(3)");
+  const spanFinal=document.getElementById("tkResFinal");
+  if(spanFinal && spanFinal.previousElementSibling)
+    spanFinal.previousElementSibling.textContent =
+      tipo==="area" ? "Área medida:" : tipo==="linear" ? "Comprimento:" : "Área de parede:";
+  // vãos só interessam no modo parede
+  const bar=document.getElementById("tkVaosBar");
+  if(bar) bar.style.display = (tipo==="parede") ? "" : "none";
+}
+function tkToggleDetalhes(){
+  const d=document.getElementById("tkDetalhes"); if(!d) return;
+  const abrir = (d.style.display==="none" || !d.style.display);
+  d.style.display = abrir ? "flex" : "none";
+  const b=document.getElementById("tkBtnDetalhes");
+  if(b) b.textContent = abrir ? "⚙ Ocultar ajustes" : "⚙ Ajustes";
 }
 // ═════════════════════════════════════════════════════════════════════════════
 // ROBÔ DE MEDIÇÃO — detecta o contorno do ambiente e traça sozinho.
@@ -6328,7 +6405,7 @@ function exportarLaudoConferencia(){
    .sign{margin-top:30px;display:flex;justify-content:space-between;gap:40px}
    .sign>div{flex:1;border-top:1px solid #1a2743;padding-top:4px;font-size:11px;text-align:center}
   </style></head><body>
-   <div class="top"><div class="b">Mar Aberto Engenharia · ObraIA</div>
+   <div class="top"><div class="b">Laudo Técnico · Gerado com ObraIA</div>
      <h1>Laudo de Conferência de Medições</h1>
      <div class="meta">Projeto: <b>${esc(proj)}</b>${estado?` · ${esc(estado)}`:""} · Emitido em ${dataStr}</div></div>
    <div class="resumo"><b>Conferência por amostragem:</b> ${conf.length} ambiente(s) medido(s) na planta pelo responsável técnico${dm!=null?` · desvio médio de <b>${nf(dm)}%</b> entre a leitura da IA e a medição`:""}. Cada evidência abaixo mostra o contorno efetivamente traçado sobre a planta pelo engenheiro.</div>
@@ -6435,6 +6512,95 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keyup",e=>{
   if(e.code==="Space"){ const t=tkState(); t._espaco=false; const cv=document.getElementById("tkCanvas"); if(cv) cv.style.cursor="crosshair"; }
 });
+// ═════════════════════════════════════════════════════════════════════════════
+// CRÉDITOS ESGOTADOS — o momento de maior intenção de compra do funil.
+// Quem chega aqui já usou a ferramenta e já viu o resultado. Não é hora de
+// mensagem de erro: é hora de mostrar o que ele acabou de comprovar sozinho.
+// ═════════════════════════════════════════════════════════════════════════════
+function telaCreditosEsgotados(){
+  const WA = "https://wa.me/5581997977068?text=" + encodeURIComponent(
+    "Olá Lucas! Usei meus créditos de teste do ObraIA e quero contratar. Pode me ajudar?");
+  const LP = "https://marabertoeng.com.br/vendas.html?utm_source=app&utm_medium=creditos_esgotados&utm_campaign=upsell";
+  const el = document.getElementById("screen-2");
+  if(!el) return;
+  el.innerHTML = `
+  <div class="card" style="border:2px solid var(--green);background:linear-gradient(135deg,#f0fdf4,#ecfeff);padding:0;overflow:hidden">
+
+    <div style="background:var(--navy);color:#e6edf7;padding:26px 28px">
+      <div style="font-size:11px;letter-spacing:3px;color:#2dd4bf;font-weight:800;text-transform:uppercase">Seus créditos de teste acabaram</div>
+      <div style="font-size:23px;font-weight:800;margin-top:8px;line-height:1.25">
+        Você acabou de provar, com o seu próprio projeto,<br>que dá para orçar em minutos.
+      </div>
+      <div style="font-size:14px;color:#b9c9de;margin-top:8px">
+        Não foi promessa de vendedor. Foi você, com a sua planta, vendo o número sair.
+      </div>
+    </div>
+
+    <div style="padding:24px 28px">
+      <p style="font-size:15px;line-height:1.65;color:#26364f;margin-bottom:16px">
+        Agora responde uma pergunta, com sinceridade: <b>quantas horas você gastou no último
+        orçamento que fez na mão?</b> Medindo ambiente por ambiente, caçando código na SINAPI,
+        montando planilha, conferindo, refazendo quando o cliente mudou uma parede.
+      </p>
+      <p style="font-size:15px;line-height:1.65;color:#26364f;margin-bottom:18px">
+        Se foram dois dias, você já sabe quanto valeu esse teste. E sabe que
+        <b>não é sobre o preço do sistema</b> — é sobre o preço da sua hora técnica
+        fazendo trabalho que não precisa ser seu.
+      </p>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px">
+        <div style="font-weight:800;color:var(--navy);font-size:14px;margin-bottom:9px">Continuando, você tem:</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:13.5px;color:#26364f">
+          <div>✓ <b>20 levantamentos por mês</b></div>
+          <div>✓ Orçamento SINAPI dos 27 estados</div>
+          <div>✓ Cronograma, Gantt e curva S</div>
+          <div>✓ Curva ABC e caminho crítico</div>
+          <div>✓ Histograma e lista de insumos</div>
+          <div>✓ Suporte direto comigo no WhatsApp</div>
+        </div>
+        <div style="margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:14px;color:var(--navy)">
+          A partir de <b style="font-size:19px;color:var(--green)">R$ 35,00/mês</b>
+          <span class="muted" style="font-size:12.5px">· no plano anual, 12x sem juros</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <a href="${LP}" target="_blank" rel="noopener" onclick="_evtUpsell('planos')"
+           class="btn btn-success" style="padding:14px 26px;font-size:15px;font-weight:700;flex:1;min-width:230px;justify-content:center">
+          Ver os planos e continuar usando →
+        </a>
+        <a href="${WA}" target="_blank" rel="noopener" onclick="_evtUpsell('whatsapp')"
+           class="btn btn-outline" style="padding:14px 22px;font-size:15px;font-weight:700;border-color:#25D366;color:#0d6e42;min-width:210px;justify-content:center">
+          💬 Tirar dúvida no WhatsApp
+        </a>
+      </div>
+
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 15px;font-size:13px;color:#26364f;line-height:1.55">
+        <b>Como você recebe o acesso:</b> a chave é gerada automaticamente assim que o pagamento
+        é aprovado e chega no seu e-mail em poucos minutos — sem esperar ninguém liberar.
+        Se algo não chegar, me chama no WhatsApp que eu resolvo na hora.
+      </div>
+
+      <div style="margin-top:14px;font-size:12.5px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap">
+        <span>🔒 Pagamento seguro via Kiwify</span>
+        <span>↩️ 7 dias de garantia</span>
+        <span>📄 Seu levantamento atual continua salvo</span>
+      </div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)">
+        Prefere pensar? Sem problema — seus arquivos e o levantamento que você já fez
+        continuam aqui. <a href="#" onclick="goTo(1);return false;" style="color:var(--blue);font-weight:600">Voltar ao início</a>
+      </div>
+    </div>
+  </div>`;
+  window.scrollTo(0,0);
+  try{ _evtUpsell("exibido"); }catch(e){}
+}
+function _evtUpsell(acao){
+  try{ if(typeof gtag==="function") gtag("event","upsell_creditos",{acao:acao}); }catch(e){}
+  try{ if(typeof fbq==="function") fbq("trackCustom","UpsellCreditos",{acao:acao}); }catch(e){}
+}
+
 // ── "Comece por aqui": abre sozinho na 1ª visita, depois só a pedido ──
 function abrirComecePorAqui(){
   const m = document.getElementById("comeceModal"); if(!m) return;
