@@ -44,9 +44,6 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', 'SEU_PIXEL_ID');
 fbq('track', 'PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"
-/></noscript>
 <!-- FIM META PIXEL -->
 
 <!-- ============================================================
@@ -276,6 +273,12 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"
 </style>
 </head>
 <body>
+<!-- Fallback do Meta Pixel para quem navega sem JavaScript.
+     Fica AQUI e não no <head>: uma <img> dentro de <noscript> no head faz o
+     navegador ENCERRAR o <head> naquele ponto, jogando as tags seguintes
+     (fontes, CSS) para dentro do body — o que criava uma faixa branca no topo. -->
+<noscript><img height="1" width="1" style="display:none" alt=""
+src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscript>
 
 <!-- NAV -->
 <header class="nav">
@@ -525,9 +528,9 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"
           <div class="plan-tag">Melhor preço</div>
           <div class="plan-num" style="margin-top:14px">12</div>
           <div class="plan-unit">Meses</div>
-          <div class="plan-price">R$ 420,00 <span>A cada 12 meses</span></div>
-          <div class="plan-equivalente">ou <b>12x de R$ 35,00</b> no cartão</div>
-          <div class="plan-equivalente">Equivalente a <b>R$ 35,00 / mês</b></div>
+          <div class="plan-price">12x R$ 35,00 <span>sem juros no cartão</span></div>
+          <div class="plan-equivalente">ou <b>R$ 420,00</b> à vista</div>
+          <div class="plan-equivalente">Menos de <b>R$ 1,20 por dia</b></div>
         </div>
         <div class="plan-foot">
           <div class="anchor">R$ 598,80</div>

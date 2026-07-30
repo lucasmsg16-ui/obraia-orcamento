@@ -442,10 +442,15 @@ body.nav-collapsed{ padding-left:var(--sidew-col); }
 .sn-marca{ display:flex; flex-direction:column; gap:3px; min-width:0 }
 .sn-obraia{ font-size:23px; font-weight:800; letter-spacing:-.6px; color:#fff; line-height:1 }
 .sn-obraia span{ color:#4db8e8 }
-.sn-porquem{ display:flex; align-items:center; gap:6px; opacity:.62 }
-.sn-porquem img{ height:13px; width:auto }
-.sn-porquem span{ font-size:9.5px; letter-spacing:.4px; text-transform:uppercase; color:#cfe3ef; white-space:nowrap }
-body.nav-collapsed .sn-porquem{ display:none }
+.sn-tag{ font-size:9.5px; letter-spacing:.5px; text-transform:uppercase; color:#8fb6cc; white-space:nowrap }
+body.nav-collapsed .sn-tag{ display:none }
+/* Assinatura da fabricante: no RODAPÉ do menu, longe da marca do produto */
+.sn-rodape{ margin-top:auto; padding:12px 16px; border-top:1px solid rgba(255,255,255,.10);
+  display:flex; align-items:center; gap:8px; opacity:.5 }
+.sn-rodape img{ height:15px; width:auto }
+.sn-rodape span{ font-size:9px; letter-spacing:.4px; text-transform:uppercase; color:#cfe3ef; line-height:1.3 }
+body.nav-collapsed .sn-rodape span{ display:none }
+body.nav-collapsed .sn-rodape{ justify-content:center; padding:12px 8px }
 body.nav-collapsed .sn-obraia{ font-size:15px; letter-spacing:-.3px }
 body.nav-collapsed .sn-brand img{ display:none; }
 body.nav-collapsed .sn-brand{ justify-content:center; padding:14px 8px; }
@@ -484,10 +489,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div class="sn-brand">
     <div class="sn-marca">
       <div class="sn-obraia">Obra<span>IA</span></div>
-      <div class="sn-porquem">
-        <img src="logo-branco.png?v=2" alt="Mar Aberto Engenharia">
-        <span>um produto Mar Aberto</span>
-      </div>
+      <div class="sn-tag">Orçamento de obras com IA</div>
     </div>
     <button class="sn-toggle" onclick="toggleNav()" title="Recolher / expandir menu" aria-label="Recolher ou expandir menu lateral">☰</button>
   </div>
@@ -503,12 +505,16 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <button class="nav-item" data-view="insumos" onclick="showTool('insumos')"><span class="ic">📦</span><span class="lb">Insumos / Materiais</span></button>
     <button class="nav-item" data-view="sinapi" onclick="showTool('sinapi')"><span class="ic">🔍</span><span class="lb">Consultar SINAPI</span></button>
   </nav>
+  <div class="sn-rodape" title="ObraIA é desenvolvido pela Mar Aberto Engenharia">
+    <img src="logo-branco.png?v=2" alt="Mar Aberto Engenharia">
+    <span>Desenvolvido por<br>Mar Aberto Engenharia</span>
+  </div>
 </aside>
 <header>
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span style="opacity:.6">ObraIA é um sistema Mar Aberto</span> · <span title="versão da aplicação">v2026.07.30</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.31</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
