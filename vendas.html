@@ -28,20 +28,41 @@
 
 <!-- Schema.org -->
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"ObraIA","brand":{"@type":"Brand","name":"Mar Aberto Engenharia"},"applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"397.00","priceCurrency":"BRL","availability":"https://schema.org/InStock"},"url":"https://marabertoeng.com.br/vendas.html"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"ObraIA","brand":{"@type":"Brand","name":"Mar Aberto Engenharia"},"applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":[{"@type":"Offer","name":"Plano Mensal","price":"49.90","priceCurrency":"BRL","availability":"https://schema.org/InStock"},{"@type":"Offer","name":"Plano Trimestral","price":"119.70","priceCurrency":"BRL","availability":"https://schema.org/InStock"},{"@type":"Offer","name":"Plano Anual","price":"420.00","priceCurrency":"BRL","availability":"https://schema.org/InStock"}],"url":"https://marabertoeng.com.br/vendas.html"}
 </script>
 
-<!-- ⚠️ ANALYTICS — cole GA4/Meta Pixel aqui antes de publicar
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
--->
+<!-- META PIXEL — troque SEU_PIXEL_ID pelo ID do seu Pixel (Gerenciador de Eventos do Meta Business) -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', 'SEU_PIXEL_ID');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"
+/></noscript>
+<!-- FIM META PIXEL -->
 
 <!-- ============================================================
   COMO PUBLICAR / CONFIGURAR:
-  1) Troque TODOS os links de compra: procure por  data-checkout  e
-     substitua  href="#planos"  pelo LINK DO CHECKOUT DO KIWIFY.
-  2) Os depoimentos abaixo são EXEMPLOS — troque por clientes reais.
-  3) Cores da marca já aplicadas (navy #002B40, azul #1792C0, IA #4db8e8).
+  1) Links de rolagem (href="#planos") não precisam mexer — eles só levam
+     até a seção de planos.
+  2) Os 3 botões de CHECKOUT de verdade ficam na seção de planos e no CTA
+     final — procure por:
+       COLE_AQUI_O_LINK_DO_KIWIFY_ANUAL
+       COLE_AQUI_O_LINK_DO_KIWIFY_TRIMESTRAL
+       COLE_AQUI_O_LINK_DO_KIWIFY_MENSAL
+     e troque cada um pelo link do checkout do respectivo plano no Kiwify.
+  3) Os depoimentos abaixo são EXEMPLOS — troque por clientes reais.
+  4) Cores da marca já aplicadas (navy #002B40, azul #1792C0, IA #4db8e8).
+  5) Meta Pixel: substitua SEU_PIXEL_ID abaixo (tag <!-- META PIXEL -->)
+     pelo ID do seu Pixel no Gerenciador de Eventos do Meta Business.
 ============================================================ -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -145,19 +166,68 @@
   .step p{color:var(--muted);font-size:15px}
 
   /* OFERTA / PREÇO */
-  .price-wrap{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center}
+  .stack{max-width:820px;margin:0 auto 44px}
   .stack li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;font-size:16px}
   .stack .ck{color:var(--green);font-weight:800;flex:none}
   .stack .bonus{color:var(--amber);font-weight:800;flex:none}
-  .card-price{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;border-radius:24px;padding:38px 34px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-  .card-price .tag{position:absolute;top:18px;right:-44px;background:var(--amber);color:#3a2a00;font-weight:800;font-size:12px;padding:7px 56px;transform:rotate(45deg)}
-  .card-price .plan{color:var(--ia);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:13px}
-  .card-price .old{color:#8fb6cc;text-decoration:line-through;font-size:18px;margin-top:10px}
-  .card-price .now{font-size:52px;font-weight:800;line-height:1}
-  .card-price .now small{font-size:18px;font-weight:600;color:#cfe3ef}
-  .card-price .perday{color:#bfe3f6;font-size:14px;margin:6px 0 18px}
-  .card-price .btn{width:100%;justify-content:center;margin-top:8px}
-  .card-price .mini{font-size:13px;color:#9fc6da;text-align:center;margin-top:14px}
+
+  /* ── Blocos de plano: número grande + preço, no estilo "12 MESES / 3 MESES / 1 MÊS" ── */
+  .plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:end}
+  .plan-col{display:flex;flex-direction:column}
+  .plan-block{border-radius:16px;padding:26px 18px 22px;text-align:center;position:relative;overflow:hidden}
+  .plan-block.dark{background:linear-gradient(160deg,#12222c,#0b1a22);color:#fff}
+  .plan-block.gold{background:linear-gradient(160deg,#ffc93f,#f5a623);color:#231a02;padding:38px 18px 30px}
+  .plan-num{font-size:66px;font-weight:900;line-height:.86;letter-spacing:-3px}
+  .plan-block.gold .plan-num{font-size:82px}
+  .plan-unit{font-size:25px;font-weight:800;letter-spacing:2px;text-transform:uppercase;display:block;margin-top:2px}
+  .plan-block.gold .plan-unit{font-size:29px}
+  .plan-price{margin-top:16px;font-size:23px;font-weight:800;color:#ffd45e;display:flex;gap:8px;align-items:baseline;justify-content:center;flex-wrap:wrap}
+  .plan-block.gold .plan-price{color:#0a4d6b;font-size:26px}
+  .plan-price span{font-size:13px;font-weight:600;color:#cfe3ef;letter-spacing:0}
+  .plan-block.gold .plan-price span{color:#5a3f00}
+  .plan-equivalente{margin-top:12px;font-size:13px;color:#cfe3ef}
+  .plan-equivalente b{color:#ffd45e;font-size:15px}
+  .plan-block.gold .plan-equivalente{color:#5a3f00}
+  .plan-block.gold .plan-equivalente b{color:#0a4d6b}
+  .plan-tag{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.28);font-size:10.5px;font-weight:800;
+    letter-spacing:2px;text-transform:uppercase;padding:6px 0}
+  .plan-block.gold .plan-tag{background:var(--navy);color:#ffd45e}
+  .plan-foot{padding:16px 4px 0;text-align:center}
+  .plan-foot .val{font-size:22px;font-weight:800;color:var(--ink)}
+  .plan-foot .anchor{font-size:13px;color:var(--muted);text-decoration:line-through;margin-bottom:2px}
+  .plan-foot .econ{display:inline-block;font-size:12px;font-weight:800;color:#0d6e42;background:#e8f8ef;
+    border:1px solid #9fdcbe;border-radius:20px;padding:2px 10px;margin-top:6px}
+  .plan-foot .btn{width:100%;justify-content:center;margin-top:12px;font-size:15px;padding:14px 18px}
+  @media(max-width:820px){
+    .plans-grid{grid-template-columns:1fr;align-items:stretch}
+    .plan-block.gold{padding:26px 18px 22px}
+    .plan-block.gold .plan-num{font-size:66px}
+  }
+  .plans-grid-legacy{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:stretch}
+  .plan-card{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;border-radius:22px;
+    padding:32px 26px;box-shadow:0 10px 30px rgba(0,43,64,.18);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;text-align:center}
+  .plan-card .ribbon{position:absolute;top:16px;right:-42px;font-weight:800;font-size:11px;letter-spacing:.5px;
+    padding:6px 50px;transform:rotate(45deg);background:var(--blue);color:#fff}
+  .plan-card.highlight{background:linear-gradient(160deg,#ffc341,var(--amber));color:var(--navy);
+    box-shadow:0 14px 36px rgba(245,166,35,.4);transform:scale(1.045);z-index:2}
+  .plan-card.highlight .ribbon{background:var(--navy);color:#fff}
+  .plan-name{font-weight:700;letter-spacing:1.5px;text-transform:uppercase;font-size:13px;opacity:.8;margin-bottom:16px}
+  .plan-card.highlight .plan-name{color:#5a3f00;opacity:1}
+  .plan-old{text-decoration:line-through;font-size:15px;color:#8fb6cc;margin-bottom:2px}
+  .plan-card.highlight .plan-old{color:#8a6a2a}
+  .plan-now{font-size:38px;font-weight:800;line-height:1}
+  .plan-now small{font-size:14px;font-weight:600;color:#cfe3ef;text-transform:none;letter-spacing:0}
+  .plan-card.highlight .plan-now small{color:#5a3f00}
+  .plan-detail{font-size:13px;color:#bfe3f6;margin:8px 0 6px}
+  .plan-card.highlight .plan-detail{color:#5a3f00}
+  .plan-equiv{font-size:15px;font-weight:700;color:#fff;background:rgba(255,255,255,.12);
+    border-radius:8px;padding:6px 10px;margin:6px 0 20px}
+  .plan-card.highlight .plan-equiv{color:var(--navy);background:rgba(0,43,64,.12)}
+  .plan-card .btn{width:100%;justify-content:center;margin-top:auto;font-size:15px;padding:14px 20px}
+  .plan-card:not(.highlight) .btn-primary{background:linear-gradient(135deg,var(--blue),var(--ia))}
+  .plan-card.highlight .btn-primary{background:var(--navy);color:#fff;box-shadow:0 10px 26px rgba(0,43,64,.4)}
+  .mini{font-size:13px;color:var(--muted);text-align:center;margin-top:22px}
 
   /* BÔNUS */
   .bonusbox{background:linear-gradient(135deg,#fff7e9,#fffdf8);border:1.5px dashed var(--amber);border-radius:var(--radius);padding:26px 28px;display:flex;gap:20px;align-items:center;margin-top:30px}
@@ -199,7 +269,8 @@
 
   @media(max-width:880px){
     .pains,.benefits,.steps,.reviews{grid-template-columns:1fr}
-    .price-wrap{grid-template-columns:1fr}
+    .plans-grid{grid-template-columns:1fr}
+    .plan-card.highlight{transform:none;order:-1}
     h2{font-size:27px}
   }
 </style>
@@ -429,38 +500,81 @@
 <section class="bg-soft" id="planos">
   <div class="wrap">
     <div class="center">
-      <span class="kicker">Oferta de lançamento</span>
-      <h2>Um ano de pacotes técnicos completos por R$ 397.</h2>
-      <p class="lead" style="margin-top:8px">Quantas propostas você fecha por ano? Cada uma vale muito mais do que isso.</p>
-      <p class="lead">Pense: um único orçamento toma horas do seu dia. Aqui você faz dezenas — o ano inteiro.</p>
+      <span class="kicker">Escolha seu plano</span>
+      <h2>O mesmo pacote completo. Você escolhe como pagar.</h2>
+      <p class="lead" style="margin-top:8px">Quantas propostas você fecha por ano? Cada uma vale muito mais do que um plano.</p>
+      <p class="lead">Pense: um único orçamento toma horas do seu dia. Aqui você faz dezenas — todo mês.</p>
     </div>
 
-    <div class="price-wrap">
-      <div>
-        <ul class="stack">
-          <li><span class="ck">✓</span> <span><b>Acesso completo por 12 meses</b> ao gerador de orçamentos com IA</span></li>
-          <li><span class="ck">✓</span> <span>Até <b>20 análises por mês</b> (240 orçamentos no ano)</span></li>
-          <li><span class="ck">✓</span> <span>Orçamento <b>SINAPI</b> de todos os estados, com e sem desoneração</span></li>
-          <li><span class="ck">✓</span> <span><b>Cronograma</b> físico-financeiro, curva S e Gantt com caminho crítico</span></li>
-          <li><span class="ck">✓</span> <span><b>Excel profissional</b> para entregar com a sua marca</span></li>
-          <li><span class="ck">✓</span> <span>Atualizações e melhorias incluídas no período</span></li>
-          <li><span class="bonus">★</span> <span><b>BÔNUS EXCLUSIVO:</b> Guia de Prompts de IA para Engenheiros — comandos prontos para acelerar levantamentos, orçamentos e propostas técnicas no seu escritório</span></li>
-          <li><span class="bonus">💬</span> <span><b>Suporte técnico via WhatsApp</b> — tire dúvidas diretamente com a equipe da Mar Aberto Engenharia</span></li>
-        </ul>
+    <ul class="stack">
+      <li><span class="ck">✓</span> <span><b>Acesso completo</b> ao gerador de orçamentos com IA — em qualquer plano</span></li>
+      <li><span class="ck">✓</span> <span>Até <b>20 análises por mês</b></span></li>
+      <li><span class="ck">✓</span> <span>Orçamento <b>SINAPI</b> de todos os estados, com e sem desoneração</span></li>
+      <li><span class="ck">✓</span> <span><b>Cronograma</b> físico-financeiro, curva S e Gantt com caminho crítico</span></li>
+      <li><span class="ck">✓</span> <span><b>Excel profissional</b> para entregar com a sua marca</span></li>
+      <li><span class="ck">✓</span> <span>Atualizações e melhorias incluídas no período</span></li>
+      <li><span class="bonus">★</span> <span><b>BÔNUS EXCLUSIVO:</b> Guia de Prompts de IA para Engenheiros — comandos prontos para acelerar levantamentos, orçamentos e propostas técnicas no seu escritório</span></li>
+      <li><span class="bonus">💬</span> <span><b>Suporte técnico via WhatsApp</b> — tire dúvidas diretamente com a equipe da Mar Aberto Engenharia</span></li>
+    </ul>
+
+    <div class="plans-grid">
+
+      <!-- ANUAL — destaque -->
+      <div class="plan-col">
+        <div class="plan-block gold">
+          <div class="plan-tag">Melhor preço</div>
+          <div class="plan-num" style="margin-top:14px">12</div>
+          <div class="plan-unit">Meses</div>
+          <div class="plan-price">R$ 420,00 <span>A cada 12 meses</span></div>
+          <div class="plan-equivalente">ou <b>12x de R$ 35,00</b> no cartão</div>
+          <div class="plan-equivalente">Equivalente a <b>R$ 35,00 / mês</b></div>
+        </div>
+        <div class="plan-foot">
+          <div class="anchor">R$ 598,80</div>
+          <div class="val">R$ 420,00</div>
+          <div class="econ">economize R$ 178,80 (30%)</div>
+          <!-- ⚠️ Substitua pelo link do checkout Kiwify do plano ANUAL -->
+          <a href="COLE_AQUI_O_LINK_DO_KIWIFY_ANUAL" data-checkout data-plan="anual" class="btn btn-primary">Assinar 12 meses →</a>
+        </div>
       </div>
 
-      <div class="card-price">
-        <div class="tag">LANÇAMENTO</div>
-        <div class="plan">Plano Anual</div>
-        <div class="old">de R$ 1.188,00</div>
-        <div class="now">R$ 397<small>/ano</small></div>
-        <div class="perday">menos de R$ 1,09 por dia · ou parcele no cartão</div>
-        <!-- TROQUE href pelo link do checkout do Kiwify -->
-        <!-- ⚠️ Substitua pelo link do Kiwify -->
-        <a href="COLE_AQUI_O_LINK_DO_KIWIFY" data-checkout class="btn btn-primary">Garantir meu acesso ao ObraIA →</a>
-        <div class="mini">🔒 Pagamento seguro via Kiwify · Pix ou cartão</div>
+      <!-- TRIMESTRAL -->
+      <div class="plan-col">
+        <div class="plan-block dark">
+          <div class="plan-tag">Mais flexível</div>
+          <div class="plan-num" style="margin-top:14px">3</div>
+          <div class="plan-unit">Meses</div>
+          <div class="plan-price">R$ 119,70 <span>A cada 3 meses</span></div>
+          <div class="plan-equivalente">Equivalente a <b>R$ 39,90 / mês</b></div>
+        </div>
+        <div class="plan-foot">
+          <div class="anchor">R$ 149,70</div>
+          <div class="val">R$ 119,70</div>
+          <div class="econ">economize 20%</div>
+          <!-- ⚠️ Substitua pelo link do checkout Kiwify do plano TRIMESTRAL -->
+          <a href="COLE_AQUI_O_LINK_DO_KIWIFY_TRIMESTRAL" data-checkout data-plan="trimestral" class="btn btn-primary">Assinar 3 meses →</a>
+        </div>
+      </div>
+
+      <!-- MENSAL -->
+      <div class="plan-col">
+        <div class="plan-block dark">
+          <div class="plan-tag">Sem fidelidade</div>
+          <div class="plan-num" style="margin-top:14px">1</div>
+          <div class="plan-unit">Mês</div>
+          <div class="plan-price">R$ 49,90 <span>Pagamento mensal</span></div>
+          <div class="plan-equivalente">Cobrança recorrente · cancele quando quiser</div>
+        </div>
+        <div class="plan-foot">
+          <div class="anchor" style="visibility:hidden">—</div>
+          <div class="val">R$ 49,90</div>
+          <div class="econ" style="visibility:hidden">—</div>
+          <!-- ⚠️ Substitua pelo link do checkout Kiwify do plano MENSAL -->
+          <a href="COLE_AQUI_O_LINK_DO_KIWIFY_MENSAL" data-checkout data-plan="mensal" class="btn btn-primary">Assinar 1 mês →</a>
+        </div>
       </div>
     </div>
+    <div class="mini">🔒 Pagamento seguro via Kiwify · Pix ou cartão</div>
 
     <!-- BÔNUS -->
     <div class="bonusbox">
@@ -536,9 +650,9 @@
   <div class="wrap">
     <h2>Comece a orçar com IA ainda hoje</h2>
     <p style="font-size:22px;font-weight:800;color:#fff;margin-bottom:8px">Enquanto o concorrente ainda está no Excel,<br>você já entregou.</p>
-    <p style="margin-bottom:24px;opacity:.85">Garanta seu acesso ao ObraIA com o preço de lançamento e comece a entregar pacotes completos ainda hoje.</p>
-    <!-- ⚠️ Substitua pelo link do Kiwify -->
-    <a href="COLE_AQUI_O_LINK_DO_KIWIFY" data-checkout class="btn btn-primary btn-lg">Garantir meu acesso ao ObraIA — R$ 397/ano →</a>
+    <p style="margin-bottom:24px;opacity:.85">Garanta seu acesso ao ObraIA a partir de R$ 35/mês no plano anual e comece a entregar pacotes completos ainda hoje.</p>
+    <!-- ⚠️ Substitua pelo link do checkout Kiwify do plano ANUAL -->
+    <a href="COLE_AQUI_O_LINK_DO_KIWIFY_ANUAL" data-checkout data-plan="anual" class="btn btn-primary btn-lg">Garantir meu acesso ao ObraIA — a partir de R$ 35/mês →</a>
     <div style="margin-top:16px;color:#9fc6da;font-size:14px">🔒 Pagamento seguro · Pix ou cartão · Garantia de 7 dias · 💬 Suporte via WhatsApp</div>
     <div style="margin-top:22px;font-size:14px;color:#9fc6da">Ainda não sabe se está pronto para usar IA na sua rotina?<br>
       <a href="diagnostico-nave.html" style="color:#4db8e8;font-weight:700">→ Faça o Diagnóstico NAVE gratuito (3 minutos)</a> e descubra em que etapa da travessia você está.</div>
@@ -609,6 +723,106 @@
     }
   }
   reset();
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     RASTREAMENTO DE ORIGEM E DE CLIQUES
+     Responde três perguntas: de onde a pessoa veio, até onde ela leu,
+     e em qual plano ela clicou. Funciona com Google Analytics e Meta Pixel;
+     se um deles não estiver configurado, o outro segue funcionando sozinho.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  "use strict";
+  var PRECO = { anual: 420.00, trimestral: 119.70, mensal: 49.90 };
+
+  // ── 1. Guarda a ORIGEM da visita (UTMs, clique de anúncio, quem indicou) ──
+  // Assim, quando a venda cair no Kiwify, você sabe qual Reel/post a gerou.
+  function guardarOrigem(){
+    try{
+      var p = new URLSearchParams(location.search), achou = false, dados = {};
+      ["utm_source","utm_medium","utm_campaign","utm_content","utm_term","fbclid","gclid"]
+        .forEach(function(k){ var v = p.get(k); if(v){ dados[k] = v; achou = true; } });
+      if(achou){
+        dados._ref = document.referrer || "";
+        dados._em  = new Date().toISOString();
+        sessionStorage.setItem("mar_origem", JSON.stringify(dados));
+      }
+    }catch(e){}
+  }
+  function lerOrigem(){
+    try{ return JSON.parse(sessionStorage.getItem("mar_origem") || "{}"); }catch(e){ return {}; }
+  }
+  // Repassa a origem para o checkout — o Kiwify registra junto com a venda
+  function comOrigem(url){
+    try{
+      var o = lerOrigem(), chaves = Object.keys(o).filter(function(k){ return k.charAt(0) !== "_"; });
+      if(!chaves.length || url.indexOf("COLE_AQUI") === 0) return url;
+      var sep = url.indexOf("?") >= 0 ? "&" : "?";
+      return url + sep + chaves.map(function(k){ return k + "=" + encodeURIComponent(o[k]); }).join("&");
+    }catch(e){ return url; }
+  }
+
+  // ── 2. Envia o evento para as duas plataformas, sem quebrar se faltar uma ──
+  function evento(nome, dados){
+    try{ if(typeof gtag === "function") gtag("event", nome, dados || {}); }catch(e){}
+    try{
+      if(typeof fbq === "function"){
+        var meta = { InitiateCheckout:"InitiateCheckout", Contact:"Contact" };
+        if(meta[nome]) fbq("track", meta[nome], dados || {});
+        else fbq("trackCustom", nome, dados || {});
+      }
+    }catch(e){}
+  }
+
+  guardarOrigem();
+
+  // ── 3. Clique nos botões de plano ──
+  document.querySelectorAll("a[data-checkout]").forEach(function(link){
+    link.addEventListener("click", function(){
+      var href  = link.getAttribute("href") || "";
+      var plano = link.getAttribute("data-plan") || "";
+      // botão que só rola até a seção de planos: registra intenção, não é checkout
+      if(href.charAt(0) === "#"){
+        evento("ver_planos", { origem_botao: (link.textContent || "").trim().slice(0, 40) });
+        return;
+      }
+      evento("InitiateCheckout", {
+        currency: "BRL",
+        value: PRECO[plano] || 0,
+        content_name: "ObraIA — plano " + (plano || "indefinido"),
+        plano: plano
+      });
+      // acrescenta a origem ao link do checkout, se houver
+      var novo = comOrigem(href);
+      if(novo !== href) link.setAttribute("href", novo);
+    });
+  });
+
+  // ── 4. Clique no WhatsApp (lead que prefere conversar antes de comprar) ──
+  document.querySelectorAll('a[href*="wa.me"]').forEach(function(link){
+    link.addEventListener("click", function(){ evento("Contact", { canal: "whatsapp" }); });
+  });
+
+  // ── 5. Até onde a pessoa leu — mostra se a página prende ou perde o leitor ──
+  var marcos = [25, 50, 75, 90], vistos = {};
+  window.addEventListener("scroll", function(){
+    var h = document.documentElement;
+    var pct = (h.scrollTop + window.innerHeight) / h.scrollHeight * 100;
+    marcos.forEach(function(m){
+      if(pct >= m && !vistos[m]){ vistos[m] = 1; evento("scroll_" + m, { profundidade: m }); }
+    });
+  }, { passive: true });
+
+  // ── 6. Chegou de fato na seção de planos? ──
+  var alvo = document.getElementById("planos");
+  if(alvo && "IntersectionObserver" in window){
+    var obs = new IntersectionObserver(function(ents){
+      ents.forEach(function(e){ if(e.isIntersecting){ evento("planos_visiveis", {}); obs.disconnect(); } });
+    }, { threshold: 0.35 });
+    obs.observe(alvo);
+  }
 })();
 </script>
 
