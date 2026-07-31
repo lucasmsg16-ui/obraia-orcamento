@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.02</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.03</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2032,6 +2032,7 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
   filtrarPorDisciplina(res, disc);
   const ef = res._disciplinaEfetiva || disc;
   res.quantitativos.forEach(q => { if (!q._disciplina) q._disciplina = ef; });
+  res.quantitativos.forEach(q => normalizarLocal(q));   // interno × externo
   return res;
 }
 
@@ -2378,6 +2379,243 @@ function familiaForro(d) {
   if (/mineral|fibra|isopor|\beps\b/.test(d)) return "forro_mineral";
   return "forro_outro";
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
+// ═══════════════════════════════════════════════════════════════════════════
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.03):
+// A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
+// sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
+//   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
+//        → 102073 ESCADA EM CONCRETO ARMADO … (M3) @ R$ 3.912,40   → 26x o preço real
+//   "Revestimento cerâmico para piso, assentamento com argamassa colante" (m²)
+//        → 87402 ARGAMASSA INDUSTRIALIZADA PARA CHAPISCO (M3) @ R$ 4.731,76 → 78x
+//   "Concreto usinado bombeado, fck 25 MPa" (m³)
+//        → 104105 ARMAÇÃO DE PILAR OU VIGA … CA-50 (KG) @ R$ 10,12 → 69x MENOS
+// Multiplicar "m² de fôrma" por "R$/m³ de escada" não é imprecisão: é um número
+// sem significado físico. Unidade divergente ⇒ o candidato está ELIMINADO, não
+// "penalizado". É a única regra do sistema que é fail-CLOSED por design.
+const _UN_ALIAS = {
+  "M2":"M2","M²":"M2","MT2":"M2","M 2":"M2",
+  "M3":"M3","M³":"M3","MT3":"M3","M 3":"M3",
+  "M":"M","ML":"M","MT":"M","METRO":"M",
+  "KG":"KG","QUILO":"KG","T":"T","TON":"T",
+  "UN":"UN","UND":"UN","UNID":"UN","U":"UN","PC":"UN","PÇ":"UN","CJ":"UN","CONJ":"UN","PAR":"UN",
+  "L":"L","LT":"L","LITRO":"L",
+  "H":"H","HORA":"H","MES":"MES","MÊS":"MES",
+  "VB":"VB","GL":"VB"
+};
+function unidadeCanonica(u) {
+  if (u == null) return "";
+  let s = String(u).toUpperCase().trim()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/\./g, "").replace(/\s+/g, "");
+  s = s.replace(/²/g, "2").replace(/³/g, "3");
+  return _UN_ALIAS[s] || s;
+}
+// Unidade oficial de um código SINAPI (data/unidades.json). "" = desconhecida.
+function unidadeDoCodigo(codigo) {
+  if (!codigo || !APP.unidadesDB) return "";
+  const u = APP.unidadesDB[codigo] || APP.unidadesDB[baseCodigo(codigo)];
+  return unidadeCanonica(u);
+}
+// Compatibilidade de unidades. Desconhecida (qualquer lado) NÃO bloqueia — não
+// dá para reprovar por falta de dado; mas divergência CONHECIDA bloqueia sempre.
+function unidadesCompativeis(uItem, uCodigo) {
+  const a = unidadeCanonica(uItem), b = unidadeCanonica(uCodigo);
+  if (!a || !b) return true;
+  if (a === b) return true;
+  // VB/GL é verba: aceita qualquer coisa (serviço global sem medida física)
+  if (a === "VB" || b === "VB") return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GUARDA DE ESPECIFICAÇÃO NUMÉRICA (diâmetro, bitola, fck)
+// ═══════════════════════════════════════════════════════════════════════════
+// A busca por palavras trata "DN 100 MM" e "DN 40 MM" como quase idênticos —
+// só diferem num número, e número tem peso baixo. Medido na base real: tanto
+// "esgoto DN 100mm" quanto "esgoto DN 50mm" casavam com o tubo de DN 40 MM.
+// Se a query especifica uma dimensão e o candidato especifica OUTRA da mesma
+// natureza, não é um match pior: é outro produto. Eliminado.
+function _specsNum(s) {
+  const d = normalizaTxt(s);
+  const out = new Set();
+  let m;
+  const reMM  = /\b(?:dn\s*)?(\d{2,4})\s*mm\b/g;      while ((m = reMM.exec(d)))  out.add("mm:"  + m[1]);
+  const rePOL = /\b(\d+)\s*\/\s*(\d+)\s*"/g;          while ((m = rePOL.exec(d))) out.add("pol:" + m[1] + "/" + m[2]);
+  const reFCK = /fck\s*=?\s*(\d{2})/g;                while ((m = reFCK.exec(d))) out.add("fck:" + m[1]);
+  // Categoria do aço: CA-25 (liso) ≠ CA-50 ≠ CA-60. Captura QUALQUER número —
+  // limitar a 50|60 fazia o candidato CA-25 passar como "sem especificação".
+  const reBIT = /\bca[\s-]?(\d{2})\b/g;               while ((m = reBIT.exec(d))) out.add("ca:"  + m[1]);
+  return out;
+}
+function conflitoEspecNum(query, candidato) {
+  const a = _specsNum(query), b = _specsNum(candidato);
+  if (!a.size || !b.size) return false;   // sem dado dos dois lados → não julga
+  for (const pre of ["mm:", "pol:", "fck:", "ca:"]) {
+    const av = [...a].filter(x => x.startsWith(pre));
+    const bv = [...b].filter(x => x.startsWith(pre));
+    if (av.length && bv.length && !av.some(x => bv.includes(x))) return true;
+  }
+  return false;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LOCAL DO SERVIÇO — interno × externo
+// ═══════════════════════════════════════════════════════════════════════════
+// Quem mede em campo mede por face: o pedreiro que reboca a fachada não é o
+// mesmo que reboca a sala, o preço muda (andaime, produtividade) e a medição
+// é separada. Um orçamento que joga "chapisco 400 m²" num item só não é
+// mensurável. A IA classifica no campo "local"; aqui há uma rede de segurança
+// determinística para quando ela omitir — e uma verificação para quando ela
+// contrariar um serviço que é inerentemente de uma face só.
+const LOCAIS = {
+  interno: { label: "Área interna",  icone: "🏠", cor: "#1792c0" },
+  externo: { label: "Área externa",  icone: "🌤️", cor: "#b45309" },
+  ambos:   { label: "Interno + externo (não separado)", icone: "🔁", cor: "#64748b" },
+};
+// Serviços que só existem numa face — usados tanto para preencher a lacuna
+// quanto para CORRIGIR a IA quando ela classifica ao contrário.
+const _RE_EXTERNO_FORTE = /(fachada|externa|externo|platibanda|empena|muro|gradil|calcada|passeio|telhad|telha|cumeeira|rufo|calha|beiral|textura|grafiato|pastilha externa|revestimento externo|pintura externa|reboco externo|chapisco externo|jardim|portao|cerca|guarda.?corpo externo|rede externa|meio.?fio|sarjeta|drenagem|pavimenta)/;
+const _RE_INTERNO_FORTE = /(forro|gesso liso|massa corrida|latex|azulej|rodape|contrapiso|piso interno|revestimento interno|pintura interna|reboco interno|chapisco interno|bancada|soleira|louca|metais sanitarios|interna|interno)/;
+// Serviços sem face definida: fundação, estrutura, terra, administrativos.
+const _RE_SEM_FACE = /(escavac|reaterro|aterro|fundac|estaca|radier|baldrame|lastro|sapata|bloco de coroament|armac|concretagem|forma para|laje|viga|pilar|art\b|rrt\b|placa de obra|locacao convencional|ligacao provisoria|instalacoes provisorias|tapume|limpeza (final|de terreno)|mobilizac|canteiro|impermeabilizacao de bald)/;
+
+function _localHeuristico(desc, categoria) {
+  const d = normalizaTxt(desc || "");
+  const nc = catNum(categoria);
+  if (nc === 8) return "externo";                    // 8. REVESTIMENTOS EXTERNOS
+  if (nc === 7) return "interno";                    // 7. REVESTIMENTOS INTERNOS
+  if (_RE_SEM_FACE.test(d)) return "ambos";
+  const ext = _RE_EXTERNO_FORTE.test(d), int = _RE_INTERNO_FORTE.test(d);
+  if (ext && !int) return "externo";
+  if (int && !ext) return "interno";
+  if (nc === 2 || nc === 3 || nc === 4) return "ambos";   // terra, fundação, estrutura
+  if (nc === 6) return "externo";                        // cobertura
+  return "ambos";
+}
+// Normaliza o campo vindo da IA e registra divergência quando ela contraria
+// um serviço inerentemente de uma face só (ex.: "tinta acrílica de fachada" = interno).
+function normalizarLocal(q) {
+  const bruto = normalizaTxt(q && q.local);
+  let v = (bruto === "interno" || bruto === "externo" || bruto === "ambos") ? bruto : "";
+  const heur = _localHeuristico(q && q.descricao, q && q.categoria);
+  const d = normalizaTxt((q && q.descricao) || "");
+  const inerente = (_RE_EXTERNO_FORTE.test(d) && !_RE_INTERNO_FORTE.test(d)) ? "externo"
+                 : (_RE_INTERNO_FORTE.test(d) && !_RE_EXTERNO_FORTE.test(d)) ? "interno" : "";
+  if (!v) { q._local = heur; q._localOrigem = "sistema"; return q._local; }
+  if (inerente && v !== inerente && v !== "ambos") {
+    // A descrição diz uma face e a IA classificou outra: a descrição prevalece.
+    q._local = inerente; q._localOrigem = "corrigido"; q._localIA = v;
+    return q._local;
+  }
+  q._local = v; q._localOrigem = "ia";
+  return q._local;
+}
+function localDoItem(q) { return (q && q._local) || normalizarLocal(q || {}); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// LACUNAS — o que NÃO entrou no orçamento, e por quê
+// ═══════════════════════════════════════════════════════════════════════════
+// Um orçamento incompleto é mais perigoso que um orçamento caro: o engenheiro
+// experiente percebe a falta de "impermeabilização"; o iniciante fecha preço,
+// assina e descobre em obra. O sistema sabe o que ESPERA encontrar em cada
+// disciplina — então deve dizer, em voz alta, o que procurou e não achou.
+// Cada item traz o MOTIVO provável, para o usuário saber se é omissão do
+// projeto, limite do sistema, ou simplesmente não se aplica à obra dele.
+const ESPERADOS = {
+  arquitetonico: [
+    { nome:"Serviços preliminares (locação, placa, ligações provisórias)", re:/(locacao|placa de obra|provisori|tapume|canteiro)/, motivo:"O projeto não traz canteiro/implantação. Costumam ser incluídos por padrão do construtor, não pelo desenho." },
+    { nome:"Movimento de terra (escavação / reaterro)", re:/(escavac|reaterro|aterro|terraplen)/, motivo:"Depende de perfil do terreno e cota de implantação — normalmente não está na planta baixa." },
+    { nome:"Fundação", re:/(fundac|sapata|baldrame|radier|estaca|bloco de coroament|lastro)/, motivo:"Fundação vem no PROJETO ESTRUTURAL, não no arquitetônico. Rode o estrutural à parte." },
+    { nome:"Estrutura (concreto / aço / fôrma)", re:/(concretagem|armac|forma para|laje|pilar|viga)/, motivo:"Quantitativo de estrutura exige projeto estrutural (fôrma e armação). O arquitetônico não tem esse dado." },
+    { nome:"Alvenaria de vedação", re:/alvenaria/, motivo:"Não foram identificadas paredes com cota suficiente para calcular a área." },
+    { nome:"Cobertura (estrutura + telha)", re:/(telha|trama de madeira|cobertura|cumeeira)/, motivo:"Sem planta de cobertura ou corte mostrando o telhado, não dá para medir área nem inclinação." },
+    { nome:"Impermeabilização", re:/impermeabiliz/, motivo:"O projeto não indica áreas impermeabilizadas. Confira baldrame, box, lajes expostas e jardineiras — é omissão comum e cara." },
+    { nome:"Revestimento de parede (chapisco / reboco / massa)", re:/(chapisco|reboco|massa unica|emboco|gesso liso)/, motivo:"Não identificado no memorial nem nas legendas de acabamento." },
+    { nome:"Pintura", re:/(tinta|pintura|massa corrida|latex|acrilic|esmalte)/, motivo:"O projeto não especifica pintura. Verifique o memorial descritivo." },
+    { nome:"Piso / contrapiso", re:/(piso|contrapiso|porcelanato|ceramic|rodape)/, motivo:"Sem quadro de acabamentos, o sistema não sabe qual piso vai em cada ambiente." },
+    { nome:"Esquadrias (portas e janelas)", re:/(porta|janela|esquadria|portao)/, motivo:"Não há quadro de esquadrias nem simbologia legível na planta." },
+    { nome:"Instalações elétricas", re:/(eletrodut|cabo|tomada|interruptor|disjuntor|quadro de distribuic|luminaria|aterrament)/, motivo:"Elétrica exige o PROJETO ELÉTRICO. Envie-o como disciplina separada." },
+    { nome:"Instalações hidrossanitárias", re:/(tubo|tubulac|esgoto|agua fria|caixa de inspec|louca|bacia|lavatorio|registro)/, motivo:"Hidrossanitário exige o PROJETO HIDRÁULICO. Envie-o como disciplina separada." },
+    { nome:"Limpeza final e ligações definitivas", re:/(limpeza final|ligacao definitiva)/, motivo:"Itens de encerramento de obra — raramente desenhados, quase sempre necessários." },
+  ],
+  estrutural: [
+    { nome:"Aço CA-50/CA-60 (armação)", re:/(armac|aco ca|ferragem)/, motivo:"Não foi encontrado quadro/resumo de aço nas pranchas enviadas." },
+    { nome:"Concreto estrutural", re:/(concretagem|concreto)/, motivo:"A prancha parece ser só de armação — sem geometria de fôrma não há volume de concreto." },
+    { nome:"Fôrma", re:/forma para/, motivo:"A prancha parece ser só de armação; fôrma exige o desenho de fôrma." },
+  ],
+  eletrico: [
+    { nome:"Eletrodutos", re:/eletrodut/, motivo:"Não identificado traçado de eletroduto na prancha." },
+    { nome:"Cabeamento", re:/(cabo|fio)/, motivo:"Sem diagrama unifilar ou legenda de circuitos, não dá para somar metragem de cabo." },
+    { nome:"Quadro de distribuição e disjuntores", re:/(quadro de distribuic|disjuntor)/, motivo:"Não há quadro de cargas na prancha enviada." },
+    { nome:"Pontos (tomadas, interruptores, luz)", re:/(tomada|interruptor|ponto de luz|luminaria)/, motivo:"Simbologia de pontos não identificada ou sem legenda." },
+    { nome:"Aterramento / SPDA", re:/(aterrament|spda|para.?raio)/, motivo:"Aterramento e SPDA costumam vir em prancha própria — confirme se foi enviada." },
+  ],
+  hidrossanitario: [
+    { nome:"Água fria", re:/(agua fria|tubo.*sold)/, motivo:"Traçado de água fria não identificado." },
+    { nome:"Esgoto", re:/esgot/, motivo:"Traçado de esgoto não identificado." },
+    { nome:"Águas pluviais", re:/(pluvi|calha|condutor)/, motivo:"Drenagem pluvial não identificada — verifique se há prancha específica." },
+    { nome:"Caixas, ralos e conexões", re:/(caixa de inspec|caixa de gordura|ralo|conexa|joelho)/, motivo:"Dispositivos não contabilizados — confirme a simbologia da planta." },
+    { nome:"Louças e metais", re:/(bacia|lavatorio|louca|torneira|chuveiro|tanque)/, motivo:"Louças/metais costumam ser especificados no memorial, não no projeto hidráulico." },
+    { nome:"Reservatório", re:/(caixa d|reservator)/, motivo:"Reservatório não identificado nas pranchas." },
+  ],
+  infraestrutura: [
+    { nome:"Terraplenagem (corte / aterro)", re:/(escavac|corte|aterro|terraplen|subleito)/, motivo:"Sem quadro de volumes ou diagrama de massas não há como quantificar." },
+    { nome:"Drenagem (tubos e dispositivos)", re:/(tubo|boca de lobo|poco de visita|dreno|sarjeta|meio.?fio)/, motivo:"Rede de drenagem não identificada no perfil/planta." },
+    { nome:"Pavimentação (camadas)", re:/(pavimenta|base|sub.?base|imprimac|cbuq|bloquete|paralelepiped)/, motivo:"Seção-tipo do pavimento não identificada." },
+    { nome:"Sinalização viária", re:/(sinalizac|faixa|tacha|placa)/, motivo:"Projeto de sinalização costuma ser prancha separada." },
+  ],
+};
+// Itens que o ObraIA NÃO levanta em nenhuma hipótese — precisam ser ditos SEMPRE,
+// porque a ausência deles não é erro de leitura, é limite declarado do produto.
+const FORA_DE_ESCOPO = [
+  ["Ar-condicionado, exaustão e climatização", "Exige projeto de climatização (carga térmica, dutos) — não é lido a partir da arquitetura."],
+  ["Elevadores e plataformas", "Fornecimento especializado, orçado por proposta do fabricante."],
+  ["SPDA e sistema de incêndio", "Exigem projeto próprio (ART específica) e memorial de cálculo dedicado."],
+  ["Mobiliário, marcenaria sob medida e decoração", "Fora da tabela SINAPI de construção civil."],
+  ["Paisagismo e irrigação", "Depende de projeto paisagístico e não é lido da planta baixa."],
+  ["Automação, cabeamento estruturado, CFTV", "Exigem projeto de tecnologia/telecom específico."],
+  ["Administração local, canteiro e mobilização", "Dependem do prazo e da estrutura de cada construtora — devem ser somados à parte do custo direto."],
+  ["Encargos, taxas, licenças e ligações definitivas", "Variam por município e concessionária; não estão na SINAPI."],
+];
+// Retorna { faltantes:[{nome,motivo}], foraEscopo:[...], removidosDisc:[...] }
+function analisarLacunas(r) {
+  if (!r) return null;
+  const disc = r._disciplinaEfetiva ||
+               (r.quantitativos || []).map(q => q._disciplina).find(Boolean) ||
+               (APP.disciplina === "auto" ? "arquitetonico" : APP.disciplina);
+  const lista = ESPERADOS[disc] || ESPERADOS.arquitetonico;
+  const corpus = normalizaTxt((r.quantitativos || [])
+    .map(q => (q.descricao || "") + " " + (q.categoria || "")).join(" | "));
+  const faltantes = lista.filter(e => !e.re.test(corpus)).map(e => ({ nome: e.nome, motivo: e.motivo }));
+  return {
+    disciplina: disc,
+    faltantes,
+    foraEscopo: FORA_DE_ESCOPO,
+    removidosDisc: r._removidosPorDisciplina || [],
+    total: (r.quantitativos || []).length,
+  };
+}
+
+// RECALL = fração do PESO IDF da descrição pedida que o candidato cobre.
+// O Dice é simétrico e "perdoa" a ausência de termos essenciais quando o resto
+// coincide — foi assim que "revestimento cerâmico para piso" virou PISO EM
+// MÁRMORE (R$ 711/m² no lugar de R$ 78/m²).
+//
+// O recall entra de DUAS formas, e a distinção importa:
+//  (a) PISO DURO baixo (0.35) — só descarta o que não tem relação nenhuma.
+//      Um piso alto reprovava respostas CERTAS: a verga correta ficava em 0,61
+//      e caía fora por 0,01. Melhor errar para o lado de mostrar e sinalizar.
+//  (b) PESO NO RANKING — o recall entra no score, então entre dois candidatos
+//      plausíveis vence o que cobre mais do que foi pedido. É isso que coloca
+//      "REVESTIMENTO CERÂMICO PARA PISO" (0,84) à frente de "PISO EM MÁRMORE" (0,60)
+//      sem precisar de uma guilhotina.
+// Abaixo de RECALL_CONFIAVEL o item continua no orçamento, mas é MARCADO para
+// conferência — o engenheiro precisa saber que aquele casamento foi fraco.
+const RECALL_MIN_SINAPI  = 0.35;
+const RECALL_CONFIAVEL   = 0.60;
+
 // Cobertura: fração dos termos da descrição A presentes na descrição B (0..1)
 function coberturaDesc(a, b) {
   const ta = tokenizeSinapi(a), sb = new Set(tokenizeSinapi(b));
@@ -2473,7 +2711,7 @@ function precoServico(q){
     return { preco:p, codigoFinal:"PRÓPRIO", banco:"Próprio", fonte:"manual",
              descricaoOficial:q.descricao||"", sugerido:false, aiCodigo:false, aiValido:true, alerta:false };
   }
-  return resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado));
+  return resolveSinapi((q._codigoManual||q.sinapi_codigo)||"", q.descricao||"", q.categoria||"", q.preco_unitario||0, !!(q._codigoManual||q._refinado), q.unidade||"");
 }
 
 // Incluir um serviço (código SINAPI OU composição própria) — painel inline acima da planilha
@@ -3093,11 +3331,12 @@ document.getElementById("btnCronoPDF").addEventListener("click", exportarCronogr
 // REFINO DE CÓDIGOS — desambiguação com 2ª passada da IA (RAG)
 // ═══════════════════════════════════════════════════════════════
 // Top-K candidatos SINAPI (com preço no estado) por similaridade Dice (IDF)
-function buscarTopK(descricao, K, col) {
+function buscarTopK(descricao, K, col, unidadeEsperada) {
   const qw = tokenizeSinapi(descricao); if (!qw.length) return [];
   const qset = new Set(qw);
   const idx = buildDescIndex();
   if (col == null) col = APP.desoneracao ? 1 : 0;
+  const qUn = unidadeCanonica(unidadeEsperada);   // trava de unidade (ver bloco UNIDADE DE MEDIDA)
   const qTipo = tipoExecucao(descricao);
   const qFam  = familiaForro(descricao);                 // família do forro (gesso/drywall/pvc/...)
   const qArr  = ehAcessorioArremate(descricao);          // a query pede um arremate (rodapé/moldura/...)?
@@ -3107,22 +3346,33 @@ function buscarTopK(descricao, K, col) {
   const out = [];
   for (const e of idx) {
     if (APP.sinapiDB && !codigoExisteNoEstado(e.codigo, col)) continue;
+    // TRAVA DE UNIDADE (fail-closed): m² de serviço nunca recebe preço de m³/kg/un.
+    if (qUn && !unidadesCompativeis(qUn, unidadeDoCodigo(e.codigo))) continue;
+    // TRAVA DE ESPECIFICAÇÃO: DN 100 nunca recebe preço de DN 40; fck 25 ≠ fck 15.
+    if (conflitoEspecNum(descricao, e.descricao)) continue;
     if (qTipo) { const cT = tipoExecucao(e.descricao); if (cT && cT !== qTipo) continue; }
     // GUARDA arremate: não casar serviço principal com remate (moldura/sanca/rodapé/roda-forro), salvo se a query pedir
     if (!qArr && ehAcessorioArremate(e.descricao)) continue;
     // GUARDA família do forro: não casar forro de gesso com drywall/pvc/madeira/fibra mineral
     if (qFam && qFam !== "forro_outro") { const cF = familiaForro(e.descricao); if (cF && cF !== "forro_outro" && cF !== qFam) continue; }
+    // EXCLUSÃO DURA de demolição/remoção/retirada quando a query NÃO pede isso.
+    // Era uma penalidade de ×0,4 — insuficiente: "concretagem de pilares e vigas"
+    // casava com "DEMOLIÇÃO DE PILARES E VIGAS EM CONCRETO ARMADO" e vencia mesmo
+    // penalizado, porque a descrição curta inflava o Dice. Executar e demolir são
+    // serviços opostos; não existe grau de acerto entre eles.
+    let cNeg = false; e.tokens.forEach(t => { if (NEG_SINAPI.has(t)) cNeg = true; });
+    if (cNeg && !qNeg) continue;
     let interW = 0; qset.forEach(t => { if (e.tokens.has(t)) interW += (_idf[t] || 1); });
     if (interW <= 0) continue;
+    const recall = interW / qW;
+    if (recall < RECALL_MIN_SINAPI) continue;   // piso baixo: só corta o sem-relação
     let dice = 2 * interW / (qW + (e.w || 1));   // penaliza descrições longas/genéricas
     // preferência por ambiente RESIDENCIAL quando a query não menciona ambiente comercial/industrial
     if (/comerci/.test(normalizaTxt(e.descricao)) && !qComercial) dice *= 0.92;
-    // penaliza serviços de demolição/remoção/limpeza quando a query não os pede
-    let cNeg = false; e.tokens.forEach(t => { if (NEG_SINAPI.has(t)) cNeg = true; });
-    if (cNeg && !qNeg) dice *= 0.4;
     // query é de forro → prioriza candidatos que sejam de fato "forro" (evita casar com luva/eletroduto de PVC etc.)
     if (qFam && !/\bforro\b/.test(normalizaTxt(e.descricao))) dice *= 0.5;
-    out.push({ codigo: e.codigo, desc: e.descricao, score: dice });
+    // Score final: o recall pesa na ordenação (ver bloco RECALL acima).
+    out.push({ codigo: e.codigo, desc: e.descricao, score: dice * (0.4 + 0.6 * recall), recall: recall });
   }
   out.sort((a, b) => b.score - a.score);
   return out.slice(0, K || 8);
@@ -3137,9 +3387,12 @@ async function refinarCodigos(parsed, apiKey) {
   itens.forEach((q, i) => {
     const desc = q.descricao || "";
     if (!desc || ehItemCanteiro(desc)) return;            // canteiro/provisório → catálogo próprio
-    const cands = buscarTopK(desc, 8, col);
+    // Candidatos já filtrados pela UNIDADE do serviço: a IA nunca vê um código
+    // de outra unidade para escolher (era assim que "fôrma m²" recebia preço de escada m³).
+    const cands = buscarTopK(desc, 8, col, q.unidade || "");
     if (cands.length < 2) return;                          // 0/1 candidato → nada a desambiguar
-    blocos.push(`#${i}: "${desc}"\n` + cands.map(c => `   ${c.codigo} = ${c.desc.slice(0, 100)}`).join("\n"));
+    blocos.push(`#${i}: "${desc}"  [unidade do serviço: ${q.unidade || "?"}]\n` +
+      cands.map(c => `   ${c.codigo} (${unidadeDoCodigo(c.codigo) || "?"}) = ${c.desc.slice(0, 100)}`).join("\n"));
   });
   if (!blocos.length) return;
 
@@ -3161,6 +3414,11 @@ async function refinarCodigos(parsed, apiKey) {
     const i = parseInt(String(k).replace(/[^0-9]/g, ""), 10);
     const cod = mapa[k];
     if (!itens[i] || cod == null) return;
+    // Mesmo vindo da IA, o código só é aceito se a unidade oficial bater com a do serviço.
+    if (!unidadesCompativeis(itens[i].unidade || "", unidadeDoCodigo(String(cod)))) {
+      console.warn("refino rejeitado por unidade:", cod, unidadeDoCodigo(String(cod)), "≠", itens[i].unidade);
+      return;
+    }
     if (precoEstado(String(cod), col) != null) { itens[i].sinapi_codigo = String(cod); itens[i]._refinado = true; n++; }
   });
   console.log("refino de códigos: " + n + " confirmado(s) pela IA");
@@ -3293,6 +3551,7 @@ function buildEAP() {
     });
   }
 
+  renderLacunas();
   renderAmbientesLevantamento();
   renderConferencia();
   renderMolhadas();
@@ -3989,27 +4248,137 @@ function esqAplicarVaos() {
 }
 
 // Renderiza a árvore Categoria → serviços dentro de um container
+// Painel "O que NÃO entrou neste orçamento" — exibido logo abaixo da árvore da EAP.
+function renderLacunas() {
+  const r = APP.analysisResult; if (!r) return;
+  const tree = document.getElementById("eapTree"); if (!tree) return;
+  let host = document.getElementById("eapLacunas");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "eapLacunas";
+    host.style.marginTop = "14px";
+    tree.parentNode.insertBefore(host, tree.nextSibling);
+  }
+  const L = analisarLacunas(r); if (!L) { host.innerHTML = ""; return; }
+
+  const bloco = (titulo, corpo, cor, bg, aberto) => `
+    <details ${aberto ? "open" : ""} style="border:1px solid ${cor};background:${bg};border-radius:8px;padding:10px 12px;margin-top:8px">
+      <summary style="cursor:pointer;font-weight:700;color:${cor}">${titulo}</summary>
+      <div style="margin-top:8px;font-size:13px;line-height:1.55">${corpo}</div>
+    </details>`;
+
+  let html = `<div style="font-weight:800;font-size:15px;color:var(--navy);margin-bottom:2px">
+      🔎 O que NÃO entrou neste orçamento
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+      Leia antes de fechar preço. Um orçamento incompleto custa mais caro que um orçamento errado —
+      o que falta aqui vira aditivo depois. <b>A IA não assina ART; você assina.</b>
+    </div>`;
+
+  if (L.faltantes.length) {
+    html += bloco(
+      `⚠️ ${L.faltantes.length} grupo(s) de serviço esperados e NÃO encontrados`,
+      `<p style="margin:0 0 8px">Para um projeto <b>${(DISCIPLINAS[L.disciplina]||{}).label || L.disciplina}</b>, o sistema procurou os itens
+       abaixo e não achou nada correspondente no que foi levantado. Isso <b>não significa</b> que a obra não
+       precisa deles — significa que o projeto enviado não trouxe a informação, ou que ela está em outra prancha.</p>
+       <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+       <thead><tr style="text-align:left;color:var(--muted)">
+         <th style="padding:4px 6px;border-bottom:1px solid #e5e7eb">Serviço ausente</th>
+         <th style="padding:4px 6px;border-bottom:1px solid #e5e7eb">Motivo provável / o que fazer</th></tr></thead>
+       <tbody>${L.faltantes.map(f => `<tr>
+         <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;font-weight:600">${f.nome}</td>
+         <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;color:#475569">${f.motivo}</td></tr>`).join("")}
+       </tbody></table>`,
+      "#92400e", "#fffbeb", true);
+  } else {
+    html += bloco("✅ Nenhuma lacuna típica detectada",
+      "Todos os grupos de serviço que o sistema espera para esta disciplina apareceram no levantamento. Ainda assim, confira os quantitativos — cobertura completa não é o mesmo que quantidade correta.",
+      "#166534", "#f0fdf4", false);
+  }
+
+  if (L.removidosDisc && L.removidosDisc.length) {
+    html += bloco(
+      `🎯 ${L.removidosDisc.length} item(ns) removidos por não pertencerem à disciplina`,
+      `<p style="margin:0 0 6px">Estes serviços foram lidos no projeto mas <b>descartados</b> porque não pertencem
+       à disciplina selecionada. Se algum deveria estar no orçamento, refaça a análise escolhendo a disciplina certa
+       (ou "obra completa").</p>
+       <ul style="margin:0 0 0 18px">${L.removidosDisc.slice(0, 12).map(x =>
+         `<li>${x.descricao} <span style="color:var(--muted)">— ${x.categoria} · ${x.quantidade} ${x.unidade}</span></li>`).join("")}
+       ${L.removidosDisc.length > 12 ? `<li>… e mais ${L.removidosDisc.length - 12}</li>` : ""}</ul>`,
+      "#1e40af", "#eff6ff", true);
+  }
+
+  html += bloco(
+    `📋 Nunca incluído pelo ObraIA — orce à parte (${FORA_DE_ESCOPO.length} itens)`,
+    `<p style="margin:0 0 6px">Estes serviços <b>nunca</b> entram no levantamento automático, independentemente do projeto.
+     A ausência deles não é falha de leitura: é limite declarado da ferramenta. Se a obra tiver algum, some ao orçamento.</p>
+     <ul style="margin:0 0 0 18px">${FORA_DE_ESCOPO.map(([n, m]) =>
+       `<li><b>${n}</b> <span style="color:var(--muted)">— ${m}</span></li>`).join("")}</ul>`,
+    "#475569", "#f8fafc", false);
+
+  host.innerHTML = html;
+}
+
 function renderEapCategorias(container, quantitativos) {
   const byCat = {};
   (quantitativos || []).forEach(q => { const c = q.categoria || "99. OUTROS"; (byCat[c] = byCat[c] || []).push(q); });
 
-  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens], catIdx) => {
+  ordenarCategorias(Object.entries(byCat)).forEach(([cat, itensCat], catIdx) => {
     const node = document.createElement("div");
     node.className = "eap-node";
 
+    // Subdivisão por LOCAL dentro da categoria, preservando a numeração sequencial:
+    // 7.1.x interno, 7.2.x externo. Só cria o nível extra quando há de fato mais de
+    // uma face na categoria — categoria de face única continua com 2 níveis.
+    const ORD_LOCAL = ["interno", "externo", "ambos"];
+    const byLocal = {};
+    itensCat.forEach(q => { const l = localDoItem(q); (byLocal[l] = byLocal[l] || []).push(q); });
+    const locaisPresentes = ORD_LOCAL.filter(l => byLocal[l] && byLocal[l].length);
+    const subdividir = locaisPresentes.length > 1;
+    // Lista achatada na ordem de exibição + prefixo de numeração de cada item.
+    const itens = [];
+    if (subdividir) {
+      locaisPresentes.forEach((l, li) => byLocal[l].forEach((q, qi) => {
+        itens.push({ q, num: `${catIdx + 1}.${li + 1}.${qi + 1}`, cabecaLocal: qi === 0 ? l : null, nLocal: byLocal[l].length });
+      }));
+    } else {
+      itensCat.forEach((q, qi) => itens.push({ q, num: `${catIdx + 1}.${qi + 1}`, cabecaLocal: null }));
+    }
+
     const header = document.createElement("div");
     header.className = "eap-node-header";
-    header.innerHTML = `<span class="caret">▶</span> <strong>${catIdx + 1}.</strong> ${cat.replace(/^\d+\.\s*/, "")} <span class="badge">${itens.length} serv.</span>`;
+    const resumoLocal = subdividir
+      ? ` <span class="badge" style="background:#eef2ff;color:#475569">${locaisPresentes.map(l => `${LOCAIS[l].icone} ${byLocal[l].length}`).join(" · ")}</span>`
+      : (locaisPresentes.length === 1 && locaisPresentes[0] !== "ambos"
+          ? ` <span class="badge" style="background:#eef2ff;color:#475569">${LOCAIS[locaisPresentes[0]].icone} ${LOCAIS[locaisPresentes[0]].label}</span>` : "");
+    header.innerHTML = `<span class="caret">▶</span> <strong>${catIdx + 1}.</strong> ${cat.replace(/^\d+\.\s*/, "")} <span class="badge">${itensCat.length} serv.</span>${resumoLocal}`;
     const children = document.createElement("div");
     children.className = "eap-children";
     header.addEventListener("click", () => { header.classList.toggle("open"); children.classList.toggle("open"); });
 
-    itens.forEach((q, idx) => {
+    itens.forEach(({ q, num, cabecaLocal, nLocal }) => {
+      if (cabecaLocal) {
+        const sub = document.createElement("div");
+        sub.className = "eap-item";
+        const L = LOCAIS[cabecaLocal];
+        sub.style.cssText = `grid-column:1/-1;font-weight:700;color:${L.cor};background:rgba(100,116,139,.06);border-left:3px solid ${L.cor};padding:5px 8px;margin-top:4px`;
+        sub.innerHTML = `${L.icone} ${L.label} <span style="font-weight:400;font-size:11px;color:var(--muted)">· ${nLocal} serviço(s)</span>`;
+        children.appendChild(sub);
+      }
+      const idx = 0;
       const row = document.createElement("div");
       row.className = "eap-item";
+      const badgeLocal = (() => {
+        const l = localDoItem(q);
+        if (subdividir) return "";                       // já está sob o cabeçalho da face
+        if (l === "ambos") return "";
+        return ` <span style="font-size:10px;color:${LOCAIS[l].cor};font-weight:700">· ${LOCAIS[l].icone} ${l}</span>`;
+      })();
+      const avisoLocal = q._localOrigem === "corrigido"
+        ? ` <span style="color:#b45309;font-size:10px;font-weight:700" title="A IA classificou como '${q._localIA}', mas a descrição do serviço indica '${q._local}'. O sistema usou a descrição.">· ⟳ face corrigida</span>` : "";
       row.innerHTML = `
-        <span class="codigo">${catIdx + 1}.${idx + 1} · ${q.sinapi_codigo || "—"}</span>
-        <span>${q.descricao}${q.fonte ? ` <span style="color:var(--muted);font-size:10px">· ${q.fonte}</span>` : ""}${String(q.confianca || "").toLowerCase() === "estimada" ? ` <span style="color:#b45309;font-size:10px;font-weight:700" title="Dimensão estimada por proporção — sem cota no desenho. Valide antes de orçar.">· ≈ estimado sem cota</span>` : ""}${q._editadoManual ? ` <span style="color:var(--green);font-size:10px">· ✓ ajustado por você</span>` : ""}</span>
+        <span class="codigo">${num} · ${q.sinapi_codigo || "—"}</span>
+        <span>${q.descricao}${q.fonte ? ` <span style="color:var(--muted);font-size:10px">· ${q.fonte}</span>` : ""}${String(q.confianca || "").toLowerCase() === "estimada" ? ` <span style="color:#b45309;font-size:10px;font-weight:700" title="Dimensão estimada por proporção — sem cota no desenho. Valide antes de orçar.">· ≈ estimado sem cota</span>` : ""}${q._editadoManual ? ` <span style="color:var(--green);font-size:10px">· ✓ ajustado por você</span>` : ""}${badgeLocal}${avisoLocal}</span>
         <span class="qtd" style="cursor:pointer;text-decoration:underline dotted" title="Clique para editar a quantidade">${Number(q.quantidade).toLocaleString("pt-BR",{maximumFractionDigits:2})} ✎</span>
         <span class="un">${q.unidade}</span>`;
       const qtdEl = row.querySelector(".qtd");
@@ -4307,20 +4676,31 @@ async function loadSinapiDB(estado) {
 // ═════════════════════════════════════════════════════════════════════════════
 const _precoCache = new Map();
 function _limparCachePreco(){ _precoCache.clear(); }
-function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual) {
+function resolveSinapi(codigo, descricao, categoria, preco_unitario_ia, manual, unidade) {
   const chave = (APP.estado||"") + "|" + (APP.desoneracao?1:0) + "|" + (codigo||"") + "|" +
-                (descricao||"") + "|" + (categoria||"") + "|" + (preco_unitario_ia||0) + "|" + (manual?1:0);
+                (descricao||"") + "|" + (categoria||"") + "|" + (preco_unitario_ia||0) + "|" + (manual?1:0) +
+                "|" + (unidadeCanonica(unidade)||"");
   const hit = _precoCache.get(chave);
   if (hit) return hit;
-  const res = _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual);
+  const res = _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual, unidade);
   if (_precoCache.size > 4000) _precoCache.clear();   // trava de memória
   _precoCache.set(chave, res);
   return res;
 }
-function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual) {
+function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, manual, unidade) {
   const col = APP.desoneracao ? 1 : 0;  // 0=sem desoneração, 1=com desoneração
+  const uItem = unidadeCanonica(unidade);
   const res = { preco: 0, codigoFinal: codigo || "", fonte: "none", banco: "—", sugerido: false, alerta: false, descricaoOficial: "",
+                unidadeFonte: "", unidadeConflito: false,
                 aiCodigo: String(codigo || ""), aiValido: (codigoRealSinapi(codigo) || precoEstado(codigo, col) != null) };
+  // Marca (sem bloquear) quando o código adotado tem unidade diferente da do item.
+  const selarUnidade = (r) => {
+    r.unidadeFonte = unidadeDoCodigo(r.codigoFinal);
+    if (uItem && r.unidadeFonte && !unidadesCompativeis(uItem, r.unidadeFonte)) {
+      r.unidadeConflito = true; r.alerta = true;
+    }
+    return r;
+  };
   const descOficialDe = (c) => APP.descricoesDB ? (APP.descricoesDB[c] || APP.descricoesDB[baseCodigo(c)] || "") : "";
 
   // EDIÇÃO MANUAL: o código digitado pelo usuário tem precedência absoluta (não é sobreposto pela busca)
@@ -4328,29 +4708,32 @@ function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, man
     const pr = precoEstado(codigo, col);
     res.codigoFinal = (APP.sinapiDB && APP.sinapiDB[codigo]) ? String(codigo) : (baseCodigo(codigo) || String(codigo));
     res.descricaoOficial = descOficialDe(codigo);
-    if (pr != null) { res.preco = pr; res.fonte = "estado"; res.banco = "SINAPI"; return res; }
+    if (pr != null) { res.preco = pr; res.fonte = "estado"; res.banco = "SINAPI"; return selarUnidade(res); }
     res.preco = preco_unitario_ia || 0;
     res.fonte = res.preco ? "ia" : "none";
     res.banco = codigoRealSinapi(codigo) ? "SINAPI" : (res.preco ? "IA" : "—");
     res.alerta = true;  // código informado não tem preço na tabela do estado selecionado
-    return res;
+    return selarUnidade(res);
   }
 
   // 1. Código da IA — só é aceito se a descrição OFICIAL confirmar (evita código certo p/ serviço errado)
+  //    E se a UNIDADE oficial do código bater com a unidade do serviço.
   let fraco = null;
   if (APP.sinapiDB) {
     const precoCod = precoEstado(codigo, col);
     if (precoCod != null) {
       const codFinal = APP.sinapiDB[codigo] ? String(codigo) : baseCodigo(codigo);
       const ofic = descOficialDe(codigo);
-      const confirma = !(ofic && descricao) ? true : (!descMismatch(descricao, ofic) && coberturaDesc(descricao, ofic) >= 0.7);
-      if (confirma) { res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI"; res.codigoFinal = codFinal; res.descricaoOficial = ofic; return res; }
-      fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // código existe mas descrição diverge
+      const unOk = unidadesCompativeis(uItem, unidadeDoCodigo(codFinal));
+      const confirma = unOk && (!(ofic && descricao) ? true : (!descMismatch(descricao, ofic) && coberturaDesc(descricao, ofic) >= 0.7));
+      if (confirma) { res.preco = precoCod; res.fonte = "estado"; res.banco = "SINAPI"; res.codigoFinal = codFinal; res.descricaoOficial = ofic; return selarUnidade(res); }
+      // Código com unidade incompatível NUNCA vira fallback "fraco": preço sem sentido físico.
+      if (unOk) fraco = { preco: precoCod, codigo: codFinal, ofic: ofic };  // código existe mas descrição diverge
     }
   }
 
-  const _topc    = buscarTopK(descricao, 1, col);
-  const sug      = _topc.length ? { codigo: _topc[0].codigo, descricao: _topc[0].desc, cobertura: _topc[0].score } : null;
+  const _topc    = buscarTopK(descricao, 1, col, uItem);
+  const sug      = _topc.length ? { codigo: _topc[0].codigo, descricao: _topc[0].desc, cobertura: _topc[0].score, recall: _topc[0].recall } : null;
   const canteiro = ehItemCanteiro(descricao);
   const prop     = buscarProprio(descricao, canteiro ? 0.3 : 0.5);
   const usarProprio = (p) => {
@@ -4364,7 +4747,10 @@ function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, man
     res.preco = pr; res.fonte = "estado-desc"; res.banco = "SINAPI";
     res.codigoFinal = g.codigo; res.sugerido = String(g.codigo) !== String(codigo || "");
     res.descricaoOficial = descOficialDe(g.codigo);
-    return res;
+    // Casamento textual fraco: o código foi adotado, mas cobre pouco do que se pediu.
+    // Não é erro certo — é incerteza que o engenheiro precisa ver antes de assinar.
+    if (g.recall != null && g.recall < RECALL_CONFIAVEL) { res.matchFraco = true; res.recall = g.recall; }
+    return selarUnidade(res);
   };
 
   // 2. Itens de canteiro/provisórios → catálogo PRÓPRIO tem prioridade
@@ -4379,19 +4765,24 @@ function _resolveSinapiCalc(codigo, descricao, categoria, preco_unitario_ia, man
   if (fraco) {
     res.preco = fraco.preco; res.fonte = "estado"; res.banco = "SINAPI";
     res.codigoFinal = fraco.codigo; res.descricaoOficial = fraco.ofic; res.alerta = true;
-    return res;
+    return selarUnidade(res);
   }
-  // 7. Catálogo interno (SINAPI_ITENS, preços SP)
+  // 7. Catálogo interno (SINAPI_ITENS, preços SP) — só se a unidade do item bater
+  const unItemOk = (it) => !it || unidadesCompativeis(uItem, it.un);
   if (sug) {
     const itemSug = findSinapiItemHardcoded(sug.codigo);
-    if (itemSug) { res.preco = itemSug.preco; res.fonte = "interno-desc"; res.banco = "SINAPI-SP"; res.codigoFinal = sug.codigo; res.sugerido = String(sug.codigo) !== String(codigo || ""); return res; }
+    if (itemSug && unItemOk(itemSug)) { res.preco = itemSug.preco; res.fonte = "interno-desc"; res.banco = "SINAPI-SP"; res.codigoFinal = sug.codigo; res.sugerido = String(sug.codigo) !== String(codigo || ""); return selarUnidade(res); }
   }
   const item = findSinapiItemHardcoded(codigo);
-  if (item) { res.preco = item.preco; res.fonte = "interno"; res.banco = "SINAPI-SP"; res.codigoFinal = item.codigo; return res; }
-  // 8. Fallback final: preço informado pela IA
+  if (item && unItemOk(item)) { res.preco = item.preco; res.fonte = "interno"; res.banco = "SINAPI-SP"; res.codigoFinal = item.codigo; return selarUnidade(res); }
+  // 8. Fallback final: preço informado pela IA.
+  //    Não veio da base SINAPI — é palpite do modelo. Sempre marcado como alerta:
+  //    o usuário precisa saber que este número não tem lastro em tabela oficial.
   res.preco = preco_unitario_ia || 0;
   res.fonte = res.preco ? "ia" : "none";
   res.banco = res.preco ? "IA" : "—";
+  res.alerta = true;
+  res.semLastro = true;
   return res;
 }
 
@@ -4459,6 +4850,8 @@ async function buildBudget() {
   });
 
   let totalSemBdi = 0, totalComBdi = 0, itemNum = 0, nCorrigidos = 0, nInvalidos = 0;
+  let nSemLastro = 0, nUnidadeConf = 0, nMatchFraco = 0;   // sem preço SINAPI / unidade divergente / casamento textual fraco
+  const _itensSemLastro = [];
   (r.quantitativos || []).forEach((q, i) => { if (q._id == null) q._id = i; });
   // pré-passada: conta uso de cada código final p/ sinalizar repetidos (serviços diferentes, mesmo código)
   const _usoCod = {};
@@ -4502,8 +4895,18 @@ async function buildBudget() {
 
       const warnPrice = precoAdj === 0
         ? '<span class="warn">⚠ verificar preço</span>'
-        : (info.fonte === "ia" ? '<span class="warn" title="Código não encontrado na tabela do estado — preço estimado pela IA">⚠ preço estimado</span>'
+        : (info.fonte === "ia" ? '<span class="warn" style="background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px" title="ATENÇÃO: este preço NÃO veio da tabela SINAPI do estado. É uma estimativa do modelo de IA, sem lastro em tabela oficial. Não use em licitação sem substituir por composição própria ou código SINAPI verificado.">🚩 SEM BASE SINAPI</span>'
         : (info.fonte === "interno" || info.fonte === "interno-desc" ? '<span class="warn" title="Preço de referência interno (SP) — código ausente na tabela do estado">⚠ ref. SP</span>' : ''));
+      // Unidade do código SINAPI diferente da unidade do serviço: número sem sentido físico.
+      const warnUnidade = info.unidadeConflito
+        ? ` <span class="warn" style="background:#fee2e2;color:#991b1b;padding:1px 5px;border-radius:4px" title="O código adotado é medido em ${info.unidadeFonte} e este serviço está em ${q.unidade}. Multiplicar quantidade por um preço de outra unidade produz um valor sem significado. Corrija o código.">🚩 unidade ${info.unidadeFonte} ≠ ${q.unidade}</span>`
+        : "";
+      if (info.semLastro) { nSemLastro++; _itensSemLastro.push({ d: q.descricao, v: precoAdj * (Number(q.quantidade)||0) * (1 + bdi) }); }
+      if (info.unidadeConflito) nUnidadeConf++;
+      if (info.matchFraco) nMatchFraco++;
+      const warnFraco = info.matchFraco
+        ? ` <span class="warn" title="A descrição oficial do código SINAPI adotado cobre apenas ${Math.round((info.recall||0)*100)}% dos termos do serviço levantado. O preço pode ser de um serviço parecido, mas não idêntico. Confira a descrição oficial ao lado e corrija o código (✎) se não for o mesmo serviço.">⚠ conferir: casamento fraco</span>`
+        : "";
 
       // Banco (SINAPI/Próprio) + código corrigido + lápis editável
       const codOrig = (q._codigoManual || q.sinapi_codigo) || "—";
@@ -4520,7 +4923,7 @@ async function buildBudget() {
       tr.innerHTML = `
         <td>${itemNum}</td>
         <td id="codcell-${q._id}" style="font-family:monospace;font-size:11px">${codCell}</td>
-        <td>${(info.descricaoOficial || q.descricao)}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${(info.descricaoOficial && normalizaTxt(info.descricaoOficial) !== normalizaTxt(q.descricao||"")) ? ` <span class="ofic" title="Descrição lida pela IA: ${(q.descricao||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${info.alerta ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
+        <td>${(info.descricaoOficial || q.descricao)}${(() => { const l = localDoItem(q); return l && l !== "ambos" ? ` <span class="banco-tag" style="background:${l === "externo" ? "#fef3c7" : "#dbeafe"};color:${LOCAIS[l].cor};font-weight:700" title="${LOCAIS[l].label}">${LOCAIS[l].icone} ${l}</span>` : ""; })()}${q.fonte ? ` <span class="banco-tag" style="background:#eef2ff;color:#475569;font-weight:600">${q.fonte}</span>` : ""}${(info.descricaoOficial && normalizaTxt(info.descricaoOficial) !== normalizaTxt(q.descricao||"")) ? ` <span class="ofic" title="Descrição lida pela IA: ${(q.descricao||"").replace(/"/g,"'")}">ⓘ</span>` : ""} ${warnPrice}${warnUnidade}${warnFraco}${(info.alerta && !info.semLastro && !info.unidadeConflito) ? ' <span class="warn" title="O código informado diverge da descrição (ex.: manual × mecanizada). Clique no lápis para corrigir.">⚠ verificar código</span>' : ""}${(_usoCod[info.codigoFinal] > 1 && info.codigoFinal !== "PRÓPRIO") ? ' <span class="warn" title="Mesmo código usado em outro serviço — revise para que cada serviço tenha o código correto.">⚠ código repetido</span>' : ""}</td>
         <td>${q.unidade}</td>
         <td class="num" id="qtdcell-${q._id}">${fmt(qtd)} <span class="edit-cod" title="Editar quantidade" onclick="editarQuantidade(${q._id})">✎</span>${_ehItemAlvenaria(q) ? ` <span class="edit-cod" title="Calcular/ajustar alvenaria" onclick="calcAlvenaria(${q._id})">🧮</span>` : ""}</td>
         <td class="num">R$ ${fmt(precoAdj)}</td>
@@ -4565,12 +4968,57 @@ async function buildBudget() {
     { label: "Custo / m²",       value: custoM2,        sub: area > 0 ? `${area.toFixed(1)} m²` : "área não identificada" },
     { label: "Estado / Regime",  value: estado,                                  sub: `SINAPI 05/2026 ${desSuffix}` },
     { label: "Validação de códigos", value: nInvalidos > 0 ? `⚠ ${nInvalidos} inexistente(s)` : "✓ todos válidos", sub: `${nCorrigidos} corrigido(s) pela descrição` },
+    { label: "Lastro SINAPI",
+      value: nSemLastro > 0 ? `🚩 ${nSemLastro} sem base` : "✓ 100% na base",
+      sub: nSemLastro > 0 ? "preço estimado pela IA — substitua" : "todos os preços vieram da tabela oficial" },
   ].map(i => `
     <div class="info-box">
       <div class="label">${i.label}</div>
       <div class="value" style="font-size:16px">${i.value}</div>
       <div class="sub">${i.sub}</div>
     </div>`).join("");
+
+  // ── Painel de PROCEDÊNCIA DO PREÇO ────────────────────────────────────────
+  // O usuário precisa saber, antes de assinar, quanto do orçamento NÃO tem
+  // lastro em tabela oficial. Sem isto, um preço inventado pelo modelo passa
+  // com a mesma aparência de um preço SINAPI — foi essa a queixa dos usuários.
+  let hostProc = document.getElementById("budgetProcedencia");
+  if (!hostProc) {
+    const kpis = document.getElementById("budgetKpis");
+    if (kpis) {
+      hostProc = document.createElement("div");
+      hostProc.id = "budgetProcedencia";
+      kpis.parentNode.insertBefore(hostProc, kpis.nextSibling);
+    }
+  }
+  if (hostProc) {
+    let h = "";
+    if (nUnidadeConf > 0) {
+      h += `<div class="alert" style="background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;margin-top:10px">
+        <b>🚩 ${nUnidadeConf} serviço(s) com unidade divergente do código SINAPI.</b>
+        A quantidade está numa unidade e o preço em outra — o subtotal desses itens não tem
+        significado físico. Corrija o código (✎) antes de usar este orçamento.</div>`;
+    }
+    if (nMatchFraco > 0) {
+      h += `<div class="alert" style="background:#fffbeb;color:#92400e;border:1px solid #fcd34d;margin-top:10px">
+        <b>⚠ ${nMatchFraco} serviço(s) com casamento fraco entre a descrição levantada e a composição SINAPI.</b>
+        <div style="margin-top:6px;font-weight:400">O sistema achou um código de preço, mas a descrição oficial cobre
+        pouco do que foi descrito no levantamento — pode ser um serviço <i>parecido</i>, não o mesmo. Estão marcados na
+        tabela com "conferir: casamento fraco". Compare a descrição oficial e ajuste o código (✎) onde não bater.</div></div>`;
+    }
+    if (nSemLastro > 0) {
+      const vTot = _itensSemLastro.reduce((s, x) => s + x.v, 0);
+      const pct  = totalComBdi > 0 ? (vTot / totalComBdi * 100) : 0;
+      h += `<div class="alert" style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74;margin-top:10px">
+        <b>🚩 ${nSemLastro} serviço(s) sem preço na base SINAPI — ${pct.toFixed(1)}% do orçamento (R$ ${fmt(vTot)}).</b>
+        <div style="margin-top:6px;font-weight:400">Para estes itens o sistema <b>não encontrou</b> composição correspondente
+        na tabela do estado, então usou uma estimativa do modelo de IA. Estimativa de IA <b>não é preço de referência</b> e
+        não sustenta licitação nem prestação de contas. Substitua por código SINAPI (✎) ou por composição própria.</div>
+        <ul style="margin:6px 0 0 18px;font-weight:400">${_itensSemLastro.slice(0, 8).map(x => `<li>${x.d}</li>`).join("")}
+        ${_itensSemLastro.length > 8 ? `<li>… e mais ${_itensSemLastro.length - 8}</li>` : ""}</ul></div>`;
+    }
+    hostProc.innerHTML = h;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4711,7 +5159,7 @@ async function exportExcel() {
     [`MAR ABERTO ENGENHARIA`],
     [`Orçamento de Obra — ${APP.projectName} | Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | ${new Date().toLocaleDateString("pt-BR")}`],
     [],
-    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","TOTAL C/ BDI (R$)"],
+    ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","LOCAL","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","TOTAL C/ BDI (R$)","LASTRO DO PREÇO"],
   ];
 
   const byCat = {};
@@ -4724,33 +5172,51 @@ async function exportExcel() {
   let itemNum = 0, totalSemBdi = 0, totalComBdi = 0;
   const fmt2 = v => Math.round(v * 100) / 100;
 
+  const ORD_LOC = ["interno", "externo", "ambos"];
+  const rotuloLoc = { interno: "Interno", externo: "Externo", ambos: "Int+Ext" };
   ordenarCategorias(Object.entries(byCat)).forEach(([cat, itens]) => {
-    rows.push([cat, "", "", "", "", "", "", ""]);
+    rows.push([cat, "", "", "", "", "", "", "", "", ""]);
     let catTotal = 0;
 
-    itens.forEach(q => {
-      itemNum++;
-      const info       = precoServico(q);
-      const precoAdj   = info.preco;
-      const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
-      const qtd        = Number(q.quantidade) || 0;
-      const subtotal   = fmt2(precoAdj * qtd);
-      const comBdi     = fmt2(subtotal * (1 + bdi));
-      catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
+    // Espelha a EAP: subgrupo por face dentro da categoria, quando houver mais de uma.
+    const porLoc = {};
+    itens.forEach(q => { const l = localDoItem(q); (porLoc[l] = porLoc[l] || []).push(q); });
+    const locsPres = ORD_LOC.filter(l => porLoc[l] && porLoc[l].length);
+    const ordenados = locsPres.length > 1
+      ? locsPres.map(l => ({ l, itens: porLoc[l] }))
+      : [{ l: null, itens: itens }];
 
-      rows.push([itemNum, codExcel, (info.descricaoOficial || q.descricao),
-                 q.unidade, qtd, fmt2(precoAdj), subtotal, comBdi]);
+    ordenados.forEach(({ l, itens: grupo }) => {
+      if (l) rows.push(["", "", `   ${LOCAIS[l].label}`, "", "", "", "", "", "", ""]);
+      grupo.forEach(q => {
+        itemNum++;
+        const info       = precoServico(q);
+        const precoAdj   = info.preco;
+        const codExcel   = info.codigoFinal || q.sinapi_codigo || "—";
+        const qtd        = Number(q.quantidade) || 0;
+        const subtotal   = fmt2(precoAdj * qtd);
+        const comBdi     = fmt2(subtotal * (1 + bdi));
+        catTotal += comBdi; totalSemBdi += subtotal; totalComBdi += comBdi;
+        // Lastro: deixa explícito na planilha entregue de onde veio cada preço.
+        const lastro = info.unidadeConflito ? `ERRO: código em ${info.unidadeFonte}, serviço em ${q.unidade}`
+                     : info.semLastro       ? "SEM BASE SINAPI — estimativa de IA"
+                     : info.fonte === "proprio" ? "Composição própria"
+                     : (info.fonte === "interno" || info.fonte === "interno-desc") ? "Referência interna (SP)"
+                     : `SINAPI ${estado}`;
+        rows.push([itemNum, codExcel, (info.descricaoOficial || q.descricao),
+                   rotuloLoc[localDoItem(q)] || "", q.unidade, qtd, fmt2(precoAdj), subtotal, comBdi, lastro]);
+      });
     });
-    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", fmt2(catTotal)]);
+    rows.push(["", "", `SUBTOTAL — ${cat.replace(/^\d+\.\s*/,"")}`, "", "", "", "", "", fmt2(catTotal), ""]);
   });
 
-  rows.push([], ["", "", "", "", "", "", `TOTAL S/ BDI`, fmt2(totalSemBdi)]);
-  rows.push(["", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, fmt2(totalComBdi)]);
+  rows.push([], ["", "", "", "", "", "", "", `TOTAL S/ BDI`, fmt2(totalSemBdi), ""]);
+  rows.push(["", "", "", "", "", "", "", `TOTAL C/ BDI (${(bdi*100).toFixed(2)}%)`, fmt2(totalComBdi), ""]);
 
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  ws1["!cols"] = [5,16,60,6,12,16,18,20].map(w => ({wch:w}));
-  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
-  estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[5,6,7], catCol0:true });
+  ws1["!cols"] = [5,16,60,10,6,12,16,18,20,34].map(w => ({wch:w}));
+  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
+  estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[6,7,8], catCol0:true });
   XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
