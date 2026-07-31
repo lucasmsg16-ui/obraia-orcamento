@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.07.31</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.01</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -650,6 +650,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
         <option value="estrutural">🧱 Estrutural — fôrma/armação (aço, concreto, fôrma)</option>
         <option value="eletrico">💡 Elétrico — instalações elétricas</option>
         <option value="hidrossanitario">🚿 Hidrossanitário — água / esgoto</option>
+        <option value="infraestrutura">🛣️ Infraestrutura — drenagem, pavimentação, terraplenagem</option>
       </select>
       <div class="muted" style="font-size:12px;margin-top:6px">
         Subiu <b>vários projetos juntos</b> (estrutural + arquitetônico + hidrossanitário)? Deixe em <b>Detectar por folha</b>: cada folha é classificada e lida no escopo da sua disciplina (uma leitura isolada por disciplina). Você confere/ajusta a disciplina de cada folha logo abaixo, na seleção de páginas.
@@ -1299,8 +1300,19 @@ const DISCIPLINAS = {
   arquitetonico:   { label:"Arquitetônico (obra completa)",  nums:null },
   estrutural:      { label:"Estrutural (fôrma/armação)",     nums:[3,4] },
   eletrico:        { label:"Elétrico",                       nums:[13] },
-  hidrossanitario: { label:"Hidrossanitário (água/esgoto)",  nums:[12] }
+  hidrossanitario: { label:"Hidrossanitário (água/esgoto)",  nums:[12] },
+  // Obra de infraestrutura: preliminares + terraplenagem/drenagem/pavimentação/
+  // sinalização/OAC. NÃO inclui nenhuma categoria de edificação — é justamente o
+  // que impede um projeto de drenagem receber revestimento cerâmico ou forro.
+  infraestrutura:  { label:"Infraestrutura (drenagem/pavimentação)", nums:[1,16,17,18,19,20] },
+  // Disciplina que a IA não conseguiu classificar. Não filtra (para não jogar fora
+  // trabalho legítimo), mas marca o resultado para o aviso na tela e no auditor.
+  indefinida:      { label:"Não identificada",               nums:null, incerta:true }
 };
+// Categorias tipicamente de EDIFICAÇÃO — se aparecerem num levantamento de
+// infraestrutura, é sinal de leitura errada.
+const CATS_EDIFICACAO = [5,6,7,8,9,10,11,14];
+const CATS_INFRA      = [16,17,18,19,20];
 
 
 // (DISC_FOCUS / focoDisciplina foram movidos para o SERVIDOR — metodologia protegida.)
@@ -1310,17 +1322,48 @@ function catNum(cat) {
 }
 // Filtro assertivo: descarta serviços fora das categorias da disciplina.
 // Em "auto", usa a disciplina detectada pela IA. Retorna {efetiva, removidos}.
+// ─────────────────────────────────────────────────────────────────────────────
+// CORREÇÃO (2026-07-30) — O FILTRO FALHAVA ABERTO.
+// Antes: qualquer disciplina_detectada não reconhecida caía em "arquitetonico",
+// que tem nums=null e portanto NÃO filtra nada. Resultado medido: um projeto de
+// DRENAGEM em modo auto passava com "revestimento cerâmico" e "forro de gesso",
+// 0 itens removidos, sem um único aviso. O padrão de segurança estava invertido:
+// na dúvida o sistema abria a porteira em vez de levantar a mão.
+// Agora: valor desconhecido vira "indefinida" — não descarta o trabalho (para não
+// jogar fora item legítimo), mas MARCA o resultado para o aviso na tela e para a
+// checagem cruzada de categorias incompatíveis logo abaixo.
+// ─────────────────────────────────────────────────────────────────────────────
 function filtrarPorDisciplina(result, disc) {
-  if (!result || !Array.isArray(result.quantitativos)) return { efetiva: disc, removidos: 0 };
+  if (!result || !Array.isArray(result.quantitativos)) return { efetiva: disc, removidos: 0, removidosItens: [] };
   let efetiva = disc;
-  if (disc === "auto") efetiva = String(result.disciplina_detectada || "arquitetonico").toLowerCase();
-  if (!DISCIPLINAS[efetiva]) efetiva = "arquitetonico";
+  if (disc === "auto") {
+    const det = String(result.disciplina_detectada || "").trim().toLowerCase();
+    efetiva = (det && DISCIPLINAS[det] && det !== "auto") ? det : "indefinida";
+  }
+  if (!DISCIPLINAS[efetiva]) efetiva = "indefinida";
   result._disciplinaEfetiva = efetiva;
-  const conf = DISCIPLINAS[efetiva];
-  if (!conf || !conf.nums) return { efetiva, removidos: 0 };
-  const antes = result.quantitativos.length;
-  result.quantitativos = result.quantitativos.filter(q => conf.nums.includes(catNum(q.categoria)));
-  return { efetiva, removidos: antes - result.quantitativos.length };
+  result._disciplinaIncerta = !!(DISCIPLINAS[efetiva] || {}).incerta;
+
+  const conf = DISCIPLINAS[efetiva] || {};
+  let removidosItens = [];
+  if (conf.nums) {
+    const antes = result.quantitativos;
+    result.quantitativos = antes.filter(q => conf.nums.includes(catNum(q.categoria)));
+    removidosItens = antes.filter(q => !conf.nums.includes(catNum(q.categoria)));
+  }
+  // Checagem cruzada: edificação e infraestrutura não convivem no mesmo
+  // levantamento. Se convivem, a leitura errou — e o usuário precisa saber.
+  const nums = new Set(result.quantitativos.map(q => catNum(q.categoria)));
+  const temEdif  = CATS_EDIFICACAO.some(n => nums.has(n));
+  const temInfra = CATS_INFRA.some(n => nums.has(n));
+  result._conflitoEdifInfra = temEdif && temInfra;
+
+  result._removidosPorDisciplina = removidosItens.map(q => ({
+    descricao: q.descricao || "(sem descrição)",
+    categoria: q.categoria || "(sem categoria)",
+    quantidade: q.quantidade, unidade: q.unidade
+  }));
+  return { efetiva, removidos: removidosItens.length, removidosItens };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2352,7 +2395,7 @@ function ehItemCanteiro(descricao) {
 // Área construída robusta (usa soma dos ambientes se a IA não preencher area_construida_m2)
 function areaDoProjeto(r) {
   let a = Number(r && r.area_construida_m2) || 0;
-  if (a <= 0 && r) a = (r.ambientes || []).reduce((s, x) => s + (Number(x.area_m2) || 0), 0);
+  if (a <= 0 && r) a = (r.ambientes || []).reduce((s, x) => s + _areaAmbiente(x), 0);
   return a;
 }
 
@@ -2535,6 +2578,34 @@ function _perimetroAmbiente(a){
   if(a && a._medido && pm > 0) return pm;
   const c = Number(a && a.comprimento_m) || 0, l = Number(a && a.largura_m) || 0;
   return (c > 0 && l > 0) ? 2 * (c + l) : 0;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// CORREÇÃO (2026-07-30) — A MEDIÇÃO DO ENGENHEIRO NÃO ERA USADA NA ÁREA.
+// Existia _perimetroAmbiente(), que dá precedência ao perímetro medido, mas NÃO
+// existia o equivalente para ÁREA. Resultado: ao clicar "Aplicar", o contorno
+// traçado virava a.area_medida_m2 e era usado APENAS para exibir o desvio (%).
+// Todo cálculo de área — piso por material, área construída, mapa de risco,
+// conferência do auditor e o Excel — continuava lendo a.area_m2 (leitura da IA).
+// Na prática o sistema usava a medição para a ALVENARIA e ignorava para o PISO,
+// no mesmo ambiente. O usuário via "✓ Conferido" e assinava um orçamento que só
+// tinha sido corrigido pela metade — sem nenhum aviso.
+// Regra agora, única e explícita: MEDIÇÃO DO ENGENHEIRO SEMPRE VENCE.
+// a.area_m2 é preservado intacto para continuar mostrando o desvio.
+// ─────────────────────────────────────────────────────────────────────────────
+function _areaAmbiente(a){
+  const am = Number(a && a.area_medida_m2) || 0;
+  if(a && a._medido && am > 0) return am;          // contorno traçado na planta
+  const ai = Number(a && a.area_m2) || 0;
+  if(ai > 0) return ai;                            // leitura da IA
+  const c = Number(a && a.comprimento_m) || 0, l = Number(a && a.largura_m) || 0;
+  return (c > 0 && l > 0) ? c * l : 0;             // reconstrução por dimensões
+}
+// De onde veio a área que está sendo usada — para a interface poder dizer ao
+// usuário, em vez de deixá-lo adivinhar.
+function _origemArea(a){
+  if(a && a._medido && (Number(a.area_medida_m2)||0) > 0) return "medida";
+  if((Number(a && a.area_m2)||0) > 0) return "ia";
+  return "estimada";
 }
 function _ehItemRevestParede(q){
   const d = _norm(q && q.descricao);
@@ -3319,7 +3390,7 @@ function auditarCoerencia(r) {
   if (inconsist.length) A.push({ nivel: "erro", msg: `${inconsist.length} ambiente(s) com cotas que não fecham com a área`, detalhe: inconsist });
 
   // 2) Σ áreas dos ambientes × área construída declarada
-  const somaAmb = amb.reduce((s, a) => s + (Number(a.area_m2) || 0), 0);
+  const somaAmb = amb.reduce((s, a) => s + _areaAmbiente(a), 0);
   const areaDecl = Number(r.area_construida_m2) || 0;
   if (somaAmb > 0 && areaDecl > 0) {
     const d = pct(somaAmb, areaDecl);
@@ -3411,6 +3482,65 @@ function auditarCoerencia(r) {
       detalhe: memoRuim.slice(0, 8).concat(memoRuim.length > 8 ? [`… e mais ${memoRuim.length - 8}`] : []) });
   }
 
+  // 5g) QUAL COTA ESTÁ VALENDO — antes o usuário não tinha como saber. Ele media,
+  // via "✓ Conferido: desvio de X%" e ficava sem resposta para a pergunta óbvia:
+  // o orçamento usou a MINHA medida ou a da IA? Agora o sistema declara.
+  const medidos = amb.filter(a => a._medido && (Number(a.area_medida_m2) || 0) > 0);
+  if (medidos.length) {
+    const linhas = medidos.slice(0, 8).map(a => {
+      const ia = Number(a.area_m2) || 0, me = Number(a.area_medida_m2) || 0;
+      const d = ia > 0 ? Math.round(Math.abs(me - ia) / ia * 1000) / 10 : null;
+      return `${a.nome || "—"}: IA lia ${nf(ia)} m² → em uso ${nf(me)} m² (sua medição)${d != null ? ` · desvio ${d}%` : ""}`;
+    });
+    A.push({ nivel: "ok",
+      msg: `${medidos.length} ambiente(s) conferido(s) — o orçamento está usando A SUA MEDIÇÃO, não a leitura da IA`,
+      detalhe: ["Regra do sistema: onde você mediu, a sua medição vence. Vale para área de piso, forro, área construída e alvenaria. A leitura da IA fica guardada só para mostrar o desvio."]
+        .concat(linhas).concat(medidos.length > 8 ? [`… e mais ${medidos.length - 8}`] : []) });
+  }
+  const naoMedidos = amb.filter(a => !a._medido);
+  if (medidos.length && naoMedidos.length) {
+    A.push({ nivel: "aviso",
+      msg: `${naoMedidos.length} ambiente(s) ainda usam a leitura da IA (não foram conferidos)`,
+      detalhe: ["Nestes o número vem da IA, não de medição sua: " + naoMedidos.slice(0,10).map(a=>a.nome||"—").join(", ") + (naoMedidos.length>10?"…":"")] });
+  }
+
+  // 5d) DISCIPLINA NÃO IDENTIFICADA — antes isto era silencioso e o sistema
+  // simplesmente tratava como obra completa, liberando TODAS as categorias.
+  if (r._disciplinaIncerta) {
+    A.push({ nivel: "erro",
+      msg: "A IA não conseguiu identificar com segurança a disciplina do projeto",
+      detalhe: ["Como não sei se é edificação, estrutura, instalação ou infraestrutura, NÃO apliquei nenhum filtro — pode haver serviço que não pertence a esta obra.",
+                "Confira item a item antes de assinar. Se você sabe qual é a disciplina, volte ao passo 1, selecione-a no seletor e refaça a leitura: o resultado fica muito mais preciso."] });
+  }
+
+  // 5e) EDIFICAÇÃO × INFRAESTRUTURA NO MESMO LEVANTAMENTO — não existe obra que
+  // seja as duas coisas ao mesmo tempo. Se as duas famílias aparecem juntas, a
+  // leitura errou. É exatamente o caso "projeto de drenagem com revestimento
+  // cerâmico", que passava despercebido.
+  if (r._conflitoEdifInfra) {
+    const nums = new Set((r.quantitativos || []).map(q => catNum(q.categoria)));
+    const edif  = (r.quantitativos || []).filter(q => CATS_EDIFICACAO.includes(catNum(q.categoria)));
+    const infra = (r.quantitativos || []).filter(q => CATS_INFRA.includes(catNum(q.categoria)));
+    A.push({ nivel: "erro",
+      msg: "Levantamento mistura serviços de EDIFICAÇÃO com serviços de INFRAESTRUTURA",
+      detalhe: ["Uma obra é de edificação (casa/prédio) OU de infraestrutura (drenagem/pavimentação). As duas famílias juntas indicam erro de leitura.",
+                "De edificação: " + edif.slice(0,4).map(q => (q.descricao||"").slice(0,44)).join(" · ") + (edif.length>4?` … +${edif.length-4}`:""),
+                "De infraestrutura: " + infra.slice(0,4).map(q => (q.descricao||"").slice(0,44)).join(" · ") + (infra.length>4?` … +${infra.length-4}`:""),
+                "Selecione a disciplina correta no passo 1 e refaça a leitura."] });
+  }
+
+  // 5f) O QUE O FILTRO DESCARTOU — antes só ia para console.log, que ninguém abre.
+  // Se a IA classificou a disciplina errado, o orçamento encolhia em silêncio.
+  const rem = r._removidosPorDisciplina || [];
+  if (rem.length) {
+    const lbl = (DISCIPLINAS[r._disciplinaEfetiva] || {}).label || r._disciplinaEfetiva;
+    A.push({ nivel: "aviso",
+      msg: `${rem.length} serviço(s) descartado(s) por não pertencerem à disciplina "${lbl}"`,
+      detalhe: ["Isto é esperado quando a disciplina está correta. Mas se algum destes DEVIA estar no orçamento, a disciplina selecionada está errada:"]
+        .concat(rem.slice(0, 8).map(q => `${q.descricao.slice(0,60)} — ${q.categoria}`))
+        .concat(rem.length > 8 ? [`… e mais ${rem.length - 8}`] : []) });
+  }
+
   // 6) Cobertura de origem: quanto do levantamento veio de cota real?
   if (amb.length) {
     const comCota = amb.filter(a => ["cota","cadeia","quadro"].includes(String(a.origem_dimensao||"").toLowerCase())).length;
@@ -3467,9 +3597,9 @@ function renderAuditoria() {
 // ═══════════════════════════════════════════════════════════════
 function rankearRisco(r) {
   const amb = (r && r.ambientes) || [];
-  const maxArea = Math.max(1, ...amb.map(a => Number(a.area_m2) || 0));
+  const maxArea = Math.max(1, ...amb.map(a => _areaAmbiente(a)));
   return amb.map((a, i) => {
-    const area = Number(a.area_m2) || 0;
+    const area = _areaAmbiente(a);
     const orig = String(a.origem_dimensao || "").toLowerCase();
     // incerteza: 1,0 estimado · 0,55 quadro (não é cota do desenho) · 0,25 cadeia · 0,1 cota
     const incerteza = orig === "estimada" ? 1 : orig === "quadro" ? 0.55 : orig === "cadeia" ? 0.25 : orig === "cota" ? 0.1 : 0.8;
@@ -3761,7 +3891,11 @@ function renderAcabamentos() {
         const ac = a.acabamentos || {};
         return `<tr>
           <td style="padding:6px 8px;font-weight:600">${a.nome || "—"}</td>
-          <td style="padding:6px 8px;text-align:right">${nf(a.area_m2)} m²</td>
+          <td style="padding:6px 8px;text-align:right">${nf(_areaAmbiente(a))} m²${
+            _origemArea(a) === "medida"
+              ? `<span title="Área medida por você na planta — é esta que está sendo usada. A IA havia lido ${nf(a.area_m2)} m²."
+                   style="display:inline-block;margin-left:5px;font-size:10px;font-weight:800;color:#0d6e42;background:#e8f8ef;border:1px solid #9fdcbd;border-radius:4px;padding:1px 5px;vertical-align:middle">MEDIDA</span>`
+              : ""}</td>
           ${cel(i,"piso",ac.piso)}${cel(i,"parede",ac.parede)}${cel(i,"teto",ac.teto)}${cel(i,"rodape",ac.rodape)}
         </tr>`;
       }).join("")}</tbody>
@@ -3770,7 +3904,7 @@ function renderAcabamentos() {
   const porPiso = {};
   (r.ambientes||[]).forEach(a => {
     const m = ((a.acabamentos||{}).piso || "").trim(); if (!m) return;
-    porPiso[m] = (porPiso[m] || 0) + (Number(a.area_m2) || 0);
+    porPiso[m] = (porPiso[m] || 0) + _areaAmbiente(a);   // medição vence a leitura da IA
   });
   const resumo = document.getElementById("acabamentosResumo");
   if (resumo) resumo.innerHTML = Object.keys(porPiso).length
@@ -4756,7 +4890,7 @@ async function exportExcel() {
         acRows.push([a.nome || "—", Number(a.area_m2) || 0, ac.piso || "—", ac.parede || "—", ac.teto || "—", ac.rodape || "—"]);
       });
       const porPiso = {};
-      (r.ambientes || []).forEach(a => { const m = ((a.acabamentos||{}).piso || "").trim(); if (m) porPiso[m] = (porPiso[m]||0) + (Number(a.area_m2)||0); });
+      (r.ambientes || []).forEach(a => { const m = ((a.acabamentos||{}).piso || "").trim(); if (m) porPiso[m] = (porPiso[m]||0) + _areaAmbiente(a); });
       if (Object.keys(porPiso).length) {
         acRows.push([], ["TOTAIS POR MATERIAL DE PISO","","","","",""]);
         Object.entries(porPiso).sort((a,b)=>b[1]-a[1]).forEach(([m,v]) => acRows.push([m, Math.round(v*100)/100, "", "", "", ""]));
