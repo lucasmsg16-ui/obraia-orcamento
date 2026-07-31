@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.01</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.02</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -5497,6 +5497,7 @@ function exportInsumos(){
       <button class="btn" id="tkBtnWall" style="padding:6px 10px" onclick="tkSetMode('parede')">2) Traçar perímetro</button>
       <button class="btn" id="tkBtnVao" style="padding:6px 10px" onclick="tkSetMode('vao')">3) Marcar vãos</button>
       <button class="btn" id="tkBtnRobot" title="Detecta o contorno do ambiente e traça sozinho (exige escala calibrada)" style="padding:6px 12px;background:#FFD700;color:#002B40;font-weight:700;border-color:#FFD700" onclick="tkRobotMedir()">🤖 Medir sozinho</button>
+      <button class="btn btn-outline" id="tkBtnOrto" title="Trava o traçado em ângulo reto — ambiente retangular fica exato mesmo com clique tremido" style="padding:6px 10px;color:#002B40;background:#8ef5c8;border-color:#8ef5c8;font-weight:700" onclick="tkToggleOrto()">📐 Ângulo reto: ON</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkFinishRun()">Finalizar trecho</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkUndo()">↩ Desfazer ponto</button>
       <button class="btn btn-outline" style="padding:6px 10px;color:#fff;border-color:#fff" onclick="tkClearWalls()">Limpar traçado</button>
@@ -5790,11 +5791,44 @@ function tkClick(e){
       t.calib=t.calib.slice(0,2);
       const px=Math.hypot(t.calib[0].x-t.calib[1].x, t.calib[0].y-t.calib[1].y);
       const real=parseFloat(String(prompt("Distância REAL entre os 2 pontos, em metros (ex.: 5.00):","")||"").replace(",","."));
-      if(real>0 && px>0){ t.scale=real/px; tkSetMode('parede'); } else { t.calib=[]; t.scale=null; }
+      if(real>0 && px>0){
+        t.scale=real/px;
+        t.calibPx=px; t.calibReal=real;
+        // ───────────────────────────────────────────────────────────────────
+        // PRECISÃO DA CALIBRAÇÃO (2026-07-30).
+        // O erro da escala entra LINEAR no comprimento e AO QUADRADO na área.
+        // Clicar com ±2 px de imprecisão sobre um segmento de 80 px dá 2,5% de
+        // erro na escala e 5,1% na ÁREA. Numa sala de 20 m² são 1,01 m² de
+        // diferença — que aparece como "calibrei a cota e a área não bateu".
+        // O sistema aceitava calibração de 40 px (10% de erro de área) calado.
+        // Agora ele mede a própria precisão e avisa ANTES de a pessoa medir.
+        // ───────────────────────────────────────────────────────────────────
+        const errEscala = 2 / px;                       // ±2 px de clique
+        const errArea   = ((1 + errEscala) ** 2 - 1) * 100;
+        t.calibErrAreaPct = errArea;
+        const cmPorPx = (real / px) * 100;
+        if (px < 120) {
+          const seguir = confirm(
+            "⚠ CALIBRAÇÃO POUCO PRECISA\n\n" +
+            `Você calibrou sobre um trecho de apenas ${Math.round(px)} pixels.\n` +
+            `Um deslize normal de 2 px no clique já gera ~${errArea.toFixed(1)}% de erro NA ÁREA.\n\n` +
+            "Por que a área erra mais que o comprimento: o erro da escala entra duas vezes no cálculo de área (comprimento × largura). Um erro de 2,5% na escala vira 5% na área.\n\n" +
+            "COMO MELHORAR:\n" +
+            "• Dê zoom antes de calibrar (rolar o mouse)\n" +
+            "• Use a MAIOR cota disponível na prancha, não a menor\n" +
+            "• Clique exatamente nas pontas das setas da cota\n\n" +
+            "OK = seguir assim mesmo · Cancelar = refazer a calibração"
+          );
+          if (!seguir) { t.calib = []; t.scale = null; t.calibPx = 0; tkRedraw(); tkUpdateReadout(); return; }
+        }
+        t.calibMsg = `Escala: 1 px = ${cmPorPx.toFixed(2)} cm · trecho de ${Math.round(px)} px · ` +
+                     `precisão estimada na área: ±${errArea.toFixed(1)}%`;
+        tkSetMode('parede');
+      } else { t.calib=[]; t.scale=null; }
     }
   } else if(t.mode==='parede'){
     if(!t.scale){ alert("Defina a escala primeiro (passo 1)."); return; }
-    t.current.push({x,y});
+    t.current.push(_tkSnapOrto(x, y));
   } else if(t.mode==='vao'){
     if(!t.scale){ alert("Defina a escala primeiro (passo 1)."); return; }
     if(t.vaoPend){ return; }   // aguardando você escolher a altura do vão anterior
@@ -5893,6 +5927,40 @@ function tkRedraw(){
   ctx.setTransform(1,0,0,1,0,0);
   tkDrawLupa(ctx, cv);        // lupa desenhada FORA da transformação (tamanho fixo na tela)
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// TRAVA DE ÂNGULO RETO (2026-07-30).
+// Ambiente de planta é retangular. O clique humano nunca é: cada vértice sai 2 a
+// 4 px fora do eixo, o polígono fica levemente torto e a área fecha diferente da
+// cota — mesmo com a escala perfeita. Travar o segmento no eixo quando ele já
+// está quase no eixo elimina esse ruído inteiro, sem impedir ambiente com canto
+// em diagonal (aí o desvio passa da tolerância e o ponto fica onde foi clicado).
+// ─────────────────────────────────────────────────────────────────────────────
+const TK_ORTO_TOL_GRAUS = 8;
+function tkToggleOrto(){
+  const t=tkState(); t.orto = (t.orto === false);
+  const b=document.getElementById("tkBtnOrto");
+  if(b){
+    b.textContent = "📐 Ângulo reto: " + (t.orto ? "ON" : "OFF");
+    b.style.background = t.orto ? "#8ef5c8" : "transparent";
+    b.style.color      = t.orto ? "#002B40" : "#fff";
+    b.style.borderColor= t.orto ? "#8ef5c8" : "#fff";
+  }
+  tkUpdateReadout();
+}
+function _tkSnapOrto(x, y){
+  const t=tkState();
+  if(t.orto === false) return {x,y};
+  const arr = (t.current && t.current.length) ? t.current : null;
+  if(!arr) return {x,y};
+  const p = arr[arr.length-1];
+  const dx = x - p.x, dy = y - p.y;
+  if(!dx && !dy) return {x,y};
+  const ang = Math.abs(Math.atan2(dy, dx) * 180 / Math.PI);   // 0..180
+  const tol = TK_ORTO_TOL_GRAUS;
+  if(ang <= tol || ang >= 180 - tol) return { x, y: p.y };    // trava na horizontal
+  if(Math.abs(ang - 90) <= tol)      return { x: p.x, y };    // trava na vertical
+  return {x,y};                                               // canto real em diagonal
+}
 function tkFinishRun(){ const t=tkState(); if(t.current.length>=2) t.runs.push(t.current); t.current=[]; tkRedraw(); tkUpdateReadout(); }
 function tkUndo(){ const t=tkState(); if(t.current.length) t.current.pop(); else if(t.runs.length){ t.current=t.runs.pop(); t.current.pop(); } tkRedraw(); tkUpdateReadout(); }
 function tkClearWalls(){ const t=tkState(); t.runs=[]; t.current=[]; t.vaos=[]; t.vaoStart=null; t.vaoPend=null; tkRenderVaosList(); tkRedraw(); tkUpdateReadout(); }
@@ -5920,12 +5988,32 @@ function tkPolyPointsAll(){
 // Área FECHADA pelo contorno (fórmula de Gauss / shoelace), em m².
 // É a métrica OBJETIVA: dois cômodos de formas diferentes podem ter o mesmo
 // perímetro, mas a área fechada só bate se você contornou a forma certa.
+// ─────────────────────────────────────────────────────────────────────────────
+// CORREÇÃO (2026-07-30) — A ÁREA MISTURAVA TRAÇADOS SEPARADOS.
+// tkLengthM() percorre cada "run" isoladamente (correto). A área, porém, jogava
+// TODOS os pontos de TODOS os runs num vetor só e rodava o shoelace em cima
+// disso — o que costura o fim de um traçado no começo do outro e produz um
+// polígono que não existe. Bastava o usuário dar um "finalizar traçado" no meio
+// da conferência para a área sair errada, sem nenhum aviso.
+// Agora: o shoelace roda no MAIOR polígono fechado isolado, e o sistema marca
+// quando havia mais de um traçado, para o usuário saber que só um foi usado.
+// ─────────────────────────────────────────────────────────────────────────────
+function _tkShoelace(pts){
+  if(!pts || pts.length < 3) return 0;
+  let a = 0;
+  for(let i=0;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length]; a += p.x*q.y - q.x*p.y; }
+  return Math.abs(a/2);
+}
 function tkPolyAreaM2(){
   const t=tkState(); if(!t.scale) return 0;
-  const pts=tkPolyPointsAll(); if(pts.length<3) return 0;
-  let a=0;
-  for(let i=0;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length]; a += p.x*q.y - q.x*p.y; }
-  return Math.abs(a/2)*t.scale*t.scale;
+  const grupos = [];
+  (t.runs||[]).forEach(r => { if(r && r.length >= 3) grupos.push(r); });
+  if((t.current||[]).length >= 3) grupos.push(t.current);
+  if(!grupos.length) return 0;
+  let melhor = 0;
+  grupos.forEach(g => { const a = _tkShoelace(g); if(a > melhor) melhor = a; });
+  t._areaMultiplosTracados = grupos.length > 1;   // avisa na leitura da régua
+  return melhor * t.scale * t.scale;
 }
 function tkRenderVaosList(){
   const t=tkState(); const el=document.getElementById("tkVaosList"); if(!el) return;
@@ -6053,7 +6141,18 @@ function tkAtualizarResumo(){
   const t=tkState();
   const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
   const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
-  set("tkResEscala", t.scale ? (nf(1/t.scale)+" px/m") : "definir");
+  // A escala agora carrega a PRECISÃO junto — o número sozinho dava falsa
+  // segurança. Verde ≤1,5% de erro de área, âmbar ≤4%, vermelho acima disso.
+  const elEsc = document.getElementById("tkResEscala");
+  if(elEsc){
+    if(!t.scale){ elEsc.textContent = "definir"; elEsc.style.color = ""; elEsc.title = ""; }
+    else {
+      const e = Number(t.calibErrAreaPct);
+      elEsc.textContent = nf(1/t.scale) + " px/m" + (isFinite(e) ? ` (±${e.toFixed(1)}% na área)` : "");
+      elEsc.style.color = !isFinite(e) ? "" : e <= 1.5 ? "#0d6e42" : e <= 4 ? "#b45309" : "#b91c1c";
+      elEsc.title = t.calibMsg || "";
+    }
+  }
   const L=tkLengthM();
   set("tkResPerim", L>0 ? nf(L)+" m" : "—");
   const tipo=tkTipoMed();
