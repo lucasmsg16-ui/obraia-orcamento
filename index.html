@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.03</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.04</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2123,6 +2123,7 @@ async function startAnalysis() {
     const consolidado = parts.length === 1 ? parts[0] : consolidarDisciplinas(parts);
     recalcularAlvenaria(consolidado);   // recalcula a alvenaria pelas dimensões dos ambientes
     APP.analysisResult = consolidado;
+    APP._incompatDet = null; APP._pendencias = null; APP._pendenciasErro = null;   // projeto novo → zera a compatibilização
     setStep("pstep3", true, `${consolidado.quantitativos.length} serviços em ${grupos.length} disciplina(s)`);
     setProgress(90, "Estruturando EAP…");
 
@@ -2382,7 +2383,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.03):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.04):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -2579,6 +2580,154 @@ const FORA_DE_ESCOPO = [
   ["Administração local, canteiro e mobilização", "Dependem do prazo e da estrutura de cada construtora — devem ser somados à parte do custo direto."],
   ["Encargos, taxas, licenças e ligações definitivas", "Variam por município e concessionária; não estão na SINAPI."],
 ];
+// ═══════════════════════════════════════════════════════════════════════════
+// INCOMPATIBILIDADES DE PROJETO — checagens determinísticas (custo zero)
+// ═══════════════════════════════════════════════════════════════════════════
+// Rodam sobre o JSON JÁ extraído, sem nova chamada de IA. Servem para dois fins:
+//   (1) alimentar o contador do selo, dando ao usuário um motivo concreto para
+//       pedir a análise profunda — um botão neutro não diz se há problema;
+//   (2) pegar sozinhas os erros de cruzamento mais comuns e mais caros.
+// Severidade: "critico" (o orçamento provavelmente está errado),
+//             "conferir" (divergência entre folhas — alguém tem que decidir),
+//             "perguntar" (falta informação; vira pergunta ao projetista).
+const SEVERIDADES = {
+  critico:   { label: "Crítico",   ordem: 0, bg: "var(--bg-danger)",  fg: "#501313" },
+  conferir:  { label: "Conferir",  ordem: 1, bg: "var(--bg-warning)", fg: "#412402" },
+  perguntar: { label: "Perguntar", ordem: 2, bg: "#f1f5f9",           fg: "#475569" },
+};
+const _RE_HIDRO   = /(tubo|tubulac|esgot|agua fria|louca|bacia|lavatorio|torneira|chuveiro|registro|ralo|caixa de (inspec|gordura))/;
+const _RE_IMPERM  = /impermeabiliz/;
+
+function _nomeNorm(s){ return normalizaTxt(s).replace(/[^a-z0-9]/g, " ").replace(/\s+/g, " ").trim(); }
+function _menorLadoAmb(a){
+  const c = Number(a && a.comprimento_m) || 0, l = Number(a && a.largura_m) || 0;
+  if (c > 0 && l > 0) return Math.min(c, l);
+  return 0;
+}
+
+function detectarIncompatibilidades(r) {
+  const out = [];
+  if (!r) return out;
+  const amb  = r.ambientes || [];
+  const esq  = r.esquadrias || [];
+  const qts  = r.quantitativos || [];
+  const add = (sev, titulo, detalhe) => out.push({ sev, titulo, detalhe, origem: "sistema" });
+  const corpus = normalizaTxt(qts.map(q => q.descricao || "").join(" | "));
+
+  // 1. Ambiente fechado sem esquadria — ou não tem acesso, ou a leitura falhou.
+  if (esq.length && amb.length) {
+    const colocs = _nomeNorm(esq.map(e => e.colocacao || "").join(" ; "));
+    const semPorta = amb.filter(a => {
+      const n = _nomeNorm(a.nome);
+      if (!n) return false;
+      if (/varanda|sacada|terraco|area externa|jardim|quintal|circulac|hall|corredor|vao livre/.test(n)) return false;
+      return !colocs.includes(n);
+    });
+    if (semPorta.length) {
+      add("critico", `${semPorta.length} ambiente(s) sem esquadria vinculada`,
+        `${semPorta.slice(0,6).map(a=>a.nome).join(", ")}${semPorta.length>6?"…":""}. ` +
+        `Ambiente fechado precisa de porta. Ou falta a esquadria no quadro, ou o vínculo com o ambiente não foi lido — nos dois casos o total de portas do orçamento está subestimado.`);
+    }
+  } else if (amb.length && !esq.length) {
+    add("critico", "Nenhuma esquadria levantada",
+      "O projeto tem ambientes mas não há portas nem janelas na lista. O desconto de vãos na alvenaria e o custo das esquadrias estão fora do orçamento.");
+  }
+
+  // 2. Área molhada declarada sem nenhum item hidráulico no orçamento.
+  const molhadas = amb.filter(a => a && a.area_molhada);
+  if (molhadas.length && !_RE_HIDRO.test(corpus)) {
+    add("critico", "Área molhada sem ponto hidráulico",
+      `${molhadas.map(a=>a.nome).filter(Boolean).slice(0,6).join(", ")} ${molhadas.length>1?"estão":"está"} classificad${molhadas.length>1?"os":"o"} como área molhada, ` +
+      `mas não há tubulação, louça nem metal no levantamento. Se o projeto hidrossanitário não foi enviado, esses serviços precisam ser orçados à parte.`);
+  }
+
+  // 3. Área molhada sem impermeabilização.
+  if (molhadas.length && !_RE_IMPERM.test(corpus)) {
+    add("conferir", "Área molhada sem impermeabilização",
+      "Há ambientes molhados no projeto e nenhum serviço de impermeabilização no orçamento. É uma das omissões mais caras de corrigir depois da obra pronta.");
+  }
+
+  // 4. Esquadria maior que a menor parede do ambiente onde foi alocada.
+  esq.forEach(e => {
+    const larg = Number(e && e.largura_m) || 0;
+    if (larg <= 0) return;
+    const alvo = _nomeNorm(e.colocacao);
+    if (!alvo) return;
+    amb.forEach(a => {
+      const n = _nomeNorm(a.nome); if (!n || !alvo.includes(n)) return;
+      const menor = _menorLadoAmb(a); if (menor <= 0) return;
+      if (larg > menor + 0.02) {
+        add("conferir", `${e.codigo || e.tipo || "Esquadria"} não cabe em ${a.nome}`,
+          `A esquadria tem ${larg.toFixed(2)} m de largura e a menor parede do ambiente mede ${menor.toFixed(2)} m. ` +
+          `Ou a cota do ambiente, ou a dimensão da esquadria, está lida errado.`);
+      }
+    });
+  });
+
+  // 5. Pé-direito divergente entre ambientes (planta × corte).
+  const pds = [...new Set(amb.map(a => Number(a && a.pe_direito_m) || 0).filter(v => v > 0).map(v => v.toFixed(2)))];
+  if (pds.length > 1) {
+    add("conferir", "Pé-direito diferente entre ambientes",
+      `Foram lidos ${pds.length} valores: ${pds.join(" m, ")} m. A alvenaria e os revestimentos de parede são calculados por ambiente — ` +
+      `se a divergência não for real (mezanino, pé-direito duplo), um dos valores está errado e a área de parede sai furada.`);
+  }
+
+  // 6. Área construída declarada × soma dos ambientes.
+  const decl = Number(r.area_construida_m2) || 0;
+  const soma = amb.reduce((s, a) => s + _areaAmbiente(a), 0);
+  if (decl > 0 && soma > 0) {
+    const dif = Math.abs(decl - soma) / decl;
+    if (dif > 0.12) {
+      add("conferir", "Área construída não fecha com a soma dos ambientes",
+        `Área declarada: ${decl.toFixed(1)} m². Soma dos ambientes: ${soma.toFixed(1)} m² (${(dif*100).toFixed(0)}% de diferença). ` +
+        `Pode faltar ambiente na leitura, ou a área declarada incluir circulação/paredes que não foram lançadas como ambiente.`);
+    }
+  }
+
+  // 7. Vãos usados na alvenaria × soma real das esquadrias.
+  const vaosDecl = Number(r.vaos_alvenaria_m2) || 0;
+  const vaosReal = esq.reduce((s, e) => s + (Number(e.largura_m)||0) * (Number(e.altura_m)||0) * (Number(e.quantidade)||0), 0);
+  if (vaosDecl > 0 && vaosReal > 0 && Math.abs(vaosDecl - vaosReal) / vaosDecl > 0.15) {
+    add("conferir", "Desconto de vãos diverge do quadro de esquadrias",
+      `A alvenaria descontou ${vaosDecl.toFixed(1)} m² de vãos, mas as esquadrias listadas somam ${vaosReal.toFixed(1)} m². ` +
+      `A área de parede a executar está errada em ${Math.abs(vaosDecl-vaosReal).toFixed(1)} m².`);
+  }
+
+  // 8. Projeto multipavimento sem identificação de pavimento nos ambientes.
+  const pav = Number(r.pavimentos) || 1;
+  if (pav > 1 && amb.length && !amb.some(a => a && a.pavimento)) {
+    add("perguntar", "Projeto com mais de um pavimento e ambientes sem pavimento identificado",
+      `O projeto declara ${pav} pavimentos, mas nenhum ambiente traz em qual deles está. Ambientes de mesmo nome em andares diferentes podem ter sido somados como um só.`);
+  }
+
+  // 9. Ambientes sem acabamento especificado.
+  const semAcab = amb.filter(a => !a || !a.acabamentos || !Object.keys(a.acabamentos).length);
+  if (amb.length && semAcab.length === amb.length) {
+    add("perguntar", "Nenhum ambiente tem acabamento especificado",
+      "O memorial descritivo não foi lido ou não acompanha o projeto. Pisos, revestimentos e pinturas foram orçados por padrão, não pelo que o projeto pede.");
+  } else if (semAcab.length) {
+    add("perguntar", `${semAcab.length} ambiente(s) sem acabamento especificado`,
+      `${semAcab.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semAcab.length>6?"…":""}. Confirme o acabamento com o projetista — foi adotado o padrão.`);
+  }
+
+  // 10. Ambiente com área mas sem cotas: não dá para conferir nem medir em campo.
+  const semCota = amb.filter(a => _areaAmbiente(a) > 0 && _menorLadoAmb(a) <= 0);
+  if (semCota.length) {
+    add("perguntar", `${semCota.length} ambiente(s) com área mas sem cotas de comprimento/largura`,
+      `${semCota.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semCota.length>6?"…":""}. Sem as duas dimensões o sistema não calcula perímetro — a alvenaria desses ambientes fica estimada.`);
+  }
+
+  // 11. Esquadria com dimensão ou quantidade zerada.
+  const esqZero = esq.filter(e => !(Number(e.largura_m)>0 && Number(e.altura_m)>0 && Number(e.quantidade)>0));
+  if (esqZero.length) {
+    add("conferir", `${esqZero.length} esquadria(s) com dimensão ou quantidade zerada`,
+      `${esqZero.slice(0,6).map(e=>e.codigo||e.tipo).filter(Boolean).join(", ")}. Não entram no desconto de vãos nem no custo — o quadro de esquadrias precisa ser conferido.`);
+  }
+
+  out.sort((a, b) => SEVERIDADES[a.sev].ordem - SEVERIDADES[b.sev].ordem);
+  return out;
+}
+
 // Retorna { faltantes:[{nome,motivo}], foraEscopo:[...], removidosDisc:[...] }
 function analisarLacunas(r) {
   if (!r) return null;
@@ -3552,6 +3701,7 @@ function buildEAP() {
   }
 
   renderLacunas();
+  renderSeloIncompat();
   renderAmbientesLevantamento();
   renderConferencia();
   renderMolhadas();
@@ -4248,6 +4398,167 @@ function esqAplicarVaos() {
 }
 
 // Renderiza a árvore Categoria → serviços dentro de um container
+// ═══════════════════════════════════════════════════════════════════════════
+// SELO + PAINEL DE PENDÊNCIAS (compatibilização de projeto)
+// ═══════════════════════════════════════════════════════════════════════════
+// O selo mostra o resultado das checagens determinísticas (grátis) e serve de
+// porta para a análise profunda por IA. Um botão neutro não informa se existe
+// problema — o contador informa, e é por isso que ele existe.
+function renderSeloIncompat() {
+  const r = APP.analysisResult; if (!r) return;
+  const host0 = document.getElementById("eapLacunas") || document.getElementById("eapTree");
+  if (!host0) return;
+  let host = document.getElementById("eapIncompat");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "eapIncompat";
+    host.style.marginTop = "14px";
+    host0.parentNode.insertBefore(host, host0.nextSibling);
+  }
+  const det = APP._incompatDet || (APP._incompatDet = detectarIncompatibilidades(r));
+  const prof = APP._pendencias || null;
+
+  if (prof) { renderPendencias(); return; }
+
+  const n = det.length;
+  const nCrit = det.filter(x => x.sev === "critico").length;
+  if (APP._incompatRodando) {
+    host.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px">
+      <span style="font-size:20px">⏳</span>
+      <div><b style="color:#1e40af">Analisando compatibilidade entre as pranchas…</b>
+      <div style="font-size:12.5px;color:#1e40af;margin-top:2px">Cruzando planta, cortes, esquadrias e memorial. Leva de 30 a 60 segundos.</div></div></div>`;
+    return;
+  }
+  if (n === 0) {
+    host.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding:8px 2px">
+      <span style="color:var(--green);font-weight:700">✓ Nenhuma incompatibilidade óbvia nas verificações automáticas.</span>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12px" onclick="analisarIncompatibilidades()">Verificar a fundo com IA</button></div>`;
+    return;
+  }
+  host.innerHTML = `
+    <div onclick="analisarIncompatibilidades()" title="Clique para a análise completa das pranchas"
+         style="display:flex;align-items:center;gap:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;cursor:pointer">
+      <span style="font-size:20px">⚠️</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:#412402">${n} possíve${n>1?"is":"l"} incompatibilidade${n>1?"s":""} no projeto${nCrit?` <span style="color:#991b1b">· ${nCrit} crítica${nCrit>1?"s":""}</span>`:""}</div>
+        <div style="font-size:12.5px;color:#854F0B;margin-top:2px">Verificação rápida automática · clique para a análise completa das pranchas</div>
+      </div>
+      <span class="btn btn-outline" style="padding:6px 12px;font-size:12.5px;white-space:nowrap">Analisar →</span>
+    </div>`;
+}
+
+// Análise profunda: 2ª passada da IA sobre as pranchas. NÃO consome crédito
+// (usa o refine_token emitido na análise principal) — cobrar de novo para o
+// cliente descobrir que o projeto dele tem erro seria punir quem quer acertar.
+async function analisarIncompatibilidades() {
+  const r = APP.analysisResult; if (!r) return;
+  if (APP._incompatRodando) return;
+  APP._incompatRodando = true;
+  renderSeloIncompat();
+  try {
+    const det = APP._incompatDet || detectarIncompatibilidades(r);
+    // Reenvia as pranchas em resolução moderada — a compatibilização é leitura
+    // de conflito entre folhas, não de cota fina.
+    const imgs = [];
+    const nPag = (APP.pages || []).length;
+    for (let g = 1; g <= Math.min(nPag, 12); g++) {
+      try { imgs.push({ label: `Folha ${g}`, data: await renderPageJpeg(g, 1100, 0.45) }); } catch (_) {}
+    }
+    const resumo = {
+      projeto: r.projeto, tipologia: r.tipologia, pavimentos: r.pavimentos,
+      area_construida_m2: r.area_construida_m2, perimetro_externo_m: r.perimetro_externo_m,
+      vaos_alvenaria_m2: r.vaos_alvenaria_m2,
+      ambientes: (r.ambientes || []).map(a => ({ nome:a.nome, c:a.comprimento_m, l:a.largura_m, area:_areaAmbiente(a),
+        pd:a.pe_direito_m, molhada:a.area_molhada, pavimento:a.pavimento, acab:a.acabamentos })),
+      esquadrias: r.esquadrias || [],
+      servicos: (r.quantitativos || []).map(q => ({ d:q.descricao, un:q.unidade, qt:q.quantidade, cat:q.categoria, local:localDoItem(q) })),
+      achados_automaticos: det.map(d => ({ severidade:d.sev, titulo:d.titulo, detalhe:d.detalhe })),
+    };
+    const content = [];
+    imgs.forEach(im => {
+      content.push({ type: "text", text: im.label });
+      content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: im.data } });
+    });
+    content.push({ type: "text", text: "LEVANTAMENTO JÁ EXTRAÍDO (JSON):\n" + JSON.stringify(resumo).slice(0, 60000) });
+
+    const data = await callAnthropic(
+      { model: "claude-sonnet-4-6", max_tokens: 8000, messages: [{ role: "user", content }] },
+      { semCredito: true, task: "compat" }
+    );
+    let txt = (data.content && data.content[0] && data.content[0].text) || "";
+    txt = txt.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    let parsed = null;
+    try { parsed = JSON.parse(txt); } catch (_) { const m = txt.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); }
+    const daIA = (parsed && Array.isArray(parsed.pendencias) ? parsed.pendencias : []).map(p => ({
+      sev: (SEVERIDADES[normalizaTxt(p.severidade)] ? normalizaTxt(p.severidade) : "conferir"),
+      titulo: String(p.titulo || "").slice(0, 200),
+      detalhe: String(p.detalhe || "").slice(0, 800),
+      folhas: String(p.folhas || ""),
+      origem: "ia",
+    })).filter(p => p.titulo);
+    // O servidor só sabe responder compatibilização depois que o prompt task="compat"
+    // for publicado. Antes disso ele devolve um levantamento comum — que não tem
+    // "pendencias". Nesse caso é melhor dizer isso do que fingir que analisou.
+    if (!parsed || !Array.isArray(parsed.pendencias)) {
+      APP._pendenciasErro = "o servidor ainda não está com a análise de compatibilização publicada";
+    }
+    APP._pendencias = det.concat(daIA).sort((a, b) => SEVERIDADES[a.sev].ordem - SEVERIDADES[b.sev].ordem);
+  } catch (e) {
+    // Falhou a passada da IA: mantém os achados determinísticos, que já valem.
+    APP._pendencias = (APP._incompatDet || []).slice();
+    APP._pendenciasErro = e.message || String(e);
+  } finally {
+    APP._incompatRodando = false;
+    renderSeloIncompat();
+  }
+}
+
+function renderPendencias() {
+  const host = document.getElementById("eapIncompat"); if (!host) return;
+  const lista = APP._pendencias || [];
+  const cont = { critico:0, conferir:0, perguntar:0 };
+  lista.forEach(p => { cont[p.sev] = (cont[p.sev] || 0) + 1; });
+  const erro = APP._pendenciasErro
+    ? `<div style="font-size:12.5px;color:#991b1b;margin-bottom:8px">A análise por IA não completou (${APP._pendenciasErro}). A lista abaixo traz apenas as verificações automáticas.</div>` : "";
+  if (!lista.length) {
+    host.innerHTML = `<div class="alert" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+      <b>✓ Nenhuma incompatibilidade encontrada.</b> As pranchas foram cruzadas e não apareceu conflito entre planta, cortes, esquadrias e memorial. Isso não substitui a sua conferência.</div>`;
+    return;
+  }
+  host.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#fff">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px">
+        <div style="font-weight:800;font-size:15px;color:var(--navy)">📋 Lista de pendências</div>
+        <div style="font-size:12.5px;color:var(--muted)">
+          ${lista.length} item(ns)
+          ${cont.critico?` · <b style="color:#991b1b">${cont.critico} crítico(s)</b>`:""}
+          ${cont.conferir?` · <b style="color:#92400e">${cont.conferir} a conferir</b>`:""}
+          ${cont.perguntar?` · ${cont.perguntar} pergunta(s)`:""}
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        Sai também como aba <b>PENDÊNCIAS</b> no Excel. Resolva os críticos antes de fechar preço.
+      </div>
+      ${erro}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${lista.map((p, i) => {
+          const S = SEVERIDADES[p.sev] || SEVERIDADES.conferir;
+          return `<div style="display:flex;gap:10px;border-top:1px solid #f1f5f9;padding-top:10px">
+            <span style="font-size:11px;font-weight:700;background:${S.bg};color:${S.fg};border-radius:5px;padding:3px 8px;height:fit-content;white-space:nowrap">${i+1}. ${S.label}</span>
+            <div style="min-width:0">
+              <div style="font-size:14px;font-weight:600">${p.titulo}</div>
+              <div style="font-size:12.5px;color:#475569;margin-top:2px;line-height:1.5">${p.detalhe || ""}</div>
+              ${p.folhas ? `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">Folha(s): ${p.folhas}</div>` : ""}
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">${p.origem === "ia" ? "Detectado na leitura das pranchas" : "Verificação automática do sistema"}</div>
+            </div></div>`;
+        }).join("")}
+      </div>
+      <div style="margin-top:12px;font-size:11.5px;color:var(--muted);border-top:1px solid #f1f5f9;padding-top:8px">
+        Esta lista aponta indícios lidos do material enviado. Não substitui a análise do responsável técnico — <b>a IA não assina ART; você assina.</b>
+      </div>
+    </div>`;
+}
+
 // Painel "O que NÃO entrou neste orçamento" — exibido logo abaixo da árvore da EAP.
 function renderLacunas() {
   const r = APP.analysisResult; if (!r) return;
@@ -5218,6 +5529,38 @@ async function exportExcel() {
   ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
   estilizarSheet(ws1, { titulo:0, subtitulo:1, headerRows:[3], moedaCols:[6,7,8], catCol0:true });
   XLSX.utils.book_append_sheet(wb, ws1, "ORÇAMENTO");
+
+  // ── Aba PENDÊNCIAS (compatibilização de projeto) ────────────────────────
+  // Sai sempre que houver algo — inclusive só com as verificações automáticas,
+  // mesmo que o usuário não tenha clicado na análise profunda. As colunas
+  // STATUS e RESPONSÁVEL ficam em branco de propósito: a planilha vira
+  // ferramenta de acompanhamento, não só um relatório.
+  const _pend = (APP._pendencias && APP._pendencias.length) ? APP._pendencias
+              : (APP._incompatDet || detectarIncompatibilidades(r) || []);
+  if (_pend.length) {
+    const pr = [
+      ["MAR ABERTO ENGENHARIA — LISTA DE PENDÊNCIAS DE PROJETO"],
+      [`${APP.projectName || r.projeto || "Projeto"} | ${new Date().toLocaleDateString("pt-BR")} | ${_pend.length} pendência(s)`],
+      [],
+      ["#","SEVERIDADE","PENDÊNCIA","DETALHE / EVIDÊNCIA","FOLHA(S)","ORIGEM","STATUS","RESPONSÁVEL"],
+    ];
+    _pend.forEach((p, i) => pr.push([
+      i + 1,
+      (SEVERIDADES[p.sev] || SEVERIDADES.conferir).label,
+      p.titulo || "",
+      p.detalhe || "",
+      p.folhas || "",
+      p.origem === "ia" ? "Leitura das pranchas" : "Verificação automática",
+      "", ""
+    ]));
+    pr.push([]);
+    pr.push(["", "", "Esta lista aponta indícios lidos do material enviado e não substitui a análise do responsável técnico."]);
+    const wsP = XLSX.utils.aoa_to_sheet(pr);
+    wsP["!cols"] = [5,13,46,72,10,22,14,20].map(w => ({wch:w}));
+    wsP["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+    estilizarSheet(wsP, { titulo:0, subtitulo:1, headerRows:[3] });
+    XLSX.utils.book_append_sheet(wb, wsP, "PENDÊNCIAS");
+  }
 
   // ── Sheet 2: EAP ───────────────────────────────────────────
   const eapRows = [
