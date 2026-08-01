@@ -353,9 +353,32 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .crono-tbl th{background:var(--navy);color:#fff;font-size:11px}
 .crono-tbl .num{text-align:right}
 .crono-tbl .crit-row{background:#fef2f2}
+.ev-box{margin-top:7px;border-left:3px solid #cbd5e1;padding:6px 0 6px 10px;background:#f8fafc;border-radius:0 6px 6px 0}
+.ev-l{font-size:12px;color:#334155;line-height:1.55}
+.ev-l b{color:var(--navy);margin-left:5px}
+.ev-t{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#64748b;background:#e2e8f0;border-radius:4px;padding:1px 5px;margin-right:5px}
+.ev-x{font-size:10.5px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.5px;margin:3px 0 3px 2px}
 .pred-chip{cursor:pointer;color:var(--text);border-bottom:1px dotted var(--muted)}
 .pred-chip:hover{color:var(--blue);border-bottom-color:var(--blue)}
-.lag-badge{display:inline-block;background:#eaf6fb;color:var(--blue);border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:2px}
+.lag-badge{display:inline-block;background:#eef2f7;color:#475569;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:2px}
+.lag-badge.par{background:#eaf6fb;color:var(--blue)}
+.pred-chip{display:inline-block;margin:1px 3px 1px 0;padding:1px 3px;border-radius:4px}
+.pred-chip:hover{background:#eaf6fb}
+.vinc-pop{border:1.5px solid var(--blue);border-radius:10px;background:#fff;box-shadow:0 6px 22px rgba(26,60,94,.16);padding:14px 16px;margin-bottom:12px}
+.vp-h{font-size:14px;color:var(--navy);margin-bottom:10px}
+.vp-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.vp-t{display:block;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12px;transition:.12s}
+.vp-t:hover{border-color:var(--blue)}
+.vp-t.on{border-color:var(--blue);background:#f0f9ff}
+.vp-t input{margin-right:6px}
+.vp-t b{color:var(--navy);font-size:13px}
+.vp-t span{color:var(--text);margin-left:5px}
+.vp-t em{display:block;color:var(--muted);font-style:normal;font-size:11px;margin-top:3px;line-height:1.45}
+.vp-l{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
+.vp-l label{font-size:12px;font-weight:600}
+.vp-l input,.vp-l select{display:block;margin-top:4px;padding:7px 9px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px}
+.vp-hint{font-size:11.5px;color:var(--muted);padding-bottom:8px}
+.vp-b{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
 /* ====== Menu lateral + recursos novos ====== */
 :root{ --sidew:240px; --sidew-col:66px; }
 
@@ -2142,7 +2165,8 @@ async function startAnalysis() {
     recalcularAlvenaria(consolidado);   // recalcula a alvenaria pelas dimensões dos ambientes
     APP.analysisResult = consolidado;
     APP._projId = null;                       // levantamento NOVO → slot próprio (não sobrescreve o anterior)
-    APP._incompatDet = null; APP._pendencias = null; APP._pendenciasErro = null;   // projeto novo → zera a compatibilização
+    APP._incompatDet = null; APP._achados = null; APP._achadosIAVerificar = null;
+    APP._pendencias = null; APP._pendenciasErro = null;   // projeto novo → zera a compatibilização
     // GRAVA IMEDIATAMENTE. O crédito já foi debitado no servidor neste ponto;
     // qualquer coisa que aconteça daqui em diante (fechar a aba, erro ao montar
     // a EAP, queda de energia) não pode mais custar o levantamento ao cliente.
@@ -2642,127 +2666,287 @@ function _menorLadoAmb(a){
   return 0;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// REGRA DE OURO (2026-08-01) — O QUE PODE SER CHAMADO DE "INCOMPATIBILIDADE"
+// ═══════════════════════════════════════════════════════════════════════════
+// Acusar incompatibilidade que não existe é pior que não acusar nenhuma: o
+// engenheiro leva ao projetista um erro inventado e queima a própria reputação.
+// Por isso, a partir daqui, só entra na lista de INCOMPATIBILIDADE o achado que
+// satisfaz as TRÊS condições abaixo — as outras verificações continuam existindo,
+// mas em listas separadas, com outro nome e outra promessa:
+//
+//   (1) DUAS FONTES. O conflito tem que ser entre duas informações do PRÓPRIO
+//       projeto (quadro de esquadrias × cota da planta; carimbo × soma dos
+//       ambientes; cota × área declarada). Uma informação sozinha não conflita
+//       com nada — no máximo está faltando, e faltar é outra categoria.
+//   (2) AS DUAS LIDAS COM CONFIANÇA. Se qualquer um dos dois lados veio de
+//       estimativa (origem_dimensao "estimada"), o desencontro pode ser da
+//       leitura, não do projeto. Vai para LEITURA INCERTA.
+//   (3) NÚMERO NA MESA. O item mostra os dois valores e de onde saiu cada um.
+//       Se não dá para escrever "A diz X, B diz Y", não é incompatibilidade.
+//
+// O que NÃO é incompatibilidade (e antes estava sendo tratado como se fosse):
+//   • Disciplina não enviada. "Área molhada sem ponto hidráulico" num projeto
+//     só arquitetônico não é defeito do projeto — é escopo que não foi enviado.
+//     A própria função analisarLacunas() já dizia isso corretamente ("exige o
+//     PROJETO HIDRÁULICO, envie à parte") enquanto esta aqui acusava CRÍTICO
+//     pelo mesmo fato. O sistema se contradizia. Agora só existe uma resposta.
+//   • Pé-direito diferente entre ambientes. É NORMAL (banheiro com forro
+//     rebaixado, sala com pé-direito duplo). Só vira conflito se a MESMA peça
+//     aparecer com dois valores.
+//   • Ambiente sem esquadria vinculada. O campo "colocacao" é texto livre
+//     ("Quarto 1; Quarto 2"); se o nome não bate exatamente, a falha é do
+//     VÍNCULO, não do projeto. Vai para LEITURA INCERTA.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Confiança da dimensão do ambiente: só "cota" e "cadeia" servem para provar
+// conflito. "quadro" serve como 2ª fonte. "estimada" nunca prova nada.
+function _dimConfiavel(a) {
+  const o = normalizaTxt(a && a.origem_dimensao);
+  return o === "cota" || o === "cadeia";
+}
+function _origemLabel(a) {
+  const o = normalizaTxt(a && a.origem_dimensao);
+  return o === "cota"   ? "cota lida na planta"
+       : o === "cadeia" ? "cadeia de cotas"
+       : o === "quadro" ? "quadro de áreas"
+       : "estimativa";
+}
+// Disciplinas efetivamente presentes no levantamento — usado para NUNCA acusar
+// ausência de algo que pertence a uma prancha que o cliente não enviou.
+function _discsPresentes(r) {
+  const s = new Set((r.quantitativos || []).map(q => q._disciplina).filter(Boolean));
+  if (r._disciplinaEfetiva) s.add(r._disciplinaEfetiva);
+  if (!s.size) s.add(APP.disciplina === "auto" ? "arquitetonico" : APP.disciplina);
+  return s;
+}
+
 function detectarIncompatibilidades(r) {
-  const out = [];
-  if (!r) return out;
+  return classificarAchados(r).incompat;
+}
+
+// Retorna { incompat:[], escopo:[], leitura:[] } — cada achado com evidências.
+function classificarAchados(r) {
+  const vazio = { incompat: [], escopo: [], leitura: [] };
+  if (!r) return vazio;
+  const out = [], escopo = [], leitura = [];
   const amb  = r.ambientes || [];
   const esq  = r.esquadrias || [];
   const qts  = r.quantitativos || [];
-  const add = (sev, titulo, detalhe) => out.push({ sev, titulo, detalhe, origem: "sistema" });
+  const discs = _discsPresentes(r);
+  // INCOMPATIBILIDADE: exige as duas evidências (fonteA/valorA × fonteB/valorB)
+  const addIncompat = (sev, titulo, detalhe, ev) => {
+    if (!ev || !ev.a || !ev.b) return;              // sem prova não entra. Fim.
+    out.push({ sev, titulo, detalhe, evidencia: ev, classe: "incompat", origem: "sistema" });
+  };
+  const addEscopo  = (titulo, detalhe) => escopo.push({ sev: "perguntar", titulo, detalhe, classe: "escopo",  origem: "sistema" });
+  const addLeitura = (titulo, detalhe) => leitura.push({ sev: "perguntar", titulo, detalhe, classe: "leitura", origem: "sistema" });
   const corpus = normalizaTxt(qts.map(q => q.descricao || "").join(" | "));
 
-  // 1. Ambiente fechado sem esquadria — ou não tem acesso, ou a leitura falhou.
-  if (esq.length && amb.length) {
-    const colocs = _nomeNorm(esq.map(e => e.colocacao || "").join(" ; "));
-    const semPorta = amb.filter(a => {
-      const n = _nomeNorm(a.nome);
-      if (!n) return false;
-      if (/varanda|sacada|terraco|area externa|jardim|quintal|circulac|hall|corredor|vao livre/.test(n)) return false;
-      return !colocs.includes(n);
-    });
-    if (semPorta.length) {
-      add("critico", `${semPorta.length} ambiente(s) sem esquadria vinculada`,
-        `${semPorta.slice(0,6).map(a=>a.nome).join(", ")}${semPorta.length>6?"…":""}. ` +
-        `Ambiente fechado precisa de porta. Ou falta a esquadria no quadro, ou o vínculo com o ambiente não foi lido — nos dois casos o total de portas do orçamento está subestimado.`);
-    }
-  } else if (amb.length && !esq.length) {
-    add("critico", "Nenhuma esquadria levantada",
-      "O projeto tem ambientes mas não há portas nem janelas na lista. O desconto de vãos na alvenaria e o custo das esquadrias estão fora do orçamento.");
-  }
+  // ─── A. INCOMPATIBILIDADES PROVADAS (duas fontes do projeto se contradizem) ───
 
-  // 2. Área molhada declarada sem nenhum item hidráulico no orçamento.
-  const molhadas = amb.filter(a => a && a.area_molhada);
-  if (molhadas.length && !_RE_HIDRO.test(corpus)) {
-    add("critico", "Área molhada sem ponto hidráulico",
-      `${molhadas.map(a=>a.nome).filter(Boolean).slice(0,6).join(", ")} ${molhadas.length>1?"estão":"está"} classificad${molhadas.length>1?"os":"o"} como área molhada, ` +
-      `mas não há tubulação, louça nem metal no levantamento. Se o projeto hidrossanitário não foi enviado, esses serviços precisam ser orçados à parte.`);
-  }
-
-  // 3. Área molhada sem impermeabilização.
-  if (molhadas.length && !_RE_IMPERM.test(corpus)) {
-    add("conferir", "Área molhada sem impermeabilização",
-      "Há ambientes molhados no projeto e nenhum serviço de impermeabilização no orçamento. É uma das omissões mais caras de corrigir depois da obra pronta.");
-  }
-
-  // 4. Esquadria maior que a menor parede do ambiente onde foi alocada.
+  // A1. Esquadria mais larga que a menor parede do ambiente em que o QUADRO a colocou.
+  //     Fonte A: quadro de esquadrias. Fonte B: cota do ambiente na planta.
+  //     Só acusa se a cota do ambiente for confiável — senão o erro pode ser da leitura.
   esq.forEach(e => {
     const larg = Number(e && e.largura_m) || 0;
     if (larg <= 0) return;
     const alvo = _nomeNorm(e.colocacao);
     if (!alvo) return;
     amb.forEach(a => {
-      const n = _nomeNorm(a.nome); if (!n || !alvo.includes(n)) return;
+      const n = _nomeNorm(a.nome); if (!n || n.length < 3 || !alvo.includes(n)) return;
       const menor = _menorLadoAmb(a); if (menor <= 0) return;
-      if (larg > menor + 0.02) {
-        add("conferir", `${e.codigo || e.tipo || "Esquadria"} não cabe em ${a.nome}`,
-          `A esquadria tem ${larg.toFixed(2)} m de largura e a menor parede do ambiente mede ${menor.toFixed(2)} m. ` +
-          `Ou a cota do ambiente, ou a dimensão da esquadria, está lida errado.`);
+      if (!_dimConfiavel(a)) return;                       // (2) confiança nas duas pontas
+      if (larg > menor + 0.05) {                           // 5 cm de tolerância de leitura
+        addIncompat("critico", `${e.codigo || e.tipo || "Esquadria"} não cabe em ${a.nome}`,
+          `O quadro de esquadrias dá ${larg.toFixed(2)} m de largura para esta peça, mas a menor parede de ${a.nome} mede ${menor.toFixed(2)} m ` +
+          `(${_origemLabel(a)}). A peça não entra no vão. Ou a dimensão no quadro está errada, ou a cota da planta está errada — as duas não podem estar certas.`,
+          { a: { fonte: `Quadro de esquadrias${e.fonte ? " · " + e.fonte : ""}`, valor: `largura ${larg.toFixed(2)} m` },
+            b: { fonte: `Planta — ${a.nome} (${_origemLabel(a)})`, valor: `menor parede ${menor.toFixed(2)} m` } });
       }
     });
   });
 
-  // 5. Pé-direito divergente entre ambientes (planta × corte).
-  const pds = [...new Set(amb.map(a => Number(a && a.pe_direito_m) || 0).filter(v => v > 0).map(v => v.toFixed(2)))];
-  if (pds.length > 1) {
-    add("conferir", "Pé-direito diferente entre ambientes",
-      `Foram lidos ${pds.length} valores: ${pds.join(" m, ")} m. A alvenaria e os revestimentos de parede são calculados por ambiente — ` +
-      `se a divergência não for real (mezanino, pé-direito duplo), um dos valores está errado e a área de parede sai furada.`);
-  }
-
-  // 6. Área construída declarada × soma dos ambientes.
+  // A2. Soma dos ambientes MAIOR que a área construída declarada.
+  //     A assimetria aqui é o que separa prova de chute:
+  //       soma < declarada → quase sempre falta ambiente na leitura → LEITURA.
+  //       soma > declarada → impossível fisicamente: a soma das partes não pode
+  //       exceder o todo. Isso é conflito real entre o carimbo e as cotas.
   const decl = Number(r.area_construida_m2) || 0;
-  const soma = amb.reduce((s, a) => s + _areaAmbiente(a), 0);
-  if (decl > 0 && soma > 0) {
-    const dif = Math.abs(decl - soma) / decl;
-    if (dif > 0.12) {
-      add("conferir", "Área construída não fecha com a soma dos ambientes",
-        `Área declarada: ${decl.toFixed(1)} m². Soma dos ambientes: ${soma.toFixed(1)} m² (${(dif*100).toFixed(0)}% de diferença). ` +
-        `Pode faltar ambiente na leitura, ou a área declarada incluir circulação/paredes que não foram lançadas como ambiente.`);
+  const ambCot = amb.filter(_dimConfiavel);
+  const somaTodos = amb.reduce((s, a) => s + _areaAmbiente(a), 0);
+  if (decl > 0 && somaTodos > 0) {
+    const dif = (somaTodos - decl) / decl;
+    if (dif > 0.05) {
+      addIncompat("critico", "Soma dos ambientes maior que a área construída declarada",
+        `Os ambientes somam ${somaTodos.toFixed(1)} m², mas o projeto declara ${decl.toFixed(1)} m² de área construída — ` +
+        `${(dif*100).toFixed(0)}% a mais. A soma das partes não pode passar do todo: ou uma cota está lida a maior, ou a área do carimbo/quadro está desatualizada.`,
+        { a: { fonte: "Carimbo / quadro de áreas", valor: `${decl.toFixed(1)} m² construídos` },
+          b: { fonte: `Soma de ${amb.length} ambiente(s) da planta`, valor: `${somaTodos.toFixed(1)} m²` } });
+    } else if (dif < -0.12) {
+      addLeitura("Soma dos ambientes menor que a área construída declarada",
+        `Ambientes somam ${somaTodos.toFixed(1)} m² contra ${decl.toFixed(1)} m² declarados. Isso normalmente NÃO é erro do projeto: ` +
+        `circulação, paredes e áreas técnicas costumam entrar na área construída sem virar "ambiente". Confira se algum cômodo deixou de ser lido.`);
     }
   }
 
-  // 7. Vãos usados na alvenaria × soma real das esquadrias.
+  // A3. Área declarada do ambiente × área reconstruída pelas cotas (mesma peça, duas fontes).
+  amb.forEach(a => {
+    const ai = Number(a && a.area_m2) || 0;
+    const c  = Number(a && a.comprimento_m) || 0, l = Number(a && a.largura_m) || 0;
+    if (!(ai > 0 && c > 0 && l > 0)) return;
+    if (!_dimConfiavel(a)) return;
+    const calc = c * l;
+    const d = Math.abs(calc - ai) / ai;
+    if (d > 0.10) {
+      addIncompat("conferir", `${a.nome}: área não fecha com as próprias cotas`,
+        `A planta informa ${ai.toFixed(2)} m² para ${a.nome}, mas as cotas lidas (${c.toFixed(2)} × ${l.toFixed(2)} m) dão ${calc.toFixed(2)} m² — ` +
+        `${(d*100).toFixed(0)}% de diferença. O ambiente pode não ser retangular (aí a área declarada vale), ou uma das cotas está errada no desenho.`,
+        { a: { fonte: `Área escrita na planta — ${a.nome}`, valor: `${ai.toFixed(2)} m²` },
+          b: { fonte: `Cotas do desenho (${_origemLabel(a)})`, valor: `${c.toFixed(2)} × ${l.toFixed(2)} = ${calc.toFixed(2)} m²` } });
+    }
+  });
+
+  // A4. Desconto de vãos da alvenaria × soma real do quadro de esquadrias.
+  const esqDim = esq.filter(e => Number(e.largura_m) > 0 && Number(e.altura_m) > 0 && Number(e.quantidade) > 0);
   const vaosDecl = Number(r.vaos_alvenaria_m2) || 0;
-  const vaosReal = esq.reduce((s, e) => s + (Number(e.largura_m)||0) * (Number(e.altura_m)||0) * (Number(e.quantidade)||0), 0);
-  if (vaosDecl > 0 && vaosReal > 0 && Math.abs(vaosDecl - vaosReal) / vaosDecl > 0.15) {
-    add("conferir", "Desconto de vãos diverge do quadro de esquadrias",
-      `A alvenaria descontou ${vaosDecl.toFixed(1)} m² de vãos, mas as esquadrias listadas somam ${vaosReal.toFixed(1)} m². ` +
-      `A área de parede a executar está errada em ${Math.abs(vaosDecl-vaosReal).toFixed(1)} m².`);
+  const vaosReal = esqDim.reduce((s, e) => s + Number(e.largura_m) * Number(e.altura_m) * Number(e.quantidade), 0);
+  // Só compara se TODAS as esquadrias têm dimensão: com peça zerada, a soma é
+  // menor por falta de dado, não por conflito — e a acusação seria falsa.
+  if (vaosDecl > 0 && vaosReal > 0 && esqDim.length === esq.length &&
+      Math.abs(vaosDecl - vaosReal) / vaosDecl > 0.15) {
+    addIncompat("critico", "Desconto de vãos diverge do quadro de esquadrias",
+      `A alvenaria foi calculada descontando ${vaosDecl.toFixed(1)} m² de vãos, mas as ${esq.length} esquadrias do quadro somam ${vaosReal.toFixed(1)} m². ` +
+      `A área de parede a executar está errada em ${Math.abs(vaosDecl - vaosReal).toFixed(1)} m² — e isso vai direto para o preço da alvenaria, do reboco e da pintura.`,
+      { a: { fonte: "Vãos usados no cálculo da alvenaria", valor: `${vaosDecl.toFixed(1)} m²` },
+        b: { fonte: `Quadro de esquadrias (${esq.length} peças)`, valor: `${vaosReal.toFixed(1)} m²` } });
   }
 
-  // 8. Projeto multipavimento sem identificação de pavimento nos ambientes.
+  // A5. Quadro de esquadrias cita ambiente que não existe na planta.
+  //     Conflito direto entre o quadro e a relação de ambientes. Exige que a
+  //     lista de ambientes esteja razoavelmente completa (senão vira ruído).
+  if (esq.length && amb.length >= 4) {
+    const nomesAmb = amb.map(a => _nomeNorm(a.nome)).filter(n => n && n.length >= 3);
+    const orfaos = [];
+    esq.forEach(e => {
+      String(e.colocacao || "").split(/[;,/]| e /).forEach(parte => {
+        const p = _nomeNorm(parte);
+        if (!p || p.length < 4) return;
+        if (/fachada|externa|circulac|hall|corredor|todos|diversos|varand|sacad/.test(p)) return;
+        if (nomesAmb.some(n => p.includes(n) || n.includes(p))) return;
+        orfaos.push({ cod: e.codigo || e.tipo || "peça", amb: parte.trim() });
+      });
+    });
+    const uniq = [...new Map(orfaos.map(o => [o.amb.toLowerCase(), o])).values()];
+    if (uniq.length) {
+      addIncompat("conferir", `Quadro de esquadrias cita ${uniq.length} ambiente(s) que não estão na planta`,
+        `${uniq.slice(0,6).map(o => `${o.cod} → "${o.amb}"`).join(", ")}${uniq.length>6?"…":""}. ` +
+        `O quadro aloca peças em ambientes que a planta não tem. Ou a planta e o quadro são de versões diferentes do projeto, ou o nome mudou e o quadro não acompanhou.`,
+        { a: { fonte: "Quadro de esquadrias", valor: `cita ${uniq.map(o=>`"${o.amb}"`).slice(0,4).join(", ")}` },
+          b: { fonte: `Relação de ambientes da planta (${amb.length})`, valor: "esses nomes não constam" } });
+    }
+  }
+
+  // A6. Mesma peça de esquadria com duas dimensões diferentes no quadro.
+  const porCod = {};
+  esq.forEach(e => { const c = String(e.codigo || "").trim().toUpperCase(); if (c) (porCod[c] = porCod[c] || []).push(e); });
+  Object.keys(porCod).forEach(c => {
+    const dims = [...new Set(porCod[c]
+      .filter(e => Number(e.largura_m) > 0 && Number(e.altura_m) > 0)
+      .map(e => `${Number(e.largura_m).toFixed(2)}×${Number(e.altura_m).toFixed(2)}`))];
+    if (dims.length > 1) {
+      addIncompat("critico", `Esquadria ${c} aparece com dimensões diferentes`,
+        `O mesmo código ${c} está no quadro com ${dims.length} dimensões distintas: ${dims.join(" m e ")} m. ` +
+        `Um código de esquadria tem que ter uma dimensão só — o quantitativo e a compra saem errados.`,
+        { a: { fonte: `Quadro de esquadrias — ${c}`, valor: `${dims[0]} m` },
+          b: { fonte: `Quadro de esquadrias — ${c} (outra ocorrência)`, valor: `${dims[1]} m` } });
+    }
+  });
+
+  // A7. Pé-direito: só é conflito quando a MESMA peça tem dois valores.
+  //     Ambientes diferentes com pé-direito diferente é projeto normal, não erro.
+  amb.forEach(a => {
+    const pAc = Number(a && a.pe_direito_acabado_m) || 0;
+    const pOs = Number(a && a.pe_direito_no_osso_m) || 0;
+    if (pAc > 0 && pOs > 0 && pAc > pOs + 0.01) {
+      addIncompat("conferir", `${a.nome}: pé-direito acabado maior que o no osso`,
+        `Foi lido ${pAc.toFixed(2)} m acabado contra ${pOs.toFixed(2)} m no osso. O acabado é medido do piso pronto ao forro — ` +
+        `ele nunca pode ser maior que o no osso. Um dos dois valores está trocado, e a área de parede sai errada nos dois casos.`,
+        { a: { fonte: `${a.nome} — pé-direito acabado`, valor: `${pAc.toFixed(2)} m` },
+          b: { fonte: `${a.nome} — pé-direito no osso`, valor: `${pOs.toFixed(2)} m` } });
+    }
+  });
+
+  // ─── B. FORA DE ESCOPO (não é defeito do projeto: a prancha não foi enviada) ───
+  const molhadas = amb.filter(a => a && a.area_molhada);
+  if (molhadas.length && !_RE_HIDRO.test(corpus) && !discs.has("hidrossanitario")) {
+    addEscopo("Serviços hidrossanitários não estão neste orçamento",
+      `${molhadas.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${molhadas.length>6?"…":""} ${molhadas.length>1?"são áreas molhadas":"é área molhada"}, ` +
+      `e o projeto hidrossanitário não foi enviado. Isso NÃO é uma falha do projeto arquitetônico — tubulação, louças e metais simplesmente ` +
+      `não podem ser quantificados sem a prancha de hidráulica. Envie-a como disciplina separada, ou orce esses serviços à parte.`);
+  }
+  if (molhadas.length && !_RE_IMPERM.test(corpus)) {
+    addEscopo("Impermeabilização não foi quantificada",
+      "Há áreas molhadas no projeto e nenhum serviço de impermeabilização no levantamento. Em planta baixa a impermeabilização quase nunca é desenhada — " +
+      "ela vem no memorial ou no detalhe. Confira box, baldrame, lajes expostas e jardineiras: é uma das omissões mais caras de corrigir depois.");
+  }
+  if (amb.length && !esq.length) {
+    addEscopo("Nenhuma esquadria foi levantada",
+      "Não foi identificado quadro de esquadrias nem simbologia legível de portas/janelas. Sem isso, o custo das esquadrias fica de fora e " +
+      "a alvenaria é calculada SEM desconto de vãos (a favor da segurança, mas a maior). Envie a prancha com o quadro de esquadrias.");
+  }
+
+  // ─── C. LEITURA INCERTA (o sistema não conseguiu ler — não acusa o projeto) ───
+  if (esq.length && amb.length) {
+    const colocs = _nomeNorm(esq.map(e => e.colocacao || "").join(" ; "));
+    const semPorta = amb.filter(a => {
+      const n = _nomeNorm(a.nome);
+      if (!n || n.length < 3) return false;
+      if (/varanda|sacada|terraco|area externa|jardim|quintal|circulac|hall|corredor|vao livre|estar|jantar/.test(n)) return false;
+      return !colocs.includes(n);
+    });
+    if (semPorta.length) {
+      addLeitura(`${semPorta.length} ambiente(s) sem esquadria vinculada`,
+        `${semPorta.slice(0,6).map(a=>a.nome).join(", ")}${semPorta.length>6?"…":""}. ` +
+        `O campo "colocação" do quadro é texto livre — se o quadro escreve "Quarto 1" e a planta escreve "Dormitório 1", o vínculo não fecha ` +
+        `mesmo estando tudo certo no projeto. Confira se a porta desses ambientes está no quadro antes de cobrar o projetista.`);
+    }
+  }
+  const esqZero = esq.filter(e => !(Number(e.largura_m)>0 && Number(e.altura_m)>0 && Number(e.quantidade)>0));
+  if (esqZero.length) {
+    addLeitura(`${esqZero.length} esquadria(s) sem dimensão ou quantidade legível`,
+      `${esqZero.slice(0,6).map(e=>e.codigo||e.tipo).filter(Boolean).join(", ")}. Não entram no desconto de vãos nem no custo. ` +
+      `Complete no quadro de esquadrias da tela para o orçamento fechar.`);
+  }
+  const semCota = amb.filter(a => _areaAmbiente(a) > 0 && _menorLadoAmb(a) <= 0);
+  if (semCota.length) {
+    addLeitura(`${semCota.length} ambiente(s) com área mas sem as duas cotas`,
+      `${semCota.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semCota.length>6?"…":""}. Sem comprimento e largura o perímetro é estimado — ` +
+      `meça esses ambientes na planta (botão 📐) para travar a alvenaria.`);
+  }
+  const estimados = amb.filter(a => _areaAmbiente(a) > 0 && !_dimConfiavel(a) && normalizaTxt(a.origem_dimensao) === "estimada");
+  if (estimados.length) {
+    addLeitura(`${estimados.length} ambiente(s) com dimensão estimada, não lida em cota`,
+      `${estimados.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${estimados.length>6?"…":""}. ` +
+      `Foram deduzidos por proporção do desenho, não por cota escrita. São os primeiros que valem a pena conferir na planta.`);
+  }
+  const semAcab = amb.filter(a => !a || !a.acabamentos || !Object.keys(a.acabamentos).length);
+  if (amb.length && semAcab.length === amb.length) {
+    addEscopo("Memorial descritivo não foi lido",
+      "Nenhum ambiente tem acabamento especificado. Pisos, revestimentos e pinturas foram orçados por padrão de mercado, não pelo que o projeto pede. " +
+      "Envie o memorial descritivo ou o quadro de acabamentos para o orçamento refletir a especificação real.");
+  } else if (semAcab.length) {
+    addLeitura(`${semAcab.length} ambiente(s) sem acabamento especificado`,
+      `${semAcab.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semAcab.length>6?"…":""}. Foi adotado o padrão — confirme com o projetista.`);
+  }
   const pav = Number(r.pavimentos) || 1;
   if (pav > 1 && amb.length && !amb.some(a => a && a.pavimento)) {
-    add("perguntar", "Projeto com mais de um pavimento e ambientes sem pavimento identificado",
+    addLeitura("Projeto multipavimento sem pavimento identificado nos ambientes",
       `O projeto declara ${pav} pavimentos, mas nenhum ambiente traz em qual deles está. Ambientes de mesmo nome em andares diferentes podem ter sido somados como um só.`);
   }
 
-  // 9. Ambientes sem acabamento especificado.
-  const semAcab = amb.filter(a => !a || !a.acabamentos || !Object.keys(a.acabamentos).length);
-  if (amb.length && semAcab.length === amb.length) {
-    add("perguntar", "Nenhum ambiente tem acabamento especificado",
-      "O memorial descritivo não foi lido ou não acompanha o projeto. Pisos, revestimentos e pinturas foram orçados por padrão, não pelo que o projeto pede.");
-  } else if (semAcab.length) {
-    add("perguntar", `${semAcab.length} ambiente(s) sem acabamento especificado`,
-      `${semAcab.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semAcab.length>6?"…":""}. Confirme o acabamento com o projetista — foi adotado o padrão.`);
-  }
-
-  // 10. Ambiente com área mas sem cotas: não dá para conferir nem medir em campo.
-  const semCota = amb.filter(a => _areaAmbiente(a) > 0 && _menorLadoAmb(a) <= 0);
-  if (semCota.length) {
-    add("perguntar", `${semCota.length} ambiente(s) com área mas sem cotas de comprimento/largura`,
-      `${semCota.slice(0,6).map(a=>a.nome).filter(Boolean).join(", ")}${semCota.length>6?"…":""}. Sem as duas dimensões o sistema não calcula perímetro — a alvenaria desses ambientes fica estimada.`);
-  }
-
-  // 11. Esquadria com dimensão ou quantidade zerada.
-  const esqZero = esq.filter(e => !(Number(e.largura_m)>0 && Number(e.altura_m)>0 && Number(e.quantidade)>0));
-  if (esqZero.length) {
-    add("conferir", `${esqZero.length} esquadria(s) com dimensão ou quantidade zerada`,
-      `${esqZero.slice(0,6).map(e=>e.codigo||e.tipo).filter(Boolean).join(", ")}. Não entram no desconto de vãos nem no custo — o quadro de esquadrias precisa ser conferido.`);
-  }
-
   out.sort((a, b) => SEVERIDADES[a.sev].ordem - SEVERIDADES[b.sev].ordem);
-  return out;
+  return { incompat: out, escopo, leitura };
 }
 
 // Retorna { faltantes:[{nome,motivo}], foraEscopo:[...], removidosDisc:[...] }
@@ -3236,17 +3420,53 @@ function aplicarAlvenaria(id){
 // "lag" é a fração da duração da predecessora que precisa passar antes da atividade
 // poder começar. lag=1 = espera terminar (padrão); lag<1 = início-início parcial,
 // as duas atividades correm em paralelo (ex.: elétrica/hidráulica embutida durante a alvenaria).
+// ═════════════════════════════════════════════════════════════════════════════
+// REDE DE PRECEDÊNCIAS — PDM (Precedence Diagramming Method), padrão MS Project
+// ═════════════════════════════════════════════════════════════════════════════
+// É o mesmo modelo que MS Project e Primavera P6 implementam, e o que o PMBOK
+// chama de PDM. Cada vínculo tem TIPO e ATRASO (lag):
+//
+//   FS  Término→Início  (padrão)  o sucessor começa depois que a predecessora TERMINA
+//   SS  Início→Início              o sucessor começa depois que a predecessora COMEÇA
+//   FF  Término→Término            o sucessor termina depois que a predecessora TERMINA
+//   SF  Início→Término             o sucessor termina depois que a predecessora COMEÇA
+//
+//   lag > 0 = espera (ex.: FS+3d, cura do concreto antes de desformar)
+//   lag < 0 = adiantamento/lead (ex.: FS−2d, sobrepõe 2 dias)
+//   un: "d" = dias corridos · "%" = fração da DURAÇÃO DA PREDECESSORA
+//        (o "%" é o que faz a sobreposição continuar coerente quando o prazo da
+//         obra muda: 30% de uma alvenaria de 20 dias vira 30% de uma de 40 dias)
+//
+// PAR SS+FF — a prática que evita o erro clássico:
+// um vínculo SS sozinho amarra só o COMEÇO do sucessor; o TÉRMINO dele fica solto
+// e o caminho crítico sai errado. Por isso, para atividade que corre em paralelo
+// do começo ao fim (elétrica embutida durante a alvenaria), usa-se o PAR SS+FF —
+// SS prende o início, FF prende o término. É o que se recomenda em planejamento
+// de obra e o que a checagem DCMA cobra como "lógica completa".
+// ═════════════════════════════════════════════════════════════════════════════
+const TIPOS_VINC = {
+  FS: { label: "TI", nome: "Término → Início",   desc: "só começa depois que a predecessora termina" },
+  SS: { label: "II", nome: "Início → Início",    desc: "começa junto/depois do início da predecessora (paralelo)" },
+  FF: { label: "TT", nome: "Término → Término",  desc: "só termina depois que a predecessora termina (paralelo)" },
+  SF: { label: "IT", nome: "Início → Término",   desc: "só termina depois que a predecessora começa (raro)" },
+};
+const V = (c, tipo, lag, un) => ({ c, tipo: tipo || "FS", lag: Number(lag) || 0, un: un || "%" });
 const PRECEDENCIA_CAT = {
-  1: [], 2: [1], 3: [2], 4: [3], 5: [4], 6: [5],
-  7: [{ c: 12, lag: 0.6 }, { c: 13, lag: 0.6 }, 6],
-  8: [5, 6],
-  9: [{ c: 7, lag: 0.7 }, { c: 8, lag: 0.7 }],
-  10: [5],
-  11: [{ c: 7, lag: 0.7 }],
-  12: [{ c: 5, lag: 0.5 }],
-  13: [{ c: 5, lag: 0.5 }],
-  14: [4],
-  15: [{ c: 9, lag: 0.7 }, { c: 11, lag: 0.7 }, { c: 10, lag: 0.8 }, { c: 8, lag: 0.8 }]
+  1:  [],                                                        // Serviços Preliminares
+  2:  [V(1, "FS")],                                              // Movimento de Terra
+  3:  [V(2, "FS")],                                              // Fundações
+  4:  [V(3, "FS")],                                              // Estrutura
+  5:  [V(4, "SS", 60), V(4, "FF", 0)],                           // Alvenaria — sobe junto com a estrutura
+  6:  [V(5, "SS", 80), V(5, "FF", 0)],                           // Cobertura — telhado com a alvenaria adiantada
+  12: [V(5, "SS", 30), V(5, "FF", 15)],                          // Hidrossanitárias — embutidas na alvenaria
+  13: [V(5, "SS", 35), V(5, "FF", 15)],                          // Elétricas — embutidas na alvenaria
+  14: [V(6, "SS", 50)],                                          // Impermeabilização — com a obra coberta
+  7:  [V(12, "FS"), V(13, "FS"), V(6, "SS", 90)],                // Revest. Internos — só após embutir
+  8:  [V(6, "SS", 90), V(6, "FF", 0)],                           // Revest. Externos — arremate depende do telhado pronto
+  11: [V(14, "FS"), V(7, "SS", 60), V(7, "FF", 10)],             // Pisos — após impermeabilizar
+  10: [V(7, "SS", 50)],                                          // Esquadrias
+  9:  [V(7, "SS", 85), V(8, "SS", 70), V(8, "FF", 10)],          // Pintura
+  15: [V(9, "FS"), V(11, "FS"), V(10, "FS")],                    // Serviços Complementares
 };
 const NOME_FASE = {
   1: "Serviços Preliminares", 2: "Movimento de Terra", 3: "Fundações", 4: "Estrutura",
@@ -3255,7 +3475,30 @@ const NOME_FASE = {
   13: "Instalações Elétricas", 14: "Impermeabilização", 15: "Serviços Complementares"
 };
 function numCat(cat) { const m = String(cat || "").match(/^\d+/); return m ? parseInt(m[0], 10) : 99; }
-function _normPred(p) { return (typeof p === "number") ? { c: p, lag: 1 } : p; }
+// Normaliza qualquer formato já salvo em projeto antigo para o formato PDM.
+//   número           → FS sem atraso                (formato v1)
+//   {c, lag:0..1}    → SS com lag em % da predecessora (formato v2, "paralelo")
+//   {c, tipo, lag, un} → PDM completo                 (formato atual)
+function _normPred(p) {
+  if (typeof p === "number") return { c: p, tipo: "FS", lag: 0, un: "%" };
+  if (!p || typeof p !== "object") return null;
+  if (p.tipo) return { c: p.c, tipo: TIPOS_VINC[p.tipo] ? p.tipo : "FS", lag: Number(p.lag) || 0, un: p.un === "d" ? "d" : "%" };
+  const f = Number(p.lag);
+  if (Number.isFinite(f) && f < 1) return { c: p.c, tipo: "SS", lag: Math.max(0, f) * 100, un: "%" };
+  return { c: p.c, tipo: "FS", lag: 0, un: "%" };
+}
+// Atraso do vínculo em DIAS. "%" é fração da duração da predecessora.
+function _lagDias(v, durPred) {
+  if (!v) return 0;
+  return v.un === "d" ? v.lag : (v.lag / 100) * (durPred || 0);
+}
+function _vincLabel(v, durPred) {
+  const t = TIPOS_VINC[v.tipo] || TIPOS_VINC.FS;
+  if (!v.lag) return t.label;
+  const sinal = v.lag > 0 ? "+" : "−", n = Math.abs(v.lag);
+  return v.un === "d" ? `${t.label}${sinal}${n}d`
+                      : `${t.label}${sinal}${n}%${durPred ? ` (${Math.round(Math.abs(_lagDias(v, durPred)))}d)` : ""}`;
+}
 
 // Calcula a rede CPM (método das precedências, com início-início parcial) a partir
 // dos quantitativos + orçamento, para um prazo (meses)
@@ -3275,69 +3518,172 @@ function computeCronograma(prazoMeses) {
   if (!cats.length) return null;
   const presentes = new Set(cats);
   const totalCusto = cats.reduce((s, c) => s + custoCat[c], 0) || 1;
-  const lagOv = APP.cronoLagOverride || {};
+  const ovLink = APP.cronoLinkOverride || {};
+  const ovLagV2 = APP.cronoLagOverride || {};      // formato antigo (só % de paralelo)
+  const avisos = [];
 
-  // predecessores presentes, com lag (0–1). Resolve transitivamente categorias ausentes
-  // (herda como sequencial, lag=1, pra não presumir sobreposição sem o elo direto presente).
-  function predsPresentes(c, seen) {
+  // Vínculos presentes. Se a predecessora não existe no orçamento (disciplina não
+  // levantada), o elo é herdado da avó — mas SEMPRE como FS puro: presumir
+  // sobreposição num elo que não existe seria inventar paralelismo.
+  function vincsPresentes(c, seen) {
     seen = seen || new Set(); const out = new Map();
+    const por = (v) => {
+      const k = v.c + "|" + v.tipo;
+      const ant = out.get(k);
+      // entre dois elos iguais fica o mais restritivo (maior atraso)
+      if (!ant || _lagDias(v, 1) > _lagDias(ant, 1)) out.set(k, v);
+    };
     (PRECEDENCIA_CAT[c] || []).forEach(raw => {
-      const p = _normPred(raw);
-      const lag = (lagOv[c] && lagOv[c][p.c] != null) ? lagOv[c][p.c] : p.lag;
-      if (presentes.has(p.c)) {
-        if (!out.has(p.c) || out.get(p.c) > lag) out.set(p.c, lag);
-      } else if (!seen.has(p.c)) {
-        seen.add(p.c);
-        predsPresentes(p.c, seen).forEach((_, pc) => { if (!out.has(pc)) out.set(pc, 1); });
+      let v = _normPred(raw); if (!v) return;
+      const ov = (ovLink[c] || {})[v.c];
+      if (ov && ov[v.tipo]) {
+        const o = ov[v.tipo];
+        const novo = TIPOS_VINC[o.tipoNovo] ? o.tipoNovo : (TIPOS_VINC[o.tipo] ? o.tipo : v.tipo);
+        v = { c: v.c, tipo: novo, lag: Number(o.lag) || 0, un: o.un === "d" ? "d" : "%" };
+      }
+      else if (ovLagV2[c] && ovLagV2[c][v.c] != null && v.tipo === "SS") v = { c: v.c, tipo: "SS", lag: Number(ovLagV2[c][v.c]) * 100, un: "%" };
+      if (presentes.has(v.c)) por(v);
+      else if (!seen.has(v.c)) {
+        seen.add(v.c);
+        vincsPresentes(v.c, seen).forEach(av => { if (!out.has(av.c + "|FS")) por({ c: av.c, tipo: "FS", lag: 0, un: "%" }); });
       }
     });
-    return out;
+    return [...out.values()];
   }
-  const preds = {}; cats.forEach(c => preds[c] = [...predsPresentes(c)].map(([pc, lag]) => ({ c: pc, lag })));
-
-  // ordem topológica (precedências podem apontar p/ categorias de nº maior)
+  const preds = {}; cats.forEach(c => preds[c] = vincsPresentes(c));
   const succ = {}; cats.forEach(c => succ[c] = []);
-  cats.forEach(c => preds[c].forEach(pr => succ[pr.c].push({ c, lag: pr.lag })));
-  const indeg = {}; cats.forEach(c => indeg[c] = preds[c].length);
-  const fila = cats.filter(c => indeg[c] === 0); const ordem = [];
-  while (fila.length) { const c = fila.shift(); ordem.push(c); succ[c].forEach(s => { if (--indeg[s.c] === 0) fila.push(s.c); }); }
-  if (ordem.length !== cats.length) ordem.splice(0, ordem.length, ...cats); // fallback anti-ciclo
+  cats.forEach(c => preds[c].forEach(v => succ[v.c].push({ c, tipo: v.tipo, lag: v.lag, un: v.un })));
 
-  // durações proporcionais ao custo, escaladas p/ caminho crítico = prazo
+  // ── Ordem topológica + DETECÇÃO DE LOOP (DCMA #? — rede tem que ser acíclica) ──
+  const indeg = {}; cats.forEach(c => indeg[c] = new Set(preds[c].map(v => v.c)).size);
+  const fila = cats.filter(c => indeg[c] === 0); const ordem = [];
+  const visto = {}; cats.forEach(c => visto[c] = new Set());
+  while (fila.length) {
+    const c = fila.shift(); ordem.push(c);
+    succ[c].forEach(s => { if (!visto[s.c].has(c)) { visto[s.c].add(c); if (--indeg[s.c] === 0) fila.push(s.c); } });
+  }
+  if (ordem.length !== cats.length) {
+    const presos = cats.filter(c => !ordem.includes(c));
+    avisos.push({ tipo: "loop", grave: true,
+      titulo: "Dependência circular na rede",
+      texto: `As fases ${presos.map(c => NOME_FASE[c] || c).join(", ")} dependem umas das outras em círculo. ` +
+             `MS Project recusaria o arquivo; aqui o cálculo continua numa ordem aproximada, mas o caminho crítico NÃO é confiável enquanto o ciclo existir.` });
+    ordem.splice(0, ordem.length, ...cats);
+  }
+
+  // ── Durações proporcionais ao custo, escaladas para o prazo pedido ──
   const durProv = {}; cats.forEach(c => durProv[c] = Math.max(0.0001, custoCat[c] / totalCusto));
-  const efp = {}; ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(pr => efp[pr.c])) : 0; efp[c] = es + durProv[c]; });
+  const efp = {}; ordem.forEach(c => {
+    let es = 0;
+    preds[c].forEach(v => { const cand = (v.tipo === "SS" || v.tipo === "SF") ? (efp[v.c] - durProv[v.c]) : efp[v.c]; if (cand > es) es = cand; });
+    efp[c] = es + durProv[c];
+  });
   const cpLen = Math.max(...cats.map(c => efp[c])) || 1;
   const prazoDias = Math.max(1, Math.round((prazoMeses || 6) * 30));
   const factor = prazoDias / cpLen;
   const dur = {}; cats.forEach(c => dur[c] = Math.max(1, Math.round(durProv[c] * factor)));
-  // aplica durações editadas manualmente pelo usuário (override por fase)
   const _ov = APP.cronoDurOverride || {};
   cats.forEach(c => { if (_ov[c] != null && _ov[c] > 0) dur[c] = _ov[c]; });
 
-  // forward pass — lag=1 equivale a fim-início puro (ES[pred]+dur[pred] = EF[pred]);
-  // lag<1 permite a atividade começar antes da predecessora terminar (paralelo)
+  // ═══════════ FORWARD PASS — PDM, um caso por tipo de vínculo ═══════════
+  // Restrição imposta por cada elo P→S (lag em dias, já convertido):
+  //   FS: ES_S ≥ EF_P + lag        SS: ES_S ≥ ES_P + lag
+  //   FF: EF_S ≥ EF_P + lag        SF: EF_S ≥ ES_P + lag
+  // FF e SF restringem o TÉRMINO; convertemos para início subtraindo a duração.
   const ES = {}, EF = {};
   ordem.forEach(c => {
-    const es = preds[c].length ? Math.max(...preds[c].map(pr => ES[pr.c] + pr.lag * dur[pr.c])) : 0;
+    let es = 0;
+    preds[c].forEach(v => {
+      const lag = _lagDias(v, dur[v.c]);
+      let cand;
+      if      (v.tipo === "SS") cand = ES[v.c] + lag;
+      else if (v.tipo === "FF") cand = EF[v.c] + lag - dur[c];
+      else if (v.tipo === "SF") cand = ES[v.c] + lag - dur[c];
+      else                      cand = EF[v.c] + lag;      // FS
+      if (cand > es) es = cand;
+    });
     ES[c] = es; EF[c] = es + dur[c];
   });
   const projDur = Math.max(...cats.map(c => EF[c]));
-  // backward pass (equivalente generalizado p/ relações início-início)
+
+  // ═══════════ BACKWARD PASS — mesma álgebra, invertida ═══════════
+  //   FS: LF_P ≤ LS_S − lag        SS: LS_P ≤ LS_S − lag  →  LF_P ≤ LS_S − lag + dur_P
+  //   FF: LF_P ≤ LF_S − lag        SF: LS_P ≤ LF_S − lag  →  LF_P ≤ LF_S − lag + dur_P
   const LS = {}, LF = {};
   [...ordem].reverse().forEach(c => {
-    const ls = succ[c].length ? Math.min(...succ[c].map(s => LS[s.c] - s.lag * dur[c])) : projDur - dur[c];
-    LS[c] = ls; LF[c] = ls + dur[c];
+    let lf = projDur;
+    succ[c].forEach(s => {
+      const lag = _lagDias({ tipo: s.tipo, lag: s.lag, un: s.un }, dur[c]);
+      let cand;
+      if      (s.tipo === "SS") cand = LS[s.c] - lag + dur[c];
+      else if (s.tipo === "FF") cand = LF[s.c] - lag;
+      else if (s.tipo === "SF") cand = LF[s.c] - lag + dur[c];
+      else                      cand = LS[s.c] - lag;      // FS
+      if (cand < lf) lf = cand;
+    });
+    LF[c] = lf; LS[c] = lf - dur[c];
   });
+
+  // ── FOLGA LIVRE: quanto a fase pode atrasar sem empurrar NENHUMA sucessora ──
+  const folgaLivre = {};
+  cats.forEach(c => {
+    if (!succ[c].length) { folgaLivre[c] = Math.round(projDur - EF[c]); return; }
+    let m = Infinity;
+    succ[c].forEach(s => {
+      const lag = _lagDias({ tipo: s.tipo, lag: s.lag, un: s.un }, dur[c]);
+      let d;
+      if      (s.tipo === "SS") d = ES[s.c] - (ES[c] + lag);
+      else if (s.tipo === "FF") d = EF[s.c] - (EF[c] + lag);
+      else if (s.tipo === "SF") d = EF[s.c] - (ES[c] + lag);
+      else                      d = ES[s.c] - (EF[c] + lag);
+      if (d < m) m = d;
+    });
+    folgaLivre[c] = Math.round(Math.max(0, m));
+  });
+
+  // ── VALIDAÇÕES DE LÓGICA (inspiradas na checagem DCMA de 14 pontos) ──
+  cats.forEach(c => {
+    const nome = NOME_FASE[c] || ("Cat " + c);
+    // Início preso  ⟺ alguma predecessora amarra o COMEÇO  (elo FS ou SS chegando)
+    // Término preso ⟺ alguma sucessora  amarra o TÉRMINO  (elo FS ou FF saindo)
+    // Elo FF/SF chegando prende o término DESTA fase pela frente, não pelo fim —
+    // por isso não conta como término amarrado para efeito de lógica de rede.
+    const temInicioPreso  = preds[c].some(v => v.tipo === "FS" || v.tipo === "SS");
+    const temTerminoPreso = succ[c].some(s => s.tipo === "FS" || s.tipo === "FF");
+    if (preds[c].length && !temInicioPreso)
+      avisos.push({ tipo: "solta", grave: false, cat: c, titulo: `${nome}: início sem amarração`,
+        texto: `Só tem vínculo de término (TT/IT). O início da fase fica solto e ela pode "flutuar" no cronograma. Some um vínculo TI ou II.` });
+    if (succ[c].length && !temTerminoPreso)
+      avisos.push({ tipo: "solta", grave: false, cat: c, titulo: `${nome}: término sem amarração`,
+        texto: `Só sai daqui vínculo de início (II). O término da fase não empurra ninguém — é o erro clássico do II sozinho, ` +
+               `que faz o caminho crítico sair errado. Acrescente um TT para fechar a lógica (par II+TT).` });
+  });
+  cats.forEach(c => preds[c].forEach(v => {
+    if (v.lag < 0) avisos.push({ tipo: "lead", grave: false, cat: c,
+      titulo: `${NOME_FASE[c] || c} ← ${NOME_FASE[v.c] || v.c}: atraso negativo`,
+      texto: `O vínculo ${_vincLabel(v, dur[v.c])} adianta a fase. Adiantamento (lead) é aceito, mas esconde risco: ` +
+             `qualquer atraso na predecessora bate direto na sucessora, sem folga. Confirme se é intencional.` });
+  }));
+  const semPred = cats.filter(c => !preds[c].length);
+  if (semPred.length > 1)
+    avisos.push({ tipo: "aberta", grave: false,
+      titulo: `${semPred.length} fases começam sem predecessora`,
+      texto: `${semPred.map(c => NOME_FASE[c] || c).join(", ")} não dependem de nada e todas arrancam no dia zero. ` +
+             `Confira se é isso mesmo — em obra, frentes simultâneas exigem equipe simultânea.` });
 
   const ativ = ordem.map(c => ({
     cat: c, nome: NOME_FASE[c] || ("Categoria " + c), custo: custoCat[c],
     peso: custoCat[c] / totalCusto * 100,
     es: ES[c], ef: EF[c], ls: LS[c], lf: LF[c], dur: dur[c],
-    folga: Math.round(LS[c] - ES[c]), critico: Math.round(LS[c] - ES[c]) <= 0,
-    preds: preds[c].map(pr => ({ cat: pr.c, nome: NOME_FASE[pr.c] || ("Cat " + pr.c), lag: pr.lag }))
+    folga: Math.round(LS[c] - ES[c]), folgaLivre: folgaLivre[c],
+    critico: Math.round(LS[c] - ES[c]) <= 0,
+    preds: preds[c].map(v => ({ cat: v.c, nome: NOME_FASE[v.c] || ("Cat " + v.c),
+                                tipo: v.tipo, lag: v.lag, un: v.un,
+                                dias: Math.round(_lagDias(v, dur[v.c])),
+                                label: _vincLabel(v, dur[v.c]) })),
   })).sort((a, b) => a.es - b.es || a.cat - b.cat);
 
-  return { ativ, projDur, totalCusto, prazoMeses: prazoMeses || 6, prazoDias };
+  return { ativ, projDur, totalCusto, prazoMeses: prazoMeses || 6, prazoDias, avisos };
 }
 
 function prazoPadrao() {
@@ -3356,23 +3702,76 @@ function editarDuracao(cat) {
   buildCronograma();
 }
 
-// Ajusta a sobreposição (início-início) entre uma atividade e uma de suas predecessoras.
-// % informado = quanto da predecessora precisa estar concluído antes desta começar.
-// 100% = fim-início tradicional (sem sobreposição); 0% = as duas começam juntas (paralelo total).
-function editarSobreposicao(cat, predCat) {
-  APP.cronoLagOverride = APP.cronoLagOverride || {};
-  const atual = (APP.cronoLagOverride[cat] && APP.cronoLagOverride[cat][predCat] != null)
-    ? Math.round(APP.cronoLagOverride[cat][predCat] * 100)
-    : "";
-  const v = prompt("Esta atividade pode começar após quantos % da predecessora estarem concluídos?\n(100% = espera terminar totalmente · 50% = começa na metade · 0% = começam juntas, em paralelo)", String(atual));
-  if (v === null) return;
-  const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
-  if (isNaN(n)) { delete (APP.cronoLagOverride[cat] || {})[predCat]; buildCronograma(); return; }
-  const pct = Math.max(0, Math.min(100, n));
-  APP.cronoLagOverride[cat] = APP.cronoLagOverride[cat] || {};
-  APP.cronoLagOverride[cat][predCat] = pct / 100;
+// ── Edição de VÍNCULO no padrão MS Project (tipo + atraso) ──────────────────
+// Abre um painel ancorado na própria linha da tabela, com os quatro tipos e o
+// campo de atraso em dias ou em % da duração da predecessora.
+function editarVinculo(cat, predCat, tipo) {
+  const ex = document.getElementById("vincPop"); if (ex) ex.remove();
+  const d = computeCronograma(_cronoPrazoAtual()); if (!d) return;
+  const a = d.ativ.find(x => x.cat === cat); if (!a) return;
+  const v = a.preds.find(p => p.cat === predCat && p.tipo === tipo) || a.preds.find(p => p.cat === predCat);
+  if (!v) return;
+  const pop = document.createElement("div");
+  pop.id = "vincPop"; pop.className = "vinc-pop";
+  pop.innerHTML = `
+    <div class="vp-h">Vínculo — <b>${a.nome}</b> depende de <b>${v.nome}</b></div>
+    <div class="vp-g">
+      ${Object.keys(TIPOS_VINC).map(k => `
+        <label class="vp-t ${k === v.tipo ? "on" : ""}">
+          <input type="radio" name="vpTipo" value="${k}" ${k === v.tipo ? "checked" : ""}>
+          <b>${TIPOS_VINC[k].label}</b><span>${TIPOS_VINC[k].nome}</span>
+          <em>${TIPOS_VINC[k].desc}</em>
+        </label>`).join("")}
+    </div>
+    <div class="vp-l">
+      <label>Atraso
+        <input type="number" id="vpLag" step="1" value="${v.lag}" style="width:78px">
+      </label>
+      <label>Unidade
+        <select id="vpUn">
+          <option value="%" ${v.un === "%" ? "selected" : ""}>% da duração da predecessora</option>
+          <option value="d" ${v.un === "d" ? "selected" : ""}>dias corridos</option>
+        </select>
+      </label>
+      <div class="vp-hint">Positivo = espera. Negativo = adianta (sobrepõe).</div>
+    </div>
+    <div class="vp-b">
+      <button class="btn btn-success" onclick="salvarVinculo(${cat},${predCat},'${tipo}')">Aplicar</button>
+      <button class="btn btn-outline" onclick="restaurarVinculo(${cat},${predCat})">Restaurar padrão</button>
+      <button class="btn btn-outline" onclick="document.getElementById('vincPop').remove()">Cancelar</button>
+    </div>`;
+  const host = document.getElementById("cronoTabela") || document.body;
+  host.insertBefore(pop, host.firstChild);
+  pop.querySelectorAll(".vp-t").forEach(l => l.addEventListener("click", () => {
+    pop.querySelectorAll(".vp-t").forEach(x => x.classList.remove("on")); l.classList.add("on");
+  }));
+  pop.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function salvarVinculo(cat, predCat, tipoAntigo) {
+  const pop = document.getElementById("vincPop"); if (!pop) return;
+  const tipo = (pop.querySelector('input[name="vpTipo"]:checked') || {}).value || "FS";
+  const lag = parseInt(String(document.getElementById("vpLag").value).replace(/[^0-9-]/g, ""), 10) || 0;
+  const un = document.getElementById("vpUn").value === "d" ? "d" : "%";
+  APP.cronoLinkOverride = APP.cronoLinkOverride || {};
+  APP.cronoLinkOverride[cat] = APP.cronoLinkOverride[cat] || {};
+  APP.cronoLinkOverride[cat][predCat] = APP.cronoLinkOverride[cat][predCat] || {};
+  APP.cronoLinkOverride[cat][predCat][tipoAntigo] = { lag: un === "%" ? Math.max(-100, Math.min(200, lag)) : lag, un, tipo };
+  // troca de tipo: o elo passa a valer com o novo tipo
+  if (tipo !== tipoAntigo) APP.cronoLinkOverride[cat][predCat][tipoAntigo].tipoNovo = tipo;
+  pop.remove(); buildCronograma(); if (typeof salvarProjeto === "function") try { salvarProjeto(); } catch (e) {}
+}
+function restaurarVinculo(cat, predCat) {
+  if (APP.cronoLinkOverride && APP.cronoLinkOverride[cat]) delete APP.cronoLinkOverride[cat][predCat];
+  if (APP.cronoLagOverride && APP.cronoLagOverride[cat]) delete APP.cronoLagOverride[cat][predCat];
+  const pop = document.getElementById("vincPop"); if (pop) pop.remove();
   buildCronograma();
 }
+function _cronoPrazoAtual() {
+  const inp = document.getElementById("cronoPrazo");
+  return inp ? (parseFloat(inp.value) || prazoPadrao()) : prazoPadrao();
+}
+// Compatibilidade: nome antigo continua funcionando (projetos/atalhos salvos)
+function editarSobreposicao(cat, predCat) { editarVinculo(cat, predCat, "SS"); }
 
 // Exporta o cronograma em PDF/Gantt profissional (janela de impressão → salvar PDF)
 function exportarCronogramaPDF() {
@@ -3517,15 +3916,43 @@ function buildCronograma() {
   d.ativ.forEach((a, i) => {
     const predsHtml = a.preds.length
       ? a.preds.map(p => {
-          const paralelo = p.lag < 1;
-          const badge = paralelo ? ` <span class="lag-badge" title="Início após ${Math.round(p.lag * 100)}% da duração de '${p.nome}' — as duas correm em paralelo">⚡${Math.round(p.lag * 100)}% paralelo</span>` : "";
-          return `<span class="pred-chip" title="Clique para ajustar a sobreposição" onclick="editarSobreposicao(${a.cat}, ${p.cat})">${p.nome}${badge}</span>`;
-        }).join(", ")
+          const par = (p.tipo === "SS" || p.tipo === "FF");
+          const t = TIPOS_VINC[p.tipo] || TIPOS_VINC.FS;
+          const cls = par ? "lag-badge par" : "lag-badge";
+          return `<span class="pred-chip" title="${t.nome} — ${t.desc}. Clique para editar o vínculo."
+            onclick="editarVinculo(${a.cat},${p.cat},'${p.tipo}')">${p.nome} <span class="${cls}">${p.label}</span></span>`;
+        }).join(" ")
       : "—";
-    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${predsHtml}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
+    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${predsHtml}</td><td class="num" title="Folga total ${a.folga}d · folga livre ${a.folgaLivre}d">${a.folga}d${a.folgaLivre !== a.folga ? ` <span style="color:var(--muted);font-size:10px">(livre ${a.folgaLivre}d)</span>` : ""}</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
   });
-  tab += `</tbody></table>`;
+  tab += `</tbody></table>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.6">
+      <b>Vínculos (padrão MS Project):</b>
+      <span class="lag-badge">TI</span> término→início ·
+      <span class="lag-badge par">II</span> início→início (paralelo) ·
+      <span class="lag-badge par">TT</span> término→término (paralelo) ·
+      <span class="lag-badge">IT</span> início→término.
+      O número é o atraso (<b>+</b> espera, <b>−</b> adianta). <b>Clique num vínculo para editar.</b>
+      <br><b>Folga total</b> = quanto a fase atrasa sem atrasar a obra. <b>Folga livre</b> = quanto atrasa sem empurrar a fase seguinte.
+    </div>`;
   document.getElementById("cronoTabela").innerHTML = tab;
+
+  // Avisos de lógica de rede (loop, atividade solta, adiantamento) — o que o
+  // MS Project acusa ao abrir o arquivo e o que a checagem DCMA cobra.
+  let hostAv = document.getElementById("cronoAvisos");
+  if (!hostAv) {
+    hostAv = document.createElement("div"); hostAv.id = "cronoAvisos"; hostAv.style.marginTop = "12px";
+    const tb = document.getElementById("cronoTabela"); if (tb && tb.parentNode) tb.parentNode.insertBefore(hostAv, tb);
+  }
+  const avs = d.avisos || [];
+  hostAv.innerHTML = !avs.length
+    ? `<div style="font-size:12.5px;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:9px 12px">
+         ✓ <b>Lógica da rede consistente.</b> Sem dependência circular, sem atividade solta e sem adiantamento escondido.</div>`
+    : `<div style="border:1px solid ${avs.some(a=>a.grave)?"#fca5a5":"#fcd34d"};background:${avs.some(a=>a.grave)?"#fef2f2":"#fffbeb"};border-radius:8px;padding:11px 13px">
+         <div style="font-weight:700;font-size:13.5px;color:var(--navy);margin-bottom:5px">⚠ Lógica da rede — ${avs.length} ponto(s)</div>
+         ${avs.map(a => `<div style="font-size:12.5px;margin-top:5px;line-height:1.5">
+             <b>${a.titulo}</b><br><span style="color:#475569">${a.texto}</span></div>`).join("")}
+       </div>`;
 
   // Curva S (SVG)
   document.getElementById("cronoCurvaS").innerHTML = curvaS_SVG(d);
@@ -4576,6 +5003,7 @@ function descartarSessao(id){
     APP._projId = null; APP._sujo = false; APP._salvoEm = null;
     APP.analysisResult = null; APP.orcamentoValidado = false;
     APP._pendencias = null; APP._incompatDet = null; APP._pendenciasErro = null;
+    APP._achados = null; APP._achadosIAVerificar = null;
     ["eapTree","eapLacunas","eapIncompat","insumosContent"].forEach(idEl=>{
       const el=document.getElementById(idEl); if(el) el.innerHTML="";
     });
@@ -4993,13 +5421,16 @@ function renderSeloIncompat() {
     host.style.marginTop = "14px";
     host0.parentNode.insertBefore(host, host0.nextSibling);
   }
-  const det = APP._incompatDet || (APP._incompatDet = detectarIncompatibilidades(r));
+  const ach = APP._achados || (APP._achados = classificarAchados(r));
+  const det = ach.incompat;
+  APP._incompatDet = det;
   const prof = APP._pendencias || null;
 
   if (prof) { renderPendencias(); return; }
 
   const n = det.length;
   const nCrit = det.filter(x => x.sev === "critico").length;
+  const nOutros = (ach.escopo || []).length + (ach.leitura || []).length;
   if (APP._incompatRodando) {
     host.innerHTML = `<div style="display:flex;align-items:center;gap:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px">
       <span style="font-size:20px">⏳</span>
@@ -5008,8 +5439,9 @@ function renderSeloIncompat() {
     return;
   }
   if (n === 0) {
-    host.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding:8px 2px">
-      <span style="color:var(--green);font-weight:700">✓ Nenhuma incompatibilidade óbvia nas verificações automáticas.</span>
+    host.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);padding:8px 2px;flex-wrap:wrap">
+      <span style="color:var(--green);font-weight:700">✓ Nenhuma incompatibilidade comprovada nas verificações automáticas.</span>
+      ${nOutros ? `<span style="font-size:12.5px">${nOutros} ponto(s) de escopo/leitura para revisar.</span>` : ""}
       <button class="btn btn-outline" style="padding:5px 12px;font-size:12px" onclick="analisarIncompatibilidades()">Verificar a fundo com IA</button></div>`;
     return;
   }
@@ -5018,8 +5450,8 @@ function renderSeloIncompat() {
          style="display:flex;align-items:center;gap:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 14px;cursor:pointer">
       <span style="font-size:20px">⚠️</span>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:700;color:#412402">${n} possíve${n>1?"is":"l"} incompatibilidade${n>1?"s":""} no projeto${nCrit?` <span style="color:#991b1b">· ${nCrit} crítica${nCrit>1?"s":""}</span>`:""}</div>
-        <div style="font-size:12.5px;color:#854F0B;margin-top:2px">Verificação rápida automática · clique para a análise completa das pranchas</div>
+        <div style="font-weight:700;color:#412402">${n} incompatibilidade${n>1?"s":""} comprovada${n>1?"s":""} no projeto${nCrit?` <span style="color:#991b1b">· ${nCrit} crítica${nCrit>1?"s":""}</span>`:""}</div>
+        <div style="font-size:12.5px;color:#854F0B;margin-top:2px">Cada uma tem as duas fontes do projeto que se contradizem · clique para a análise completa das pranchas</div>
       </div>
       <span class="btn btn-outline" style="padding:6px 12px;font-size:12.5px;white-space:nowrap">Analisar →</span>
     </div>`;
@@ -5067,13 +5499,39 @@ async function analisarIncompatibilidades() {
     txt = txt.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
     let parsed = null;
     try { parsed = JSON.parse(txt); } catch (_) { const m = txt.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); }
-    const daIA = (parsed && Array.isArray(parsed.pendencias) ? parsed.pendencias : []).map(p => ({
-      sev: (SEVERIDADES[normalizaTxt(p.severidade)] ? normalizaTxt(p.severidade) : "conferir"),
-      titulo: String(p.titulo || "").slice(0, 200),
-      detalhe: String(p.detalhe || "").slice(0, 800),
-      folhas: String(p.folhas || ""),
-      origem: "ia",
-    })).filter(p => p.titulo);
+    // ─────────────────────────────────────────────────────────────────────────
+    // FILTRO ANTI-INVENÇÃO (2026-08-01).
+    // Modelo de visão alucina incompatibilidade com facilidade — ele "quer"
+    // encontrar problema porque foi perguntado sobre problemas. O achado da IA
+    // só é aceito como INCOMPATIBILIDADE se vier com as duas evidências e a
+    // folha. Sem isso, ele não é descartado: é REBAIXADO para "verificar", uma
+    // lista separada que diz explicitamente que não foi comprovado. Assim o
+    // usuário nunca leva ao projetista um erro que o sistema não consegue provar.
+    // ─────────────────────────────────────────────────────────────────────────
+    const _txt = (v, n) => String(v == null ? "" : v).slice(0, n);
+    const _temProva = p => {
+      const fa = _txt(p.fonte_a || (p.evidencia && p.evidencia.fonte_a), 160);
+      const fb = _txt(p.fonte_b || (p.evidencia && p.evidencia.fonte_b), 160);
+      const va = _txt(p.valor_a || (p.evidencia && p.evidencia.valor_a), 120);
+      const vb = _txt(p.valor_b || (p.evidencia && p.evidencia.valor_b), 120);
+      // exige duas fontes distintas e pelo menos um número em cada valor
+      if (!fa || !fb || !va || !vb) return null;
+      if (normalizaTxt(fa) === normalizaTxt(fb)) return null;
+      if (!/\d/.test(va) || !/\d/.test(vb)) return null;
+      return { a: { fonte: fa, valor: va }, b: { fonte: fb, valor: vb } };
+    };
+    const daIA = [], daIASemProva = [];
+    (parsed && Array.isArray(parsed.pendencias) ? parsed.pendencias : []).forEach(p => {
+      const titulo = _txt(p.titulo, 200); if (!titulo) return;
+      const base = {
+        sev: (SEVERIDADES[normalizaTxt(p.severidade)] ? normalizaTxt(p.severidade) : "conferir"),
+        titulo, detalhe: _txt(p.detalhe, 800), folhas: _txt(p.folhas, 120), origem: "ia",
+      };
+      const ev = _temProva(p);
+      if (ev && base.folhas) daIA.push(Object.assign(base, { evidencia: ev, classe: "incompat" }));
+      else daIASemProva.push(Object.assign(base, { sev: "perguntar", classe: "verificar" }));
+    });
+    APP._achadosIAVerificar = daIASemProva;
     // O servidor só sabe responder compatibilização depois que o prompt task="compat"
     // for publicado. Antes disso ele devolve um levantamento comum — que não tem
     // "pendencias". Nesse caso é melhor dizer isso do que fingir que analisou.
@@ -5084,6 +5542,7 @@ async function analisarIncompatibilidades() {
   } catch (e) {
     // Falhou a passada da IA: mantém os achados determinísticos, que já valem.
     APP._pendencias = (APP._incompatDet || []).slice();
+    APP._achadosIAVerificar = [];
     APP._pendenciasErro = e.message || String(e);
   } finally {
     APP._incompatRodando = false;
@@ -5094,47 +5553,78 @@ async function analisarIncompatibilidades() {
 function renderPendencias() {
   const host = document.getElementById("eapIncompat"); if (!host) return;
   const lista = APP._pendencias || [];
+  const ach   = APP._achados || { escopo: [], leitura: [] };
+  const verif = APP._achadosIAVerificar || [];
   const cont = { critico:0, conferir:0, perguntar:0 };
   lista.forEach(p => { cont[p.sev] = (cont[p.sev] || 0) + 1; });
   const erro = APP._pendenciasErro
     ? `<div style="font-size:12.5px;color:#991b1b;margin-bottom:8px">A análise por IA não completou (${APP._pendenciasErro}). A lista abaixo traz apenas as verificações automáticas.</div>` : "";
-  if (!lista.length) {
-    host.innerHTML = `<div class="alert" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
-      <b>✓ Nenhuma incompatibilidade encontrada.</b> As pranchas foram cruzadas e não apareceu conflito entre planta, cortes, esquadrias e memorial. Isso não substitui a sua conferência.</div>`;
-    return;
-  }
-  host.innerHTML = `
+
+  // Item da lista PROVADA — sempre mostra as duas fontes que se contradizem.
+  const itemProvado = (p, i) => {
+    const S = SEVERIDADES[p.sev] || SEVERIDADES.conferir;
+    const ev = p.evidencia;
+    return `<div style="display:flex;gap:10px;border-top:1px solid #f1f5f9;padding-top:10px">
+      <span style="font-size:11px;font-weight:700;background:${S.bg};color:${S.fg};border-radius:5px;padding:3px 8px;height:fit-content;white-space:nowrap">${i+1}. ${S.label}</span>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:14px;font-weight:600">${p.titulo}</div>
+        <div style="font-size:12.5px;color:#475569;margin-top:2px;line-height:1.5">${p.detalhe || ""}</div>
+        ${ev ? `<div class="ev-box">
+            <div class="ev-l"><span class="ev-t">Fonte A</span> ${ev.a.fonte}<b>${ev.a.valor}</b></div>
+            <div class="ev-x">contradiz</div>
+            <div class="ev-l"><span class="ev-t">Fonte B</span> ${ev.b.fonte}<b>${ev.b.valor}</b></div>
+          </div>` : ""}
+        ${p.folhas ? `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">Folha(s): ${p.folhas}</div>` : ""}
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${p.origem === "ia" ? "Lido nas pranchas pela IA · com as duas evidências conferidas" : "Verificação determinística do sistema"}</div>
+      </div></div>`;
+  };
+  const bloco = (titulo, subtitulo, itens, cor, bg) => itens.length ? `
+    <div style="border:1px solid ${cor};border-radius:10px;padding:13px 15px;background:${bg};margin-top:12px">
+      <div style="font-weight:800;font-size:14px;color:var(--navy)">${titulo} <span style="font-weight:600;color:var(--muted)">· ${itens.length}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin:3px 0 8px;line-height:1.5">${subtitulo}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${itens.map(p => `<div style="border-top:1px solid rgba(0,0,0,.06);padding-top:8px">
+          <div style="font-size:13.5px;font-weight:600">${p.titulo}</div>
+          <div style="font-size:12.5px;color:#475569;margin-top:2px;line-height:1.5">${p.detalhe || ""}</div>
+        </div>`).join("")}
+      </div>
+    </div>` : "";
+
+  const cabecalhoProvado = lista.length ? `
     <div style="border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:#fff">
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px">
-        <div style="font-weight:800;font-size:15px;color:var(--navy)">📋 Lista de pendências</div>
+        <div style="font-weight:800;font-size:15px;color:var(--navy)">🔴 Incompatibilidades comprovadas</div>
         <div style="font-size:12.5px;color:var(--muted)">
           ${lista.length} item(ns)
           ${cont.critico?` · <b style="color:#991b1b">${cont.critico} crítico(s)</b>`:""}
           ${cont.conferir?` · <b style="color:#92400e">${cont.conferir} a conferir</b>`:""}
-          ${cont.perguntar?` · ${cont.perguntar} pergunta(s)`:""}
         </div>
       </div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
-        Sai também como aba <b>PENDÊNCIAS</b> no Excel. Resolva os críticos antes de fechar preço.
+        Cada item abaixo mostra <b>duas informações do próprio projeto que não podem estar certas ao mesmo tempo</b>.
+        É isso que você pode levar ao projetista. Sai também como aba <b>PENDÊNCIAS</b> no Excel.
       </div>
       ${erro}
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${lista.map((p, i) => {
-          const S = SEVERIDADES[p.sev] || SEVERIDADES.conferir;
-          return `<div style="display:flex;gap:10px;border-top:1px solid #f1f5f9;padding-top:10px">
-            <span style="font-size:11px;font-weight:700;background:${S.bg};color:${S.fg};border-radius:5px;padding:3px 8px;height:fit-content;white-space:nowrap">${i+1}. ${S.label}</span>
-            <div style="min-width:0">
-              <div style="font-size:14px;font-weight:600">${p.titulo}</div>
-              <div style="font-size:12.5px;color:#475569;margin-top:2px;line-height:1.5">${p.detalhe || ""}</div>
-              ${p.folhas ? `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">Folha(s): ${p.folhas}</div>` : ""}
-              <div style="font-size:11px;color:var(--muted);margin-top:3px">${p.origem === "ia" ? "Detectado na leitura das pranchas" : "Verificação automática do sistema"}</div>
-            </div></div>`;
-        }).join("")}
-      </div>
-      <div style="margin-top:12px;font-size:11.5px;color:var(--muted);border-top:1px solid #f1f5f9;padding-top:8px">
-        Esta lista aponta indícios lidos do material enviado. Não substitui a análise do responsável técnico — <b>a IA não assina ART; você assina.</b>
-      </div>
-    </div>`;
+      <div style="display:flex;flex-direction:column;gap:10px">${lista.map(itemProvado).join("")}</div>
+    </div>` : `
+    <div class="alert" style="background:#f0fdf4;color:#166534;border:1px solid #86efac">
+      <b>✓ Nenhuma incompatibilidade comprovada.</b> O cruzamento entre planta, cortes, quadro de esquadrias e memorial não produziu
+      nenhum conflito que o sistema consiga provar com duas fontes. ${erro ? "" : "Isso não substitui a sua conferência."}</div>${erro}`;
+
+  host.innerHTML = cabecalhoProvado
+    + bloco("🟡 Não comprovado — verificar na prancha",
+        "A IA levantou estes pontos, mas <b>não conseguiu citar as duas fontes</b> que se contradizem. Podem ser reais ou não — confira antes de tratar como erro de projeto. Não leve ao projetista sem checar.",
+        verif, "#fcd34d", "#fffbeb")
+    + bloco("📦 Fora do escopo enviado — não é defeito do projeto",
+        "Depende de prancha ou documento que <b>não foi enviado</b>. Não acuse o projetista por isto: o serviço existe, só não dá para quantificar com o que chegou.",
+        ach.escopo || [], "#bfdbfe", "#eff6ff")
+    + bloco("🔍 Leitura incerta — o sistema não conseguiu ler",
+        "Limitação da <b>leitura automática</b>, não do projeto. Conferir aqui aumenta a precisão do seu orçamento.",
+        ach.leitura || [], "#e2e8f0", "#f8fafc")
+    + `<div style="margin-top:12px;font-size:11.5px;color:var(--muted);border-top:1px solid #f1f5f9;padding-top:8px">
+        <b>A IA não assina ART; você assina.</b> O sistema separa o que consegue provar do que apenas suspeita — justamente para você
+        não levar ao projetista uma incompatibilidade que não existe.
+      </div>`;
 }
 
 // Painel "O que NÃO entrou neste orçamento" — exibido logo abaixo da árvore da EAP.
@@ -5346,7 +5836,7 @@ document.getElementById("btnValidarOrc").addEventListener("click", validarOrcame
 document.getElementById("btnGoToBudget").addEventListener("click", () => { goTo(4); });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
-document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; APP.cronoLagOverride = {}; buildCronograma(); });
+document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; APP.cronoLagOverride = {}; APP.cronoLinkOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
   Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", orcamentoValidado:false, filtroDisc:"todas" });
   document.getElementById("fileInfo").style.display = "none";
@@ -6119,30 +6609,47 @@ async function exportExcel() {
   // mesmo que o usuário não tenha clicado na análise profunda. As colunas
   // STATUS e RESPONSÁVEL ficam em branco de propósito: a planilha vira
   // ferramenta de acompanhamento, não só um relatório.
-  const _pend = (APP._pendencias && APP._pendencias.length) ? APP._pendencias
-              : (APP._incompatDet || detectarIncompatibilidades(r) || []);
-  if (_pend.length) {
+  const _ach  = APP._achados || classificarAchados(r);
+  const _pend = (APP._pendencias && APP._pendencias.length) ? APP._pendencias : (_ach.incompat || []);
+  const _verif = APP._achadosIAVerificar || [];
+  const _outros = [].concat(
+    _verif.map(p => ["NÃO COMPROVADO", p]),
+    (_ach.escopo  || []).map(p => ["FORA DE ESCOPO", p]),
+    (_ach.leitura || []).map(p => ["LEITURA INCERTA", p])
+  );
+  if (_pend.length || _outros.length) {
     const pr = [
       ["MAR ABERTO ENGENHARIA — LISTA DE PENDÊNCIAS DE PROJETO"],
-      [`${APP.projectName || r.projeto || "Projeto"} | ${new Date().toLocaleDateString("pt-BR")} | ${_pend.length} pendência(s)`],
+      [`${APP.projectName || r.projeto || "Projeto"} | ${new Date().toLocaleDateString("pt-BR")} | ${_pend.length} incompatibilidade(s) comprovada(s) · ${_outros.length} ponto(s) de revisão`],
       [],
-      ["#","SEVERIDADE","PENDÊNCIA","DETALHE / EVIDÊNCIA","FOLHA(S)","ORIGEM","STATUS","RESPONSÁVEL"],
+      ["BLOCO 1 — INCOMPATIBILIDADES COMPROVADAS (duas fontes do projeto se contradizem; leve estas ao projetista)"],
+      ["#","SEVERIDADE","PENDÊNCIA","DETALHE","FONTE A","FONTE B","FOLHA(S)","ORIGEM","STATUS","RESPONSÁVEL"],
     ];
+    if (!_pend.length) pr.push(["—","","Nenhuma incompatibilidade comprovada nesta análise.","","","","","","",""]);
     _pend.forEach((p, i) => pr.push([
       i + 1,
       (SEVERIDADES[p.sev] || SEVERIDADES.conferir).label,
       p.titulo || "",
       p.detalhe || "",
+      p.evidencia ? `${p.evidencia.a.fonte}: ${p.evidencia.a.valor}` : "",
+      p.evidencia ? `${p.evidencia.b.fonte}: ${p.evidencia.b.valor}` : "",
       p.folhas || "",
       p.origem === "ia" ? "Leitura das pranchas" : "Verificação automática",
       "", ""
     ]));
+    const _hdr2 = pr.length + 1;
     pr.push([]);
-    pr.push(["", "", "Esta lista aponta indícios lidos do material enviado e não substitui a análise do responsável técnico."]);
+    pr.push(["BLOCO 2 — PONTOS DE REVISÃO (NÃO são incompatibilidades do projeto; não leve ao projetista como erro)"]);
+    pr.push(["#","CATEGORIA","PONTO","DETALHE","","","","","STATUS","RESPONSÁVEL"]);
+    if (!_outros.length) pr.push(["—","","Nada a revisar.","","","","","","",""]);
+    _outros.forEach(([cat, p], i) => pr.push([i + 1, cat, p.titulo || "", p.detalhe || "", "", "", "", "", "", ""]));
+    pr.push([]);
+    pr.push(["", "", "BLOCO 1 = conflito provado com duas fontes. BLOCO 2 = falta de escopo ou limitação de leitura. Nenhum substitui a análise do responsável técnico."]);
     const wsP = XLSX.utils.aoa_to_sheet(pr);
-    wsP["!cols"] = [5,13,46,72,10,22,14,20].map(w => ({wch:w}));
-    wsP["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
-    estilizarSheet(wsP, { titulo:0, subtitulo:1, headerRows:[3] });
+    wsP["!cols"] = [5,17,44,64,34,34,10,22,14,20].map(w => ({wch:w}));
+    wsP["!merges"] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}},{s:{r:3,c:0},e:{r:3,c:9}},
+                      {s:{r:_hdr2,c:0},e:{r:_hdr2,c:9}}];
+    estilizarSheet(wsP, { titulo:0, subtitulo:1, headerRows:[4, _hdr2 + 1] });
     XLSX.utils.book_append_sheet(wb, wsP, "PENDÊNCIAS");
   }
 
@@ -7338,6 +7845,161 @@ async function tkRenderPage(){
   cv.onmouseup = soltar; cv.onmouseleave = () => { soltar(); const t2=tkView(); t2.cursor=null; tkRedraw(); };
 
   tkZoomLabel(); tkRedraw(); tkUpdateReadout();
+
+  // Camada de texto da folha → âncora exata do ambiente (ver bloco ÂNCORA POR RÓTULO)
+  t.ancora = null; t.semTexto = false;
+  try{
+    const cache = await tkCarregarRotulos(gid);
+    t.semTexto = !cache.ok;
+    if(t.kind === 'ambiente' && t.ambIdx != null){
+      const a = (APP.analysisResult && APP.analysisResult.ambientes || [])[t.ambIdx];
+      if(a && a.nome && cache.ok){
+        const bb = Array.isArray(a.bbox) && a.bbox.length === 4 ? a.bbox : null;
+        t.ancora = tkAcharRotulo(a.nome, gid, bb);
+      }
+    }
+    tkRedraw(); tkUpdateReadout();
+    const st = document.getElementById("tkStatus");
+    if(t.kind === 'ambiente' && st && t.mode === 'calibrar'){
+      const nome = t.hintNome || "o ambiente";
+      if(t.ancora && !t.ancora.ambiguo)
+        tkWizLog(`📍 "${t.ancora.texto}" localizado no texto da prancha — marcação exata.`, "#166534");
+      else if(t.ancora && t.ancora.ambiguo)
+        tkWizLog(`📍 "${nome}" aparece ${t.ancora.n}× nesta folha — confira se a marcação é o certo.`, "#b45309");
+      else if(t.semTexto)
+        tkWizLog("⚠ Esta folha é imagem (sem camada de texto) — não dá para localizar o ambiente sozinho. Você indica o ponto.", "#b45309");
+      else
+        tkWizLog(`⚠ Não achei o rótulo "${nome}" escrito nesta folha. Confira se é a folha certa.`, "#b45309");
+    }
+  }catch(e){}
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// ÂNCORA POR RÓTULO — de onde o sistema sabe ONDE fica o ambiente (2026-08-01)
+// ═════════════════════════════════════════════════════════════════════════════
+// O bbox devolvido pela IA é declaradamente APROXIMADO (o próprio prompt do
+// servidor diz "posição APROXIMADA"). Usar um valor aproximado para desenhar um
+// retângulo sobre o cômodo produz exatamente o que se via na tela: a marcação
+// cai fora da cozinha, ou pega cozinha e quarto juntos. O erro não estava no
+// desenho — estava em tratar uma estimativa como se fosse coordenada.
+//
+// Em PDF vetorial (exportado de CAD/Revit, que é a esmagadora maioria dos
+// projetos) existe uma fonte EXATA e gratuita: a camada de texto. O rótulo
+// "COZINHA" é um objeto de texto com matriz de transformação própria. pdf.js
+// entrega isso em getTextContent(), e Util.transform() converte para o mesmo
+// espaço de pixels em que a folha foi rasterizada. Precisão de sub-pixel.
+//
+// Isso resolve três coisas de uma vez:
+//   1. A marcação passa a ficar EM CIMA do rótulo do cômodo certo.
+//   2. O robô ganha uma semente que, por definição, está DENTRO do cômodo
+//      (o rótulo é escrito dentro dele) — antes a semente era o centro do bbox
+//      aproximado, que caía em parede ou no cômodo vizinho e fazia o robô falhar.
+//   3. Dá um teste de vazamento definitivo: se a região preenchida contém o
+//      rótulo de OUTRO ambiente, ela vazou. Não é heurística de área — é prova.
+// Sem camada de texto (planta escaneada) o sistema NÃO desenha marcação chutada:
+// pede o clique. Marcação errada é pior que marcação nenhuma.
+// ═════════════════════════════════════════════════════════════════════════════
+function _rotNorm(s){
+  return normalizaTxt(s)
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(\d)\b/g, "0$1")          // "quarto 1" ≡ "quarto 01"
+    .replace(/\s+/g, " ").trim();
+}
+// Sinônimos de planta: o desenho abrevia, o levantamento escreve por extenso.
+const _ROT_SIN = [
+  ["dormitorio","quarto"], ["suite","suite"], ["banheiro","banho"], ["banheiro","wc"],
+  ["banheiro","sanitario"], ["lavabo","lavabo"], ["cozinha","coz"], ["sala","estar"],
+  ["sala de estar","estar"], ["sala de jantar","jantar"], ["area de servico","servico"],
+  ["area de servico","as"], ["lavanderia","lavand"], ["circulacao","circ"],
+  ["varanda","sacada"], ["garagem","vaga"], ["garagem","abrigo"], ["deposito","dep"],
+  ["closet","closet"], ["hall","hall"], ["escritorio","home office"], ["despensa","dispensa"],
+];
+function _rotVariantes(nome){
+  const base = _rotNorm(nome); if(!base) return [];
+  const v = new Set([base]);
+  _ROT_SIN.forEach(([a,b]) => {
+    if(base.includes(a)) v.add(base.replace(a,b));
+    if(base.includes(b)) v.add(base.replace(b,a));
+  });
+  // sem numeração: "quarto 02" também casa com "quarto"
+  const semNum = base.replace(/\s*\d+\s*/g," ").trim(); if(semNum.length>=3) v.add(semNum);
+  return [...v].filter(s => s.length >= 3);
+}
+// Extrai a camada de texto da folha em coordenadas de PIXEL da imagem já
+// rasterizada em t.img. Cacheado por folha — getTextContent é caro.
+async function tkCarregarRotulos(gid){
+  const t = tkState();
+  t._rot = t._rot || {};
+  if (t._rot[gid]) return t._rot[gid];
+  const ent = APP.pages[gid-1];
+  if(!ent || !t.img){ t._rot[gid] = { ok:false, itens:[] }; return t._rot[gid]; }
+  try{
+    const page = await ent.doc.getPage(ent.pageNum);
+    const base = page.getViewport({ scale: 1 });
+    // mesma escala usada na rasterização (tkRenderPage): largura da imagem / largura base
+    const vp = page.getViewport({ scale: t.img.width / base.width });
+    const tc = await page.getTextContent();
+    const itens = [];
+    tc.items.forEach(it => {
+      const s = String(it.str || "").trim();
+      if(!s || s.length < 2) return;
+      // posição do texto no espaço do dispositivo (pixels da imagem)
+      const m = pdfjsLib.Util.transform(vp.transform, it.transform);
+      const x = m[4], y = m[5];
+      const alt = Math.hypot(m[2], m[3]) || 10;
+      const larg = (it.width || 0) * (t.img.width / base.width);
+      if(!isFinite(x) || !isFinite(y)) return;
+      itens.push({ s, norm:_rotNorm(s), x, y, larg, alt,
+                   cx: x + larg/2, cy: y - alt*0.35 });   // baseline → centro visual
+    });
+    t._rot[gid] = { ok: itens.length >= 3, itens };
+  }catch(e){ t._rot[gid] = { ok:false, itens:[] }; }
+  return t._rot[gid];
+}
+// Acha o rótulo do ambiente-alvo. Quando há repetição ("QUARTO" em 3 lugares),
+// desempata pelo bbox da IA — que serve bem como PISTA, embora não sirva como medida.
+function tkAcharRotulo(nome, gid, bboxPista){
+  const t = tkState(); const cache = (t._rot||{})[gid];
+  if(!cache || !cache.itens.length) return null;
+  const vars = _rotVariantes(nome); if(!vars.length) return null;
+  const cands = [];
+  cache.itens.forEach(it => {
+    if(!it.norm) return;
+    let score = 0;
+    vars.forEach(v => {
+      if(it.norm === v) score = Math.max(score, 100);
+      else if(it.norm.startsWith(v) || v.startsWith(it.norm)) score = Math.max(score, 80);
+      else if(it.norm.includes(v)) score = Math.max(score, 60);
+    });
+    if(score > 0) cands.push({ it, score });
+  });
+  if(!cands.length) return null;
+  if(bboxPista && t.img){
+    const bx=(bboxPista[0]+bboxPista[2])/2*t.img.width, by=(bboxPista[1]+bboxPista[3])/2*t.img.height;
+    const diag = Math.hypot(t.img.width, t.img.height) || 1;
+    cands.forEach(c => { c.score -= Math.hypot(c.it.cx-bx, c.it.cy-by)/diag * 40; });
+  }
+  cands.sort((a,b) => b.score - a.score);
+  const melhor = cands[0];
+  const ambiguo = cands.length > 1 && (cands[1].score >= melhor.score - 4);
+  return { x: melhor.it.cx, y: melhor.it.cy, texto: melhor.it.s,
+           exato: melhor.score >= 80, ambiguo, n: cands.length };
+}
+// Rótulo de QUALQUER ambiente contido numa região — é o teste de vazamento.
+function tkRotulosDentro(gid, contem){
+  const t = tkState(); const cache = (t._rot||{})[gid];
+  if(!cache) return [];
+  const r = APP.analysisResult; const amb = (r && r.ambientes) || [];
+  const achados = [];
+  amb.forEach((a, i) => {
+    if(!a || !a.nome) return;
+    const vars = _rotVariantes(a.nome); if(!vars.length) return;
+    cache.itens.forEach(it => {
+      if(!it.norm) return;
+      const bate = vars.some(v => it.norm === v || it.norm.startsWith(v));
+      if(bate && contem(it.cx, it.cy)) achados.push({ idx:i, nome:a.nome, texto:it.s });
+    });
+  });
+  return achados;
 }
 function tkSetMode(m){
   const t=tkState(); t.mode=m; t.vaoStart=null; t.vaoPend=null;
@@ -7449,18 +8111,32 @@ function tkRedraw(){
   ctx.save();
   ctx.setTransform(t.z||1, 0, 0, t.z||1, t.ox||0, t.oy||0);   // zoom + pan
   if(t.img) ctx.drawImage(t.img,0,0);
-  // Destaque do cômodo em conferência: retângulo na posição (bbox) que a IA informou —
-  // orienta QUAL ambiente medir (ex.: qual DML, em qual folha/pavimento). Só na folha certa.
-  if(t.kind==='ambiente' && t.hintBbox && t.img && t.gid===t.hintGid){
-    const W=t.img.width, H=t.img.height, b=t.hintBbox, z=t.z||1;
-    const x=b[0]*W, y=b[1]*H, w=(b[2]-b[0])*W, h=(b[3]-b[1])*H;
+  // MARCAÇÃO DO AMBIENTE — alfinete sobre o RÓTULO lido na camada de texto do PDF.
+  // Deixou de ser um retângulo desenhado a partir do bbox aproximado da IA: aquele
+  // retângulo é que caía fora do cômodo ou abraçava dois cômodos. Um alfinete no
+  // ponto exato do rótulo não tem como "pegar a cozinha e o quarto" — ele aponta
+  // o texto que o próprio projetista escreveu dentro do ambiente.
+  if(t.kind==='ambiente' && t.ancora && t.img){
+    const z=t.z||1, ax=t.ancora.x, ay=t.ancora.y;
+    const cor = t.ancora.ambiguo ? "#d97706" : "#0d9488";
     ctx.save();
-    ctx.fillStyle="rgba(245,158,11,.16)"; ctx.fillRect(x,y,w,h);
-    ctx.strokeStyle="#f59e0b"; ctx.lineWidth=4/z; ctx.setLineDash([]); ctx.strokeRect(x,y,w,h);
+    // halo pulsante discreto + alvo
+    ctx.fillStyle = t.ancora.ambiguo ? "rgba(217,119,6,.13)" : "rgba(13,148,136,.13)";
+    ctx.beginPath(); ctx.arc(ax, ay, 34/z, 0, 6.3); ctx.fill();
+    ctx.strokeStyle=cor; ctx.lineWidth=2.5/z; ctx.setLineDash([6/z,5/z]);
+    ctx.beginPath(); ctx.arc(ax, ay, 34/z, 0, 6.3); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(ax, ay, 5/z, 0, 6.3); ctx.fillStyle=cor; ctx.fill();
+    ctx.lineWidth=2/z;
+    ctx.beginPath();
+    ctx.moveTo(ax-46/z,ay); ctx.lineTo(ax-12/z,ay); ctx.moveTo(ax+12/z,ay); ctx.lineTo(ax+46/z,ay);
+    ctx.moveTo(ax,ay-46/z); ctx.lineTo(ax,ay-12/z); ctx.moveTo(ax,ay+12/z); ctx.lineTo(ax,ay+46/z);
+    ctx.stroke();
     const fs=13/z; ctx.font="700 "+fs+"px 'Segoe UI',sans-serif";
-    const lbl="📍 "+(t.hintNome||"medir aqui"); const tw=ctx.measureText(lbl).width;
-    ctx.fillStyle="#b45309"; ctx.fillRect(x, y-fs-6/z, tw+10/z, fs+6/z);
-    ctx.fillStyle="#fff"; ctx.fillText(lbl, x+5/z, y-4/z);
+    const lbl=(t.ancora.ambiguo?"📍 confira: ":"📍 ")+(t.hintNome||t.ancora.texto);
+    const tw=ctx.measureText(lbl).width;
+    ctx.fillStyle=cor; ctx.fillRect(ax-tw/2-6/z, ay-56/z, tw+12/z, fs+8/z);
+    ctx.fillStyle="#fff"; ctx.fillText(lbl, ax-tw/2, ay-56/z+fs+1/z);
     ctx.restore();
   }
   // escala (azul)
@@ -7914,22 +8590,37 @@ function tkRobotDetectar(seedImgX, seedImgY){
   // A âncora certa não é a folha: é o próprio ambiente que se pediu para medir.
   // ─────────────────────────────────────────────────────────────────────────
   const t = tkState();
-  if (t.kind === 'ambiente' && t.hintBbox && t.img && t.gid === t.hintGid) {
-    const b = t.hintBbox;
-    // bbox da IA convertida para a resolução da máscara
-    const hx0 = b[0]*t.img.width*m.s,  hy0 = b[1]*t.img.height*m.s;
-    const hx1 = b[2]*t.img.width*m.s,  hy1 = b[3]*t.img.height*m.s;
-    const areaHint = Math.max(1, (hx1-hx0) * (hy1-hy0));
-    const areaReg  = larg * alt;
-    // Margem generosa (3x): a bbox da IA é aproximada e costuma ficar apertada.
-    // Acima disso não é imprecisão de leitura — é outra região.
-    if (areaReg > areaHint * 3.0)
-      return { ok:false, motivo:"A região detectada é muito maior que o ambiente indicado — o preenchimento vazou pela porta e tomou os cômodos vizinhos." };
-    // Extrapolou muito para fora da bbox nos dois eixos → saiu do cômodo
-    const foraX = Math.max(0, hx0 - r.minX) + Math.max(0, r.maxX - hx1);
-    const foraY = Math.max(0, hy0 - r.minY) + Math.max(0, r.maxY - hy1);
-    if (foraX > (hx1-hx0) * 1.2 && foraY > (hy1-hy0) * 1.2)
-      return { ok:false, motivo:"O contorno detectado extrapolou o ambiente indicado em todas as direções — provável vazamento por vãos abertos." };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TESTE DE VAZAMENTO POR RÓTULO — prova, não heurística (2026-08-01).
+  // Antes o teste era por ÁREA contra o bbox aproximado da IA. Isso falhava dos
+  // dois lados: recusava medição boa quando o bbox vinha apertado, e aceitava
+  // vazamento quando vinha largo. E como o bbox é aproximado por definição, não
+  // havia como calibrar a tolerância — era chute contra chute.
+  // O teste certo é direto: se a região preenchida CONTÉM o rótulo de outro
+  // ambiente, ela invadiu esse ambiente. Não há tolerância a discutir — ou o
+  // texto "QUARTO 02" está dentro da mancha, ou não está.
+  // ─────────────────────────────────────────────────────────────────────────
+  const dentroDaRegiao = (px, py) => {
+    const mx = Math.round(px * m.s), my = Math.round(py * m.s);
+    if (mx < 0 || my < 0 || mx >= m.W || my >= m.H) return false;
+    return r.vis[my * m.W + mx] === 1;
+  };
+  if (t.kind === 'ambiente' && t.ambIdx != null && (t._rot || {})[t.gid] && t._rot[t.gid].ok) {
+    const dentro = tkRotulosDentro(t.gid, dentroDaRegiao);
+    const invasores = dentro.filter(d => d.idx !== t.ambIdx);
+    if (invasores.length) {
+      const nomes = [...new Set(invasores.map(d => d.nome))];
+      return { ok:false, vazouPara: nomes, motivo:
+        `o contorno invadiu ${nomes.length > 1 ? "os ambientes" : "o ambiente"} ${nomes.slice(0,4).join(", ")}` +
+        `${nomes.length > 4 ? " e outros" : ""} — o rótulo ${nomes.length > 1 ? "deles está" : "dele está"} dentro da área que foi preenchida. ` +
+        `Em planta baixa o vão de porta não fecha, então o preenchimento escapa por ele.` };
+    }
+    // O rótulo do PRÓPRIO ambiente tem que estar dentro. Se não está, o robô
+    // preencheu outra coisa (um armário, uma área técnica, o lado de fora).
+    const proprio = dentro.some(d => d.idx === t.ambIdx);
+    if (!proprio && t.ancora && !dentroDaRegiao(t.ancora.x, t.ancora.y))
+      return { ok:false, motivo:"a região preenchida não contém o rótulo do ambiente — o ponto de partida caiu fora do cômodo." };
   }
 
   const preenchimento = r.n / (larg * alt);
@@ -8128,17 +8819,31 @@ function tkRobotMedir(){
     alert("Antes do robô, faça o Passo 1: marque os 2 extremos de uma cota conhecida e informe o valor.\n\nA escala é calibrada UMA vez por folha — depois disso o robô mede todos os ambientes dela.");
     return;
   }
-  let seed = null;
-  if(t.kind === 'ambiente' && t.hintBbox && t.gid === t.hintGid && t.img){
+  // SEMENTE: o rótulo do ambiente lido na camada de texto do PDF. É o único
+  // ponto que se sabe, por construção, estar DENTRO do cômodo — o projetista
+  // escreveu "COZINHA" dentro da cozinha. O centro do bbox aproximado da IA não
+  // tinha essa garantia, e era por isso que o robô falhava quase sempre: a
+  // semente caía em parede, em texto de cota, ou no cômodo vizinho.
+  let seed = null, viaRotulo = false;
+  if(t.kind === 'ambiente' && t.ancora){
+    // desloca um pouco abaixo do texto: o rótulo em si é traço escuro (=parede
+    // na máscara), e a semente precisa cair no piso, ao lado das letras.
+    seed = { x: t.ancora.x, y: t.ancora.y + 22 };
+    viaRotulo = true;
+  }
+  if(!seed && t.kind === 'ambiente' && t.hintBbox && t.gid === t.hintGid && t.img){
     const b = t.hintBbox, W = t.img.width, H = t.img.height;
-    seed = { x: (b[0]+b[2])/2*W, y: (b[1]+b[3])/2*H };   // centro do ambiente lido pela IA
+    seed = { x: (b[0]+b[2])/2*W, y: (b[1]+b[3])/2*H };   // reserva: centro aproximado da IA
   }
   if(!seed){
     t.mode = 'robot-seed';
-    if(st) st.innerHTML = "🤖 <b>Clique DENTRO do ambiente</b> que eu devo medir (um ponto qualquer no piso, longe de móveis e textos).";
+    if(st) st.innerHTML = t.semTexto
+      ? "🤖 <b>Esta folha é uma imagem</b> (sem camada de texto), então não consigo localizar o ambiente sozinho. <b>Clique DENTRO do cômodo</b>, num ponto do piso."
+      : "🤖 <b>Clique DENTRO do ambiente</b> que eu devo medir (um ponto qualquer no piso, longe de móveis e textos).";
     tkRedraw();
     return;
   }
+  t._seedViaRotulo = viaRotulo;
   tkRobotExecutar(seed.x, seed.y);
 }
 function tkRobotExecutar(x, y){
@@ -8146,28 +8851,77 @@ function tkRobotExecutar(x, y){
   const st = document.getElementById("tkStatus");
   if(st) st.innerHTML = "🤖 <b>Analisando a folha…</b> identificando as paredes do ambiente.";
   tkWizLimparLog();
-  tkWizLog("🤖 Lendo a folha em alta resolução…");
+  tkWizLog(t._seedViaRotulo
+    ? `🤖 Partindo do rótulo "${(t.ancora&&t.ancora.texto)||""}" lido na prancha…`
+    : "🤖 Partindo do ponto que você indicou…");
   tkRedraw();
   setTimeout(() => {
-    let res;
-    try { res = tkRobotDetectar(x, y); }
-    catch(e){ res = { ok:false, motivo:"Falha ao processar a imagem (" + (e && e.message ? e.message : e) + ")." }; }
-    if(!res.ok){ tkWizLog("✕ " + res.motivo, "#b91c1c"); tkRobotFalhou(res.motivo); return; }
+    // Um único ponto de partida é frágil: o rótulo pode estar colado numa parede,
+    // sobre uma hachura de piso ou em cima de um móvel. Testamos alguns pontos ao
+    // redor e ficamos com o PRIMEIRO que passa em todas as travas — em vez de
+    // desistir no primeiro tropeço, que era o que fazia o robô "nunca funcionar".
+    const raios = t._seedViaRotulo ? [22, 40, -26, 60, -48, 86] : [0, 18, -18, 34, -34];
+    const cands = [];
+    raios.forEach(d => { cands.push({ x, y: y + (t._seedViaRotulo ? d - 22 : d) }); });
+    raios.forEach(d => { if(d) cands.push({ x: x + d, y }); });
+    let res = null, ultimo = null;
+    for(const c of cands){
+      let r0;
+      try { r0 = tkRobotDetectar(c.x, c.y); }
+      catch(e){ r0 = { ok:false, motivo:"falha ao processar a imagem (" + (e && e.message ? e.message : e) + ")" }; }
+      if(r0 && r0.ok){ res = r0; break; }
+      // guarda o motivo mais informativo (vazamento nomeado ganha do genérico)
+      if(!ultimo || (r0 && r0.vazouPara)) ultimo = r0;
+    }
+    if(!res){
+      const motivo = (ultimo && ultimo.motivo) || "não consegui isolar o ambiente.";
+      tkWizLog("✕ " + motivo, "#b91c1c");
+      tkRobotFalhou(motivo, ultimo && ultimo.vazouPara);
+      return;
+    }
     tkWizLog("Paredes identificadas. Contorno " + (res.retangular ? "retangular" : "irregular") + " com " + res.pts.length + " vértices.");
+    if(t._seedViaRotulo) tkWizLog("✓ Nenhum rótulo de outro ambiente dentro da área — não vazou.", "#166534");
     tkWizLog("Traçando sobre a planta…");
     tkSetMode('parede');
     tkAnimarTracado(res.pts, () => tkRobotConcluiu(res));
   }, 60);
 }
-function tkRobotFalhou(motivo){
+function tkRobotFalhou(motivo, vazouPara){
   const t = tkState(); t.robotCursor = null; tkRedraw();
   const st = document.getElementById("tkStatus");
-  if(st) st.innerHTML = `<b style="color:#fca5a5">🤖 Não consegui medir automaticamente.</b> ${motivo} — meça manualmente (Passo 2).`;
+  const nome = t.hintNome || "o ambiente";
+  if(st) st.innerHTML = `<b style="color:#fca5a5">🤖 Não medi automaticamente:</b> ${motivo}<br>
+    <span style="font-size:12.5px">Você pode <b>marcar os cantos no Passo 2</b> — leva alguns cliques e a medida fica 100% rastreável.</span>`;
   tkSetMode('parede');
-  setTimeout(() => alert(
-    "🤖 MEDIÇÃO AUTOMÁTICA NÃO CONCLUÍDA\n\n" + motivo +
-    "\n\n⚠ ATENÇÃO: isso costuma ocorrer em plantas ESCANEADAS, de baixa resolução, com hachuras densas ou com paredes que não fecham no desenho. Nesses casos, insistir no traçado automático PODE GERAR ERRO DE QUANTITATIVO.\n\nRecomendação:\n• Use uma planta VETORIAL (PDF exportado do CAD/Revit) — é o cenário em que o robô é preciso; ou\n• Meça manualmente no Passo 2, que continua disponível e é 100% rastreável.\n\nO orçamento é assinado por você: prefira a medida conferida à medida automática duvidosa."
-  ), 120);
+  // Mensagem específica por causa. O alerta genérico e assustador de antes tratava
+  // vazamento por porta (situação normal e contornável) como se fosse falha grave
+  // de qualidade da planta — e mandava o usuário trocar de arquivo sem necessidade.
+  let txt;
+  if(vazouPara && vazouPara.length){
+    txt = `🤖 O TRAÇADO AUTOMÁTICO VAZOU\n\nAo preencher ${nome}, a área escapou e tomou também: ${vazouPara.join(", ")}.\n\n` +
+          `POR QUE ISSO ACONTECE: em planta baixa o vão da porta é desenhado ABERTO — não existe linha fechando a passagem. ` +
+          `O preenchimento automático atravessa por ali e abraça o cômodo vizinho. Não é defeito do seu projeto.\n\n` +
+          `O QUE FAZER (qualquer uma resolve):\n` +
+          `• Marque os 4 cantos de ${nome} no Passo 2 — em ambiente retangular são 4 cliques e a área sai exata.\n` +
+          `• Ou dê zoom e clique num ponto do piso BEM no meio de ${nome}, longe das portas, e rode o robô de novo.\n\n` +
+          `O sistema preferiu não te entregar um número errado. A área do vizinho entraria no seu orçamento sem aviso.`;
+  } else if(t.semTexto){
+    txt = `🤖 MEDIÇÃO AUTOMÁTICA NÃO CONCLUÍDA\n\n${motivo}\n\n` +
+          `Esta folha é uma IMAGEM (planta escaneada ou fotografada): não tem camada de texto, então não consigo localizar ` +
+          `o ambiente sozinho nem confirmar que não vazei para o cômodo vizinho.\n\n` +
+          `O QUE FAZER:\n` +
+          `• Meça manualmente no Passo 2 (4 cliques num ambiente retangular) — continua 100% rastreável; ou\n` +
+          `• Se tiver o PDF vetorial (exportado do CAD/Revit em vez de escaneado), use-o: aí o robô trabalha com precisão.`;
+  } else {
+    txt = `🤖 MEDIÇÃO AUTOMÁTICA NÃO CONCLUÍDA\n\n${motivo}\n\n` +
+          `Costuma acontecer quando o cômodo tem hachura densa de piso, móveis desenhados por cima, ou paredes que não ` +
+          `fecham no desenho.\n\n` +
+          `O QUE FAZER:\n` +
+          `• Dê zoom e clique num ponto limpo do piso, depois rode o robô de novo; ou\n` +
+          `• Marque os cantos no Passo 2 — sempre disponível e rastreável.\n\n` +
+          `Prefira a medida conferida à medida automática duvidosa: o orçamento é assinado por você.`;
+  }
+  setTimeout(() => alert(txt), 120);
 }
 function tkRobotConcluiu(res){
   const t = tkState();
