@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.05</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.06</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2415,7 +2415,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.05):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.06):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -3745,7 +3745,7 @@ function buildEAP() {
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTOSAVE — precisa disparar em TODA alteração, não só ao montar a EAP
 // ═══════════════════════════════════════════════════════════════════════════
-// Falha real corrigida em v2026.08.05: _agendarSalvar() só era chamado no fim de
+// Falha real corrigida em v2026.08.06: _agendarSalvar() só era chamado no fim de
 // buildEAP(). As telas de ORÇAMENTO (corrigir código SINAPI, ajustar quantidade,
 // excluir serviço, preço manual, BDI, trocar estado) chamam recalcBudget() e
 // NUNCA reconstroem a EAP — então nada disso era salvo. O usuário revisava 40
@@ -7002,11 +7002,25 @@ function tkRedraw(){
   // PREENCHIMENTO do ambiente medido: mostra visualmente QUAL área foi capturada
   // (antes só havia a linha, e o usuário não enxergava o que o robô tinha medido).
   if(t.kind==='ambiente'){
-    const poly=(function(){ const p=[]; (t.runs||[]).forEach(r=>{ if(r) r.forEach(q=>p.push(q)); }); (t.current||[]).forEach(q=>p.push(q)); return p; })();
-    if(poly.length>=3){
+    // CADA TRECHO É UM POLÍGONO. Antes, todos os trechos eram concatenados numa
+    // lista única e preenchidos como UM polígono — o que desenhava uma mancha em
+    // ziguezague sem relação com o ambiente ("hachura desproporcional"). É o mesmo
+    // erro que já foi corrigido no CÁLCULO da área; o DESENHO tinha ficado para trás.
+    // Agora a hachura mostra exatamente a mesma figura que o sistema mede.
+    const grupos = [];
+    (t.runs||[]).forEach(r => { if(r && r.length >= 3) grupos.push(r); });
+    if((t.current||[]).length >= 3) grupos.push(t.current);
+    if(grupos.length){
       ctx.save();
-      ctx.beginPath(); poly.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath();
-      ctx.fillStyle="rgba(45,212,191,.20)"; ctx.fill();
+      // Destaca o MAIOR trecho (é o que vale como área) e esmaece os demais,
+      // para o usuário enxergar de imediato qual figura está sendo considerada.
+      let iMaior = 0, aMaior = -1;
+      grupos.forEach((g,i)=>{ const a=_tkShoelace(g); if(a>aMaior){aMaior=a;iMaior=i;} });
+      grupos.forEach((g,i)=>{
+        ctx.beginPath(); g.forEach((p,k)=> k?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath();
+        ctx.fillStyle = (i===iMaior) ? "rgba(45,212,191,.20)" : "rgba(148,163,184,.14)";
+        ctx.fill();
+      });
       ctx.restore();
     }
   }
@@ -7422,6 +7436,34 @@ function tkRobotDetectar(seedImgX, seedImgY){
   if (r.n < totalPx * 0.00015)
     return { ok:false, motivo:"A região encontrada é pequena demais — provável ruído do desenho." };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // REFERÊNCIA DO AMBIENTE — a trava que faltava.
+  // O teste acima só reprovava se a mancha tomasse 35% da FOLHA. Numa prancha
+  // com margem, carimbo e outras vistas, a casa inteira cabe em menos que isso:
+  // era possível inundar TODOS os cômodos pelas portas (que em planta baixa não
+  // fecham) e ainda "passar". Foi assim que medir a cozinha devolveu a casa
+  // inteira — 48,84 m² onde a IA lera 15,00 m².
+  // A âncora certa não é a folha: é o próprio ambiente que se pediu para medir.
+  // ─────────────────────────────────────────────────────────────────────────
+  const t = tkState();
+  if (t.kind === 'ambiente' && t.hintBbox && t.img && t.gid === t.hintGid) {
+    const b = t.hintBbox;
+    // bbox da IA convertida para a resolução da máscara
+    const hx0 = b[0]*t.img.width*m.s,  hy0 = b[1]*t.img.height*m.s;
+    const hx1 = b[2]*t.img.width*m.s,  hy1 = b[3]*t.img.height*m.s;
+    const areaHint = Math.max(1, (hx1-hx0) * (hy1-hy0));
+    const areaReg  = larg * alt;
+    // Margem generosa (3x): a bbox da IA é aproximada e costuma ficar apertada.
+    // Acima disso não é imprecisão de leitura — é outra região.
+    if (areaReg > areaHint * 3.0)
+      return { ok:false, motivo:"A região detectada é muito maior que o ambiente indicado — o preenchimento vazou pela porta e tomou os cômodos vizinhos." };
+    // Extrapolou muito para fora da bbox nos dois eixos → saiu do cômodo
+    const foraX = Math.max(0, hx0 - r.minX) + Math.max(0, r.maxX - hx1);
+    const foraY = Math.max(0, hy0 - r.minY) + Math.max(0, r.maxY - hy1);
+    if (foraX > (hx1-hx0) * 1.2 && foraY > (hy1-hy0) * 1.2)
+      return { ok:false, motivo:"O contorno detectado extrapolou o ambiente indicado em todas as direções — provável vazamento por vãos abertos." };
+  }
+
   const preenchimento = r.n / (larg * alt);
   let ptsMask;
   if (preenchimento > 0.90) {
@@ -7665,17 +7707,48 @@ function tkRobotConcluiu(res){
   const L = tkLengthM(), A = tkPolyAreaM2();
   const nf = v => (Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
   if(!(L > 0)){ tkRobotFalhou("O contorno traçado não gerou perímetro válido."); return; }
-  if(st) st.innerHTML = `<b>🤖 Contorno pronto:</b> perímetro ${nf(L)} m · área ${nf(A)} m². Agora <b>confirme o pé-direito</b> (não é legível em planta baixa).`;
-  tkWizLog(`✓ Medido: perímetro ${nf(L)} m · área ${nf(A)} m²`, "#166534");
-  // compara com a leitura da IA — deixa o acerto (ou o desvio) explícito na hora
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CONFERÊNCIA CONTRA A LEITURA DA IA — agora BARRA, não só informa.
+  // Antes o desvio saía apenas como uma linha no log enquanto o status anunciava
+  // "Contorno pronto" e já pedia o pé-direito. Um erro de 225% passava como
+  // sucesso, e a área errada seguia para o orçamento se o usuário não reparasse
+  // na letra miúda. Desvio grosseiro agora é FALHA — o robô não entrega medida
+  // que ele próprio sabe estar errada.
+  // ─────────────────────────────────────────────────────────────────────────
+  let areaIA = 0, _tkDesvio = 0;
   if(t.kind==='ambiente' && t.ambIdx!=null){
     const a=(APP.analysisResult&&APP.analysisResult.ambientes||[])[t.ambIdx];
-    const areaIA=a?Number(a.area_m2)||0:0;
-    if(areaIA>0 && A>0){
-      const d=Math.round(Math.abs(A-areaIA)/areaIA*1000)/10;
-      tkWizLog(`IA leu ${nf(areaIA)} m² → desvio ${nf(d)}%`, d<=5?"#166534":d<=12?"#b45309":"#b91c1c");
+    if(a){
+      areaIA = Number(a.area_m2)||0;
+      if(!(areaIA>0)){ const c=Number(a.comprimento_m)||0, l=Number(a.largura_m)||0; if(c>0&&l>0) areaIA=c*l; }
     }
   }
+  if(areaIA>0 && A>0){
+    const d = Math.abs(A-areaIA)/areaIA*100;
+    const nome = (t.hintNome||"o ambiente");
+    if(d > 60){
+      tkWizLog(`✕ Área medida ${nf(A)} m² × IA ${nf(areaIA)} m² → desvio ${nf(d)}%`, "#b91c1c");
+      t.runs=[]; t.current=[]; t.robotCursor=null; tkRedraw();   // descarta o traçado errado
+      tkRobotFalhou(
+        `A área que encontrei (${nf(A)} m²) está ${nf(d)}% fora do que a IA leu para ${nome} (${nf(areaIA)} m²). ` +
+        `Isso quase sempre significa que o preenchimento escapou por uma porta e abraçou os cômodos vizinhos — ` +
+        `em planta baixa os vãos não fecham, e o robô não tem parede para parar.`
+      );
+      return;
+    }
+    tkWizLog(`IA leu ${nf(areaIA)} m² → desvio ${nf(d)}%`, d<=5?"#166534":d<=12?"#b45309":"#b91c1c");
+    _tkDesvio = d;      // desvio entre 12% e 60%: segue o fluxo, mas com aviso destacado
+  }
+  // Desvio moderado não interrompe: o traçado pode estar certo e a leitura da IA errada
+  // (é exatamente para isso que a conferência existe). Mas o aviso fica no status,
+  // não escondido no log, e o usuário decide com o número na frente.
+  if(st){
+    st.innerHTML = (_tkDesvio > 12)
+      ? `<b style="color:#b45309">⚠ Contorno traçado — confira antes de aplicar:</b> sua medida <b>${nf(A)} m²</b> × IA <b>${nf(areaIA)} m²</b> (desvio <b>${nf(_tkDesvio)}%</b>). Se o traçado estiver certo, siga e <b>confirme o pé-direito</b>; se não, refaça.`
+      : `<b>🤖 Contorno pronto:</b> perímetro ${nf(L)} m · área ${nf(A)} m²${areaIA>0?` — confere com a IA (${nf(areaIA)} m²)`:""}. Agora <b>confirme o pé-direito</b> (não é legível em planta baixa).`;
+  }
+  tkWizLog(`✓ Medido: perímetro ${nf(L)} m · área ${nf(A)} m²`, _tkDesvio>12?"#b45309":"#166534");
   if(tkTipoMed() !== "parede"){
     // piso/laje/linear não têm pé-direito — encerra aqui, sem pedir o que não existe
     tkWizLog("✓ Medição de " + (tkTipoMed()==="area" ? "ÁREA" : "COMPRIMENTO") + " concluída.", "#166534");
