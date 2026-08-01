@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.08</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.09</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2415,7 +2415,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.08):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.09):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -3747,7 +3747,7 @@ function buildEAP() {
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTOSAVE — precisa disparar em TODA alteração, não só ao montar a EAP
 // ═══════════════════════════════════════════════════════════════════════════
-// Falha real corrigida em v2026.08.08: _agendarSalvar() só era chamado no fim de
+// Falha real corrigida em v2026.08.09: _agendarSalvar() só era chamado no fim de
 // buildEAP(). As telas de ORÇAMENTO (corrigir código SINAPI, ajustar quantidade,
 // excluir serviço, preço manual, BDI, trocar estado) chamam recalcBudget() e
 // NUNCA reconstroem a EAP — então nada disso era salvo. O usuário revisava 40
@@ -4189,7 +4189,15 @@ function renderConferencia() {
 const MAR_SESSAO_PREFIXO = "mar_sessao_v2_";        // legado (slot único) — migrado na 1ª carga
 const MAR_PROJ_PREFIXO   = "mar_proj_v3_";          // mar_proj_v3_<hashChave>_<id>
 const MAR_INDICE_PREFIXO = "mar_indice_v3_";        // mar_indice_v3_<hashChave> → [{id,nome,quando,itens,validado}]
-const MAR_MAX_PROJETOS   = 12;                      // acima disso, remove o mais antigo
+// TETO DE PROJETOS GUARDADOS = 6.
+// Espaço não é o limite real: a 158 KB (maior levantamento medido) caberiam ~30
+// no teto de 5 MB do navegador. O limite existe contra o ACERVO — lista longa
+// vira depósito, o usuário perde a noção do que é atual e a chance de excluir o
+// projeto errado cresce. 6 cobre a rotina (2 a 3 em andamento + os recém-
+// entregues) e ainda deixa uma folga, para que começar um projeto novo não
+// despeje o anterior no mesmo instante. Quem precisa guardar mais tem o
+// "💾 Baixar projeto", que não tem teto nenhum.
+const MAR_MAX_PROJETOS   = 6;                       // acima disso, remove o mais antigo (com aviso)
 function _chaveAtual(){ try{ return (localStorage.getItem("mar_chave") || "").trim(); }catch(e){ return ""; } }
 function _hashChave(k){
   const s = String(k || "").trim(); if(!s) return "";
@@ -4289,11 +4297,28 @@ function salvarSessao(silencioso){
                   itens:(d.resultado.quantitativos||[]).length,
                   ambientes:(d.resultado.ambientes||[]).length,
                   validado:d.validado });
+    // TETO DE PROJETOS — a remoção NUNCA é silenciosa.
+    // A primeira versão deste código apagava o mais antigo sem dizer nada, que é
+    // a mesma falha do slot único que ele veio corrigir: o usuário perde trabalho
+    // e só descobre quando vai procurar. O levantamento EM EDIÇÃO sempre tem
+    // prioridade (não dá para recusar a gravação do que está na tela), mas a
+    // saída de qualquer projeto é anunciada com nome e idade.
+    const removidos = [];
     while(idx.length > MAR_MAX_PROJETOS){
       const fora = idx.pop();
       try{ localStorage.removeItem(_projKey(fora.id)); }catch(e){}
+      removidos.push(fora);
     }
     _gravarIndice(idx);
+    if(removidos.length){
+      APP._ultimaPoda = removidos;
+      const f = removidos[0];
+      const dias = Math.floor((Date.now() - (f.quando||0)) / 86400000);
+      const quando = dias <= 0 ? "de hoje" : dias === 1 ? "de ontem" : `de ${dias} dias atrás`;
+      _toastSessao(
+        `⚠ Limite de ${MAR_MAX_PROJETOS} levantamentos atingido — "${f.nome || "sem nome"}" (${quando}) foi removido para abrir espaço. ` +
+        `Use "💾 Baixar projeto" nos que quiser guardar.`, true);
+    }
 
     APP._salvoEm = d.quando; APP._sujo = false;
     _pintarSelo(true);
@@ -4345,16 +4370,55 @@ function retomarSessao(id){
   }catch(e){ alert("Não consegui retomar o levantamento salvo: " + (e && e.message ? e.message : e)); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// EXCLUSÃO — por que "excluir" não excluía (corrigido em v2026.08.09)
+// ═══════════════════════════════════════════════════════════════════════════
+// Dois defeitos independentes davam a impressão de que o botão não funcionava:
+//
+// 1) RESSURREIÇÃO PELO AUTOSAVE (o grave). Ao excluir o levantamento que está
+//    ABERTO na tela, o registro sumia do armazenamento — mas APP._projId
+//    continuava apontando para ele. Na alteração seguinte (ou ao trocar de aba,
+//    que dispara gravação), o autosave recriava o slot com o MESMO id e o
+//    reinseria no índice. O projeto "voltava sozinho".
+//
+// 2) A TELA NÃO SE ATUALIZAVA. O painel "Meus levantamentos" não era
+//    redesenhado após excluir: a linha continuava lá, com o botão Excluir,
+//    mesmo já tendo sido apagada do armazenamento.
+//
+// Excluir o projeto aberto agora FECHA o projeto — é o que "excluir" significa.
 function descartarSessao(id){
-  const alvo = id || (lerIndice()[0]||{}).id;
-  const meta = lerIndice().find(x=>x.id===alvo);
+  const idx0 = lerIndice();
+  const alvo = id || (idx0[0]||{}).id;
+  if(!alvo){ _toastSessao("Não há levantamento salvo para excluir."); return; }
+  const meta = idx0.find(x=>x.id===alvo);
   const nome = meta && meta.nome ? `"${meta.nome}"` : "este levantamento";
-  // Confirmação obrigatória: antes bastava UM clique para apagar de vez.
-  if(!confirm(`Descartar ${nome} definitivamente?\n\nO levantamento salvo será apagado deste navegador e NÃO há como recuperar.\n\nSe quiser guardá-lo, cancele e use "💾 Baixar projeto".`)) return;
-  try{ if(alvo) localStorage.removeItem(_projKey(alvo)); }catch(e){}
+  const ehAtual = (APP._projId && APP._projId === alvo);
+
+  if(!confirm(
+      `Excluir ${nome} definitivamente?\n\n` +
+      `O levantamento será apagado deste navegador e NÃO há como recuperar.` +
+      (ehAtual ? `\n\n⚠ Este é o levantamento que está ABERTO na tela. Excluir vai FECHÁ-LO também.` : ``) +
+      `\n\nSe quiser guardá-lo, cancele e use "💾 Baixar projeto".`)) return;
+
+  try{ localStorage.removeItem(_projKey(alvo)); }catch(e){}
   _gravarIndice(lerIndice().filter(x=>x.id!==alvo));
+
+  if(ehAtual){
+    // Impede a ressurreição: cancela gravação pendente, esquece o id e limpa a tela.
+    clearTimeout(_salvarTm);
+    APP._projId = null; APP._sujo = false; APP._salvoEm = null;
+    APP.analysisResult = null; APP.orcamentoValidado = false;
+    APP._pendencias = null; APP._incompatDet = null; APP._pendenciasErro = null;
+    ["eapTree","eapLacunas","eapIncompat","insumosContent"].forEach(idEl=>{
+      const el=document.getElementById(idEl); if(el) el.innerHTML="";
+    });
+    const selo=document.getElementById("seloSalvo"); if(selo) selo.style.display="none";
+    try{ goTo(1); }catch(e){}
+  }
+
   const b = document.getElementById("barraRetomar"); if(b) b.remove();
-  _toastSessao("Levantamento descartado.");
+  if(document.getElementById("painelProjetos")) abrirMeusProjetos();   // redesenha a lista
+  _toastSessao(`Levantamento ${nome} excluído.`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6251,7 +6315,7 @@ function buildHistograma(){
 // ═══════════════════════════════════════════════════════════════════════════
 // INSUMOS — explosão real das composições SINAPI
 // ═══════════════════════════════════════════════════════════════════════════
-// O QUE HAVIA AQUI ANTES (corrigido em v2026.08.08):
+// O QUE HAVIA AQUI ANTES (corrigido em v2026.08.09):
 // A aba não calculava insumo nenhum. Ela relistava os MESMOS serviços do
 // orçamento sob outro título, passando por um filtro (moKeywords) que testava
 // se a descrição do serviço era EXATAMENTE "pedreiro"/"servente" — coisa que
@@ -6321,7 +6385,16 @@ function explodirInsumosDoOrcamento(){
   const semDetalhe = [];       // serviços que não puderam ser abertos (e por quê)
   let vlrDetalhado = 0, vlrTotal = 0;
 
-  quantitativosAtivos().forEach(q => {
+  // ATENÇÃO: usa TODOS os quantitativos, NUNCA quantitativosAtivos().
+  // quantitativosAtivos() respeita o filtro de disciplina da tela de orçamento.
+  // Se o usuário deixasse o filtro em "hidrossanitário" e abrisse os Insumos,
+  // a lista sairia só com os materiais daquela disciplina — e ainda anunciaria
+  // "100% de cobertura", porque o total também estaria filtrado. Uma lista de
+  // compra incompleta que se declara completa é o pior defeito possível aqui:
+  // a obra para por falta de material que ninguém sabia que faltava.
+  const todosQuant = (APP.analysisResult && APP.analysisResult.quantitativos) || [];
+
+  todosQuant.forEach(q => {
     const info = precoServico(q);
     const qtd  = Number(q.quantidade) || 0;
     const val  = (info.preco || 0) * qtd;
