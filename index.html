@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.07</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.08</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2415,7 +2415,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.07):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.08):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -3747,7 +3747,7 @@ function buildEAP() {
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTOSAVE — precisa disparar em TODA alteração, não só ao montar a EAP
 // ═══════════════════════════════════════════════════════════════════════════
-// Falha real corrigida em v2026.08.07: _agendarSalvar() só era chamado no fim de
+// Falha real corrigida em v2026.08.08: _agendarSalvar() só era chamado no fim de
 // buildEAP(). As telas de ORÇAMENTO (corrigir código SINAPI, ajustar quantidade,
 // excluir serviço, preço manual, BDI, trocar estado) chamam recalcBudget() e
 // NUNCA reconstroem a EAP — então nada disso era salvo. O usuário revisava 40
@@ -6248,88 +6248,282 @@ function buildHistograma(){
 /* ═══════════════════════════════════════════════════
    INSUMOS / LISTA DE MATERIAIS
 ════════════════════════════════════════════════════ */
-function buildInsumos(){
+// ═══════════════════════════════════════════════════════════════════════════
+// INSUMOS — explosão real das composições SINAPI
+// ═══════════════════════════════════════════════════════════════════════════
+// O QUE HAVIA AQUI ANTES (corrigido em v2026.08.08):
+// A aba não calculava insumo nenhum. Ela relistava os MESMOS serviços do
+// orçamento sob outro título, passando por um filtro (moKeywords) que testava
+// se a descrição do serviço era EXATAMENTE "pedreiro"/"servente" — coisa que
+// nunca acontece, porque as descrições são "Alvenaria de vedação de blocos…".
+// Resultado: uma "Lista de Materiais" sem um único material. Nenhum saco de
+// cimento, nenhum bloco, nenhum metro de tubo. Pior que não existir: alguém
+// poderia levá-la a um fornecedor.
+//
+// COMO FUNCIONA AGORA:
+// Cada composição SINAPI é uma árvore: itens "I" são INSUMOS (folhas) e itens
+// "C" são SUB-COMPOSIÇÕES (recursão). O coeficiente é por 1 unidade da
+// composição, então a quantidade do insumo é o produto dos coeficientes ao
+// longo do caminho × a quantidade do serviço no orçamento.
+// Base medida: 10.388 composições, 3.999 insumos, profundidade até 5 níveis,
+// sem ciclos (a trava existe mesmo assim — dado externo pode mudar).
+//
+// PREÇO: a tabela do estado traz preço de COMPOSIÇÃO, não de INSUMO. Não temos
+// preço unitário de insumo, e inventar um seria repetir o erro que passamos o
+// dia corrigindo. Por isso esta lista é QUANTITATIVA — que é justamente o que
+// serve para comprar e para conferir entrega no canteiro.
+const RE_MAO_DE_OBRA = /\((HORISTA|MENSALISTA)\)|ENCARGOS COMPLEMENTARES/i;
+const MAX_PROF_COMP  = 8;
+
+async function carregarBaseInsumos(){
+  if(APP.composicoesDB && APP.insumosDB) return true;
+  try{
+    const [rc, ri] = await Promise.all([
+      fetch("data/composicoes_itens.json"),
+      fetch("data/insumos_desc.json")
+    ]);
+    if(!rc.ok || !ri.ok) throw new Error("arquivos de composição não encontrados");
+    APP.composicoesDB = await rc.json();
+    APP.insumosDB     = await ri.json();
+    return true;
+  }catch(e){
+    APP.composicoesDB = null; APP.insumosDB = null;
+    console.warn("base de insumos indisponível:", e.message);
+    return false;
+  }
+}
+
+// Explode UMA composição, acumulando insumos e registrando o que não deu para abrir.
+function _explodirComp(cod, qtd, acc, naoDet, visitados, prof){
+  const comp = APP.composicoesDB; if(!comp) return;
+  cod = String(cod);
+  if(prof > MAX_PROF_COMP) return;                       // trava de profundidade
+  if(visitados.has(cod)) return;                         // trava de ciclo
+  const filhos = comp[cod];
+  if(!filhos){                                           // sub-composição ausente da base
+    naoDet[cod] = (naoDet[cod] || 0) + qtd;
+    return;
+  }
+  const vis = new Set(visitados); vis.add(cod);
+  for(const linha of filhos){
+    const tipo = linha[0], c = String(linha[1]), coef = Number(linha[2]) || 0;
+    if(!coef) continue;
+    const q = qtd * coef;
+    if(tipo === "I") acc[c] = (acc[c] || 0) + q;
+    else _explodirComp(c, q, acc, naoDet, vis, prof + 1);
+  }
+}
+
+// Percorre o orçamento e devolve materiais, mão de obra e o relatório de cobertura.
+function explodirInsumosDoOrcamento(){
+  const comp = APP.composicoesDB, ins = APP.insumosDB;
+  const acc = {}, naoDet = {};
+  const semDetalhe = [];       // serviços que não puderam ser abertos (e por quê)
+  let vlrDetalhado = 0, vlrTotal = 0;
+
+  quantitativosAtivos().forEach(q => {
+    const info = precoServico(q);
+    const qtd  = Number(q.quantidade) || 0;
+    const val  = (info.preco || 0) * qtd;
+    vlrTotal += val;
+    if(qtd <= 0) return;
+    const cod = String(info.codigoFinal || "");
+    let motivo = "";
+    if(info.fonte === "proprio" || cod === "PRÓPRIO") motivo = "composição própria — não faz parte da base SINAPI";
+    else if(info.semLastro)                            motivo = "sem código SINAPI (preço estimado pela IA)";
+    else if(!cod || cod === "—")                       motivo = "serviço sem código SINAPI atribuído";
+    else if(!comp[cod] && !comp[baseCodigo(cod)])      motivo = `código ${cod} não tem composição analítica na base`;
+    if(motivo){
+      semDetalhe.push({ descricao:q.descricao||"—", unidade:q.unidade||"", quantidade:qtd, valor:val, motivo });
+      return;
+    }
+    const codOk = comp[cod] ? cod : baseCodigo(cod);
+    _explodirComp(codOk, qtd, acc, naoDet, new Set(), 0);
+    vlrDetalhado += val;
+  });
+
+  const materiais = [], maoDeObra = [], desconhecidos = [];
+  Object.keys(acc).forEach(c => {
+    const info = ins[c];
+    const registro = { codigo:c, quantidade:acc[c],
+                       descricao: info ? info[0] : `Insumo ${c} (sem descrição na base)`,
+                       unidade:   info ? info[1] : "—" };
+    if(!info) desconhecidos.push(registro);
+    else if(RE_MAO_DE_OBRA.test(info[0])) maoDeObra.push(registro);
+    else materiais.push(registro);
+  });
+  const porDesc = (a,b) => a.descricao.localeCompare(b.descricao, "pt-BR");
+  materiais.sort(porDesc); maoDeObra.sort(porDesc); desconhecidos.sort(porDesc);
+
+  return { materiais, maoDeObra, desconhecidos, semDetalhe,
+           naoDetalhadas: Object.keys(naoDet),
+           vlrDetalhado, vlrTotal,
+           cobertura: vlrTotal > 0 ? (vlrDetalhado / vlrTotal * 100) : 0 };
+}
+
+async function buildInsumos(){
   const host = document.getElementById('insumosContent');
   if(!host) return;
   const ativos = quantitativosAtivos();
-  if(!ativos.length){host.innerHTML='<div class="alert alert-error">Nenhum item no orçamento.</div>'; return;}
-  const bdi = parseFloat((document.getElementById('bdiInput')||{value:'25'}).value||'25')/100;
-  const fmt = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  // Filtra itens que são materiais (exclui serviços de mão de obra pura)
-  const moKeywords = /^(mão.de.obra|servente|pedreiro|carpinteiro|encanador|eletricista|pintor|armador|gesseiro)$/i;
-  const itens = ativos.map(q=>{
-    const info = precoServico(q);
-    const qtd = Number(q.quantidade)||0;
-    const valUnit = info.preco;
-    const val = valUnit * qtd;
-    return {
-      descricao:q.descricao||'—', categoria:q.categoria||'Outros',
-      codigo:info.codigoFinal||'—', unidade:q.unidade||'un',
-      quantidade:qtd, valUnit, val
-    };
-  }).filter(x=>x.val>0 && !moKeywords.test(x.descricao));
-  if(!itens.length){
-    // Show all if nothing passes the filter
-    const todos = ativos.map(q=>{
-      const info=precoServico(q);
-      const qtd=Number(q.quantidade)||0;
-      const val=info.preco*qtd;
-      return {descricao:q.descricao||'—',categoria:q.categoria||'Outros',codigo:info.codigoFinal||'—',unidade:q.unidade||'un',quantidade:qtd,valUnit:info.preco,val};
-    }).filter(x=>x.val>0);
-    if(!todos.length){host.innerHTML='<div class="alert alert-error">Nenhum insumo encontrado no orçamento.</div>'; return;}
-    renderInsumos(host,todos,fmt);
+  if(!ativos.length){ host.innerHTML='<div class="alert alert-error">Nenhum item no orçamento.</div>'; return; }
+  host.innerHTML = '<div class="alert alert-info">⏳ Abrindo as composições SINAPI e somando os insumos…</div>';
+  const ok = await carregarBaseInsumos();
+  if(!ok){
+    host.innerHTML = '<div class="alert alert-error"><b>Não consegui carregar a base de composições.</b> A lista de materiais depende dos arquivos <code>data/composicoes_itens.json</code> e <code>data/insumos_desc.json</code>. Recarregue a página; se persistir, avise o suporte — <b>não use uma lista parcial para comprar material.</b></div>';
     return;
   }
-  renderInsumos(host,itens,fmt);
+  renderInsumos(host, explodirInsumosDoOrcamento());
 }
 
-function renderInsumos(host,itens,fmt){
-  itens.sort((a,b)=>b.val-a.val);
-  APP._insumosLista = itens;      // guarda para a exportação (.xlsx)
-  const total=itens.reduce((s,x)=>s+x.val,0);
-  const rows=itens.map(it=>`
-    <tr>
-      <td style="max-width:320px;word-break:break-word">${it.descricao}</td>
-      <td>${it.categoria.replace(/^\d+\.\s*/,'')}</td>
-      <td>${it.codigo}</td>
-      <td style="text-align:right">${it.quantidade.toLocaleString('pt-BR',{maximumFractionDigits:3})} ${it.unidade}</td>
-      <td style="text-align:right">${fmt(it.valUnit)}</td>
-      <td style="text-align:right">${fmt(it.val)}</td>
-    </tr>`).join('');
-  host.innerHTML=`
-    <p class="muted" style="margin-bottom:8px">Total de insumos (sem BDI): <b>${fmt(total)}</b> · ${itens.length} item${itens.length!==1?'s':''}</p>
-    <div class="btn-group" style="margin-bottom:12px"><button class="btn btn-success" onclick="exportInsumos()">⬇ Baixar lista de insumos (.xlsx)</button></div>
-    <div style="overflow-x:auto">
-    <table class="budget-table">
-      <thead><tr><th>Descrição</th><th>Categoria</th><th>Cód. SINAPI</th><th style="text-align:right">Qtd/Un</th><th style="text-align:right">Preço unit.</th><th style="text-align:right">Total</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
+function renderInsumos(host, R){
+  APP._insumos = R;                                   // guarda para a exportação (.xlsx)
+  const nq = v => Number(v).toLocaleString('pt-BR',{maximumFractionDigits:3});
+  const fmtR = v => 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const linha = it => `<tr>
+      <td style="font-family:monospace;font-size:11.5px">${it.codigo}</td>
+      <td style="max-width:430px;word-break:break-word">${it.descricao}</td>
+      <td style="text-align:right;font-weight:700">${nq(it.quantidade)}</td>
+      <td>${it.unidade}</td></tr>`;
+
+  if(!R.materiais.length && !R.maoDeObra.length){
+    host.innerHTML = `<div class="alert alert-error"><b>Nenhum insumo pôde ser detalhado.</b>
+      Nenhum dos ${R.semDetalhe.length} serviço(s) do orçamento tem composição analítica na base SINAPI —
+      normalmente porque foram lançados como composição própria ou ficaram sem código.</div>`;
+    return;
+  }
+
+  // Cobertura: o número que decide se esta lista pode ir para a compra.
+  const cob = R.cobertura;
+  const corCob = cob >= 95 ? "#166534" : cob >= 80 ? "#b45309" : "#991b1b";
+  const bgCob  = cob >= 95 ? "#f0fdf4" : cob >= 80 ? "#fffbeb" : "#fef2f2";
+
+  host.innerHTML = `
+    <div class="alert" style="background:${bgCob};border:1px solid ${corCob};color:${corCob};margin-bottom:12px">
+      <b>Cobertura da lista: ${cob.toFixed(1)}% do valor do orçamento.</b>
+      <div style="margin-top:5px;font-weight:400;color:#334155">
+        ${R.materiais.length} materiais somados a partir das composições SINAPI dos serviços levantados.
+        ${R.semDetalhe.length ? `<b>${R.semDetalhe.length} serviço(s) não puderam ser abertos</b> — veja a lista no fim da página e some os materiais deles à mão antes de comprar.` : "Todos os serviços do orçamento foram abertos."}
+      </div>
+    </div>
+
+    <div class="alert alert-info" style="margin-bottom:12px">
+      <b>Esta lista é QUANTITATIVA, sem preço.</b>
+      <div style="margin-top:4px;font-weight:400">A tabela SINAPI do estado traz o preço da <i>composição</i> (o serviço pronto),
+      não o preço de cada insumo. Preencher esses valores com estimativa seria inventar número —
+      então mostramos a <b>quantidade</b>, que é o que serve para cotar com fornecedor e conferir entrega no canteiro.
+      Os quantitativos já incluem as <b>perdas</b> previstas na composição SINAPI.</div>
+    </div>
+
+    <div class="btn-group" style="margin-bottom:12px">
+      <button class="btn btn-success" onclick="exportInsumos()">⬇ Baixar lista de materiais (.xlsx)</button>
+    </div>
+
+    <h3 style="font-size:15px;margin:16px 0 6px">🧱 Materiais — ${R.materiais.length} item(ns)</h3>
+    <div style="overflow-x:auto"><table class="budget-table">
+      <thead><tr><th>Cód.</th><th>Insumo</th><th style="text-align:right">Quantidade</th><th>Un</th></tr></thead>
+      <tbody>${R.materiais.map(linha).join('')}</tbody></table></div>
+
+    ${R.maoDeObra.length ? `
+    <details style="margin-top:16px">
+      <summary style="cursor:pointer;font-weight:700;font-size:14px">👷 Mão de obra e encargos complementares — ${R.maoDeObra.length} item(ns)</summary>
+      <div style="font-size:12.5px;color:var(--muted);margin:6px 0">
+        Fica fora da lista de compra porque não se adquire em loja: são horas de cada função e os
+        encargos que a SINAPI cobra por hora trabalhada (EPI, ferramentas, alimentação, transporte).
+        Serve para dimensionar equipe e conferir o histograma — não para cotar com fornecedor.
+      </div>
+      <div style="overflow-x:auto"><table class="budget-table">
+        <thead><tr><th>Cód.</th><th>Função / encargo</th><th style="text-align:right">Quantidade</th><th>Un</th></tr></thead>
+        <tbody>${R.maoDeObra.map(linha).join('')}</tbody></table></div>
+    </details>` : ""}
+
+    ${R.desconhecidos.length ? `
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;font-weight:700;font-size:14px;color:#b45309">⚠ ${R.desconhecidos.length} insumo(s) sem descrição na base</summary>
+      <div style="overflow-x:auto"><table class="budget-table">
+        <thead><tr><th>Cód.</th><th>Insumo</th><th style="text-align:right">Quantidade</th><th>Un</th></tr></thead>
+        <tbody>${R.desconhecidos.map(linha).join('')}</tbody></table></div>
+    </details>` : ""}
+
+    ${R.semDetalhe.length ? `
+    <div class="alert" style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;margin-top:16px">
+      <b>🚩 ${R.semDetalhe.length} serviço(s) NÃO entraram na lista de materiais</b>
+      <div style="margin-top:5px;font-weight:400">Estes serviços estão no orçamento mas não têm composição analítica para abrir.
+      Os materiais deles <b>não estão</b> na tabela acima — levante-os à parte antes de fechar a compra.</div>
+      <div style="overflow-x:auto;margin-top:8px"><table class="budget-table">
+        <thead><tr><th>Serviço</th><th style="text-align:right">Qtd</th><th>Un</th><th style="text-align:right">Valor</th><th>Motivo</th></tr></thead>
+        <tbody>${R.semDetalhe.map(s=>`<tr>
+          <td style="max-width:320px;word-break:break-word">${s.descricao}</td>
+          <td style="text-align:right">${nq(s.quantidade)}</td><td>${s.unidade}</td>
+          <td style="text-align:right">${fmtR(s.valor)}</td>
+          <td style="font-size:12px;color:#9a3412">${s.motivo}</td></tr>`).join('')}</tbody></table></div>
+    </div>` : ""}
+
+    <div style="font-size:11.5px;color:var(--muted);margin-top:14px;border-top:1px solid #f1f5f9;padding-top:8px">
+      Quantidades obtidas abrindo as composições SINAPI 05/2026 de cada serviço (insumos diretos e das sub-composições).
+      Confira contra o seu histórico de obra antes de comprar — <b>a IA não assina ART; você assina.</b>
+    </div>`;
 }
 // Exportação da lista de insumos — reescrita para usar os dados que a aba REALMENTE
 // possui. (A versão antiga dependia de APP._insumosMateriais, que nunca era
 // preenchido: o botão existia dentro de um comentário HTML e estava morto.)
-function exportInsumos(){
-  const itens = APP._insumosLista;
-  if(!itens || !itens.length){ alert("Abra a aba Insumos e gere a lista primeiro."); return; }
-  const total = itens.reduce((s,x)=>s+(Number(x.val)||0),0);
-  const aoa = [
-    ["LISTA DE INSUMOS"],
-    ["Lista de Insumos — " + (APP.projectName || "") + " | " + new Date().toLocaleDateString("pt-BR")],
+async function exportInsumos(){
+  const R = APP._insumos;
+  if(!R || (!R.materiais.length && !R.maoDeObra.length)){ alert("Abra a aba Insumos e gere a lista primeiro."); return; }
+  try { await ensureXlsx(); } catch(e) { alert(e.message); return; }
+  const q3 = v => +(Math.round((Number(v)||0)*1000)/1000);
+  const wb = XLSX.utils.book_new();
+  const cab = titulo => ([
+    ["MAR ABERTO ENGENHARIA — " + titulo],
+    [(APP.projectName || "Projeto") + " | " + new Date().toLocaleDateString("pt-BR") +
+     " | cobertura: " + R.cobertura.toFixed(1) + "% do valor do orçamento"],
     [],
-    ["ITEM","DESCRIÇÃO","CATEGORIA","CÓD. SINAPI","QUANTIDADE","UN","PREÇO UNIT. (R$)","TOTAL (R$)"]
-  ];
-  itens.forEach((x,i)=>aoa.push([
-    i+1, x.descricao || "", (x.categoria||"").replace(/^\d+\.\s*/,""), x.codigo || "",
-    +(Math.round((Number(x.quantidade)||0)*1000)/1000), x.unidade || "",
-    +(Math.round((Number(x.valUnit)||0)*100)/100), +(Math.round((Number(x.val)||0)*100)/100)
-  ]));
-  aoa.push([], ["","TOTAL (sem BDI)","","","","","", +(Math.round(total*100)/100)]);
-  const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [6,58,26,14,14,7,17,15].map(w=>({wch:w}));
-  ws["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
-  if(typeof estilizarSheet === "function") estilizarSheet(ws,{titulo:0,subtitulo:1,headerRows:[3]});
-  XLSX.utils.book_append_sheet(wb, ws, "INSUMOS");
-  XLSX.writeFile(wb, "Insumos_" + ((APP.projectName||"obra").replace(/\s+/g,"_")) + ".xlsx");
+  ]);
+
+  // ── Aba 1: MATERIAIS (a lista de compra) ────────────────────────────────
+  const aoa = cab("LISTA DE MATERIAIS");
+  aoa.push(["ITEM","CÓD. SINAPI","INSUMO","QUANTIDADE","UN","QTD. A COMPRAR","FORNECEDOR","PREÇO COTADO"]);
+  R.materiais.forEach((x,i)=>aoa.push([i+1, x.codigo, x.descricao, q3(x.quantidade), x.unidade, "", "", ""]));
+  aoa.push([]);
+  aoa.push(["","","Quantidades obtidas das composições SINAPI 05/2026, já com as perdas previstas."]);
+  aoa.push(["","","A SINAPI não publica preço por insumo — as colunas de cotação ficam em branco para você preencher."]);
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+  ws1["!cols"] = [6,14,70,14,7,16,24,15].map(w=>({wch:w}));
+  ws1["!merges"] = [{s:{r:0,c:0},e:{r:0,c:7}},{s:{r:1,c:0},e:{r:1,c:7}}];
+  if(typeof estilizarSheet === "function") estilizarSheet(ws1,{titulo:0,subtitulo:1,headerRows:[3]});
+  XLSX.utils.book_append_sheet(wb, ws1, "MATERIAIS");
+
+  // ── Aba 2: MÃO DE OBRA ──────────────────────────────────────────────────
+  if(R.maoDeObra.length){
+    const a2 = cab("MÃO DE OBRA E ENCARGOS COMPLEMENTARES");
+    a2.push(["ITEM","CÓD. SINAPI","FUNÇÃO / ENCARGO","QUANTIDADE","UN"]);
+    R.maoDeObra.forEach((x,i)=>a2.push([i+1, x.codigo, x.descricao, q3(x.quantidade), x.unidade]));
+    const ws2 = XLSX.utils.aoa_to_sheet(a2);
+    ws2["!cols"] = [6,14,70,14,7].map(w=>({wch:w}));
+    ws2["!merges"] = [{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
+    if(typeof estilizarSheet === "function") estilizarSheet(ws2,{titulo:0,subtitulo:1,headerRows:[3]});
+    XLSX.utils.book_append_sheet(wb, ws2, "MÃO DE OBRA");
+  }
+
+  // ── Aba 3: O QUE FICOU DE FORA (a mais importante para não comprar errado) ──
+  if(R.semDetalhe.length || R.desconhecidos.length){
+    const a3 = cab("SERVIÇOS NÃO DETALHADOS — levante à parte");
+    a3.push(["ATENÇÃO: os materiais dos serviços abaixo NÃO estão na aba MATERIAIS."]);
+    a3.push([]);
+    a3.push(["SERVIÇO","QUANTIDADE","UN","VALOR (R$)","MOTIVO"]);
+    R.semDetalhe.forEach(s=>a3.push([s.descricao, q3(s.quantidade), s.unidade,
+      +(Math.round((Number(s.valor)||0)*100)/100), s.motivo]));
+    if(R.desconhecidos.length){
+      a3.push([]); a3.push(["INSUMOS SEM DESCRIÇÃO NA BASE","QUANTIDADE","UN","",""]);
+      R.desconhecidos.forEach(x=>a3.push([x.descricao, q3(x.quantidade), x.unidade, "", "código " + x.codigo]));
+    }
+    const ws3 = XLSX.utils.aoa_to_sheet(a3);
+    ws3["!cols"] = [64,14,7,15,52].map(w=>({wch:w}));
+    ws3["!merges"] = [{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}}];
+    if(typeof estilizarSheet === "function") estilizarSheet(ws3,{titulo:0,subtitulo:1,headerRows:[5]});
+    XLSX.utils.book_append_sheet(wb, ws3, "NÃO DETALHADOS");
+  }
+
+  XLSX.writeFile(wb, "Materiais_" + ((APP.projectName||"obra").replace(/\s+/g,"_")) + ".xlsx");
 }
 
 /* ═══════════════════════════════════════════════════
