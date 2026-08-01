@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.06</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.07</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -2415,7 +2415,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.06):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.07):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -2600,16 +2600,18 @@ const ESPERADOS = {
     { nome:"Sinalização viária", re:/(sinalizac|faixa|tacha|placa)/, motivo:"Projeto de sinalização costuma ser prancha separada." },
   ],
 };
-// Itens que o ObraIA NÃO levanta em nenhuma hipótese — precisam ser ditos SEMPRE,
-// porque a ausência deles não é erro de leitura, é limite declarado do produto.
+// Escopos COMPLEMENTARES: não saem do levantamento automático porque dependem de
+// projeto próprio ou de decisão comercial da obra. São listados sempre — não como
+// desculpa, mas para o orçamentista bater o olho e decidir o que a obra dele tem.
+// Quem é experiente já sabe; quem está começando descobriria só na hora do aditivo.
 const FORA_DE_ESCOPO = [
-  ["Ar-condicionado, exaustão e climatização", "Exige projeto de climatização (carga térmica, dutos) — não é lido a partir da arquitetura."],
-  ["Elevadores e plataformas", "Fornecimento especializado, orçado por proposta do fabricante."],
-  ["SPDA e sistema de incêndio", "Exigem projeto próprio (ART específica) e memorial de cálculo dedicado."],
-  ["Mobiliário, marcenaria sob medida e decoração", "Fora da tabela SINAPI de construção civil."],
-  ["Paisagismo e irrigação", "Depende de projeto paisagístico e não é lido da planta baixa."],
-  ["Automação, cabeamento estruturado, CFTV", "Exigem projeto de tecnologia/telecom específico."],
-  ["Administração local, canteiro e mobilização", "Dependem do prazo e da estrutura de cada construtora — devem ser somados à parte do custo direto."],
+  ["Ar-condicionado, exaustão e climatização", "Depende de projeto de climatização (carga térmica, dutos) — inclua se a obra tiver."],
+  ["Elevadores e plataformas", "Fornecimento especializado: some a proposta do fabricante ao orçamento."],
+  ["SPDA e sistema de incêndio", "Têm projeto próprio (ART específica) e memorial de cálculo dedicado."],
+  ["Mobiliário, marcenaria sob medida e decoração", "Fora da tabela SINAPI de construção civil — orce à parte se contratar."],
+  ["Paisagismo e irrigação", "Depende de projeto paisagístico; some se estiver no contrato."],
+  ["Automação, cabeamento estruturado, CFTV", "Têm projeto de tecnologia/telecom próprio."],
+  ["Administração local, canteiro e mobilização", "Variam com o prazo e a estrutura de cada construtora — some conforme o seu."],
   ["Encargos, taxas, licenças e ligações definitivas", "Variam por município e concessionária; não estão na SINAPI."],
 ];
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3745,7 +3747,7 @@ function buildEAP() {
 // ═══════════════════════════════════════════════════════════════════════════
 // AUTOSAVE — precisa disparar em TODA alteração, não só ao montar a EAP
 // ═══════════════════════════════════════════════════════════════════════════
-// Falha real corrigida em v2026.08.06: _agendarSalvar() só era chamado no fim de
+// Falha real corrigida em v2026.08.07: _agendarSalvar() só era chamado no fim de
 // buildEAP(). As telas de ORÇAMENTO (corrigir código SINAPI, ajustar quantidade,
 // excluir serviço, preço manual, BDI, trocar estado) chamam recalcBudget() e
 // NUNCA reconstroem a EAP — então nada disso era salvo. O usuário revisava 40
@@ -4935,9 +4937,11 @@ function renderLacunas() {
   }
 
   html += bloco(
-    `📋 Nunca incluído pelo ObraIA — orce à parte (${FORA_DE_ESCOPO.length} itens)`,
-    `<p style="margin:0 0 6px">Estes serviços <b>nunca</b> entram no levantamento automático, independentemente do projeto.
-     A ausência deles não é falha de leitura: é limite declarado da ferramenta. Se a obra tiver algum, some ao orçamento.</p>
+    `📋 Escopos opcionais — você decide se entram (${FORA_DE_ESCOPO.length} itens)`,
+    `<p style="margin:0 0 6px">Estes serviços ficam <b>fora do levantamento automático</b> porque dependem de projeto
+     específico ou de definição comercial de cada obra — nem toda obra tem elevador, climatização ou paisagismo.
+     A ausência deles aqui <b>não é falha de leitura</b>: é uma escolha sua. Se a sua obra tiver algum, inclua no
+     orçamento; se não tiver, siga sem eles.</p>
      <ul style="margin:0 0 0 18px">${FORA_DE_ESCOPO.map(([n, m]) =>
        `<li><b>${n}</b> <span style="color:var(--muted)">— ${m}</span></li>`).join("")}</ul>`,
     "#475569", "#f8fafc", false);
