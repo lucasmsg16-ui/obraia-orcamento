@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.09</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.10</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -4266,6 +4266,114 @@ function _podarAntigos(manterId){
   return false;
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// SINCRONIZAÇÃO COM A NUVEM (v2026.08.10) — a MESMA chave de acesso que já
+// libera o uso do sistema agora também é a identidade que guarda os projetos
+// no servidor. Não existe login novo, não existe senha nova.
+// localStorage continua existindo do mesmo jeito de antes — ele é a cópia
+// rápida/offline. A nuvem roda POR CIMA: se a internet cair ou o servidor
+// estiver fora, o projeto NÃO se perde, continua salvo aqui como sempre foi,
+// e sincroniza sozinho na próxima ação. Uma falha de rede aqui NUNCA trava a
+// tela nem impede o salvamento local.
+// ═════════════════════════════════════════════════════════════════════════
+async function _apiProjeto(task, extra){
+  const chave = _chaveAtual(); if(!chave) return { ok:false, erro:"sem_chave" };
+  try{
+    const resp = await fetch(MAR_BACKEND, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + MAR_ANON, "apikey": MAR_ANON },
+      body: JSON.stringify(Object.assign({ chave, task }, extra || {}))
+    });
+    const j = await resp.json().catch(() => null);
+    if(!resp.ok) return { ok:false, erro:(j && j.erro) || "erro_servidor" };
+    return j || { ok:false, erro:"resposta_vazia" };
+  }catch(e){
+    return { ok:false, erro:"offline", offline:true };   // sem rede — não é um erro do usuário
+  }
+}
+
+function _pintarNuvem(estado){
+  const selo = document.getElementById("seloSalvo"); if(!selo) return;
+  let el = document.getElementById("seloNuvem");
+  if(!el){
+    el = document.createElement("span"); el.id = "seloNuvem";
+    el.style.cssText = "margin-left:6px;font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:8px";
+    selo.parentNode && selo.parentNode.insertBefore(el, selo.nextSibling);
+  }
+  if(!estado){ el.style.display = "none"; return; }
+  el.style.display = "inline-block";
+  if(estado === "ok"){ el.textContent = "☁ sincronizado"; el.style.background = "#dcfce7"; el.style.color = "#166534"; el.title = ""; }
+  else if(estado === "pendente"){ el.textContent = "☁ sincronizando…"; el.style.background = "#fef9c3"; el.style.color = "#854d0e"; el.title = ""; }
+  else { el.textContent = "☁ só neste navegador"; el.style.background = "#fee2e2"; el.style.color = "#991b1b";
+         el.title = "Não consegui sincronizar com a nuvem agora (sem internet ou servidor fora). O projeto está salvo neste navegador e o sistema tenta de novo sozinho na próxima alteração."; }
+}
+
+let _syncNuvemTm = null;
+function _agendarSincroniaNuvem(){ clearTimeout(_syncNuvemTm); _syncNuvemTm = setTimeout(_sincronizarNuvemAgora, 900); }
+
+async function _sincronizarNuvemAgora(){
+  const d = _dadosParaSalvar(); if(!d) return;
+  const idxAntes = lerIndice();
+  const metaAntes = idxAntes.find(x => x.id === d.id);
+  const nuvemIdAtual = metaAntes && metaAntes.nuvemId ? metaAntes.nuvemId : null;
+  _pintarNuvem("pendente");
+  const r = await _apiProjeto("projeto_salvar", { projeto_id: nuvemIdAtual, nome: d.projeto || null, dados: d });
+  if(!r || !r.ok){ _pintarNuvem("erro"); return; }
+  // Guarda o id que o SERVIDOR deu, para a próxima sincronia atualizar o MESMO
+  // registro — sem isso, cada sincronia criaria uma cópia nova na nuvem.
+  const idxDepois = lerIndice();
+  const i = idxDepois.findIndex(x => x.id === d.id);
+  if(i >= 0){ idxDepois[i].nuvemId = r.projeto_id; _gravarIndice(idxDepois); }
+  _pintarNuvem("ok");
+  if(r.removido_id){
+    _toastSessao(`☁ Teto de 20 projetos na nuvem atingido — "${r.removido_nome || "sem nome"}" foi removido de lá para abrir espaço (continua aqui neste navegador, se ainda não tiver sido excluído).`, true);
+  }
+}
+
+// Busca projetos que existem NA NUVEM mas não neste navegador (salvos de outro
+// computador/navegador com a mesma chave) e devolve só esses.
+async function _projetosSomenteNuvem(){
+  const r = await _apiProjeto("projeto_listar", {});
+  if(!r || !r.ok || !Array.isArray(r.projetos)) return [];
+  const idsLocais = new Set(lerIndice().map(x => x.nuvemId).filter(Boolean));
+  return r.projetos.filter(p => !idsLocais.has(p.id));
+}
+
+async function _baixarDaNuvem(nuvemId){
+  _toastSessao("☁ Baixando projeto da nuvem…");
+  const r = await _apiProjeto("projeto_carregar", { projeto_id: nuvemId });
+  if(!r || !r.ok || !r.dados){ _toastSessao("⚠ Não consegui baixar esse projeto da nuvem agora.", true); return; }
+  const d = r.dados; d.nuvemId = nuvemId;
+  const pk = _projKey(d.id); if(!pk) return;
+  try{ localStorage.setItem(pk, JSON.stringify(d)); }
+  catch(e){ _toastSessao("⚠ Sem espaço neste navegador para baixar — exclua algum projeto local e tente de novo.", true); return; }
+  let idx = lerIndice().filter(x => x.id !== d.id);
+  idx.unshift({ id:d.id, nome:d.projeto, quando:d.quando || Date.now(),
+                itens:(d.resultado.quantitativos||[]).length,
+                ambientes:(d.resultado.ambientes||[]).length,
+                validado:!!d.validado, nuvemId });
+  _gravarIndice(idx);
+  _toastSessao(`✅ Projeto ${d.projeto ? `"${d.projeto}"` : ""} baixado da nuvem. Clique em Abrir para retomá-lo.`);
+  if(document.getElementById("painelProjetos")) abrirMeusProjetos();
+}
+
+async function _atualizarPainelComNuvem(){
+  const host = document.getElementById("painelProjetosNuvem"); if(!host) return;
+  const somenteNuvem = await _projetosSomenteNuvem().catch(() => []);
+  const hostAtual = document.getElementById("painelProjetosNuvem"); if(!hostAtual) return;   // painel fechado enquanto buscava
+  if(!somenteNuvem.length){ hostAtual.innerHTML = ""; return; }
+  hostAtual.innerHTML = `<div style="font-weight:700;font-size:13px;color:#0284c7;margin:10px 0 4px">☁ Salvos na nuvem, ainda não neste navegador</div>` +
+    somenteNuvem.map(p => {
+      const dt = new Date(p.atualizado_em);
+      const dias = Math.floor((Date.now() - dt.getTime()) / 86400000);
+      const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 6px;border-top:1px solid #e5e7eb;font-size:13px">
+        <span>${p.nome ? p.nome : "<i>sem nome</i>"} <span class="muted" style="font-size:11.5px">· ${quando} · ${p.tamanho_kb} KB</span></span>
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="_baixarDaNuvem('${p.id}')">Baixar aqui</button>
+      </div>`;
+    }).join("");
+}
+
 function salvarSessao(silencioso){
   try{
     if(!_chaveAtual()) return false;              // sem chave de acesso, não salva
@@ -4287,7 +4395,8 @@ function salvarSessao(silencioso){
       const el = document.getElementById("seloSalvo");
       if(el){ el.textContent = "⚠ NÃO SALVO"; el.style.background="#fee2e2"; el.style.color="#991b1b";
               el.title="Não foi possível gravar neste navegador. Baixe o projeto agora para não perder o trabalho."; }
-      _toastSessao("⚠ NÃO consegui salvar neste navegador (armazenamento cheio ou modo privativo). Clique em \"💾 Baixar projeto\" agora para não perder o levantamento.", true);
+      _toastSessao("⚠ NÃO consegui salvar neste navegador (armazenamento cheio ou modo privativo). Tentando salvar na nuvem — clique em \"💾 Baixar projeto\" também, por garantia.", true);
+      _agendarSincroniaNuvem();   // a nuvem é a rede de segurança: pode salvar lá mesmo sem local
       return false;
     }
 
@@ -4322,6 +4431,7 @@ function salvarSessao(silencioso){
 
     APP._salvoEm = d.quando; APP._sujo = false;
     _pintarSelo(true);
+    _agendarSincroniaNuvem();   // sobe para o servidor por cima do salvamento local, sem bloquear a tela
     if(!silencioso) _toastSessao("💾 Levantamento salvo neste navegador (visível só para a sua chave).");
     return true;
   }catch(e){
@@ -4401,6 +4511,7 @@ function descartarSessao(id){
       `\n\nSe quiser guardá-lo, cancele e use "💾 Baixar projeto".`)) return;
 
   try{ localStorage.removeItem(_projKey(alvo)); }catch(e){}
+  if(meta && meta.nuvemId){ _apiProjeto("projeto_excluir", { projeto_id: meta.nuvemId }).catch(()=>{}); }   // reflete a exclusão na nuvem também, sem travar a tela
   _gravarIndice(lerIndice().filter(x=>x.id!==alvo));
 
   if(ehAtual){
@@ -4508,12 +4619,15 @@ function abrirMeusProjetos(){
     </div>
     ${idx.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">${linhas}</table>`
                  : `<div class="muted" style="font-size:13px">Nenhum levantamento salvo ainda neste navegador para a sua chave.</div>`}
+    <div id="painelProjetosNuvem"></div>
     <div style="font-size:11.5px;color:var(--muted);margin-top:9px">
-      Ficam salvos apenas neste navegador e nesta máquina, vinculados à sua chave. Para levar para outro computador,
-      abra o levantamento e use <b>💾 Baixar projeto</b>. As plantas em PDF não são guardadas — reenvie o arquivo se for medir de novo.
+      Os projetos sincronizam com a nuvem pela sua chave de acesso — abra em qualquer computador com a mesma chave.
+      Para levar por arquivo também (backup extra ou máquina sem internet), use <b>💾 Baixar projeto</b>.
+      As plantas em PDF não são guardadas — reenvie o arquivo se for medir de novo.
     </div>`;
   host.insertBefore(div, host.firstChild);
   div.scrollIntoView({block:"nearest"});
+  _atualizarPainelComNuvem();
 }
 
 // Migração do formato antigo (slot único) para o índice v3.
@@ -4548,13 +4662,40 @@ function _toastSessao(msg, alerta){
   t.textContent = msg; t.style.display = "block";
   clearTimeout(t._tm); t._tm = setTimeout(() => { t.style.display = "none"; }, 6000);
 }
+// Se não há NADA salvo neste navegador (ex.: computador novo, cache limpo), mas a
+// chave tem projetos na nuvem, avisa e oferece baixar — é o cenário que a
+// sincronização existe para resolver: trocar de máquina sem perder o trabalho.
+function _ofereceRetomarNuvem(){
+  if(!_chaveAtual() || APP.analysisResult) return;
+  if(document.getElementById("barraRetomar") || document.getElementById("barraRetomarNuvem")) return;
+  _projetosSomenteNuvem().then(novos => {
+    if(!novos.length || APP.analysisResult) return;
+    if(document.getElementById("barraRetomar") || document.getElementById("barraRetomarNuvem")) return;
+    const host = document.querySelector(".container") || document.body;
+    const div = document.createElement("div");
+    div.id = "barraRetomarNuvem"; div.className = "card";
+    div.style.cssText = "border:2px solid #0284c7;background:#f0f9ff;margin-bottom:14px";
+    div.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:20px">☁</span>
+        <span style="flex:1;min-width:220px;font-size:13.5px">
+          <b>Você tem ${novos.length} levantamento(s) salvo(s) na nuvem</b> — de outro computador ou navegador, com a mesma chave.
+          <span class="muted" style="display:block;font-size:12px">Abra "Meus levantamentos" para baixá-los aqui.</span>
+        </span>
+        <button class="btn btn-success" style="padding:7px 16px" onclick="document.getElementById('barraRetomarNuvem').remove();abrirMeusProjetos()">Ver na nuvem</button>
+        <button class="btn btn-outline" style="padding:7px 12px" onclick="document.getElementById('barraRetomarNuvem').remove()">Depois</button>
+      </div>`;
+    host.insertBefore(div, host.firstChild);
+  }).catch(()=>{});
+}
+
 // Oferece retomar, se houver trabalho salvo de outra sessão.
 function ofereceRetomar(){
   _limparSessaoLegado();                             // apaga registros antigos sem dono
   if(!_chaveAtual()) return;                         // sem chave, não oferece nada
   _migrarSessaoV2();                                 // traz o slot único antigo para o índice
   const idx = lerIndice();
-  const d = _sessaoGuardada(); if(!d || !d.resultado) return;
+  const d = _sessaoGuardada();
+  if(!d || !d.resultado){ _ofereceRetomarNuvem(); return; }   // nada local: procura na nuvem
   if(APP.analysisResult) return;                     // já há levantamento em tela
   const host = document.querySelector(".container") || document.body;
   if(document.getElementById("barraRetomar")) return;
