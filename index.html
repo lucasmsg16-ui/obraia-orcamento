@@ -514,7 +514,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
   <div style="display:flex;align-items:center;gap:14px">
     <div class="subtitle"><strong style="font-size:16px">ObraIA</strong> <span style="opacity:.75">— Orçamento de Obras com Inteligência Artificial</span></div>
   </div>
-  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.04</span></div>
+  <div class="header-right">SINAPI · IBGE · Caixa Econômica Federal · <span title="versão da aplicação">v2026.08.05</span></div>
 </header>
 
 <!-- ═══════════════════════════════════════════════════════ STEPS BAR -->
@@ -742,6 +742,21 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 <div class="screen" id="screen-3">
   <div class="need-project alert alert-error" id="np-3" style="display:none">📂 Insira um projeto na etapa <b>Upload</b> para que a EAP (Estrutura Analítica do Projeto) seja gerada. <button class="btn btn-outline" style="padding:5px 12px;margin-left:10px" onclick="goTo(1)">↩ Ir para Upload</button></div>
   <div class="info-grid" id="projectInfoGrid"></div>
+
+  <!-- Barra de projeto: salvar/portar o levantamento. O crédito já foi gasto aqui;
+       a partir deste ponto o trabalho tem que ser recuperável de qualquer jeito. -->
+  <div class="card" style="padding:10px 14px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:var(--navy)">Seu levantamento</span>
+      <span class="muted" style="font-size:12px;flex:1;min-width:200px">
+        É salvo sozinho neste navegador a cada alteração. Para levar a outro computador, baixe o arquivo.
+      </span>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12.5px" onclick="baixarProjeto()"
+              title="Baixa um arquivo .obraia com todo o levantamento — abre em qualquer computador">💾 Baixar projeto</button>
+      <button class="btn btn-outline" style="padding:5px 12px;font-size:12.5px" onclick="abrirMeusProjetos()"
+              title="Ver e abrir os levantamentos guardados neste navegador">📂 Meus levantamentos</button>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-title"><span class="icon">📋</span> EAP — Estrutura Analítica do Projeto</div>
@@ -2123,7 +2138,12 @@ async function startAnalysis() {
     const consolidado = parts.length === 1 ? parts[0] : consolidarDisciplinas(parts);
     recalcularAlvenaria(consolidado);   // recalcula a alvenaria pelas dimensões dos ambientes
     APP.analysisResult = consolidado;
+    APP._projId = null;                       // levantamento NOVO → slot próprio (não sobrescreve o anterior)
     APP._incompatDet = null; APP._pendencias = null; APP._pendenciasErro = null;   // projeto novo → zera a compatibilização
+    // GRAVA IMEDIATAMENTE. O crédito já foi debitado no servidor neste ponto;
+    // qualquer coisa que aconteça daqui em diante (fechar a aba, erro ao montar
+    // a EAP, queda de energia) não pode mais custar o levantamento ao cliente.
+    try{ _salvarAgora(); }catch(e){}
     setStep("pstep3", true, `${consolidado.quantitativos.length} serviços em ${grupos.length} disciplina(s)`);
     setProgress(90, "Estruturando EAP…");
 
@@ -2247,7 +2267,19 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
   }, Object.assign({}, opts, { task: "analise", disc, mode: "img", hasAmp: temAmp, hasText: !!(textoFolhas && textoFolhas.trim()) }));
   const rawText = apiData.content[0].text;
   const parsed = parseIAJson(rawText);
-  if (!parsed) throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. Início: " + rawText.substring(0, 300));
+  if (!parsed) {
+    // O crédito JÁ foi debitado no servidor quando o stream terminou. Se o texto
+    // se perder aqui, o cliente paga e não leva nada — e não há como reemitir.
+    // Guardamos a resposta bruta para que o suporte consiga recuperar o
+    // levantamento manualmente em vez de simplesmente pedir desculpa.
+    try{
+      localStorage.setItem("mar_resposta_bruta", JSON.stringify({
+        quando: Date.now(), projeto: APP.projectName || "", disc: disc || "",
+        texto: String(rawText).slice(0, 400000)
+      }));
+    }catch(_){}
+    throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. A resposta foi guardada no navegador — se o problema persistir, fale com o suporte antes de gastar outro crédito. Início: " + rawText.substring(0, 300));
+  }
   return parsed;
 }
 
@@ -2383,7 +2415,7 @@ function familiaForro(d) {
 // ═══════════════════════════════════════════════════════════════════════════
 // UNIDADE DE MEDIDA — trava anti-"preço de outro serviço"
 // ═══════════════════════════════════════════════════════════════════════════
-// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.04):
+// POR QUE ISTO EXISTE (bug real, corrigido em v2026.08.05):
 // A busca textual casava a descrição do serviço com QUALQUER composição SINAPI,
 // sem conferir se a UNIDADE batia. Resultados medidos na base real (PE):
 //   "Fôrma em madeira para concreto armado, inclusive escoramento" (m²)
@@ -3710,11 +3742,68 @@ function buildEAP() {
   renderAuditoria();
   _agendarSalvar();          // autosave silencioso (debounced)
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTOSAVE — precisa disparar em TODA alteração, não só ao montar a EAP
+// ═══════════════════════════════════════════════════════════════════════════
+// Falha real corrigida em v2026.08.05: _agendarSalvar() só era chamado no fim de
+// buildEAP(). As telas de ORÇAMENTO (corrigir código SINAPI, ajustar quantidade,
+// excluir serviço, preço manual, BDI, trocar estado) chamam recalcBudget() e
+// NUNCA reconstroem a EAP — então nada disso era salvo. O usuário revisava 40
+// itens à mão, fechava o navegador e perdia justamente a parte mais valiosa:
+// a conferência humana. Agora qualquer mutação marca o estado como "sujo" e
+// agenda a gravação.
 let _salvarTm = null;
 function _agendarSalvar(){
+  APP._sujo = true;
+  _pintarSelo(false);
   clearTimeout(_salvarTm);
-  _salvarTm = setTimeout(() => { try{ salvarSessao(true); }catch(e){} }, 1500);
+  _salvarTm = setTimeout(() => { try{ salvarSessao(true); }catch(e){} }, 1200);
 }
+// Salva JÁ, sem esperar o debounce (usado ao sair da página e após a análise).
+function _salvarAgora(){
+  clearTimeout(_salvarTm);
+  try{ return salvarSessao(true); }catch(e){ return false; }
+}
+
+// Selo de estado do salvamento — o usuário precisa VER que pode fechar em paz.
+function _pintarSelo(salvo){
+  let el = document.getElementById("seloSalvo");
+  if(!el){
+    const host = document.querySelector(".header-right") || document.body;
+    el = document.createElement("span");
+    el.id = "seloSalvo";
+    el.style.cssText = "margin-left:10px;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap";
+    host.appendChild(el);
+  }
+  if(!APP.analysisResult){ el.style.display="none"; return; }
+  el.style.display = "inline-block";
+  if(salvo){
+    const h = APP._salvoEm ? new Date(APP._salvoEm).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
+    el.textContent = "💾 salvo" + (h ? " " + h : "");
+    el.style.background = "rgba(22,163,74,.15)"; el.style.color = "#16a34a";
+    el.title = "Levantamento gravado neste navegador. Pode fechar a aba sem perder o trabalho.";
+  }else{
+    el.textContent = "● alterações não salvas";
+    el.style.background = "rgba(217,119,6,.15)"; el.style.color = "#b45309";
+    el.title = "Há alterações ainda não gravadas. São salvas sozinhas em instantes.";
+  }
+}
+
+// Trava de saída: se houver alteração pendente, tenta gravar e avisa o usuário.
+window.addEventListener("beforeunload", function(ev){
+  if(!APP.analysisResult) return;
+  if(APP._sujo){
+    const ok = _salvarAgora();          // última chance de gravar
+    if(!ok){                            // não conseguiu (cota cheia) → avisa
+      ev.preventDefault(); ev.returnValue = "";
+      return "";
+    }
+  }
+});
+// Mudou de aba / minimizou: aproveita para gravar (o beforeunload nem sempre roda no mobile).
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "hidden" && APP._sujo && APP.analysisResult) _salvarAgora();
+});
 
 // Levantamento por ambiente: tabela com área estimada pela IA + medição calibrada na planta
 // (perímetro, pé-direito acabado/no osso, vãos descontados) por cômodo.
@@ -4086,7 +4175,19 @@ function renderConferencia() {
 // o cliente B NUNCA vê — nem é informado da existência — do projeto do cliente A.
 // Sem chave preenchida, nada é salvo e nada é oferecido.
 // ─────────────────────────────────────────────────────────────────────────────
-const MAR_SESSAO_PREFIXO = "mar_sessao_v2_";
+// ─────────────────────────────────────────────────────────────────────────────
+// v3 — MÚLTIPLOS PROJETOS POR CHAVE (corrige perda silenciosa)
+// Até a v2 havia UM slot por chave: analisar um segundo projeto APAGAVA o
+// primeiro, sem aviso e sem possibilidade de voltar. Como cada chave começa com
+// 2 créditos, esse era o caminho comum — não a exceção. Agora cada levantamento
+// tem seu próprio slot e um índice lista todos.
+// Tamanho medido de um levantamento real: 36 KB (casa), 81 KB (prédio pequeno),
+// 158 KB (projeto grande). Com teto de ~5 MB por origem, cabem dezenas.
+// ─────────────────────────────────────────────────────────────────────────────
+const MAR_SESSAO_PREFIXO = "mar_sessao_v2_";        // legado (slot único) — migrado na 1ª carga
+const MAR_PROJ_PREFIXO   = "mar_proj_v3_";          // mar_proj_v3_<hashChave>_<id>
+const MAR_INDICE_PREFIXO = "mar_indice_v3_";        // mar_indice_v3_<hashChave> → [{id,nome,quando,itens,validado}]
+const MAR_MAX_PROJETOS   = 12;                      // acima disso, remove o mais antigo
 function _chaveAtual(){ try{ return (localStorage.getItem("mar_chave") || "").trim(); }catch(e){ return ""; } }
 function _hashChave(k){
   const s = String(k || "").trim(); if(!s) return "";
@@ -4103,61 +4204,270 @@ function _sessaoKey(){
 function _limparSessaoLegado(){
   try{ localStorage.removeItem("mar_sessao_v1"); }catch(e){}
 }
+function _indiceKey(){ const h=_hashChave(_chaveAtual()); return h ? (MAR_INDICE_PREFIXO+h) : ""; }
+function _projKey(id){ const h=_hashChave(_chaveAtual()); return (h&&id) ? (MAR_PROJ_PREFIXO+h+"_"+id) : ""; }
+function lerIndice(){
+  try{ const k=_indiceKey(); if(!k) return [];
+    const a=JSON.parse(localStorage.getItem(k)||"[]");
+    return Array.isArray(a)?a:[];
+  }catch(e){ return []; }
+}
+function _gravarIndice(a){ try{ const k=_indiceKey(); if(k) localStorage.setItem(k, JSON.stringify(a)); }catch(e){} }
+
+// Identidade do levantamento em edição. Enquanto for o MESMO projeto, sobrescreve
+// o próprio slot; um levantamento novo ganha id novo e não encosta no anterior.
+function _idProjetoAtual(){
+  if(!APP._projId) APP._projId = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  return APP._projId;
+}
+
 function _dadosParaSalvar(){
   const r = APP.analysisResult; if(!r) return null;
+  // evidencia_img (prints em base64) fica de fora: estoura a cota e é regenerável.
   const clone = JSON.parse(JSON.stringify(r, (k, v) => (k === "evidencia_img" ? undefined : v)));
   return {
-    v: 2, quando: Date.now(),
+    v: 3, id: _idProjetoAtual(), quando: Date.now(),
     chaveHash: _hashChave(_chaveAtual()),   // confere na retomada (defesa em profundidade)
     projeto: APP.projectName || "",
     estado: APP.estado || "",
     desoneracao: !!APP.desoneracao,
     validado: !!APP.orcamentoValidado,
+    bdi: (function(){ const el=document.getElementById("bdiInput"); return el ? el.value : null; })(),
+    // Compatibilização: custou uma chamada de IA. Não salvar isso obrigava o
+    // usuário a gastar outra só para reaver a lista de pendências.
+    pendencias: APP._pendencias || null,
+    incompatDet: APP._incompatDet || null,
+    pendenciasErro: APP._pendenciasErro || null,
     resultado: clone
   };
 }
+
+// Poda: se a cota estourar, remove os levantamentos mais ANTIGOS até caber.
+// Perder o mais velho é ruim; perder o que a pessoa está editando agora é pior.
+function _podarAntigos(manterId){
+  const idx = lerIndice().slice().sort((a,b)=>(a.quando||0)-(b.quando||0));
+  for(const it of idx){
+    if(it.id === manterId) continue;
+    try{ localStorage.removeItem(_projKey(it.id)); }catch(e){}
+    const novo = lerIndice().filter(x=>x.id!==it.id);
+    _gravarIndice(novo);
+    return true;                    // remove um por vez e deixa o chamador tentar de novo
+  }
+  return false;
+}
+
 function salvarSessao(silencioso){
   try{
-    const chaveStore = _sessaoKey();
-    if(!chaveStore) return false;                 // sem chave de acesso, não salva
+    if(!_chaveAtual()) return false;              // sem chave de acesso, não salva
     const d = _dadosParaSalvar(); if(!d) return false;
-    localStorage.setItem(chaveStore, JSON.stringify(d));
+    const pk = _projKey(d.id); if(!pk) return false;
+    const payload = JSON.stringify(d);
+
+    let gravou = false;
+    for(let tentativa = 0; tentativa < MAR_MAX_PROJETOS + 1; tentativa++){
+      try{ localStorage.setItem(pk, payload); gravou = true; break; }
+      catch(e){ if(!_podarAntigos(d.id)) break; }   // cota cheia → poda e tenta de novo
+    }
+    if(!gravou){
+      // FALHA DE GRAVAÇÃO É SEMPRE VISÍVEL — inclusive no autosave silencioso.
+      // Falhar calado é o pior desfecho possível: o selo diria "salvo", o usuário
+      // fecharia a aba tranquilo e perderia tudo. Aqui o silêncio é proibido.
+      APP._salvoEm = null; APP._sujo = true;
+      _pintarSelo(false);
+      const el = document.getElementById("seloSalvo");
+      if(el){ el.textContent = "⚠ NÃO SALVO"; el.style.background="#fee2e2"; el.style.color="#991b1b";
+              el.title="Não foi possível gravar neste navegador. Baixe o projeto agora para não perder o trabalho."; }
+      _toastSessao("⚠ NÃO consegui salvar neste navegador (armazenamento cheio ou modo privativo). Clique em \"💾 Baixar projeto\" agora para não perder o levantamento.", true);
+      return false;
+    }
+
+    // Atualiza o índice
+    let idx = lerIndice().filter(x => x && x.id !== d.id);
+    idx.unshift({ id:d.id, nome:d.projeto, quando:d.quando,
+                  itens:(d.resultado.quantitativos||[]).length,
+                  ambientes:(d.resultado.ambientes||[]).length,
+                  validado:d.validado });
+    while(idx.length > MAR_MAX_PROJETOS){
+      const fora = idx.pop();
+      try{ localStorage.removeItem(_projKey(fora.id)); }catch(e){}
+    }
+    _gravarIndice(idx);
+
+    APP._salvoEm = d.quando; APP._sujo = false;
+    _pintarSelo(true);
     if(!silencioso) _toastSessao("💾 Levantamento salvo neste navegador (visível só para a sua chave).");
     return true;
   }catch(e){
-    // cota estourada ou navegador em modo privado: avisa em vez de fingir que salvou
-    if(!silencioso) _toastSessao("⚠ Não consegui salvar (armazenamento cheio). Exporte o Excel para não perder o trabalho.", true);
+    if(!silencioso) _toastSessao("⚠ Não consegui salvar: " + (e&&e.message?e.message:e), true);
     return false;
   }
 }
-function _sessaoGuardada(){
+
+function _carregarProjeto(id){
   try{
-    const chaveStore = _sessaoKey();
-    if(!chaveStore) return null;                                  // sem chave → nada a mostrar
-    const s = localStorage.getItem(chaveStore);
-    if(!s) return null;
-    const d = JSON.parse(s);
-    // dupla checagem: o registro tem de pertencer À CHAVE ATUAL
-    if(!d || d.chaveHash !== _hashChave(_chaveAtual())) return null;
+    const pk=_projKey(id); if(!pk) return null;
+    const s=localStorage.getItem(pk); if(!s) return null;
+    const d=JSON.parse(s);
+    if(!d || d.chaveHash !== _hashChave(_chaveAtual())) return null;   // não é desta chave
     return d;
   }catch(e){ return null; }
 }
-function retomarSessao(){
-  const d = _sessaoGuardada();
+// Compat: último projeto salvo (usado pela barra de retomada)
+function _sessaoGuardada(){
+  const idx=lerIndice(); if(!idx.length) return null;
+  return _carregarProjeto(idx[0].id);
+}
+
+function retomarSessao(id){
+  const d = id ? _carregarProjeto(id) : _sessaoGuardada();
   if(!d || !d.resultado){ alert("Não há levantamento salvo neste navegador."); return; }
   APP.analysisResult = d.resultado;
-  APP.projectName = d.projeto || APP.projectName;
+  APP._projId        = d.id || null;
+  APP.projectName    = d.projeto || APP.projectName;
   if(d.estado) APP.estado = d.estado;
-  APP.desoneracao = !!d.desoneracao;
-  APP.orcamentoValidado = !!d.validado;
+  APP.desoneracao      = !!d.desoneracao;
+  APP.orcamentoValidado= !!d.validado;
+  APP._pendencias      = d.pendencias || null;
+  APP._incompatDet     = d.incompatDet || null;
+  APP._pendenciasErro  = d.pendenciasErro || null;
+  try{
+    if(d.bdi != null){ const el=document.getElementById("bdiInput"); if(el) el.value=d.bdi; }
+    const s1=document.getElementById("estadoSelect1"); if(s1&&d.estado) s1.value=d.estado;
+    const s4=document.getElementById("stateSelect");  if(s4&&d.estado) s4.value=d.estado;
+  }catch(e){}
   try{
     buildEAP(); recalcBudget(); goTo(3);
+    APP._salvoEm = d.quando; APP._sujo = false; _pintarSelo(true);
+    const b=document.getElementById("barraRetomar"); if(b) b.remove();
     _toastSessao("✅ Levantamento retomado. Atenção: as plantas em PDF não são salvas — para medir na planta de novo, reenvie o arquivo.");
   }catch(e){ alert("Não consegui retomar o levantamento salvo: " + (e && e.message ? e.message : e)); }
 }
-function descartarSessao(){
-  try{ const k = _sessaoKey(); if(k) localStorage.removeItem(k); }catch(e){}
+
+function descartarSessao(id){
+  const alvo = id || (lerIndice()[0]||{}).id;
+  const meta = lerIndice().find(x=>x.id===alvo);
+  const nome = meta && meta.nome ? `"${meta.nome}"` : "este levantamento";
+  // Confirmação obrigatória: antes bastava UM clique para apagar de vez.
+  if(!confirm(`Descartar ${nome} definitivamente?\n\nO levantamento salvo será apagado deste navegador e NÃO há como recuperar.\n\nSe quiser guardá-lo, cancele e use "💾 Baixar projeto".`)) return;
+  try{ if(alvo) localStorage.removeItem(_projKey(alvo)); }catch(e){}
+  _gravarIndice(lerIndice().filter(x=>x.id!==alvo));
   const b = document.getElementById("barraRetomar"); if(b) b.remove();
+  _toastSessao("Levantamento descartado.");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PORTABILIDADE POR ARQUIVO (.obraia)
+// ═══════════════════════════════════════════════════════════════════════════
+// localStorage é preso ao navegador E à máquina. Quem levanta no escritório e
+// revisa em casa perderia tudo. Um arquivo resolve isso sem tabela nova, sem
+// custo de servidor e sem depender do plano free (que hiberna com 7 dias de
+// inatividade). O arquivo também é o backup que o próprio engenheiro controla
+// e pode anexar ao processo — coisa que localStorage nunca será.
+function baixarProjeto(){
+  const d = _dadosParaSalvar();
+  if(!d){ alert("Não há levantamento para baixar."); return; }
+  // Sem chaveHash: o arquivo é do engenheiro e deve abrir em qualquer máquina dele.
+  const fora = Object.assign({}, d); delete fora.chaveHash;
+  fora._app = "ObraIA"; fora._exportadoEm = new Date().toISOString();
+  const nome = (fora.projeto || "levantamento").replace(/[^\w\s\-]/g,"").trim().replace(/\s+/g,"-").slice(0,50) || "levantamento";
+  const blob = new Blob([JSON.stringify(fora)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `${nome}-${new Date().toISOString().slice(0,10)}.obraia`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  _toastSessao("💾 Arquivo do projeto baixado. Guarde-o ou abra em outro computador pelo botão \"Abrir projeto\".");
+}
+function abrirProjetoArquivo(){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = ".obraia,application/json";
+  inp.addEventListener("change", () => {
+    const f = inp.files && inp.files[0]; if(!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      let d = null;
+      try{ d = JSON.parse(String(fr.result)); }catch(e){ alert("Arquivo inválido ou corrompido."); return; }
+      if(!d || !d.resultado || !Array.isArray(d.resultado.quantitativos)){
+        alert("Este arquivo não é um levantamento do ObraIA."); return;
+      }
+      if(APP.analysisResult && !confirm("Abrir este arquivo vai substituir o levantamento que está na tela.\n\nO que está na tela já foi salvo neste navegador e continua na lista de projetos. Continuar?")) return;
+      APP.analysisResult   = d.resultado;
+      APP._projId          = null;                 // entra como projeto NOVO neste navegador
+      APP.projectName      = d.projeto || "Projeto importado";
+      if(d.estado) APP.estado = d.estado;
+      APP.desoneracao      = !!d.desoneracao;
+      APP.orcamentoValidado= !!d.validado;
+      APP._pendencias      = d.pendencias || null;
+      APP._incompatDet     = d.incompatDet || null;
+      try{ if(d.bdi != null){ const el=document.getElementById("bdiInput"); if(el) el.value=d.bdi; } }catch(e){}
+      try{
+        buildEAP(); recalcBudget(); goTo(3); _salvarAgora();
+        const b=document.getElementById("barraRetomar"); if(b) b.remove();
+        _toastSessao("✅ Projeto aberto do arquivo e salvo neste navegador.");
+      }catch(e){ alert("Não consegui abrir o levantamento: " + (e&&e.message?e.message:e)); }
+    };
+    fr.readAsText(f, "utf-8");
+  });
+  inp.click();
+}
+
+// Lista completa de levantamentos salvos, para escolher qual retomar.
+function abrirMeusProjetos(){
+  const idx = lerIndice();
+  const host = document.querySelector(".container") || document.body;
+  const old = document.getElementById("painelProjetos"); if(old) old.remove();
+  const div = document.createElement("div");
+  div.id = "painelProjetos"; div.className = "card";
+  div.style.cssText = "border:2px solid var(--blue);margin-bottom:14px";
+  const linhas = idx.map(p => {
+    const dias = Math.floor((Date.now() - (p.quando||0)) / 86400000);
+    const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+    const atual = p.id === APP._projId;
+    return `<tr style="border-top:1px solid #e5e7eb">
+      <td style="padding:7px 6px">${p.nome ? p.nome : "<i>sem nome</i>"}${atual?' <span style="font-size:10.5px;color:var(--green);font-weight:700">· na tela</span>':''}</td>
+      <td style="padding:7px 6px;color:var(--muted);font-size:12.5px">${quando}</td>
+      <td style="padding:7px 6px;text-align:right;font-size:12.5px">${p.itens||0} serv. · ${p.ambientes||0} amb.</td>
+      <td style="padding:7px 6px;text-align:right;white-space:nowrap">
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="retomarSessao('${p.id}')">Abrir</button>
+        <button class="btn btn-outline" style="padding:4px 8px;font-size:12px;color:#b91c1c;border-color:#fca5a5" onclick="descartarSessao('${p.id}')">Excluir</button>
+      </td></tr>`;
+  }).join("");
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-weight:800;font-size:15px;color:var(--navy)">📂 Meus levantamentos salvos</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:12.5px" onclick="abrirProjetoArquivo()">📂 Abrir de arquivo</button>
+        <button class="btn btn-outline" style="padding:5px 12px;font-size:12.5px" onclick="document.getElementById('painelProjetos').remove()">Fechar</button>
+      </div>
+    </div>
+    ${idx.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">${linhas}</table>`
+                 : `<div class="muted" style="font-size:13px">Nenhum levantamento salvo ainda neste navegador para a sua chave.</div>`}
+    <div style="font-size:11.5px;color:var(--muted);margin-top:9px">
+      Ficam salvos apenas neste navegador e nesta máquina, vinculados à sua chave. Para levar para outro computador,
+      abra o levantamento e use <b>💾 Baixar projeto</b>. As plantas em PDF não são guardadas — reenvie o arquivo se for medir de novo.
+    </div>`;
+  host.insertBefore(div, host.firstChild);
+  div.scrollIntoView({block:"nearest"});
+}
+
+// Migração do formato antigo (slot único) para o índice v3.
+function _migrarSessaoV2(){
+  try{
+    const h=_hashChave(_chaveAtual()); if(!h) return;
+    const antigo = localStorage.getItem(MAR_SESSAO_PREFIXO + h);
+    if(!antigo) return;
+    const d = JSON.parse(antigo);
+    if(d && d.resultado){
+      d.v = 3; d.id = d.id || ("p"+Date.now().toString(36));
+      localStorage.setItem(MAR_PROJ_PREFIXO+h+"_"+d.id, JSON.stringify(d));
+      const idx = lerIndice().filter(x=>x.id!==d.id);
+      idx.unshift({ id:d.id, nome:d.projeto, quando:d.quando||Date.now(),
+                    itens:(d.resultado.quantitativos||[]).length,
+                    ambientes:(d.resultado.ambientes||[]).length, validado:!!d.validado });
+      _gravarIndice(idx);
+    }
+    localStorage.removeItem(MAR_SESSAO_PREFIXO + h);
+  }catch(e){}
 }
 function _toastSessao(msg, alerta){
   let t = document.getElementById("marToast");
@@ -4176,12 +4486,15 @@ function _toastSessao(msg, alerta){
 function ofereceRetomar(){
   _limparSessaoLegado();                             // apaga registros antigos sem dono
   if(!_chaveAtual()) return;                         // sem chave, não oferece nada
+  _migrarSessaoV2();                                 // traz o slot único antigo para o índice
+  const idx = lerIndice();
   const d = _sessaoGuardada(); if(!d || !d.resultado) return;
   if(APP.analysisResult) return;                     // já há levantamento em tela
   const host = document.querySelector(".container") || document.body;
   if(document.getElementById("barraRetomar")) return;
   const dias = Math.floor((Date.now() - (d.quando||0)) / 86400000);
   const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+  const outros = Math.max(0, idx.length - 1);
   const div = document.createElement("div");
   div.id = "barraRetomar"; div.className = "card";
   div.style.cssText = "border:2px solid var(--green);background:#f0fdf4;margin-bottom:14px";
@@ -4189,9 +4502,11 @@ function ofereceRetomar(){
       <span style="font-size:20px">💾</span>
       <span style="flex:1;min-width:220px;font-size:13.5px">
         <b>Você tem um levantamento salvo</b> — ${d.projeto ? `"${d.projeto}"` : "sem nome"}, de ${quando}.
-        <span class="muted" style="display:block;font-size:12px">Retomar traz de volta ambientes, quantitativos e as medições que você já conferiu.</span>
+        <span class="muted" style="display:block;font-size:12px">Retomar traz de volta ambientes, quantitativos, medições conferidas e a lista de pendências.${outros ? ` Há ainda <b>${outros}</b> outro(s) levantamento(s) guardado(s).` : ""}</span>
       </span>
       <button class="btn btn-success" style="padding:7px 16px" onclick="retomarSessao()">Retomar</button>
+      ${outros ? `<button class="btn btn-outline" style="padding:7px 12px" onclick="abrirMeusProjetos()">Ver todos (${idx.length})</button>` : ""}
+      <button class="btn btn-outline" style="padding:7px 12px" onclick="abrirProjetoArquivo()">📂 Abrir arquivo</button>
       <button class="btn btn-outline" style="padding:7px 12px" onclick="descartarSessao()">Descartar</button>
     </div>`;
   host.insertBefore(div, host.firstChild);
@@ -5124,7 +5439,11 @@ function syncStateFromScreen4() {
   recalcBudget();
 }
 
-function recalcBudget() { buildBudget(); }  // calls async buildBudget, promise not awaited (fire-and-forget)
+// Todo caminho de EDIÇÃO do orçamento passa por aqui (editar código, editar
+// quantidade, excluir/incluir serviço, preço manual, BDI, estado, desoneração).
+// Por isso o autosave é agendado AQUI: um único ponto cobre todas as mutações,
+// em vez de depender de lembrar de chamar em cada função.
+function recalcBudget() { buildBudget(); try{ _agendarSalvar(); }catch(e){} }  // async buildBudget, fire-and-forget
 
 // Filtro de disciplina do orçamento: "todas" (geral) + cada disciplina presente
 function popularFiltroDisc() {
