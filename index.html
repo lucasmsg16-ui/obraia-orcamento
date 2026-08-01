@@ -353,6 +353,9 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .crono-tbl th{background:var(--navy);color:#fff;font-size:11px}
 .crono-tbl .num{text-align:right}
 .crono-tbl .crit-row{background:#fef2f2}
+.pred-chip{cursor:pointer;color:var(--text);border-bottom:1px dotted var(--muted)}
+.pred-chip:hover{color:var(--blue);border-bottom-color:var(--blue)}
+.lag-badge{display:inline-block;background:#eaf6fb;color:var(--blue);border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:2px}
 /* ====== Menu lateral + recursos novos ====== */
 :root{ --sidew:240px; --sidew-col:66px; }
 
@@ -916,8 +919,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <input type="number" id="cronoPrazo" min="1" max="48" step="1" style="width:90px;padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
       <label>📅 Início da obra:</label>
       <input type="date" id="cronoInicio" style="padding:8px;border:1.5px solid var(--border);border-radius:6px" onchange="buildCronograma()">
-      <span class="ref-sinapi">Durações estimadas pelo peso de custo de cada fase · método CPM</span>
-      <button class="btn btn-outline" id="btnResetDur" style="padding:6px 10px;font-size:12px">↺ Durações automáticas</button>
+      <span class="ref-sinapi">Durações estimadas pelo peso de custo de cada fase · método CPM · clique numa predecessora na tabela para permitir execução em paralelo</span>
+      <button class="btn btn-outline" id="btnResetDur" style="padding:6px 10px;font-size:12px">↺ Durações e sobreposições automáticas</button>
     </div>
     <div class="info-grid" id="cronoKpis" style="margin:16px 0"></div>
     <div id="cronoCritico" class="alert" style="background:#fff7ed;border-left:4px solid #ea580c;margin-bottom:16px"></div>
@@ -3229,10 +3232,21 @@ function aplicarAlvenaria(id){
 // CRONOGRAMA FÍSICO-FINANCEIRO + CAMINHO CRÍTICO (CPM)
 // ═══════════════════════════════════════════════════════════════
 // Sequenciamento real de obra de edificação (precedências por categoria)
+// Cada predecessora pode ser um número (sequencial, fim-início) OU {c, lag}, onde
+// "lag" é a fração da duração da predecessora que precisa passar antes da atividade
+// poder começar. lag=1 = espera terminar (padrão); lag<1 = início-início parcial,
+// as duas atividades correm em paralelo (ex.: elétrica/hidráulica embutida durante a alvenaria).
 const PRECEDENCIA_CAT = {
   1: [], 2: [1], 3: [2], 4: [3], 5: [4], 6: [5],
-  7: [12, 13, 6], 8: [5, 6], 9: [7, 8], 10: [5], 11: [7],
-  12: [5], 13: [5], 14: [4], 15: [9, 11, 10, 8]
+  7: [{ c: 12, lag: 0.6 }, { c: 13, lag: 0.6 }, 6],
+  8: [5, 6],
+  9: [{ c: 7, lag: 0.7 }, { c: 8, lag: 0.7 }],
+  10: [5],
+  11: [{ c: 7, lag: 0.7 }],
+  12: [{ c: 5, lag: 0.5 }],
+  13: [{ c: 5, lag: 0.5 }],
+  14: [4],
+  15: [{ c: 9, lag: 0.7 }, { c: 11, lag: 0.7 }, { c: 10, lag: 0.8 }, { c: 8, lag: 0.8 }]
 };
 const NOME_FASE = {
   1: "Serviços Preliminares", 2: "Movimento de Terra", 3: "Fundações", 4: "Estrutura",
@@ -3241,8 +3255,10 @@ const NOME_FASE = {
   13: "Instalações Elétricas", 14: "Impermeabilização", 15: "Serviços Complementares"
 };
 function numCat(cat) { const m = String(cat || "").match(/^\d+/); return m ? parseInt(m[0], 10) : 99; }
+function _normPred(p) { return (typeof p === "number") ? { c: p, lag: 1 } : p; }
 
-// Calcula a rede CPM a partir dos quantitativos + orçamento, para um prazo (meses)
+// Calcula a rede CPM (método das precedências, com início-início parcial) a partir
+// dos quantitativos + orçamento, para um prazo (meses)
 function computeCronograma(prazoMeses) {
   const r = APP.analysisResult; if (!r) return null;
   const bdi = (parseFloat(document.getElementById("bdiInput").value) / 100) || 0;
@@ -3259,29 +3275,37 @@ function computeCronograma(prazoMeses) {
   if (!cats.length) return null;
   const presentes = new Set(cats);
   const totalCusto = cats.reduce((s, c) => s + custoCat[c], 0) || 1;
+  const lagOv = APP.cronoLagOverride || {};
 
-  // predecessores presentes (resolve transitivamente categorias ausentes)
+  // predecessores presentes, com lag (0–1). Resolve transitivamente categorias ausentes
+  // (herda como sequencial, lag=1, pra não presumir sobreposição sem o elo direto presente).
   function predsPresentes(c, seen) {
-    seen = seen || new Set(); const out = new Set();
-    (PRECEDENCIA_CAT[c] || []).forEach(p => {
-      if (presentes.has(p)) out.add(p);
-      else if (!seen.has(p)) { seen.add(p); predsPresentes(p, seen).forEach(x => out.add(x)); }
+    seen = seen || new Set(); const out = new Map();
+    (PRECEDENCIA_CAT[c] || []).forEach(raw => {
+      const p = _normPred(raw);
+      const lag = (lagOv[c] && lagOv[c][p.c] != null) ? lagOv[c][p.c] : p.lag;
+      if (presentes.has(p.c)) {
+        if (!out.has(p.c) || out.get(p.c) > lag) out.set(p.c, lag);
+      } else if (!seen.has(p.c)) {
+        seen.add(p.c);
+        predsPresentes(p.c, seen).forEach((_, pc) => { if (!out.has(pc)) out.set(pc, 1); });
+      }
     });
     return out;
   }
-  const preds = {}; cats.forEach(c => preds[c] = [...predsPresentes(c)]);
+  const preds = {}; cats.forEach(c => preds[c] = [...predsPresentes(c)].map(([pc, lag]) => ({ c: pc, lag })));
 
   // ordem topológica (precedências podem apontar p/ categorias de nº maior)
   const succ = {}; cats.forEach(c => succ[c] = []);
-  cats.forEach(c => preds[c].forEach(p => succ[p].push(c)));
+  cats.forEach(c => preds[c].forEach(pr => succ[pr.c].push({ c, lag: pr.lag })));
   const indeg = {}; cats.forEach(c => indeg[c] = preds[c].length);
   const fila = cats.filter(c => indeg[c] === 0); const ordem = [];
-  while (fila.length) { const c = fila.shift(); ordem.push(c); succ[c].forEach(s => { if (--indeg[s] === 0) fila.push(s); }); }
+  while (fila.length) { const c = fila.shift(); ordem.push(c); succ[c].forEach(s => { if (--indeg[s.c] === 0) fila.push(s.c); }); }
   if (ordem.length !== cats.length) ordem.splice(0, ordem.length, ...cats); // fallback anti-ciclo
 
   // durações proporcionais ao custo, escaladas p/ caminho crítico = prazo
   const durProv = {}; cats.forEach(c => durProv[c] = Math.max(0.0001, custoCat[c] / totalCusto));
-  const efp = {}; ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(p => efp[p])) : 0; efp[c] = es + durProv[c]; });
+  const efp = {}; ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(pr => efp[pr.c])) : 0; efp[c] = es + durProv[c]; });
   const cpLen = Math.max(...cats.map(c => efp[c])) || 1;
   const prazoDias = Math.max(1, Math.round((prazoMeses || 6) * 30));
   const factor = prazoDias / cpLen;
@@ -3290,20 +3314,27 @@ function computeCronograma(prazoMeses) {
   const _ov = APP.cronoDurOverride || {};
   cats.forEach(c => { if (_ov[c] != null && _ov[c] > 0) dur[c] = _ov[c]; });
 
-  // forward pass
+  // forward pass — lag=1 equivale a fim-início puro (ES[pred]+dur[pred] = EF[pred]);
+  // lag<1 permite a atividade começar antes da predecessora terminar (paralelo)
   const ES = {}, EF = {};
-  ordem.forEach(c => { const es = preds[c].length ? Math.max(...preds[c].map(p => EF[p])) : 0; ES[c] = es; EF[c] = es + dur[c]; });
+  ordem.forEach(c => {
+    const es = preds[c].length ? Math.max(...preds[c].map(pr => ES[pr.c] + pr.lag * dur[pr.c])) : 0;
+    ES[c] = es; EF[c] = es + dur[c];
+  });
   const projDur = Math.max(...cats.map(c => EF[c]));
-  // backward pass
-  const LF = {}, LS = {};
-  [...ordem].reverse().forEach(c => { LF[c] = succ[c].length ? Math.min(...succ[c].map(s => LS[s])) : projDur; LS[c] = LF[c] - dur[c]; });
+  // backward pass (equivalente generalizado p/ relações início-início)
+  const LS = {}, LF = {};
+  [...ordem].reverse().forEach(c => {
+    const ls = succ[c].length ? Math.min(...succ[c].map(s => LS[s.c] - s.lag * dur[c])) : projDur - dur[c];
+    LS[c] = ls; LF[c] = ls + dur[c];
+  });
 
   const ativ = ordem.map(c => ({
     cat: c, nome: NOME_FASE[c] || ("Categoria " + c), custo: custoCat[c],
     peso: custoCat[c] / totalCusto * 100,
     es: ES[c], ef: EF[c], ls: LS[c], lf: LF[c], dur: dur[c],
     folga: Math.round(LS[c] - ES[c]), critico: Math.round(LS[c] - ES[c]) <= 0,
-    preds: preds[c].map(p => NOME_FASE[p] || ("Cat " + p))
+    preds: preds[c].map(pr => ({ cat: pr.c, nome: NOME_FASE[pr.c] || ("Cat " + pr.c), lag: pr.lag }))
   })).sort((a, b) => a.es - b.es || a.cat - b.cat);
 
   return { ativ, projDur, totalCusto, prazoMeses: prazoMeses || 6, prazoDias };
@@ -3322,6 +3353,24 @@ function editarDuracao(cat) {
   if (v === null) return;
   const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
   if (n > 0) APP.cronoDurOverride[cat] = n; else delete APP.cronoDurOverride[cat];
+  buildCronograma();
+}
+
+// Ajusta a sobreposição (início-início) entre uma atividade e uma de suas predecessoras.
+// % informado = quanto da predecessora precisa estar concluído antes desta começar.
+// 100% = fim-início tradicional (sem sobreposição); 0% = as duas começam juntas (paralelo total).
+function editarSobreposicao(cat, predCat) {
+  APP.cronoLagOverride = APP.cronoLagOverride || {};
+  const atual = (APP.cronoLagOverride[cat] && APP.cronoLagOverride[cat][predCat] != null)
+    ? Math.round(APP.cronoLagOverride[cat][predCat] * 100)
+    : "";
+  const v = prompt("Esta atividade pode começar após quantos % da predecessora estarem concluídos?\n(100% = espera terminar totalmente · 50% = começa na metade · 0% = começam juntas, em paralelo)", String(atual));
+  if (v === null) return;
+  const n = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
+  if (isNaN(n)) { delete (APP.cronoLagOverride[cat] || {})[predCat]; buildCronograma(); return; }
+  const pct = Math.max(0, Math.min(100, n));
+  APP.cronoLagOverride[cat] = APP.cronoLagOverride[cat] || {};
+  APP.cronoLagOverride[cat][predCat] = pct / 100;
   buildCronograma();
 }
 
@@ -3466,7 +3515,14 @@ function buildCronograma() {
   // Tabela CPM
   let tab = `<table class="crono-tbl"><thead><tr><th>#</th><th>Fase</th><th class="num">Peso %</th><th class="num">Início</th><th class="num">Duração</th><th class="num">Conclusão</th><th>Predecessoras</th><th class="num">Folga</th><th>Crítico</th></tr></thead><tbody>`;
   d.ativ.forEach((a, i) => {
-    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${a.preds.join(", ") || "—"}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
+    const predsHtml = a.preds.length
+      ? a.preds.map(p => {
+          const paralelo = p.lag < 1;
+          const badge = paralelo ? ` <span class="lag-badge" title="Início após ${Math.round(p.lag * 100)}% da duração de '${p.nome}' — as duas correm em paralelo">⚡${Math.round(p.lag * 100)}% paralelo</span>` : "";
+          return `<span class="pred-chip" title="Clique para ajustar a sobreposição" onclick="editarSobreposicao(${a.cat}, ${p.cat})">${p.nome}${badge}</span>`;
+        }).join(", ")
+      : "—";
+    tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${predsHtml}</td><td class="num">${a.folga}d</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
   });
   tab += `</tbody></table>`;
   document.getElementById("cronoTabela").innerHTML = tab;
@@ -5290,7 +5346,7 @@ document.getElementById("btnValidarOrc").addEventListener("click", validarOrcame
 document.getElementById("btnGoToBudget").addEventListener("click", () => { goTo(4); });
 document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
-document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; buildCronograma(); });
+document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; APP.cronoLagOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
   Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", orcamentoValidado:false, filtroDisc:"todas" });
   document.getElementById("fileInfo").style.display = "none";
