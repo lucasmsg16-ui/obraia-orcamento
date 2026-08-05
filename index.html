@@ -362,6 +362,8 @@ main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
 .pred-chip:hover{color:var(--blue);border-bottom-color:var(--blue)}
 .lag-badge{display:inline-block;background:#eef2f7;color:#475569;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:2px}
 .lag-badge.par{background:#eaf6fb;color:var(--blue)}
+.lag-badge.edit{background:#fef3c7;color:#92400e;box-shadow:inset 0 0 0 1px #fcd34d}
+.vp-pad{margin-top:10px;font-size:11.5px;color:var(--muted);background:#f8fafc;border-left:3px solid #cbd5e1;padding:6px 10px;border-radius:0 6px 6px 0}
 .pred-chip{display:inline-block;margin:1px 3px 1px 0;padding:1px 3px;border-radius:4px}
 .pred-chip:hover{background:#eaf6fb}
 .vinc-pop{border:1.5px solid var(--blue);border-radius:10px;background:#fff;box-shadow:0 6px 22px rgba(26,60,94,.16);padding:14px 16px;margin-bottom:12px}
@@ -3527,25 +3529,33 @@ function computeCronograma(prazoMeses) {
   // sobreposição num elo que não existe seria inventar paralelismo.
   function vincsPresentes(c, seen) {
     seen = seen || new Set(); const out = new Map();
+    // A CHAVE DO ELO É A ORIGINAL, NUNCA A ATUAL (correção 2026-08-04).
+    // Antes, o override era gravado sob o tipo que estava NA TELA. Quem trocasse
+    // um II para TT gravava sob "TT", mas o motor procurava sob "SS" (o tipo do
+    // padrão) — a 2ª edição era silenciosamente ignorada e não havia como voltar
+    // atrás. Agora o elo tem identidade fixa (predecessora + tipo ORIGINAL), então
+    // editar, reeditar e restaurar sempre acertam o mesmo alvo.
     const por = (v) => {
-      const k = v.c + "|" + v.tipo;
+      const k = v.c + "|" + v.orig;
       const ant = out.get(k);
-      // entre dois elos iguais fica o mais restritivo (maior atraso)
       if (!ant || _lagDias(v, 1) > _lagDias(ant, 1)) out.set(k, v);
     };
     (PRECEDENCIA_CAT[c] || []).forEach(raw => {
       let v = _normPred(raw); if (!v) return;
+      const orig = v.tipo;                         // identidade imutável do elo
       const ov = (ovLink[c] || {})[v.c];
-      if (ov && ov[v.tipo]) {
-        const o = ov[v.tipo];
-        const novo = TIPOS_VINC[o.tipoNovo] ? o.tipoNovo : (TIPOS_VINC[o.tipo] ? o.tipo : v.tipo);
+      if (ov && ov[orig]) {
+        const o = ov[orig];
+        const novo = TIPOS_VINC[o.tipo] ? o.tipo : orig;
         v = { c: v.c, tipo: novo, lag: Number(o.lag) || 0, un: o.un === "d" ? "d" : "%" };
       }
-      else if (ovLagV2[c] && ovLagV2[c][v.c] != null && v.tipo === "SS") v = { c: v.c, tipo: "SS", lag: Number(ovLagV2[c][v.c]) * 100, un: "%" };
+      else if (ovLagV2[c] && ovLagV2[c][v.c] != null && orig === "SS") v = { c: v.c, tipo: "SS", lag: Number(ovLagV2[c][v.c]) * 100, un: "%" };
+      v.orig = orig;
+      v.editado = !!(ov && ov[orig]);
       if (presentes.has(v.c)) por(v);
       else if (!seen.has(v.c)) {
         seen.add(v.c);
-        vincsPresentes(v.c, seen).forEach(av => { if (!out.has(av.c + "|FS")) por({ c: av.c, tipo: "FS", lag: 0, un: "%" }); });
+        vincsPresentes(v.c, seen).forEach(av => { if (!out.has(av.c + "|FS")) por({ c: av.c, tipo: "FS", orig: "FS", lag: 0, un: "%", editado: false }); });
       }
     });
     return [...out.values()];
@@ -3678,7 +3688,8 @@ function computeCronograma(prazoMeses) {
     folga: Math.round(LS[c] - ES[c]), folgaLivre: folgaLivre[c],
     critico: Math.round(LS[c] - ES[c]) <= 0,
     preds: preds[c].map(v => ({ cat: v.c, nome: NOME_FASE[v.c] || ("Cat " + v.c),
-                                tipo: v.tipo, lag: v.lag, un: v.un,
+                                tipo: v.tipo, orig: v.orig || v.tipo, editado: !!v.editado,
+                                lag: v.lag, un: v.un,
                                 dias: Math.round(_lagDias(v, dur[v.c])),
                                 label: _vincLabel(v, dur[v.c]) })),
   })).sort((a, b) => a.es - b.es || a.cat - b.cat);
@@ -3705,12 +3716,13 @@ function editarDuracao(cat) {
 // ── Edição de VÍNCULO no padrão MS Project (tipo + atraso) ──────────────────
 // Abre um painel ancorado na própria linha da tabela, com os quatro tipos e o
 // campo de atraso em dias ou em % da duração da predecessora.
-function editarVinculo(cat, predCat, tipo) {
+function editarVinculo(cat, predCat, orig) {
   const ex = document.getElementById("vincPop"); if (ex) ex.remove();
   const d = computeCronograma(_cronoPrazoAtual()); if (!d) return;
   const a = d.ativ.find(x => x.cat === cat); if (!a) return;
-  const v = a.preds.find(p => p.cat === predCat && p.tipo === tipo) || a.preds.find(p => p.cat === predCat);
+  const v = a.preds.find(p => p.cat === predCat && p.orig === orig) || a.preds.find(p => p.cat === predCat);
   if (!v) return;
+  const pad = (PRECEDENCIA_CAT[cat] || []).map(_normPred).find(p => p && p.c === predCat && p.tipo === v.orig);
   const pop = document.createElement("div");
   pop.id = "vincPop"; pop.className = "vinc-pop";
   pop.innerHTML = `
@@ -3735,9 +3747,11 @@ function editarVinculo(cat, predCat, tipo) {
       </label>
       <div class="vp-hint">Positivo = espera. Negativo = adianta (sobrepõe).</div>
     </div>
+    ${pad ? `<div class="vp-pad">Padrão de fábrica deste elo: <b>${(TIPOS_VINC[pad.tipo]||TIPOS_VINC.FS).label}${pad.lag?(pad.lag>0?"+":"−")+Math.abs(pad.lag)+(pad.un==="d"?"d":"%"):""}</b>${v.editado?" · <span style='color:#b45309'>você alterou este elo</span>":" · não alterado"}</div>` : ""}
     <div class="vp-b">
-      <button class="btn btn-success" onclick="salvarVinculo(${cat},${predCat},'${tipo}')">Aplicar</button>
-      <button class="btn btn-outline" onclick="restaurarVinculo(${cat},${predCat})">Restaurar padrão</button>
+      <button class="btn btn-success" onclick="salvarVinculo(${cat},${predCat},'${v.orig}')">Aplicar</button>
+      <button class="btn btn-outline" ${v.editado?"":"disabled style=\"opacity:.5\""} onclick="restaurarVinculo(${cat},${predCat},'${v.orig}')">↺ Voltar ao padrão</button>
+      <button class="btn btn-outline" onclick="restaurarAtividade(${cat})">↺ Voltar toda a fase</button>
       <button class="btn btn-outline" onclick="document.getElementById('vincPop').remove()">Cancelar</button>
     </div>`;
   const host = document.getElementById("cronoTabela") || document.body;
@@ -3747,25 +3761,35 @@ function editarVinculo(cat, predCat, tipo) {
   }));
   pop.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
-function salvarVinculo(cat, predCat, tipoAntigo) {
+function salvarVinculo(cat, predCat, orig) {
   const pop = document.getElementById("vincPop"); if (!pop) return;
-  const tipo = (pop.querySelector('input[name="vpTipo"]:checked') || {}).value || "FS";
+  const tipo = (pop.querySelector('input[name="vpTipo"]:checked') || {}).value || orig;
   const lag = parseInt(String(document.getElementById("vpLag").value).replace(/[^0-9-]/g, ""), 10) || 0;
   const un = document.getElementById("vpUn").value === "d" ? "d" : "%";
   APP.cronoLinkOverride = APP.cronoLinkOverride || {};
   APP.cronoLinkOverride[cat] = APP.cronoLinkOverride[cat] || {};
   APP.cronoLinkOverride[cat][predCat] = APP.cronoLinkOverride[cat][predCat] || {};
-  APP.cronoLinkOverride[cat][predCat][tipoAntigo] = { lag: un === "%" ? Math.max(-100, Math.min(200, lag)) : lag, un, tipo };
-  // troca de tipo: o elo passa a valer com o novo tipo
-  if (tipo !== tipoAntigo) APP.cronoLinkOverride[cat][predCat][tipoAntigo].tipoNovo = tipo;
-  pop.remove(); buildCronograma(); if (typeof salvarProjeto === "function") try { salvarProjeto(); } catch (e) {}
+  // gravado SEMPRE sob o tipo ORIGINAL do elo — é o que o motor procura
+  APP.cronoLinkOverride[cat][predCat][orig] = { tipo, lag: un === "%" ? Math.max(-100, Math.min(200, lag)) : lag, un };
+  if (APP.cronoLagOverride && APP.cronoLagOverride[cat]) delete APP.cronoLagOverride[cat][predCat];
+  pop.remove(); buildCronograma(); _salvarCrono();
 }
-function restaurarVinculo(cat, predCat) {
-  if (APP.cronoLinkOverride && APP.cronoLinkOverride[cat]) delete APP.cronoLinkOverride[cat][predCat];
+function restaurarVinculo(cat, predCat, orig) {
+  const o = APP.cronoLinkOverride && APP.cronoLinkOverride[cat] && APP.cronoLinkOverride[cat][predCat];
+  if (o) { delete o[orig]; if (!Object.keys(o).length) delete APP.cronoLinkOverride[cat][predCat]; }
   if (APP.cronoLagOverride && APP.cronoLagOverride[cat]) delete APP.cronoLagOverride[cat][predCat];
   const pop = document.getElementById("vincPop"); if (pop) pop.remove();
-  buildCronograma();
+  buildCronograma(); _salvarCrono();
 }
+// Devolve TODOS os vínculos e a duração da fase ao padrão de fábrica.
+function restaurarAtividade(cat) {
+  if (APP.cronoLinkOverride) delete APP.cronoLinkOverride[cat];
+  if (APP.cronoLagOverride)  delete APP.cronoLagOverride[cat];
+  if (APP.cronoDurOverride)  delete APP.cronoDurOverride[cat];
+  const pop = document.getElementById("vincPop"); if (pop) pop.remove();
+  buildCronograma(); _salvarCrono();
+}
+function _salvarCrono(){ try{ if(typeof salvarSessao === "function") salvarSessao(true); }catch(e){} }
 function _cronoPrazoAtual() {
   const inp = document.getElementById("cronoPrazo");
   return inp ? (parseFloat(inp.value) || prazoPadrao()) : prazoPadrao();
@@ -3918,9 +3942,9 @@ function buildCronograma() {
       ? a.preds.map(p => {
           const par = (p.tipo === "SS" || p.tipo === "FF");
           const t = TIPOS_VINC[p.tipo] || TIPOS_VINC.FS;
-          const cls = par ? "lag-badge par" : "lag-badge";
-          return `<span class="pred-chip" title="${t.nome} — ${t.desc}. Clique para editar o vínculo."
-            onclick="editarVinculo(${a.cat},${p.cat},'${p.tipo}')">${p.nome} <span class="${cls}">${p.label}</span></span>`;
+          const cls = (par ? "lag-badge par" : "lag-badge") + (p.editado ? " edit" : "");
+          return `<span class="pred-chip" title="${t.nome} — ${t.desc}.${p.editado ? " ALTERADO POR VOCÊ (padrão: " + ((TIPOS_VINC[p.orig]||{}).label || p.orig) + ")." : ""} Clique para editar ou voltar ao padrão."
+            onclick="editarVinculo(${a.cat},${p.cat},'${p.orig}')">${p.nome} <span class="${cls}">${p.label}${p.editado ? " ✎" : ""}</span></span>`;
         }).join(" ")
       : "—";
     tab += `<tr class="${a.critico ? "crit-row" : ""}"><td>${i + 1}</td><td>${a.nome}</td><td class="num">${a.peso.toFixed(1)}%</td><td class="num" title="dia ${a.es}">${fmtData(addDias(inicio, a.es))}</td><td class="num"><span class="dur-edit" title="Editar duração (dias)" onclick="editarDuracao(${a.cat})">${a.dur}d ✎</span></td><td class="num" title="dia ${a.ef}">${fmtData(addDias(inicio, a.ef))}</td><td style="font-size:11px">${predsHtml}</td><td class="num" title="Folga total ${a.folga}d · folga livre ${a.folgaLivre}d">${a.folga}d${a.folgaLivre !== a.folga ? ` <span style="color:var(--muted);font-size:10px">(livre ${a.folgaLivre}d)</span>` : ""}</td><td>${a.critico ? "🔴 Sim" : "—"}</td></tr>`;
@@ -7810,6 +7834,7 @@ async function tkRenderPage(){
   const off=document.createElement("canvas"); off.width=Math.round(vp.width); off.height=Math.round(vp.height);
   await page.render({canvasContext:off.getContext("2d"),viewport:vp}).promise;
   t.img=off;
+  t._ptPorPx = off.width / base.width;   // pixels da imagem por ponto de PDF (unidade física)
   const cv=document.getElementById("tkCanvas"); cv.width=off.width; cv.height=off.height;
   t.z=1; t.ox=0; t.oy=0; t.cursor=null;
   cv.onclick=tkClick;
@@ -7858,7 +7883,10 @@ async function tkRenderPage(){
         t.ancora = tkAcharRotulo(a.nome, gid, bb);
       }
     }
-    tkRedraw(); tkUpdateReadout();
+    // escala declarada no carimbo + área escrita ao lado do rótulo
+    t.escPrancha = tkEscalaDaPrancha(gid);
+    t.areaEscrita = t.ancora ? tkAreaEscrita(gid, t.ancora) : 0;
+    tkRedraw(); tkUpdateReadout(); tkRenderEscalaAuto();
     const st = document.getElementById("tkStatus");
     if(t.kind === 'ambiente' && st && t.mode === 'calibrar'){
       const nome = t.hintNome || "o ambiente";
@@ -7870,8 +7898,41 @@ async function tkRenderPage(){
         tkWizLog("⚠ Esta folha é imagem (sem camada de texto) — não dá para localizar o ambiente sozinho. Você indica o ponto.", "#b45309");
       else
         tkWizLog(`⚠ Não achei o rótulo "${nome}" escrito nesta folha. Confira se é a folha certa.`, "#b45309");
+      if(t.areaEscrita > 0) tkWizLog(`📐 A prancha escreve ${t.areaEscrita.toFixed(2)} m² para este ambiente — vou conferir sua medida contra esse número.`, "#0f766e");
     }
   }catch(e){}
+}
+// Painel da escala detectada — aparece acima do canvas, antes do Passo 1.
+function tkRenderEscalaAuto(){
+  const t = tkState();
+  let host = document.getElementById("tkEscAuto");
+  if(!host){
+    const st = document.getElementById("tkStatus"); if(!st) return;
+    host = document.createElement("div"); host.id = "tkEscAuto"; host.style.marginBottom = "8px";
+    st.parentNode.insertBefore(host, st);
+  }
+  const e = t.escPrancha;
+  if(!e){ host.innerHTML = ""; return; }
+  const cm = e.mPorPx * 100;
+  const conflito = e.variantes.length > 1;
+  host.innerHTML = `<div style="background:#ecfdf5;border:1.5px solid #6ee7b7;border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+    <span style="font-size:18px">📏</span>
+    <div style="flex:1;min-width:190px;font-size:12.5px;color:#065f46;line-height:1.5">
+      <b>Escala declarada na prancha: 1:${e.denom}</b> — dá para calibrar sem clicar.
+      <div style="font-size:11.5px;opacity:.85">1 px = ${cm.toFixed(3)} cm · calculado da unidade física do PDF, não do seu clique.
+      ${conflito ? `<b style="color:#b45309"> ⚠ a folha cita mais de uma escala (${e.variantes.map(v=>"1:"+v).join(", ")}) — confirme qual vale para esta vista.</b>` : ""}</div>
+    </div>
+    <button class="btn btn-success" style="padding:6px 13px;font-size:12.5px;white-space:nowrap" onclick="tkUsarEscalaPrancha()">Usar 1:${e.denom}</button>
+  </div>`;
+}
+function tkUsarEscalaPrancha(){
+  const t = tkState(); const e = t.escPrancha; if(!e) return;
+  t.scale = e.mPorPx; t.calib = []; t.calibPx = 0; t.calibErrAreaPct = 0;
+  t.escalaOrigem = "prancha";
+  t.calibMsg = `Escala 1:${e.denom} lida no carimbo · 1 px = ${(e.mPorPx*100).toFixed(3)} cm (exata, sem erro de clique)`;
+  tkWizLog(`✓ Escala 1:${e.denom} aplicada a partir do carimbo da prancha.`, "#166534");
+  tkWizLog("Confira: meça uma cota conhecida no Passo 1 e veja se o valor bate.", "#475569");
+  tkSetMode('parede'); tkRedraw(); tkUpdateReadout(); tkUpdateSteps();
 }
 // ═════════════════════════════════════════════════════════════════════════════
 // ÂNCORA POR RÓTULO — de onde o sistema sabe ONDE fica o ambiente (2026-08-01)
@@ -7899,10 +7960,11 @@ async function tkRenderPage(){
 // pede o clique. Marcação errada é pior que marcação nenhuma.
 // ═════════════════════════════════════════════════════════════════════════════
 function _rotNorm(s){
-  return normalizaTxt(s)
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\b(\d)\b/g, "0$1")          // "quarto 1" ≡ "quarto 01"
-    .replace(/\s+/g, " ").trim();
+  let x = normalizaTxt(s).replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  // Rede de segurança do letter-spacing: se sobrou "c o z i n h a" (3+ letras
+  // soltas em sequência), reagrupa. Vale mesmo que a costura geométrica falhe.
+  x = x.replace(/(?:\b[a-z]\b\s+){2,}\b[a-z]\b/g, m => m.replace(/\s+/g, ""));
+  return x.replace(/\b(\d)\b/g, "0$1").replace(/\s+/g, " ").trim();   // "quarto 1" ≡ "quarto 01"
 }
 // Sinônimos de planta: o desenho abrevia, o levantamento escreve por extenso.
 const _ROT_SIN = [
@@ -7938,20 +8000,71 @@ async function tkCarregarRotulos(gid){
     // mesma escala usada na rasterização (tkRenderPage): largura da imagem / largura base
     const vp = page.getViewport({ scale: t.img.width / base.width });
     const tc = await page.getTextContent();
-    const itens = [];
+    const k = t.img.width / base.width;
+    // ── 1. cada fragmento com sua posição em pixels da imagem ──
+    const frag = [];
     tc.items.forEach(it => {
-      const s = String(it.str || "").trim();
-      if(!s || s.length < 2) return;
-      // posição do texto no espaço do dispositivo (pixels da imagem)
+      const s = String(it.str || "");
+      if(!s.trim()) return;
       const m = pdfjsLib.Util.transform(vp.transform, it.transform);
       const x = m[4], y = m[5];
-      const alt = Math.hypot(m[2], m[3]) || 10;
-      const larg = (it.width || 0) * (t.img.width / base.width);
       if(!isFinite(x) || !isFinite(y)) return;
-      itens.push({ s, norm:_rotNorm(s), x, y, larg, alt,
-                   cx: x + larg/2, cy: y - alt*0.35 });   // baseline → centro visual
+      const alt = Math.hypot(m[2], m[3]) || 10;
+      frag.push({ s, x, y, alt, larg: (it.width || 0) * k });
     });
-    t._rot[gid] = { ok: itens.length >= 3, itens };
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. COSTURA DOS FRAGMENTOS — a causa real da marcação no ambiente errado.
+    // Prancha de CAD quase sempre escreve o nome do cômodo com espacejamento
+    // entre letras (letter-spacing). O PDF então NÃO guarda "COZINHA": guarda
+    // "C","O","Z","I","N","H","A" como sete objetos de texto independentes.
+    // Procurar "cozinha" nesse conjunto não acha nada — e, sem âncora, o sistema
+    // caía de volta no bbox aproximado da IA, que é justamente o que marcava
+    // cozinha+sala ou um ponto fora do cômodo.
+    // A correção é reconstruir a palavra: agrupar por linha de base e emendar
+    // fragmentos vizinhos. É o mesmo procedimento que qualquer extrator sério de
+    // PDF usa antes de tentar casar texto.
+    // ─────────────────────────────────────────────────────────────────────────
+    frag.sort((a,b)=> (a.y - b.y) || (a.x - b.x));
+    const linhas = [];
+    frag.forEach(f => {
+      const L = linhas.find(l => Math.abs(l.y - f.y) <= Math.max(2.5, f.alt * 0.45));
+      if(L){ L.itens.push(f); L.y = (L.y * (L.itens.length-1) + f.y) / L.itens.length; }
+      else linhas.push({ y: f.y, itens: [f] });
+    });
+    const itens = [];
+    linhas.forEach(L => {
+      L.itens.sort((a,b)=>a.x-b.x);
+      let cur = null, ultUm = false;
+      L.itens.forEach(f => {
+        const gap = cur ? f.x - (cur.x + cur.larg) : 0;
+        const esteUm = f.s.trim().length === 1;
+        // Corrida de letras soltas admite vão bem maior: em carimbo de planta o
+        // espacejamento chega perto da própria altura da letra.
+        const limite = (esteUm && ultUm) ? Math.max(3, cur.alt * 1.15)
+                                         : Math.max(2.2, cur.alt * 0.62);
+        if(cur && gap <= limite){
+          // ESPAÇO só entre PALAVRAS. Dois fragmentos de UMA letra cada são
+          // letter-spacing do CAD ("C","O","Z"…) — emendar com espaço no meio
+          // produziria "C O Z I N H A", que não casa com nada. Este era o furo.
+          const separa = (!esteUm || !ultUm) && gap > cur.alt * 0.30;
+          cur.s += (separa ? " " : "") + f.s;
+          cur.larg = (f.x + f.larg) - cur.x;
+        } else {
+          if(cur) itens.push(cur);
+          cur = { s: f.s, x: f.x, y: f.y, alt: f.alt, larg: f.larg };
+        }
+        ultUm = esteUm;
+      });
+      if(cur) itens.push(cur);
+    });
+    itens.forEach(o => {
+      o.s = o.s.replace(/\s+/g, " ").trim();
+      o.norm = _rotNorm(o.s);
+      o.cx = o.x + o.larg/2;
+      o.cy = o.y - o.alt*0.35;      // baseline → centro visual do texto
+    });
+    const uteis = itens.filter(o => o.s.length >= 2);
+    t._rot[gid] = { ok: uteis.length >= 3, itens: uteis, linhas: itens };
   }catch(e){ t._rot[gid] = { ok:false, itens:[] }; }
   return t._rot[gid];
 }
@@ -7983,6 +8096,67 @@ function tkAcharRotulo(nome, gid, bboxPista){
   const ambiguo = cands.length > 1 && (cands[1].score >= melhor.score - 4);
   return { x: melhor.it.cx, y: melhor.it.cy, texto: melhor.it.s,
            exato: melhor.score >= 80, ambiguo, n: cands.length };
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// ESCALA EXATA PELA PRANCHA — por que a medida manual "nunca batia" (2026-08-04)
+// ═════════════════════════════════════════════════════════════════════════════
+// Calibrar clicando em dois pontos de uma cota é o método que todo software de
+// takeoff oferece, mas é também o mais frágil que existe: o erro do clique entra
+// LINEAR no comprimento e AO QUADRADO na área. Clicar com 2 px de folga sobre uma
+// cota de 80 px já dá 5% de erro na área — 1 m² numa sala de 20 m². E o sistema
+// não tinha como conferir se a escala estava certa: aceitava o número e seguia.
+//
+// Só que o PDF vetorial carrega a resposta exata. A unidade do PDF é FÍSICA
+// (1 ponto = 1/72 de polegada), então uma prancha plotada em tamanho real com
+// "ESC 1:50" no carimbo permite derivar a escala por conta, sem clique nenhum:
+//
+//   1 ponto  = 25,4/72 mm no papel = 0,352778 mm
+//   a 1:D    → 0,352778 × D mm reais
+//   por pixel da imagem → (0,000352778 × D) / k metros,  k = pixels por ponto
+//
+// É determinístico e reprodutível: dois usuários medindo a mesma prancha obtêm o
+// MESMO número. O clique manual continua existindo, mas agora como CONFERÊNCIA
+// da escala detectada — que é a ordem correta, e a que Bluebeam/PlanSwift usam
+// quando o documento traz escala declarada.
+// ═════════════════════════════════════════════════════════════════════════════
+const _MM_POR_PONTO = 25.4 / 72;
+function tkEscalaDaPrancha(gid){
+  const t = tkState(); const cache = (t._rot||{})[gid];
+  if(!cache || !cache.linhas || !t.img || !t._ptPorPx) return null;
+  const achados = [];
+  cache.linhas.forEach(o => {
+    const txt = String(o.s||"").toUpperCase().replace(/\s+/g,"");
+    // aceita "1:50", "ESC1:50", "ESCALA1/75", "1/100"
+    const re = /(?:ESC(?:ALA)?\.?:?)?\b1\s*[:\/]\s*(\d{1,4})\b/g;
+    let m;
+    while((m = re.exec(txt))){
+      const d = parseInt(m[1],10);
+      if(d >= 5 && d <= 2000) achados.push({ d, txt: o.s.trim(), temPalavra: /ESC/.test(txt) });
+    }
+  });
+  if(!achados.length) return null;
+  // desempata: escala escrita com a palavra ESC vale mais; senão, a mais frequente
+  const cont = {};
+  achados.forEach(a => { const k=a.d; cont[k] = (cont[k]||0) + (a.temPalavra?3:1); });
+  const d = Number(Object.keys(cont).sort((a,b)=>cont[b]-cont[a])[0]);
+  const mPorPx = (_MM_POR_PONTO * d / 1000) / t._ptPorPx;
+  return { denom: d, mPorPx, texto: (achados.find(a=>a.d===d)||{}).txt || ("1:"+d),
+           variantes: [...new Set(achados.map(a=>a.d))] };
+}
+// Área escrita pelo projetista ao lado do rótulo ("A=11,80 m²", "11.80m2").
+function tkAreaEscrita(gid, ancora){
+  const t = tkState(); const cache = (t._rot||{})[gid];
+  if(!cache || !cache.linhas || !ancora) return 0;
+  let melhor = 0, dist = Infinity;
+  cache.linhas.forEach(o => {
+    const m = String(o.s||"").match(/(\d{1,4}[.,]\d{1,2})\s*(?:M\s*[²2]|M2|M²)/i);
+    if(!m) return;
+    const v = parseFloat(m[1].replace(",", "."));
+    if(!(v > 0.5 && v < 2000)) return;
+    const d = Math.hypot(o.cx - ancora.x, o.cy - ancora.y);
+    if(d < dist && d < (t.img ? t.img.height * 0.06 : 9999)){ dist = d; melhor = v; }
+  });
+  return melhor;
 }
 // Rótulo de QUALQUER ambiente contido numa região — é o teste de vazamento.
 function tkRotulosDentro(gid, contem){
@@ -8081,6 +8255,31 @@ function tkClick(e){
         }
         t.calibMsg = `Escala: 1 px = ${cmPorPx.toFixed(2)} cm · trecho de ${Math.round(px)} px · ` +
                      `precisão estimada na área: ±${errArea.toFixed(1)}%`;
+        t.escalaOrigem = "clique";
+        // ── CONFERÊNCIA CONTRA A ESCALA DECLARADA NA PRANCHA ──
+        // Duas fontes independentes para a mesma grandeza. Se divergem, uma está
+        // errada — e é MUITO mais provável que seja o clique. Avisar aqui evita o
+        // erro se propagar para todas as medições seguintes da folha.
+        const ep = t.escPrancha;
+        if(ep && ep.mPorPx > 0){
+          const div = Math.abs(t.scale - ep.mPorPx) / ep.mPorPx * 100;
+          if(div > 4){
+            const escSua = Math.round(ep.denom * (t.scale / ep.mPorPx));
+            const usar = confirm(
+              `⚠ SUA CALIBRAÇÃO NÃO BATE COM A ESCALA DA PRANCHA\n\n` +
+              `O carimbo declara 1:${ep.denom}. Seus 2 cliques equivalem a 1:${escSua} — ${div.toFixed(1)}% de diferença.\n` +
+              `Na ÁREA isso vira cerca de ${(((1+div/100)**2-1)*100).toFixed(0)}% de erro.\n\n` +
+              `Causas comuns: clicar na ponta da seta em vez do ponto da cota, pegar uma cota em cadeia, ` +
+              `ou calibrar numa ampliação/detalhe que está em outra escala.\n\n` +
+              `OK = usar 1:${ep.denom} da prancha (recomendado)\n` +
+              `Cancelar = manter a sua medição de clique`
+            );
+            if(usar){ tkUsarEscalaPrancha(); return; }
+            tkWizLog(`⚠ Mantida a escala do clique (1:${escSua}), ${div.toFixed(1)}% fora do carimbo (1:${ep.denom}).`, "#b45309");
+          } else {
+            tkWizLog(`✓ Sua calibração confere com a escala 1:${ep.denom} da prancha (${div.toFixed(1)}% de diferença).`, "#166534");
+          }
+        }
         tkSetMode('parede');
       } else { t.calib=[]; t.scale=null; }
     }
@@ -8944,6 +9143,19 @@ function tkRobotConcluiu(res){
     if(a){
       areaIA = Number(a.area_m2)||0;
       if(!(areaIA>0)){ const c=Number(a.comprimento_m)||0, l=Number(a.largura_m)||0; if(c>0&&l>0) areaIA=c*l; }
+    }
+  }
+  // ── 1ª conferência: contra a ÁREA ESCRITA NA PRÓPRIA PRANCHA ──
+  // É a referência mais forte que existe: foi o projetista que escreveu, não a
+  // IA que leu nem o robô que traçou. Se bate com ela, a escala está certa.
+  if(t.areaEscrita > 0 && A > 0){
+    const dp = Math.abs(A - t.areaEscrita) / t.areaEscrita * 100;
+    if(dp <= 3)      tkWizLog(`✓ Confere com a prancha: ${nf(A)} m² medidos × ${nf(t.areaEscrita)} m² escritos (${dp.toFixed(1)}%).`, "#166534");
+    else if(dp <= 8) tkWizLog(`≈ Perto da prancha: ${nf(A)} m² × ${nf(t.areaEscrita)} m² escritos (${dp.toFixed(1)}%).`, "#b45309");
+    else {
+      const escSug = t.scale * Math.sqrt(t.areaEscrita / A);
+      tkWizLog(`✕ Fora da prancha: ${nf(A)} m² medidos × ${nf(t.areaEscrita)} m² escritos (${dp.toFixed(1)}%).`, "#b91c1c");
+      tkWizLog(`→ Para fechar com a prancha, 1 px teria de valer ${(escSug*100).toFixed(3)} cm em vez de ${(t.scale*100).toFixed(3)} cm. A escala provavelmente está errada.`, "#b91c1c");
     }
   }
   if(areaIA>0 && A>0){
