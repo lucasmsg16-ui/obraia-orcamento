@@ -1190,7 +1190,9 @@ function goTo(step) {
   // A referência da base de preços é buscada logo no início: ela aparece no topo
   // da tela, no Excel e no PDF assinado. Falhar aqui não trava nada — o rótulo
   // apenas passa a dizer que a referência não foi confirmada.
-  try{ carregarMetaSinapi(); }catch(e){}
+  // O erro é REGISTRADO: engolir em silêncio foi o que escondeu a falha anterior.
+  try{ carregarMetaSinapi(); }
+  catch(e){ console.error("Não consegui buscar a referência da base SINAPI no boot.", e); }
 })();
 
 function saveApiKey() {
@@ -6001,7 +6003,11 @@ function baseCodigo(codigo) {
 // preços. Sem o manifesto, o sistema assume que NÃO SABE e diz isso — mentir
 // uma data é pior do que admitir que ela não foi confirmada.
 // ═════════════════════════════════════════════════════════════════════════════
-let _sinapiMeta = null;
+// `var`, não `let`, DE PROPÓSITO: a chamada que dispara isto acontece lá em cima,
+// na inicialização, muito antes desta linha ser executada. Com `let`, a variável
+// fica em zona morta temporal e a chamada estoura ReferenceError — que era
+// engolido pelo try/catch e deixava o rótulo preso em "carregando…" para sempre.
+var _sinapiMeta = null;
 async function carregarMetaSinapi(){
   if(_sinapiMeta) return _sinapiMeta;
   try{
