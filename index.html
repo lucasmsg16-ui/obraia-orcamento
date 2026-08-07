@@ -5017,21 +5017,134 @@ async function _baixarDaNuvem(nuvemId){
   if(document.getElementById("painelProjetos")) abrirMeusProjetos();
 }
 
+// Escapa o que veio de fora antes de virar HTML. O nome do projeto é digitado
+// pelo usuário: sem isso, um nome com < ou aspas quebra a lista — ou pior,
+// injeta marcação. Vale também para o id, que entra dentro de um atributo.
+function _escHtml(v){
+  return String(v == null ? "" : v)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+// ── Lista da nuvem: baixar E excluir, com seleção múltipla ──
+//
+// A nuvem guarda até 20 projetos por chave. Quem testa o sistema algumas vezes
+// enche essa lista rápido, e antes daqui só dava para BAIXAR cada um — não
+// havia como limpar. O resultado era uma lista longa de arquivos que a pessoa
+// não quer mais, ocupando a tela e as vagas da nuvem.
+//
+// Excluir de um em um resolveria no papel e não na prática: com 18 itens,
+// ninguém clica 18 vezes e confirma 18 vezes. Por isso a seleção múltipla.
+// `var`, e não `let`, DE PROPÓSITO. Um `let` no escopo do script não vira
+// propriedade de window — e o onclick de cada linha é avaliado no escopo
+// global. Com `let`, o botão "Excluir" da linha atribuía a uma variável global
+// homônima, o código lia a outra, e nada acontecia: clique sem efeito e sem
+// erro no console. É a mesma armadilha do `let _sinapiMeta` corrigido antes.
+var _selNuvem = new Set();
+
+function _marcarNuvem(id, el){
+  if(el && el.checked) _selNuvem.add(id); else _selNuvem.delete(id);
+  _pintarAcoesNuvem();
+}
+function _marcarTodosNuvem(el){
+  const cxs = document.querySelectorAll("#painelProjetosNuvem input.selnuv");
+  _selNuvem.clear();
+  cxs.forEach(c => { c.checked = !!(el && el.checked); if(c.checked) _selNuvem.add(c.dataset.id); });
+  _pintarAcoesNuvem();
+}
+function _pintarAcoesNuvem(){
+  const b = document.getElementById("btnExcluirNuvem"); if(!b) return;
+  const n = _selNuvem.size;
+  b.disabled = n === 0;
+  b.style.opacity = n ? "1" : ".45";
+  b.style.cursor = n ? "pointer" : "default";
+  b.textContent = n ? `Excluir ${n} selecionado${n > 1 ? "s" : ""}` : "Excluir selecionados";
+}
+
+// Excluir uma linha só. Existe como função para o onclick não precisar mexer
+// em estado global — atribuição dentro de atributo HTML é onde o escopo engana.
+function _excluirUmDaNuvem(id){
+  _selNuvem = new Set([id]);
+  return _excluirNuvemSelecionados();
+}
+
+async function _excluirNuvemSelecionados(){
+  const ids = [...(_selNuvem || [])];
+  if(!ids.length) return;
+  if(!confirm(`Excluir ${ids.length} projeto(s) da nuvem?\n\n`
+    + `Eles somem de TODOS os seus computadores. Se algum estiver aberto ou salvo aqui neste `
+    + `navegador, a cópia daqui permanece.\n\nEssa ação não tem volta.`)) return;
+  const b = document.getElementById("btnExcluirNuvem");
+  if(b){ b.disabled = true; b.textContent = "Excluindo…"; }
+  let feitos = 0, falhas = 0;
+  for(const id of ids){
+    const r = await _apiProjeto("projeto_excluir", { projeto_id: id }).catch(() => null);
+    if(r && r.ok) feitos++; else falhas++;
+  }
+  _selNuvem.clear();
+  // Um projeto baixado aqui guarda o nuvemId. Se o registro sumiu de lá, o
+  // vínculo precisa sumir junto — senão a próxima sincronia tentaria atualizar
+  // um id que não existe mais e a cópia local ficaria órfã sem ninguém saber.
+  const idx = lerIndice();
+  let mexeu = false;
+  idx.forEach(p => { if(p.nuvemId && ids.includes(p.nuvemId)){ delete p.nuvemId; mexeu = true; } });
+  if(mexeu) _gravarIndice(idx);
+  _toastSessao(falhas
+    ? `⚠ ${feitos} excluído(s) da nuvem, ${falhas} não deu(deram) certo — tente de novo daqui a pouco.`
+    : `✅ ${feitos} projeto(s) excluído(s) da nuvem.`, !!falhas);
+  if(document.getElementById("painelProjetos")) abrirMeusProjetos();
+  try{ _pintarBadgeProjetos(); }catch(e){}
+}
+
+// Baixa e já abre — é o que a pessoa quer quando clica num projeto da nuvem.
+async function _abrirDaNuvem(nuvemId){
+  await _baixarDaNuvem(nuvemId);
+  const p = lerIndice().find(x => x.nuvemId === nuvemId);
+  if(p) retomarSessao(p.id);
+}
+
 async function _atualizarPainelComNuvem(){
   const host = document.getElementById("painelProjetosNuvem"); if(!host) return;
+  host.innerHTML = `<div class="muted" style="font-size:12.5px;margin-top:10px">☁ conferindo a nuvem…</div>`;
   const somenteNuvem = await _projetosSomenteNuvem().catch(() => []);
   const hostAtual = document.getElementById("painelProjetosNuvem"); if(!hostAtual) return;   // painel fechado enquanto buscava
+  _selNuvem = new Set();
   if(!somenteNuvem.length){ hostAtual.innerHTML = ""; return; }
-  hostAtual.innerHTML = `<div style="font-weight:700;font-size:13px;color:#0284c7;margin:10px 0 4px">☁ Salvos na nuvem, ainda não neste navegador</div>` +
-    somenteNuvem.map(p => {
-      const dt = new Date(p.atualizado_em);
-      const dias = Math.floor((Date.now() - dt.getTime()) / 86400000);
-      const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
-      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 6px;border-top:1px solid #e5e7eb;font-size:13px">
-        <span>${p.nome ? p.nome : "<i>sem nome</i>"} <span class="muted" style="font-size:11.5px">· ${quando} · ${p.tamanho_kb} KB</span></span>
-        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="_baixarDaNuvem('${p.id}')">Baixar aqui</button>
-      </div>`;
-    }).join("");
+
+  const linhas = somenteNuvem.map(p => {
+    const dias = Math.floor((Date.now() - new Date(p.atualizado_em).getTime()) / 86400000);
+    const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+    return `<tr style="border-top:1px solid #e5e7eb">
+      <td style="padding:6px 6px;width:26px">
+        <input type="checkbox" class="selnuv" data-id="${_escHtml(p.id)}"
+          onchange="_marcarNuvem('${_escHtml(p.id)}', this)" aria-label="Selecionar ${_escHtml(p.nome||"projeto sem nome")}"></td>
+      <td style="padding:6px 6px">${p.nome ? _escHtml(p.nome) : "<i>sem nome</i>"}</td>
+      <td style="padding:6px 6px;color:var(--muted);font-size:12.5px;white-space:nowrap">${quando} · ${p.tamanho_kb} KB</td>
+      <td style="padding:6px 6px;text-align:right;white-space:nowrap">
+        <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="_abrirDaNuvem('${_escHtml(p.id)}')">Abrir</button>
+        <button class="btn btn-outline" style="padding:4px 8px;font-size:12px;color:#b91c1c;border-color:#fca5a5"
+          onclick="_excluirUmDaNuvem('${_escHtml(p.id)}')">Excluir</button>
+      </td></tr>`;
+  }).join("");
+
+  // A lista rola dentro de si a partir de ~7 itens. Sem isso, 20 projetos na
+  // nuvem empurram o resto do painel para fora da tela.
+  hostAtual.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 6px">
+      <div style="font-weight:700;font-size:13px;color:#0284c7">☁ Na nuvem, ainda não neste navegador (${somenteNuvem.length})</div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer">
+        <input type="checkbox" onchange="_marcarTodosNuvem(this)"> selecionar todos</label>
+      <button id="btnExcluirNuvem" class="btn btn-outline" disabled
+        style="margin-left:auto;padding:4px 12px;font-size:12px;color:#b91c1c;border-color:#fca5a5;opacity:.45"
+        onclick="_excluirNuvemSelecionados()">Excluir selecionados</button>
+    </div>
+    <div style="max-height:290px;overflow:auto;border:1px solid var(--border);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">${linhas}</table>
+    </div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:6px">
+      Excluir daqui remove o projeto da nuvem em todos os seus computadores. Cópia já baixada neste navegador não é afetada.
+    </div>`;
+  _pintarAcoesNuvem();
 }
 
 function salvarSessao(silencioso){
@@ -5276,7 +5389,7 @@ function abrirMeusProjetos(){
       </div>
     </div>
     ${idx.length ? `<table style="width:100%;border-collapse:collapse;font-size:13px">${linhas}</table>`
-                 : `<div class="muted" style="font-size:13px">Nenhum levantamento salvo ainda neste navegador para a sua chave.</div>`}
+                 : `<div class="muted" style="font-size:13px">Nada baixado neste navegador ainda. Se você já usou o sistema em outro computador, os seus projetos aparecem logo abaixo, na nuvem.</div>`}
     <div id="painelProjetosNuvem"></div>
     <div style="font-size:11.5px;color:var(--muted);margin-top:9px">
       Os projetos sincronizam com a nuvem pela sua chave de acesso — abra em qualquer computador com a mesma chave.
