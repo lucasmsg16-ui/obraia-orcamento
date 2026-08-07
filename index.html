@@ -9681,7 +9681,12 @@ function tkApply(){
     if (areaMedida > 0) {
       a.area_medida_m2 = areaMedida;
       a.perimetro_medido_m = t._L;
-      a.desvio_pct = areaIA > 0 ? Math.round(Math.abs(areaMedida - areaIA) / areaIA * 1000) / 10 : null;
+      // COM SINAL, igual ao outro caminho de medição. Este ponto tinha ficado com
+      // Math.abs e passou despercebido na primeira correção: eram DOIS lugares
+      // gravando desvio_pct (medição de parede e medição de área), e corrigir só
+      // um deixaria metade das conferências sem informar a direção do erro.
+      // Positivo = a IA leu A MENOS que o medido. Negativo = leu a mais.
+      a.desvio_pct = areaIA > 0 ? Math.round((areaMedida - areaIA) / areaIA * 1000) / 10 : null;
       a.conferido_em = new Date().toISOString();
     }
 
