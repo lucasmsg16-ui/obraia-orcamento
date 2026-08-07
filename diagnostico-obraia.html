@@ -78,13 +78,53 @@ h1 .dano{color:var(--red);font-style:normal}
 .gancho b{color:var(--amber)}
 
 /* resultado */
-.hero-num{background:linear-gradient(160deg,#2a0d12,#1a0a0d);border:2px solid var(--red);
-  border-radius:18px;padding:28px 24px;text-align:center;margin-bottom:18px;
-  box-shadow:0 18px 50px rgba(255,107,107,.16)}
-.hero-num .rot{font-size:12.5px;letter-spacing:2px;text-transform:uppercase;color:#ffb3b3;font-weight:800}
-.hero-num .val{font-size:46px;font-weight:900;color:#fff;line-height:1.05;margin:8px 0 4px;letter-spacing:-1.5px}
-.hero-num .sub{font-size:14px;color:#ffc9c9}
-@media(max-width:520px){.hero-num .val{font-size:34px}}
+.hero-num{background:linear-gradient(160deg,#2f0e14,#190a0e);border:2px solid var(--red);
+  border-radius:20px;padding:38px 26px 30px;text-align:center;margin-bottom:18px;
+  box-shadow:0 22px 64px rgba(255,107,107,.22)}
+.hero-num .rot{font-size:14px;letter-spacing:2.4px;text-transform:uppercase;color:#ffb3b3;font-weight:800}
+/* O número é o argumento inteiro da página — ele tem de dominar a tela.
+   clamp() cresce com a largura em vez de saltar num breakpoint, então o valor
+   fica grande no notebook e continua legível no celular sem estourar a caixa.
+   font-variant-numeric:tabular-nums impede o número de "dançar" de largura. */
+.hero-num .val{font-size:clamp(46px,12.5vw,86px);font-weight:900;color:#fff;line-height:1;
+  margin:10px 0 2px;letter-spacing:-2.5px;font-variant-numeric:tabular-nums;
+  text-shadow:0 6px 34px rgba(255,107,107,.42)}
+.hero-num .porano{font-size:15px;font-weight:900;letter-spacing:5px;text-transform:uppercase;
+  color:#ff9d9d;margin-bottom:10px}
+.hero-num .sub{font-size:15.5px;color:#ffc9c9;max-width:440px;margin:0 auto}
+/* A quebra por mês e por dia existe porque "R$ 139.500 por ano" é uma abstração:
+   ninguém sente um ano. O mesmo número dividido por mês é a conta que a pessoa
+   compara com o próprio boleto — e não inventa dado nenhum, é o mesmo valor. */
+.hero-num .quebra{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px;
+  padding-top:18px;border-top:1px solid rgba(255,107,107,.28)}
+.hero-num .quebra span{background:rgba(255,107,107,.13);border:1px solid rgba(255,107,107,.32);
+  border-radius:30px;padding:7px 16px;font-size:13.5px;color:#ffd4d4}
+.hero-num .quebra b{color:#fff;font-size:16px;font-weight:900}
+@media(max-width:520px){.hero-num{padding:28px 18px 24px}.hero-num .rot{font-size:12px;letter-spacing:1.6px}
+  .hero-num .porano{font-size:13px;letter-spacing:3.5px}.hero-num .sub{font-size:14px}}
+
+/* ── Chamadas para a ação, repetidas ao longo da página ──
+   Uma só, lá no fim, obriga a pessoa a rolar de volta no momento em que ela
+   decidiu — e é exatamente aí que ela desiste. Cada bloco que gera decisão
+   ganha o seu próprio botão, logo abaixo. */
+.cta-grande{display:block;width:100%;max-width:540px;margin:22px auto;padding:18px 22px;
+  background:linear-gradient(135deg,var(--green),#22c55e);color:#04241a;border:0;border-radius:15px;
+  font-size:17.5px;font-weight:900;cursor:pointer;font-family:inherit;text-align:center;
+  text-decoration:none;box-shadow:0 14px 34px rgba(74,222,128,.30);transition:.16s;line-height:1.25}
+.cta-grande:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(74,222,128,.42)}
+.cta-grande small{display:block;font-weight:700;font-size:12.5px;opacity:.78;margin-top:4px}
+.cta-grande.vermelho{background:linear-gradient(135deg,#ff7a7a,#e14b4b);color:#2a0000;
+  box-shadow:0 14px 34px rgba(255,107,107,.30)}
+.cta-grande.vermelho:hover{box-shadow:0 18px 44px rgba(255,107,107,.42)}
+/* Barra fixa: acompanha a leitura e some quando os planos entram na tela, para
+   não cobrir justamente os botões de assinar. */
+.cta-fixo{position:fixed;left:0;right:0;bottom:0;z-index:70;padding:10px 14px;
+  background:rgba(5,13,26,.94);border-top:1px solid var(--line);
+  transform:translateY(130%);transition:transform .3s ease}
+.cta-fixo.on{transform:none}
+.cta-fixo .cta-grande{margin:0 auto;padding:14px 20px;font-size:16px}
+body.com-barra{padding-bottom:90px}
+@media(prefers-reduced-motion:reduce){.cta-fixo{transition:none}}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
 .mini{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px}
 .mini .r{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);font-weight:800}
@@ -443,11 +483,20 @@ function resultado(){
 
   $('s-result').innerHTML = `
     <div class="hero-num">
-      <div class="rot">A sua rotina atual custa, por ano</div>
+      <div class="rot">Continuar como está vai te custar</div>
       <div class="val">${brl(R)}</div>
+      <div class="porano">por ano</div>
       <div class="sub">${eObra ? "em tempo técnico, erro de planilha e obra sem controle"
                                : "em tempo técnico, retrabalho e trabalho que foi para outro"}</div>
+      <div class="quebra">
+        <span><b>${brl(R/12)}</b> por mês</span>
+        <span>≈ <b>${brl(R/22/12)}</b> por dia útil</span>
+      </div>
     </div>
+
+    <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
+      Quero parar de perder isso
+      <small>Ver como recuperar esse valor →</small></a>
 
     <div class="cards">
       <div class="mini bad"><div class="r">Horas por ano</div><div class="v">${nf(c.horasAno)} h</div>
@@ -477,6 +526,10 @@ function resultado(){
       <div class="sub" style="color:#b6f5d3">${nf(c.horasLivres)} horas — ${nf(c.diasUteis)} dias úteis de volta na sua agenda</div>
     </div>
 
+    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
+      Quero economizar ${brl(c.economiaAno)} por ano
+      <small>Escolher meu plano →</small></a>
+
     <div class="cards">
       <div class="mini good"><div class="r">Cabem no tempo devolvido</div><div class="v">+${c.cabem}</div>
         <div class="s">orçamentos por ano, sem virar noite</div></div>
@@ -488,6 +541,10 @@ function resultado(){
 
     <h1 style="font-size:24px;margin:30px 0 12px">O que muda na sua semana</h1>
     <div class="bloco ganha"><ul>${ganhos.map(d=>`<li>${d}</li>`).join("")}</ul></div>
+
+    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
+      Quero essa semana de volta
+      <small>A partir de ${brl(480/12)} por mês →</small></a>
 
     <div class="nave">
       <h3>E isso é só o primeiro degrau</h3>
@@ -503,7 +560,7 @@ function resultado(){
       </div>
     </div>
 
-    <h1 style="font-size:26px;margin:34px 0 6px">Escolha o melhor plano para você</h1>
+    <h1 id="planos" style="font-size:26px;margin:34px 0 6px;scroll-margin-top:18px">Escolha o melhor plano para você</h1>
     <p class="lead" style="margin-bottom:18px">Pelo seu perfil, o <b>anual</b> é o que faz mais sentido:
       é o ciclo em que dá para medir resultado numa obra inteira, e o custo por mês fica no menor patamar
       com compromisso curto.</p>
@@ -557,6 +614,10 @@ function resultado(){
       <p>Teste por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento — sem burocracia.</p>
     </div>
 
+    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
+      Quero economizar — sem risco por 7 dias
+      <small>Se não servir, você recebe de volta →</small></a>
+
     <div class="bloco" style="margin-top:20px">
       <h3 style="color:var(--ice)">Antes de fechar a aba</h3>
       <p style="font-size:14.5px;color:var(--muted);line-height:1.7">
@@ -566,6 +627,10 @@ function resultado(){
         A pergunta que sobra é só uma: <b style="color:var(--ice)">daqui a doze meses, você quer estar fazendo a mesma conta?</b>
       </p>
     </div>
+
+    <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
+      Não quero fazer essa conta de novo
+      <small>Começar agora por ${brl(480/12)} por mês →</small></a>
 
     <div style="max-width:420px;margin:26px auto 0">
       <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-bottom:12px">
@@ -580,6 +645,7 @@ function resultado(){
     <p class="rodape">Cálculo feito com as suas respostas, redução de 70% no tempo de levantamento e cotação.
       O sistema não substitui a sua decisão técnica — a assinatura continua sendo sua.</p>`;
   show('s-result');
+  _ligarBarraFixa(c);
   window._diag = { trilha, dados, respostas: respostas.join(""), custoAno: Math.round(c.custoAno), total: Math.round(R) };
 }
 
@@ -593,6 +659,59 @@ function enviarLead(){
   $('btnLead').style.display="none";
   $('leadMsg').style.color="var(--green)";
   $('leadMsg').textContent="✓ Enviado. Confira sua caixa de entrada (e o spam, por garantia).";
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// CHAMADAS PARA A AÇÃO
+// ═════════════════════════════════════════════════════════════════════════
+
+// Leva aos planos e acende o bloco por um instante. O piscar não é enfeite:
+// depois de uma rolagem longa a pessoa chega e não sabe onde olhar. O realce
+// diz "é aqui" sem precisar de seta nem de texto.
+function irParaPlanos(ev){
+  if(ev) ev.preventDefault();
+  const alvo = $('planos');
+  if(!alvo) return;
+  alvo.scrollIntoView({behavior:"smooth", block:"start"});
+  const cx = document.querySelector(".planos");
+  if(!cx) return;
+  cx.style.transition = "box-shadow .5s ease";
+  cx.style.boxShadow  = "0 0 0 3px rgba(74,222,128,.55)";
+  cx.style.borderRadius = "16px";
+  setTimeout(()=>{ cx.style.boxShadow = "none"; }, 1400);
+}
+
+// Barra fixa no rodapé. Ela só nasce depois do resultado — antes disso não há
+// nada decidido para empurrar — e se esconde sozinha quando os planos entram
+// na tela, senão cobriria justamente os botões de assinar.
+function _ligarBarraFixa(c){
+  if(document.getElementById("ctaFixo")) return;
+  const bar = document.createElement("div");
+  bar.id = "ctaFixo"; bar.className = "cta-fixo";
+  bar.innerHTML = `<a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
+      Quero economizar ${brl(c.economiaAno)} por ano</a>`;
+  document.body.appendChild(bar);
+  document.body.classList.add("com-barra");
+
+  const planos = document.querySelector(".planos");
+  const mostrar = v => bar.classList.toggle("on", v);
+
+  // IntersectionObserver quando existe; quem não tem cai no evento de rolagem.
+  // O fallback importa: sem ele a barra ficaria acesa por cima dos planos em
+  // navegador antigo — pior do que não ter barra nenhuma.
+  if(planos && "IntersectionObserver" in window){
+    new IntersectionObserver(es => mostrar(!es[0].isIntersecting),
+      {rootMargin:"-10% 0px -20% 0px"}).observe(planos);
+  }else{
+    const chk = () => {
+      if(!planos){ mostrar(true); return; }
+      const r = planos.getBoundingClientRect();
+      mostrar(r.top > window.innerHeight * 0.9 || r.bottom < 0);
+    };
+    window.addEventListener("scroll", chk, {passive:true});
+    chk();
+  }
+  setTimeout(()=>mostrar(true), 900);   // aparece deslizando, sem susto
 }
 </script>
 </body>
