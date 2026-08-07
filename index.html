@@ -686,7 +686,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     </div>
     <div class="alert alert-info" style="margin-top:12px;font-size:12px">
       <span>📋</span>
-      <span>Tabela SINAPI 05/2026 · <b>Estado, desoneração e BDI</b> você define na etapa de <b>Orçamento</b> (assim dá para recalcular o preço sem reprocessar o projeto).</span>
+      <span>Tabela SINAPI <span id="refSinapiTopo">—</span> · <b>Estado, desoneração e BDI</b> você define na etapa de <b>Orçamento</b> (assim dá para recalcular o preço sem reprocessar o projeto).</span>
     </div>
   </div>
 
@@ -893,7 +893,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <input type="number" id="bdiInput" value="24.75" min="0" max="60" step="0.25" onchange="recalcBudget()">
     </div>
 
-    <div class="ref-sinapi" id="refSinapi">Referência: SINAPI 05/2026 · Sem desoneração</div>
+    <div class="ref-sinapi" id="refSinapi">Referência: carregando…</div>
   </div>
 
   <!-- KPI cards -->
@@ -1187,6 +1187,10 @@ function goTo(step) {
     input.value = stored;
     banner.style.borderLeftColor = "var(--green)";
   }
+  // A referência da base de preços é buscada logo no início: ela aparece no topo
+  // da tela, no Excel e no PDF assinado. Falhar aqui não trava nada — o rótulo
+  // apenas passa a dizer que a referência não foi confirmada.
+  try{ carregarMetaSinapi(); }catch(e){}
 })();
 
 function saveApiKey() {
@@ -2705,7 +2709,7 @@ function _menorLadoAmb(a){
 // conflito. "quadro" serve como 2ª fonte. "estimada" nunca prova nada.
 function _dimConfiavel(a) {
   const o = normalizaTxt(a && a.origem_dimensao);
-  return o === "cota" || o === "cadeia";
+  return o === "cota" || o === "cadeia" || o === "prancha";
 }
 function _origemLabel(a) {
   const o = normalizaTxt(a && a.origem_dimensao);
@@ -3884,7 +3888,7 @@ tr.cr{background:#fef2f2}
 ${curva}
 <h2>Rede CPM — Atividades</h2>
 <table><thead><tr><th>#</th><th>Fase</th><th>Peso</th><th>Início</th><th>Duração</th><th>Conclusão</th><th>Folga</th><th>Crítico</th></tr></thead><tbody>${tableRows}</tbody></table>
-<div class="ft">Emitido em ${fmtData(new Date())} · Gerado com ObraIA · Referência SINAPI 05/2026</div>
+<div class="ft">Emitido em ${fmtData(new Date())} · Gerado com ObraIA · Referência ${refSinapi()}</div>
 </body></html>`;
 
   const win = window.open("", "_blank");
@@ -4180,6 +4184,16 @@ function buildEAP() {
       html += `<div class="alert" style="background:#fef3c7;color:#92400e;border:1px solid #f5b93f;margin-top:8px">
         <b>⚠️ Atenção na leitura do projeto:</b><ul style="margin:6px 0 0 18px">${als.map(a => `<li>${a}</li>`).join("")}</ul></div>`;
     }
+    // Âncora absoluta: a única conferência que não depende da própria IA.
+    // Roda assíncrona e injeta quando chega — não segura a montagem da tela.
+    auditarEscalaPelaPrancha(r).then(bloco => {
+      if(!bloco) return;
+      const h2 = document.getElementById("eapLeituraAlertas");
+      if(h2 && !h2.querySelector("[data-escala]")){
+        const d = document.createElement("div"); d.setAttribute("data-escala","1");
+        d.innerHTML = bloco; h2.insertBefore(d, h2.firstChild);
+      }
+    }).catch(()=>{});
     if (nEst > 0) {
       html += `<div class="alert" style="background:#fef3c7;color:#92400e;border:1px solid #f5b93f;margin-top:8px">
         <b>≈ ${nEst} item(ns) estimados sem cota</b> — marcados na lista abaixo. Valide-os (ou meça na planta) antes de gerar o orçamento. IA não assina ART — você assina.</div>`;
@@ -4616,6 +4630,38 @@ function rankearRisco(r) {
   }).sort((x, y) => y.risco - x.risco);
 }
 
+// Aplica aos ambientes NÃO conferidos o viés comprovado na amostra.
+// O sistema já media esse número e o descartava: dizia "desvio de 8%" e seguia
+// orçando com a leitura errada. Medir e não usar é pior do que não medir, porque
+// dá ao engenheiro a sensação de ter validado.
+// Só entra por decisão explícita: extrapolar amostra é hipótese, não fato — por
+// isso cada ambiente corrigido guarda o valor original e fica marcado.
+function aplicarViesAmostra(){
+  const r = APP.analysisResult; const vies = APP._viesAmostra;
+  if(!r || !vies) return;
+  const alvos = (r.ambientes||[]).filter(a => !a._medido && _areaAmbiente(a) > 0 && !a._viesAplicado);
+  if(!alvos.length){ alert("Não há ambiente não medido para corrigir."); return; }
+  const f = 1 + vies/100;
+  if(!confirm(`Corrigir ${alvos.length} ambiente(s) não medido(s) em ${vies>0?"+":""}${vies.toFixed(1)}%?\n\n`
+    + `As áreas serão multiplicadas por ${f.toFixed(3)} e as dimensões por ${Math.sqrt(f).toFixed(3)}, `
+    + `reproduzindo o viés que você comprovou medindo a amostra.\n\n`
+    + `Isto é uma EXTRAPOLAÇÃO da amostra, não uma medição. Fica registrada em cada ambiente e no Excel.`)) return;
+  const k = Math.sqrt(f);
+  let n = 0;
+  alvos.forEach(a => {
+    const orig = _areaAmbiente(a);
+    if(Number(a.area_m2) > 0) a.area_m2 = Math.round(a.area_m2 * f * 100)/100;
+    if(Number(a.comprimento_m) > 0) a.comprimento_m = Math.round(a.comprimento_m * k * 100)/100;
+    if(Number(a.largura_m) > 0)     a.largura_m     = Math.round(a.largura_m * k * 100)/100;
+    a._viesAplicado = vies; a._areaAntesVies = orig; n++;
+  });
+  APP._viesAmostra = null;
+  buildEAP(); recalcBudget();
+  setTimeout(()=>alert(`✓ ${n} ambiente(s) corrigidos em ${vies>0?"+":""}${vies.toFixed(1)}%.\n\n`
+    + `Orçamento recalculado. Os ambientes corrigidos por extrapolação estão marcados — `
+    + `medir mais alguns aumenta a confiança do ajuste.`), 120);
+}
+
 function renderConferencia() {
   const r = APP.analysisResult; if (!r) return;
   const card = document.getElementById("conferenciaCard");
@@ -4636,15 +4682,37 @@ function renderConferencia() {
 
   let veredito = "";
   if (comDesvio.length) {
-    const cor = desvioMedio <= 3 ? ["#166534", "#f0fdf4", "✓"] : desvioMedio <= 8 ? ["#b45309", "#fffbeb", "△"] : ["#b91c1c", "#fef2f2", "✕"];
-    const txt = desvioMedio <= 3
-      ? `Amostra confere com a leitura da IA (desvio médio ${nf(desvioMedio)}%). O levantamento tem consistência para seguir.`
-      : desvioMedio <= 8
-      ? `Desvio médio de ${nf(desvioMedio)}% na amostra. Aceitável, mas amplie a conferência antes de assinar.`
-      : `Desvio médio de ${nf(desvioMedio)}% — alto. A leitura da IA está imprecisa neste projeto: meça os demais ambientes.`;
+    // VIÉS x RUÍDO. A média COM SINAL mede o viés (a IA erra sempre para o mesmo
+    // lado); a média dos módulos mede o espalhamento. Quando as duas são
+    // parecidas, o erro é sistemático — e aí ele vale para os ambientes que você
+    // NÃO mediu, que costumam ser a maior parte do orçamento.
+    const vies    = desvioMedio;                                   // com sinal
+    const espalha = comDesvio.reduce((s,a)=>s+Math.abs(a.desvio_pct),0)/comDesvio.length;
+    const sistematico = comDesvio.length >= 2 && Math.abs(vies) >= 4 && Math.abs(vies) >= espalha*0.7;
+    APP._viesAmostra = sistematico ? vies : null;
+    const mag = Math.abs(vies);
+    const cor = espalha <= 3 ? ["#166534", "#f0fdf4", "✓"] : espalha <= 8 ? ["#b45309", "#fffbeb", "△"] : ["#b91c1c", "#fef2f2", "✕"];
+    const txt = sistematico
+      ? `A IA está lendo <b>${nf(mag)}% ${vies>0?"a MENOS":"a MAIS"}</b> que a medição, de forma consistente `
+        + `nos ${comDesvio.length} ambientes conferidos — é viés, não ruído. Se vale para os ${amb.length-comDesvio.length} `
+        + `ambiente(s) não medidos, o orçamento inteiro está ${vies>0?"subestimado":"superestimado"} na mesma proporção.`
+      : espalha <= 3
+      ? `Amostra confere com a leitura da IA (desvio médio ${nf(espalha)}%). O levantamento tem consistência para seguir.`
+      : espalha <= 8
+      ? `Desvio médio de ${nf(espalha)}% na amostra, sem direção única. Aceitável, mas amplie a conferência antes de assinar.`
+      : `Desvio médio de ${nf(espalha)}% — alto e disperso. A leitura da IA está imprecisa neste projeto: meça os demais ambientes.`;
+    const naoMedidos = amb.filter(a => !a._medido && _areaAmbiente(a) > 0).length;
+    const btnVies = (sistematico && naoMedidos > 0)
+      ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid ${cor[0]}33">
+          <button class="btn" style="background:${cor[0]};color:#fff;border:0;padding:8px 14px;font-weight:700;font-size:13px"
+            onclick="aplicarViesAmostra()">Corrigir os ${naoMedidos} ambientes não medidos em ${vies>0?"+":""}${nf(vies)}%</button>
+          <div style="font-size:11.5px;color:#475569;margin-top:6px">
+            Aplica às leituras não conferidas o mesmo viés que você comprovou medindo.
+            Fica registrado por ambiente, e os medidos não são tocados.</div></div>`
+      : "";
     veredito = `<div style="background:${cor[1]};border:1px solid ${cor[0]}33;border-radius:10px;padding:12px 14px;margin-bottom:12px">
-      <b style="color:${cor[0]}">${cor[2]} Conferido ${comDesvio.length} de ${amb.length} ambiente(s) — desvio médio ${nf(desvioMedio)}%</b>
-      <div style="font-size:12.5px;color:#475569;margin-top:4px">${txt}</div>
+      <b style="color:${cor[0]}">${cor[2]} Conferido ${comDesvio.length} de ${amb.length} ambiente(s) — ${sistematico?`viés de ${vies>0?"+":""}${nf(vies)}%`:`desvio médio ${nf(espalha)}%`}</b>
+      <div style="font-size:12.5px;color:#475569;margin-top:4px">${txt}</div>${btnVies}
     </div>`;
   }
 
@@ -4761,16 +4829,30 @@ function _dadosParaSalvar(){
 
 // Poda: se a cota estourar, remove os levantamentos mais ANTIGOS até caber.
 // Perder o mais velho é ruim; perder o que a pessoa está editando agora é pior.
+// Abre espaço no navegador SEM destruir trabalho que só existe aqui.
+// Antes esta função apagava simplesmente o projeto mais antigo. Se ele nunca
+// tinha subido para a nuvem — porque a internet caiu, o servidor estava fora ou
+// o usuário trabalhou offline —, o projeto desaparecia da máquina e do índice
+// sem uma linha de aviso. O usuário só descobria dias depois, procurando um
+// orçamento que não existia mais em lugar nenhum.
+// Regra agora: só é podado o que dá para trazer de volta (tem nuvemId). Projeto
+// sem cópia na nuvem é intocável — nesse caso é melhor falhar o salvamento e
+// mostrar "NÃO SALVO" (o usuário baixa o .obraia e resolve) do que apagar calado.
 function _podarAntigos(manterId){
   const idx = lerIndice().slice().sort((a,b)=>(a.quando||0)-(b.quando||0));
-  for(const it of idx){
-    if(it.id === manterId) continue;
-    try{ localStorage.removeItem(_projKey(it.id)); }catch(e){}
-    const novo = lerIndice().filter(x=>x.id!==it.id);
-    _gravarIndice(novo);
-    return true;                    // remove um por vez e deixa o chamador tentar de novo
+  const podavel = idx.filter(it => it.id !== manterId && it.nuvemId);
+  if(!podavel.length){
+    const semNuvem = idx.filter(it => it.id !== manterId && !it.nuvemId).length;
+    if(semNuvem) _toastSessao(`⚠ Armazenamento cheio. Há ${semNuvem} projeto(s) que ainda NÃO estão na nuvem — `+
+      `não vou apagá-los. Baixe-os em "Meus projetos" (💾) ou exclua algum manualmente para liberar espaço.`, true);
+    return false;
   }
-  return false;
+  const it = podavel[0];
+  try{ localStorage.removeItem(_projKey(it.id)); }catch(e){}
+  _gravarIndice(lerIndice().filter(x=>x.id!==it.id));
+  _toastSessao(`ℹ Espaço liberado: "${it.nome||"projeto"}" saiu deste navegador, mas continua salvo na nuvem `+
+               `e reaparece em "Meus projetos".`);
+  return true;                      // remove um por vez e deixa o chamador tentar de novo
 }
 
 // ═════════════════════════════════════════════════════════════════════════
@@ -5908,6 +5990,43 @@ function baseCodigo(codigo) {
 }
 
 // Preço do código na tabela do estado p/ a coluna informada (0=sem,1=com); null se ausente/sem coleta
+// ═════════════════════════════════════════════════════════════════════════════
+// REFERÊNCIA DA TABELA — vem do DADO, nunca do código
+// A data ficava escrita à mão em 8 lugares, incluindo o Excel entregue ao
+// cliente e o rodapé do PDF que o engenheiro assina. Os arquivos de preço não
+// carregam nenhum metadado, então o rótulo continuaria dizendo "05/2026" para
+// sempre — inclusive depois de uma atualização da base. Em obra pública o mês
+// de referência é material: o orçamento é conferido contra ele.
+// Agora a resposta vem de data/sinapi_meta.json, que é atualizado junto com os
+// preços. Sem o manifesto, o sistema assume que NÃO SABE e diz isso — mentir
+// uma data é pior do que admitir que ela não foi confirmada.
+// ═════════════════════════════════════════════════════════════════════════════
+let _sinapiMeta = null;
+async function carregarMetaSinapi(){
+  if(_sinapiMeta) return _sinapiMeta;
+  try{
+    const res = await fetch("data/sinapi_meta.json", { cache: "no-cache" });
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const m = await res.json();
+    if(!m || !m.referencia) throw new Error("manifesto sem campo 'referencia'");
+    _sinapiMeta = m;
+  }catch(e){
+    console.error("Manifesto da base SINAPI indisponível — a referência não será afirmada.", e);
+    _sinapiMeta = { referencia: null };
+  }
+  try{ updateRefLabel(); }catch(_){}
+  return _sinapiMeta;
+}
+// "SINAPI 05/2026" ou "SINAPI (referência não confirmada)"
+function refSinapi(){
+  const r = _sinapiMeta && _sinapiMeta.referencia;
+  return r ? ("SINAPI " + r) : "SINAPI (referência não confirmada)";
+}
+function refSinapiCurta(){
+  const r = _sinapiMeta && _sinapiMeta.referencia;
+  return r || "ref. não confirmada";
+}
+
 function precoEstado(codigo, col) {
   if (!APP.sinapiDB) return null;
   const entry = APP.sinapiDB[codigo] || APP.sinapiDB[baseCodigo(codigo)];
@@ -6199,10 +6318,12 @@ function getSinapiPrice(codigo, preco_unitario_ia) {
 }
 
 function updateRefLabel() {
+  const t = document.getElementById("refSinapiTopo");
+  if (t) t.textContent = refSinapiCurta();
   const el = document.getElementById("refSinapi");
   if (el) {
     const des = APP.desoneracao ? "Com desoneração" : "Sem desoneração";
-    el.textContent = `Referência: SINAPI 05/2026 · ${APP.estado} · ${des}`;
+    el.textContent = `Referência: ${refSinapi()} · ${APP.estado} · ${des}`;
   }
 }
 
@@ -6375,7 +6496,7 @@ async function buildBudget() {
     { label: `BDI (${(bdi*100).toFixed(2)}%)`, value: `R$ ${fmt(totalComBdi-totalSemBdi)}`, sub: "" },
     { label: "Total c/ BDI",     value: `R$ ${fmt(totalComBdi)}`,               sub: "valor da obra" },
     { label: "Custo / m²",       value: custoM2,        sub: area > 0 ? `${area.toFixed(1)} m²` : "área não identificada" },
-    { label: "Estado / Regime",  value: estado,                                  sub: `SINAPI 05/2026 ${desSuffix}` },
+    { label: "Estado / Regime",  value: estado,                                  sub: `${refSinapi()} ${desSuffix}` },
     { label: "Validação de códigos", value: nInvalidos > 0 ? `⚠ ${nInvalidos} inexistente(s)` : "✓ todos válidos", sub: `${nCorrigidos} corrigido(s) pela descrição` },
     { label: "Lastro SINAPI",
       value: nSemLastro > 0 ? `🚩 ${nSemLastro} sem base` : "✓ 100% na base",
@@ -6566,7 +6687,7 @@ async function exportExcel() {
   const desSuffix2 = APP.desoneracao ? "Com desoneração" : "Sem desoneração";
   const rows = [
     [`MAR ABERTO ENGENHARIA`],
-    [`Orçamento de Obra — ${APP.projectName} | Estado: ${estado} | SINAPI 05/2026 | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | ${new Date().toLocaleDateString("pt-BR")}`],
+    [`Orçamento de Obra — ${APP.projectName} | Estado: ${estado} | ${refSinapi()} | ${desSuffix2} | BDI: ${(bdi*100).toFixed(2)}% | ${new Date().toLocaleDateString("pt-BR")}`],
     [],
     ["ITEM","CÓDIGO SINAPI","DESCRIÇÃO","LOCAL","UN","QUANTIDADE","PREÇO UNIT. (R$)","TOTAL S/ BDI (R$)","TOTAL C/ BDI (R$)","LASTRO DO PREÇO"],
   ];
@@ -6764,7 +6885,10 @@ async function exportExcel() {
       a._medido ? (a.pe_direito_no_osso_m || 0) : (a.pe_direito_m || "—"),
       a._medido ? (a.vaos_total_m2 || 0) : "—",
       a._medido ? (a.area_paredes_m2 || 0) : "—",
-      a._medido ? "Medido na planta pelo engenheiro" : (ORIGEM_LBL[String(a.origem_dimensao||"").toLowerCase()] || "Não informada"),
+      a._medido ? "Medido na planta pelo engenheiro"
+        : a._areaPrancha ? "Área escrita na prancha pelo projetista"
+        : a._viesAplicado != null ? `Ajustado por amostragem (${a._viesAplicado>0?"+":""}${a._viesAplicado}% — extrapolação)`
+        : (ORIGEM_LBL[String(a.origem_dimensao||"").toLowerCase()] || "Não informada"),
       a.folha || "—",
       a._medido ? "Medido na planta" : "IA (validar)"
     ]));
@@ -7260,7 +7384,7 @@ function renderInsumos(host, R){
     </div>` : ""}
 
     <div style="font-size:11.5px;color:var(--muted);margin-top:14px;border-top:1px solid #f1f5f9;padding-top:8px">
-      Quantidades obtidas abrindo as composições SINAPI 05/2026 de cada serviço (insumos diretos e das sub-composições).
+      Quantidades obtidas abrindo as composições ${refSinapi()} de cada serviço (insumos diretos e das sub-composições).
       Confira contra o seu histórico de obra antes de comprar — <b>a IA não assina ART; você assina.</b>
     </div>`;
 }
@@ -7285,7 +7409,7 @@ async function exportInsumos(){
   aoa.push(["ITEM","CÓD. SINAPI","INSUMO","QUANTIDADE","UN","QTD. A COMPRAR","FORNECEDOR","PREÇO COTADO"]);
   R.materiais.forEach((x,i)=>aoa.push([i+1, x.codigo, x.descricao, q3(x.quantidade), x.unidade, "", "", ""]));
   aoa.push([]);
-  aoa.push(["","","Quantidades obtidas das composições SINAPI 05/2026, já com as perdas previstas."]);
+  aoa.push(["","","Quantidades obtidas das composições ${refSinapi()}, já com as perdas previstas."]);
   aoa.push(["","","A SINAPI não publica preço por insumo — as colunas de cotação ficam em branco para você preencher."]);
   const ws1 = XLSX.utils.aoa_to_sheet(aoa);
   ws1["!cols"] = [6,14,70,14,7,16,24,15].map(w=>({wch:w}));
@@ -7987,6 +8111,253 @@ function _rotVariantes(nome){
   return [...v].filter(s => s.length >= 3);
 }
 // Extrai a camada de texto da folha em coordenadas de PIXEL da imagem já
+// ═════════════════════════════════════════════════════════════════════════════
+// ÂNCORA ABSOLUTA DE ESCALA — a prancha corrige a IA
+//
+// POR QUE ISSO PRECISA EXISTIR
+// Todas as conferências geométricas do sistema (soma dos ambientes × carimbo,
+// perímetro × área, cota × área) são RAZÕES. Razão é cega a erro de escala: se
+// a leitura inteira sai 2× maior, numerador e denominador crescem juntos e o
+// teste passa perfeito. O carimbo também não serve de contraprova, porque é
+// lido pela mesma IA na mesma escala. Resultado: um erro sistemático de até
+// ~2,1× na dimensão linear — 4,4× no valor do orçamento — atravessava todas as
+// verificações sem disparar nada.
+//
+// A SAÍDA É UM NÚMERO ABSOLUTO, E A PLANTA JÁ TEM UM
+// Projeto de arquitetura escreve a área de cada cômodo ao lado do nome
+// ("A=11,80 m²"). Esse número é do projetista, não da IA — é a única referência
+// externa disponível sem o engenheiro medir nada.
+//
+// COMO SEPARAR ERRO DE ESCALA DE ERRO DE LEITURA
+// Erro de escala é SISTEMÁTICO: todas as razões escrita/IA se agrupam em torno
+// do mesmo valor. Erro de leitura é ERRÁTICO: as razões espalham. Por isso o
+// teste não é a média — é a MEDIANA com dispersão. Mediana longe de 1 com
+// dispersão baixa = escala errada na obra inteira. Dispersão alta = leituras
+// ruins isoladas, que é outro problema e outro aviso.
+// ═════════════════════════════════════════════════════════════════════════════
+const _RE_AREA_ESCRITA = /(?:^|[^\d,.])(\d{1,4}[.,]\d{1,2})\s*(?:M\s*[²2]\b|M2\b|M²)/i;
+
+// Texto posicionado de uma folha, sem depender da ferramenta de medição estar
+// aberta (ela precisa de raster; aqui basta o sistema de coordenadas do PDF).
+async function _textoDaFolha(gid){
+  APP._txtFolha = APP._txtFolha || {};
+  if(APP._txtFolha[gid]) return APP._txtFolha[gid];
+  const ent = APP.pages[gid-1];
+  if(!ent){ APP._txtFolha[gid] = []; return []; }
+  try{
+    const page = await ent.doc.getPage(ent.pageNum);
+    const vp   = page.getViewport({ scale: 1 });
+    const tc   = await page.getTextContent();
+    const frag = [];
+    tc.items.forEach(it => {
+      const str = String(it.str || ""); if(!str.trim()) return;
+      const m = pdfjsLib.Util.transform(vp.transform, it.transform);
+      const x = m[4], y = m[5];
+      if(!isFinite(x) || !isFinite(y)) return;
+      frag.push({ s: str, x, y, alt: Math.hypot(m[2], m[3]) || 10, larg: it.width || 0 });
+    });
+    APP._txtFolha[gid] = _costurarLinhas(frag);
+  }catch(e){
+    console.error("_textoDaFolha: camada de texto indisponível na folha "+gid, e);
+    APP._txtFolha[gid] = [];
+  }
+  return APP._txtFolha[gid];
+}
+
+// Pareia cada ambiente lido pela IA com a área que a prancha escreve ao lado.
+async function _paresAreaEscrita(r){
+  const amb = (r && r.ambientes) || [];
+  if(!amb.length || !APP.pages || !APP.pages.length) return [];
+  const pares = [];
+  const usados = new Set();
+  for(let gid = 1; gid <= APP.pages.length; gid++){
+    const itens = await _textoDaFolha(gid);
+    if(!itens.length) continue;
+    // todas as áreas escritas nesta folha, com posição
+    const areas = [];
+    itens.forEach(o => {
+      const m = String(o.s || "").match(_RE_AREA_ESCRITA);
+      if(!m) return;
+      const v = parseFloat(m[1].replace(",", "."));
+      if(v > 0.5 && v < 2000) areas.push({ v, cx: o.cx, cy: o.cy, txt: o.s.trim() });
+    });
+    if(!areas.length) continue;
+    const alt = itens.reduce((s,o)=>s+o.alt,0) / itens.length;   // escala tipográfica da folha
+    const raio = Math.max(alt * 9, 40);   // "ao lado do rótulo", em unidades do PDF
+    amb.forEach((a, idx) => {
+      if(usados.has(idx) || !a || !a.nome) return;
+      const areaIA = _areaAmbiente(a); if(!(areaIA > 0)) return;
+      const vars = _rotVariantes(a.nome); if(!vars.length) return;
+      // rótulo do ambiente nesta folha
+      let rot = null;
+      itens.forEach(o => {
+        if(!o.norm) return;
+        if(vars.some(v => o.norm === v || o.norm.startsWith(v))) {
+          if(!rot) rot = o;
+        }
+      });
+      if(!rot) return;
+      // área escrita mais próxima do rótulo
+      let melhor = null, dist = Infinity;
+      areas.forEach(ar => {
+        const d = Math.hypot(ar.cx - rot.cx, ar.cy - rot.cy);
+        if(d < dist && d <= raio){ dist = d; melhor = ar; }
+      });
+      if(!melhor) return;
+      usados.add(idx);
+      pares.push({ idx, nome: a.nome, areaIA, areaPrancha: melhor.v,
+                   razao: melhor.v / areaIA, folha: gid, texto: melhor.txt });
+    });
+  }
+  return pares;
+}
+
+// Diagnóstico: escala sistemática, leituras erráticas, ou tudo certo.
+function _diagnosticoEscala(pares){
+  if(pares.length < 3) return { veredito: "insuficiente", pares };
+  const rz = pares.map(p => p.razao).sort((a,b)=>a-b);
+  const mediana = rz.length % 2 ? rz[(rz.length-1)/2] : (rz[rz.length/2-1] + rz[rz.length/2]) / 2;
+  // dispersão robusta: desvio absoluto mediano relativo (não explode com 1 outlier)
+  const desvios = rz.map(v => Math.abs(v - mediana)).sort((a,b)=>a-b);
+  const mad = desvios.length % 2 ? desvios[(desvios.length-1)/2]
+                                 : (desvios[desvios.length/2-1] + desvios[desvios.length/2]) / 2;
+  const disp = mediana > 0 ? mad / mediana : 1;
+  const fora = pares.filter(p => Math.abs(p.razao - 1) > 0.10);
+  if(Math.abs(mediana - 1) <= 0.06 && fora.length <= Math.floor(pares.length * 0.25))
+    return { veredito: "ok", mediana, disp, pares, fora };
+  if(Math.abs(mediana - 1) > 0.10 && disp <= 0.06)
+    return { veredito: "escala", mediana, disp, pares, fora,
+             fatorLinear: Math.sqrt(mediana) };
+  return { veredito: "erratico", mediana, disp, pares, fora };
+}
+
+// Roda a auditoria e devolve o bloco de alerta (ou "" quando não há o que dizer).
+async function auditarEscalaPelaPrancha(r){
+  try{
+    const pares = await _paresAreaEscrita(r);
+    APP._escalaPares = pares;
+    const d = _diagnosticoEscala(pares);
+    APP._escalaDiag = d;
+    if(d.veredito === "insuficiente") return "";
+    const linha = p => `<li><b>${(p.nome||"").slice(0,28)}</b>: prancha escreve <b>${nf(p.areaPrancha)} m²</b>, `
+      + `leitura da IA ${nf(p.areaIA)} m² <span style="opacity:.75">(${p.razao.toFixed(2)}×)</span></li>`;
+    if(d.veredito === "ok"){
+      return `<div class="alert" style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;margin-top:8px">
+        <b>✓ Escala confirmada pela prancha</b> — ${d.pares.length} ambiente(s) com área escrita no desenho
+        batem com a leitura da IA (mediana ${d.mediana.toFixed(2)}×). É a única checagem que não depende da própria IA.</div>`;
+    }
+    if(d.veredito === "escala"){
+      const f = d.mediana, lin = d.fatorLinear;
+      return `<div class="alert" style="background:#fef2f2;color:#991b1b;border:2px solid #dc2626;margin-top:8px">
+        <b>🚩 ERRO SISTEMÁTICO DE ESCALA — o orçamento inteiro está afetado</b>
+        <p style="margin:6px 0">Em <b>${d.pares.length} ambientes</b>, a área escrita na prancha é
+        <b>${f.toFixed(2)}× a lida pela IA</b>, sempre na mesma proporção
+        (dispersão ${(d.disp*100).toFixed(1)}%). Isso não é erro de um cômodo: é a escala do levantamento.
+        Equivale a ${lin.toFixed(2)}× em cada dimensão linear.</p>
+        <ul style="margin:6px 0 6px 18px">${d.pares.slice(0,6).map(linha).join("")}</ul>
+        <p style="margin:6px 0"><b>As áreas escritas são do projetista</b> — valem mais que a leitura automática.</p>
+        <button class="btn" style="background:#dc2626;color:#fff;border:0;padding:8px 14px;font-weight:700"
+          onclick="adotarAreasDaPrancha()">Adotar as ${d.pares.length} áreas escritas na prancha</button></div>`;
+    }
+    return `<div class="alert" style="background:#fef3c7;color:#92400e;border:1px solid #f5b93f;margin-top:8px">
+      <b>⚠ Leitura instável contra a prancha</b>
+      <p style="margin:6px 0">${d.fora.length} de ${d.pares.length} ambiente(s) divergem mais de 10% da área
+      escrita no desenho, sem um padrão único (dispersão ${(d.disp*100).toFixed(1)}%) — são erros de leitura
+      pontuais, não de escala. Confira estes antes de orçar:</p>
+      <ul style="margin:6px 0 6px 18px">${d.fora.slice(0,6).map(linha).join("")}</ul>
+      <button class="btn" style="background:#b45309;color:#fff;border:0;padding:8px 14px;font-weight:700"
+        onclick="adotarAreasDaPrancha()">Adotar as áreas escritas na prancha</button></div>`;
+  }catch(e){ console.error("auditarEscalaPelaPrancha", e); return ""; }
+}
+
+// Substitui a área lida pela IA pela área que o projetista escreveu no desenho.
+// Só mexe nos ambientes onde existe esse número — não extrapola para os demais:
+// extrapolar seria trocar um palpite por outro.
+function adotarAreasDaPrancha(){
+  const r = APP.analysisResult; const pares = APP._escalaPares || [];
+  if(!r || !pares.length) return;
+  if(!confirm(`Adotar a área escrita na prancha em ${pares.length} ambiente(s)?\n\n`
+    + `A área lida pela IA será substituída pela do projetista, e as dimensões (comprimento/largura) `
+    + `serão reescalonadas na mesma proporção para continuarem coerentes com a nova área.\n\n`
+    + `Os ambientes sem área escrita no desenho NÃO são alterados.`)) return;
+  let n = 0;
+  pares.forEach(p => {
+    const a = (r.ambientes || [])[p.idx]; if(!a) return;
+    const k = Math.sqrt(p.areaPrancha / p.areaIA);       // fator nas dimensões lineares
+    a.area_m2 = Math.round(p.areaPrancha * 100) / 100;
+    if(Number(a.comprimento_m) > 0) a.comprimento_m = Math.round(a.comprimento_m * k * 100) / 100;
+    if(Number(a.largura_m)     > 0) a.largura_m     = Math.round(a.largura_m * k * 100) / 100;
+    a.origem_dimensao = "prancha";
+    a._areaPrancha = true;
+    a._areaIAOriginal = p.areaIA;
+    n++;
+  });
+  APP._escalaPares = []; APP._escalaDiag = null; APP._txtFolha = null;
+  buildEAP(); recalcBudget();
+  setTimeout(()=>alert(`✓ ${n} ambiente(s) agora usam a área escrita na prancha.\n\n`
+    + `Os quantitativos e o orçamento foram recalculados.`), 120);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COSTURA DOS FRAGMENTOS DE TEXTO DO PDF — usada em dois lugares
+// Prancha de CAD quase sempre escreve o nome do cômodo com espacejamento entre
+// letras. O PDF então NÃO guarda "COZINHA": guarda "C","O","Z","I","N","H","A"
+// como sete objetos independentes. Procurar "cozinha" nesse conjunto não acha
+// nada — e sem âncora o sistema caía no bbox aproximado da IA, que era o que
+// marcava cozinha+sala. A correção é reconstruir a palavra: agrupar por linha de
+// base e emendar fragmentos vizinhos.
+// Está aqui fora, e não dentro de tkCarregarRotulos, porque a auditoria de
+// escala precisa exatamente do mesmo tratamento. Duas cópias divergiriam.
+// ─────────────────────────────────────────────────────────────────────────────
+function _costurarLinhas(frag){
+  frag.sort((a,b)=> (a.y - b.y) || (a.x - b.x));
+  const linhas = [];
+  frag.forEach(f => {
+    const L = linhas.find(l => Math.abs(l.y - f.y) <= Math.max(2.5, f.alt * 0.45));
+    if(L){ L.itens.push(f); L.y = (L.y * (L.itens.length-1) + f.y) / L.itens.length; }
+    else linhas.push({ y: f.y, itens: [f] });
+  });
+  const itens = [];
+  linhas.forEach(L => {
+    L.itens.sort((a,b)=>a.x-b.x);
+    let cur = null, ultUm = false;
+    L.itens.forEach(f => {
+      const gap = cur ? f.x - (cur.x + cur.larg) : 0;
+      const esteUm = f.s.trim().length === 1;
+      // Corrida de letras soltas admite vão bem maior: em carimbo de planta o
+      // espacejamento chega perto da própria altura da letra.
+      // O `cur ?` NÃO é defensivo à toa: sem ele, o primeiro fragmento de cada
+      // linha lia cur.alt com cur ainda null e estourava TypeError. Como a
+      // chamada estava dentro de um try/catch que devolvia cache vazio, a falha
+      // era invisível: a âncora de texto simplesmente nunca funcionou, e o
+      // sistema caía calado no bbox aproximado da IA — a causa real da hachura
+      // marcando o ambiente errado.
+      const limite = !cur ? 0
+                   : (esteUm && ultUm) ? Math.max(3, cur.alt * 1.15)
+                                       : Math.max(2.2, cur.alt * 0.62);
+      if(cur && gap <= limite){
+        // ESPAÇO só entre PALAVRAS. Dois fragmentos de UMA letra cada são
+        // letter-spacing do CAD — emendar com espaço produziria "C O Z I N H A".
+        const separa = (!esteUm || !ultUm) && gap > cur.alt * 0.30;
+        cur.s += (separa ? " " : "") + f.s;
+        cur.larg = (f.x + f.larg) - cur.x;
+      } else {
+        if(cur) itens.push(cur);
+        cur = { s: f.s, x: f.x, y: f.y, alt: f.alt, larg: f.larg };
+      }
+      ultUm = esteUm;
+    });
+    if(cur) itens.push(cur);
+  });
+  itens.forEach(o => {
+    o.s = o.s.replace(/\s+/g, " ").trim();
+    o.norm = _rotNorm(o.s);
+    o.cx = o.x + o.larg/2;
+    o.cy = o.y - o.alt*0.35;      // baseline → centro visual do texto
+  });
+  return itens;
+}
+
 // rasterizada em t.img. Cacheado por folha — getTextContent é caro.
 async function tkCarregarRotulos(gid){
   const t = tkState();
@@ -8024,48 +8395,14 @@ async function tkCarregarRotulos(gid){
     // fragmentos vizinhos. É o mesmo procedimento que qualquer extrator sério de
     // PDF usa antes de tentar casar texto.
     // ─────────────────────────────────────────────────────────────────────────
-    frag.sort((a,b)=> (a.y - b.y) || (a.x - b.x));
-    const linhas = [];
-    frag.forEach(f => {
-      const L = linhas.find(l => Math.abs(l.y - f.y) <= Math.max(2.5, f.alt * 0.45));
-      if(L){ L.itens.push(f); L.y = (L.y * (L.itens.length-1) + f.y) / L.itens.length; }
-      else linhas.push({ y: f.y, itens: [f] });
-    });
-    const itens = [];
-    linhas.forEach(L => {
-      L.itens.sort((a,b)=>a.x-b.x);
-      let cur = null, ultUm = false;
-      L.itens.forEach(f => {
-        const gap = cur ? f.x - (cur.x + cur.larg) : 0;
-        const esteUm = f.s.trim().length === 1;
-        // Corrida de letras soltas admite vão bem maior: em carimbo de planta o
-        // espacejamento chega perto da própria altura da letra.
-        const limite = (esteUm && ultUm) ? Math.max(3, cur.alt * 1.15)
-                                         : Math.max(2.2, cur.alt * 0.62);
-        if(cur && gap <= limite){
-          // ESPAÇO só entre PALAVRAS. Dois fragmentos de UMA letra cada são
-          // letter-spacing do CAD ("C","O","Z"…) — emendar com espaço no meio
-          // produziria "C O Z I N H A", que não casa com nada. Este era o furo.
-          const separa = (!esteUm || !ultUm) && gap > cur.alt * 0.30;
-          cur.s += (separa ? " " : "") + f.s;
-          cur.larg = (f.x + f.larg) - cur.x;
-        } else {
-          if(cur) itens.push(cur);
-          cur = { s: f.s, x: f.x, y: f.y, alt: f.alt, larg: f.larg };
-        }
-        ultUm = esteUm;
-      });
-      if(cur) itens.push(cur);
-    });
-    itens.forEach(o => {
-      o.s = o.s.replace(/\s+/g, " ").trim();
-      o.norm = _rotNorm(o.s);
-      o.cx = o.x + o.larg/2;
-      o.cy = o.y - o.alt*0.35;      // baseline → centro visual do texto
-    });
+    const itens = _costurarLinhas(frag);
     const uteis = itens.filter(o => o.s.length >= 2);
     t._rot[gid] = { ok: uteis.length >= 3, itens: uteis, linhas: itens };
-  }catch(e){ t._rot[gid] = { ok:false, itens:[] }; }
+  }catch(e){
+    // Falhar aqui degrada a precisão da marcação — não pode ser silencioso.
+    console.error("tkCarregarRotulos: camada de texto indisponível na folha "+gid, e);
+    t._rot[gid] = { ok:false, itens:[], erro:String(e&&e.message||e) };
+  }
   return t._rot[gid];
 }
 // Acha o rótulo do ambiente-alvo. Quando há repetição ("QUARTO" em 3 lugares),
@@ -9311,7 +9648,12 @@ function tkApply(){
         if(!(A>0)){ alert("Trace o contorno fechado para medir a área."); return; }
         a.area_medida_m2 = A;
         const areaIA = Number(a.area_m2)||0;
-        a.desvio_pct = areaIA>0 ? Math.round(Math.abs(A-areaIA)/areaIA*1000)/10 : null;
+        // COM SINAL, de propósito. O valor absoluto destruía a informação mais
+        // valiosa da conferência: a DIREÇÃO do erro. Ler a mais e ler a menos
+        // têm consequências opostas — a mais faz perder a concorrência, a menos
+        // faz perder dinheiro na obra —, e com Math.abs as duas viravam "8%".
+        // Positivo = a IA leu A MENOS que o medido. Negativo = leu a mais.
+        a.desvio_pct = areaIA>0 ? Math.round((A-areaIA)/areaIA*1000)/10 : null;
       } else {
         a.comprimento_medido_m = Math.round(t._L*100)/100;
       }
@@ -9413,7 +9755,7 @@ function telaCreditosEsgotados(){
     <div style="padding:24px 28px">
       <p style="font-size:15px;line-height:1.65;color:#26364f;margin-bottom:16px">
         Agora responde uma pergunta, com sinceridade: <b>quantas horas você gastou no último
-        orçamento que fez na mão?</b> Medindo ambiente por ambiente, caçando código na SINAPI,
+        orçamento que fez na mão?</b> Medindo ambiente por ambiente, procurando código na SINAPI,
         montando planilha, conferindo, refazendo quando o cliente mudou uma parede.
       </p>
       <p style="font-size:15px;line-height:1.65;color:#26364f;margin-bottom:18px">
