@@ -495,6 +495,15 @@ body.nav-collapsed .sn-sec{ font-size:0; padding:10px 0 4px; }
 .nav-item .lb{ white-space:nowrap; overflow:hidden; }
 body.nav-collapsed .nav-item .lb{ display:none; }
 body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
+/* Contador de projetos guardados. Ele existe para substituir a faixa que antes
+   ocupava o topo da tela: o aviso continua, mas onde o usuário vai buscá-lo,
+   e não na frente do que ele veio fazer. Com o menu recolhido vira um ponto. */
+.sn-badge{ margin-left:auto; min-width:20px; text-align:center; background:var(--green); color:#fff;
+  font-size:11px; font-weight:800; padding:1px 7px; border-radius:20px; flex:none; }
+.sn-badge:empty{ display:none; }
+body.nav-collapsed .sn-badge{ position:absolute; top:5px; right:12px; min-width:8px; height:8px;
+  padding:0; font-size:0; border-radius:50%; }
+body.nav-collapsed .nav-item{ position:relative; }
 .muted{ color:var(--muted); font-size:14px; }
 .abc-sums{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .abc-sum{ background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
@@ -525,6 +534,8 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
     <div class="sn-sec">Projeto</div>
     <button class="nav-item active" data-view="1" onclick="goTo(1)"><span class="ic">📤</span><span class="lb">Upload</span></button>
     <button class="nav-item" data-view="3" onclick="goTo(3)"><span class="ic">🧱</span><span class="lb">Levantamento</span></button>
+    <button class="nav-item" id="navProjetos" data-view="projetos" onclick="abrirMeusProjetos()"
+      title="Levantamentos que você já salvou — retome de onde parou"><span class="ic">🗂</span><span class="lb">Meus projetos</span><span class="sn-badge" id="navProjetosQtd"></span></button>
     <div class="sn-sec">Ferramentas</div>
     <button class="nav-item" data-view="4" onclick="goTo(4)"><span class="ic">💰</span><span class="lb">Orçamento</span></button>
     <button class="nav-item" data-view="abc" onclick="showTool('abc')"><span class="ic">📊</span><span class="lb">Curva ABC</span></button>
@@ -576,6 +587,22 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
 
   <!-- API Key banner -->
   <div id="apiKeyBanner" class="card" style="margin-bottom:16px; border-left:4px solid var(--amber);">
+
+    <!-- Estado COMPACTO — é o que o usuário vê em 99% das visitas.
+         Depois que a chave está salva, o formulário não tem mais nada a pedir:
+         deixá-lo aberto era ocupar meia tela para exibir um campo que ninguém
+         vai tocar. Aqui fica só a confirmação de que o acesso está valendo e o
+         saldo de créditos, que esse sim muda e precisa estar à vista. -->
+    <div id="chaveResumo" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
+      <span style="font-size:16px">🔑</span>
+      <b style="font-size:13.5px; color:var(--navy)">Acesso liberado</b>
+      <code id="chaveMasc" style="font-size:12px; color:var(--muted); background:#f1f5f9; border-radius:5px; padding:2px 8px; letter-spacing:.5px"></code>
+      <span id="creditosInfo"></span>
+      <button type="button" onclick="expandirChave()"
+        style="margin-left:auto; background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:6px; padding:5px 12px; font-size:12px; cursor:pointer; font-family:inherit;">Trocar chave</button>
+    </div>
+
+    <div id="chaveForm">
     <div class="card-title" style="margin-bottom:10px;"><span class="icon">🔑</span> Chave de Acesso</div>
     <div style="display:flex; gap:10px; align-items:center;">
       <input type="password" id="apiKeyInput" placeholder="Digite sua chave de acesso"
@@ -583,7 +610,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
       <button onclick="saveApiKey()" style="padding:10px 18px; background:var(--blue); color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; white-space:nowrap;">Salvar</button>
     </div>
     <p style="font-size:11px; color:var(--muted); margin-top:8px; display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
-      <span>Sua chave de acesso libera o uso do sistema. <span id="creditosInfo"></span></span>
+      <span>Sua chave de acesso libera o uso do sistema.</span>
       <span>Não tem uma chave?</span>
       <a href="https://wa.me/5581997977068?text=Ol%C3%A1!%20Quero%20adquirir%20acesso%20ao%20ObraIA%20%E2%80%94%20MAR%20ABERTO%20ENGENHARIA"
          target="_blank" rel="noopener noreferrer"
@@ -593,6 +620,7 @@ body.nav-collapsed .nav-item{ justify-content:center; padding:10px 0; }
         Adquirir acesso
       </a>
     </p>
+    </div><!-- /chaveForm -->
   </div>
 
   <div class="card">
@@ -1179,14 +1207,54 @@ function goTo(step) {
 // ═══════════════════════════════════════════════════════════════
 // API KEY
 // ═══════════════════════════════════════════════════════════════
-(function initApiKeyUI() {
-  const stored = localStorage.getItem("mar_chave") || "";
+// Mostra os últimos 4 caracteres e esconde o resto. É o suficiente para o
+// usuário reconhecer QUAL chave está ativa (útil para quem tem mais de uma, ou
+// para conferir se colou a certa) sem deixar a chave inteira exposta na tela —
+// que costuma ser gravada em vídeo, projetada em reunião ou vista por cima do ombro.
+function _mascararChave(k){
+  k = String(k||"").trim();
+  if(k.length <= 4) return "••••";
+  return "••••" + k.slice(-4);
+}
+
+// Um único ponto decide como o cartão da chave aparece. Chamado no boot, ao
+// salvar e ao trocar — assim os três caminhos não podem divergir.
+function _pintarChaveUI(){
+  const k      = (localStorage.getItem("mar_chave") || "").trim();
+  const resumo = document.getElementById("chaveResumo");
+  const form   = document.getElementById("chaveForm");
   const banner = document.getElementById("apiKeyBanner");
-  const input  = document.getElementById("apiKeyInput");
-  if (stored) {
-    input.value = stored;
+  const masc   = document.getElementById("chaveMasc");
+  if(!resumo || !form || !banner) return;
+  if(k){
+    if(masc) masc.textContent = _mascararChave(k);
+    resumo.style.display = "flex";
+    form.style.display   = "none";
     banner.style.borderLeftColor = "var(--green)";
+    banner.style.padding = "14px 20px";     // sem formulário, o cartão encolhe junto
+  }else{
+    resumo.style.display = "none";
+    form.style.display   = "block";
+    banner.style.borderLeftColor = "var(--amber)";
+    banner.style.padding = "";
   }
+}
+
+// "Trocar chave": reabre o formulário com o campo VAZIO, e não preenchido com a
+// chave atual. Campo pré-preenchido em input de senha é armadilha — a pessoa
+// digita a nova por cima da antiga, erra um caractere no meio e fica com uma
+// chave inválida sem entender o motivo.
+function expandirChave(){
+  const form = document.getElementById("chaveForm");
+  const inp  = document.getElementById("apiKeyInput");
+  if(!form) return;
+  form.style.display = "block";
+  document.getElementById("apiKeyBanner").style.padding = "";
+  if(inp){ inp.value = ""; inp.focus(); }
+}
+
+(function initApiKeyUI() {
+  _pintarChaveUI();
   // A referência da base de preços é buscada logo no início: ela aparece no topo
   // da tela, no Excel e no PDF assinado. Falhar aqui não trava nada — o rótulo
   // apenas passa a dizer que a referência não foi confirmada.
@@ -1200,12 +1268,9 @@ function saveApiKey() {
   if (!key) { alert("Digite a sua chave de acesso antes de salvar."); return; }
   const anterior = (localStorage.getItem("mar_chave") || "").trim();
   localStorage.setItem("mar_chave", key);
-  document.getElementById("apiKeyBanner").style.borderLeftColor = "var(--green)";
-  // Trocou de chave: a oferta de retomar tem de ser reavaliada no compartimento
-  // da chave NOVA — e a barra da chave anterior sai da tela imediatamente.
-  if (anterior !== key) {
-    const b = document.getElementById("barraRetomar"); if (b) b.remove();
-  }
+  _pintarChaveUI();                      // some com o formulário, mostra o resumo
+  // Trocou de chave: o contador de projetos precisa ser recalculado no
+  // compartimento da chave NOVA — cada chave enxerga só os próprios projetos.
   try { if (typeof ofereceRetomar === "function") setTimeout(ofereceRetomar, 100); } catch (e) {}
   alert("✅ Chave de acesso salva neste navegador!");
 }
@@ -4799,7 +4864,11 @@ function lerIndice(){
     return Array.isArray(a)?a:[];
   }catch(e){ return []; }
 }
-function _gravarIndice(a){ try{ const k=_indiceKey(); if(k) localStorage.setItem(k, JSON.stringify(a)); }catch(e){} }
+function _gravarIndice(a){ try{ const k=_indiceKey(); if(k) localStorage.setItem(k, JSON.stringify(a)); }catch(e){}
+  // Repinta o contador da lateral aqui, e não em cada chamador: este é o
+  // unico ponto por onde o indice muda. Um caminho novo que grave projeto
+  // ja nasce com a lateral certa, sem ninguem precisar lembrar disso.
+  try{ _pintarBadgeProjetos(); }catch(e){ console.warn("Nao consegui repintar o contador de projetos.", e); } }
 
 // Identidade do levantamento em edição. Enquanto for o MESMO projeto, sobrescreve
 // o próprio slot; um levantamento novo ganha id novo e não encosta no anterior.
@@ -5066,7 +5135,6 @@ function retomarSessao(id){
   try{
     buildEAP(); recalcBudget(); goTo(3);
     APP._salvoEm = d.quando; APP._sujo = false; _pintarSelo(true);
-    const b=document.getElementById("barraRetomar"); if(b) b.remove();
     _toastSessao("✅ Levantamento retomado. Atenção: as plantas em PDF não são salvas — para medir na planta de novo, reenvie o arquivo.");
   }catch(e){ alert("Não consegui retomar o levantamento salvo: " + (e && e.message ? e.message : e)); }
 }
@@ -5119,7 +5187,6 @@ function descartarSessao(id){
     try{ goTo(1); }catch(e){}
   }
 
-  const b = document.getElementById("barraRetomar"); if(b) b.remove();
   if(document.getElementById("painelProjetos")) abrirMeusProjetos();   // redesenha a lista
   _toastSessao(`Levantamento ${nome} excluído.`);
 }
@@ -5171,8 +5238,7 @@ function abrirProjetoArquivo(){
       try{ if(d.bdi != null){ const el=document.getElementById("bdiInput"); if(el) el.value=d.bdi; } }catch(e){}
       try{
         buildEAP(); recalcBudget(); goTo(3); _salvarAgora();
-        const b=document.getElementById("barraRetomar"); if(b) b.remove();
-        _toastSessao("✅ Projeto aberto do arquivo e salvo neste navegador.");
+            _toastSessao("✅ Projeto aberto do arquivo e salvo neste navegador.");
       }catch(e){ alert("Não consegui abrir o levantamento: " + (e&&e.message?e.message:e)); }
     };
     fr.readAsText(f, "utf-8");
@@ -5257,58 +5323,47 @@ function _toastSessao(msg, alerta){
 // Se não há NADA salvo neste navegador (ex.: computador novo, cache limpo), mas a
 // chave tem projetos na nuvem, avisa e oferece baixar — é o cenário que a
 // sincronização existe para resolver: trocar de máquina sem perder o trabalho.
-function _ofereceRetomarNuvem(){
-  if(!_chaveAtual() || APP.analysisResult) return;
-  if(document.getElementById("barraRetomar") || document.getElementById("barraRetomarNuvem")) return;
-  _projetosSomenteNuvem().then(novos => {
-    if(!novos.length || APP.analysisResult) return;
-    if(document.getElementById("barraRetomar") || document.getElementById("barraRetomarNuvem")) return;
-    const host = document.querySelector(".container") || document.body;
-    const div = document.createElement("div");
-    div.id = "barraRetomarNuvem"; div.className = "card";
-    div.style.cssText = "border:2px solid #0284c7;background:#f0f9ff;margin-bottom:14px";
-    div.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span style="font-size:20px">☁</span>
-        <span style="flex:1;min-width:220px;font-size:13.5px">
-          <b>Você tem ${novos.length} levantamento(s) salvo(s) na nuvem</b> — de outro computador ou navegador, com a mesma chave.
-          <span class="muted" style="display:block;font-size:12px">Abra "Meus levantamentos" para baixá-los aqui.</span>
-        </span>
-        <button class="btn btn-success" style="padding:7px 16px" onclick="document.getElementById('barraRetomarNuvem').remove();abrirMeusProjetos()">Ver na nuvem</button>
-        <button class="btn btn-outline" style="padding:7px 12px" onclick="document.getElementById('barraRetomarNuvem').remove()">Depois</button>
-      </div>`;
-    host.insertBefore(div, host.firstChild);
-  }).catch(()=>{});
+// ── O aviso de trabalho salvo mora no MENU, não no topo da tela ──
+//
+// Antes isto era uma faixa que se enfiava acima de tudo toda vez que o app
+// abria. Ela cumpria o papel de não deixar ninguém perder trabalho, mas cobrava
+// caro por isso: era a primeira coisa que o usuário via, mesmo quando ele tinha
+// vindo começar um projeto novo — ou seja, atrapalhava na maioria das visitas
+// para servir na minoria delas.
+//
+// O aviso continua existindo; mudou de lugar. Agora é o contador em "Meus
+// projetos", na lateral. Fica visível o tempo todo, sem ocupar o caminho, e
+// leva direto para a lista onde a pessoa escolhe qual retomar.
+function _pintarBadgeProjetos(){
+  const el = document.getElementById("navProjetosQtd");
+  const bt = document.getElementById("navProjetos");
+  if(!el || !bt) return;
+  if(!_chaveAtual()){ el.textContent = ""; bt.title = "Informe a sua chave de acesso para ver os projetos salvos"; return; }
+  const n = lerIndice().length;
+  el.textContent = n ? String(n) : "";
+  bt.title = n ? `${n} levantamento(s) guardado(s) — clique para retomar de onde parou`
+               : "Nenhum levantamento guardado ainda";
+  // A nuvem entra depois, sem travar a pintura: computador novo ou cache limpo
+  // tem índice local vazio e projetos lá em cima. Somar os dois é o que evita a
+  // pessoa achar que perdeu o trabalho.
+  try{
+    _projetosSomenteNuvem().then(novos => {
+      if(!novos || !novos.length) return;
+      const t = n + novos.length;
+      el.textContent = String(t);
+      el.style.background = "#0284c7";
+      bt.title = `${t} levantamento(s) — ${novos.length} ainda só na nuvem, de outro computador`;
+    }).catch(()=>{});
+  }catch(e){ console.warn("Não consegui conferir os projetos na nuvem para o contador.", e); }
 }
 
-// Oferece retomar, se houver trabalho salvo de outra sessão.
+// Mantida com o nome antigo porque é chamada de vários pontos (boot, troca de
+// chave, salvamento). Hoje ela só reconcilia o estado e repinta o contador.
 function ofereceRetomar(){
   _limparSessaoLegado();                             // apaga registros antigos sem dono
-  if(!_chaveAtual()) return;                         // sem chave, não oferece nada
+  if(!_chaveAtual()){ _pintarBadgeProjetos(); return; }
   _migrarSessaoV2();                                 // traz o slot único antigo para o índice
-  const idx = lerIndice();
-  const d = _sessaoGuardada();
-  if(!d || !d.resultado){ _ofereceRetomarNuvem(); return; }   // nada local: procura na nuvem
-  if(APP.analysisResult) return;                     // já há levantamento em tela
-  const host = document.querySelector(".container") || document.body;
-  if(document.getElementById("barraRetomar")) return;
-  const dias = Math.floor((Date.now() - (d.quando||0)) / 86400000);
-  const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
-  const outros = Math.max(0, idx.length - 1);
-  const div = document.createElement("div");
-  div.id = "barraRetomar"; div.className = "card";
-  div.style.cssText = "border:2px solid var(--green);background:#f0fdf4;margin-bottom:14px";
-  div.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-size:20px">💾</span>
-      <span style="flex:1;min-width:220px;font-size:13.5px">
-        <b>Você tem um levantamento salvo</b> — ${d.projeto ? `"${d.projeto}"` : "sem nome"}, de ${quando}.
-        <span class="muted" style="display:block;font-size:12px">Retomar traz de volta ambientes, quantitativos, medições conferidas e a lista de pendências.${outros ? ` Há ainda <b>${outros}</b> outro(s) levantamento(s) guardado(s).` : ""}</span>
-      </span>
-      <button class="btn btn-success" style="padding:7px 16px" onclick="retomarSessao()">Retomar</button>
-      ${outros ? `<button class="btn btn-outline" style="padding:7px 12px" onclick="abrirMeusProjetos()">Ver todos (${idx.length})</button>` : ""}
-      <button class="btn btn-outline" style="padding:7px 12px" onclick="abrirProjetoArquivo()">📂 Abrir arquivo</button>
-      <button class="btn btn-outline" style="padding:7px 12px" onclick="descartarSessao()">Descartar</button>
-    </div>`;
-  host.insertBefore(div, host.firstChild);
+  _pintarBadgeProjetos();
 }
 
 // Selos de LOCALIZAÇÃO do ambiente (pavimento + folha). Num hospital com 4 "DML",
@@ -9845,8 +9900,6 @@ function _talvezAbrirGuiaInicial(){
   let visto = false;
   try{ visto = localStorage.getItem("mar_guia_inicial_visto") === "1"; }catch(e){}
   if(visto) return;
-  // não atropela a barra de retomar levantamento
-  if(document.getElementById("barraRetomar")) return;
   abrirComecePorAqui();
 }
 // fecha com Esc
