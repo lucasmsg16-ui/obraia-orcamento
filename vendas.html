@@ -28,7 +28,7 @@
 
 <!-- Schema.org -->
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"ObraIA","brand":{"@type":"Brand","name":"Mar Aberto Engenharia"},"applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":[{"@type":"Offer","name":"Plano Anual","price":"420.00","priceCurrency":"BRL","availability":"https://schema.org/InStock"}],"url":"https://marabertoeng.com.br/vendas.html"}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"ObraIA","brand":{"@type":"Brand","name":"Mar Aberto Engenharia"},"applicationCategory":"BusinessApplication","operatingSystem":"Web","offers":[{"@type":"Offer","name":"Plano Anual (assinatura recorrente)","price":"37.90","priceCurrency":"BRL","availability":"https://schema.org/InStock"}],"url":"https://marabertoeng.com.br/vendas.html"}
 </script>
 
 <!-- META PIXEL — troque SEU_PIXEL_ID pelo ID do seu Pixel (Gerenciador de Eventos do Meta Business) -->
@@ -49,10 +49,12 @@ fbq('track', 'PageView');
 <!-- ============================================================
   COMO PUBLICAR / CONFIGURAR:
   1) Troque VIDEO_ID (ID do vídeo não listado no YouTube) na tag <iframe>.
-  2) O botão de CHECKOUT já está com o link real do plano anual:
-       https://pay.kiwify.com.br/SPbx7J0
-     Se trocar de produto/plano no Kiwify, atualize as DUAS ocorrências
-     desse link nesta página (vídeo e seção de preço).
+  2) Os botões de CHECKOUT estão com os links reais dos três planos:
+       Semestral recorrente : https://pay.kiwify.com.br/3XpjVyo  (R$ 42,90 + 5×)
+       Anual recorrente     : https://pay.kiwify.com.br/5dyUhfM  (R$ 37,90 + 11×)
+       2 anos               : https://pay.kiwify.com.br/fUflI3I  (R$ 900)
+     Se trocar de produto/plano no Kiwify, atualize os links na seção
+     "Escolha o seu plano" e o botão de fechamento logo abaixo dela.
   3) Meta Pixel: substitua SEU_PIXEL_ID no bloco marcado como META PIXEL,
      pelo ID do seu Pixel no Gerenciador de Eventos do Meta Business.
   4) logo-branco.png precisa estar na raiz do site, junto com este arquivo.
@@ -153,6 +155,40 @@ h2{font-size:25px;color:var(--navy);margin:52px 0 6px;letter-spacing:-.4px}
 .garantia p{margin:0;font-size:13px;color:#166534}
 .fecha{background:#f0f9ff;border:1px solid #bae6fd;border-radius:13px;padding:24px 26px;font-size:15.5px;color:#0c4a6e}
 .fecha b{color:var(--navy)}
+
+/* ── Três planos recorrentes ──────────────────────────────────────────────
+   O plano deixou de ser um valor único: virou assinatura mensal recorrente.
+   Isso muda o argumento de venda — o freio não é mais o preço, é o limite do
+   cartão. Por isso cada cartão diz explicitamente que a cobrança é pequena e
+   mensal, e não um parcelamento que reserva o valor cheio de uma vez. */
+.planos{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:26px 0 14px;align-items:start}
+@media(max-width:860px){.planos{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}}
+.plano{background:var(--card);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;
+  display:flex;flex-direction:column;transition:.18s;position:relative;text-align:left}
+.plano:hover{transform:translateY(-3px);border-color:var(--blue)}
+.plano.rec{border-color:var(--green);box-shadow:0 12px 34px rgba(22,163,74,.18)}
+.plano .topo{padding:20px 18px;background:var(--navy)}
+.plano.rec .topo{background:var(--green)}
+.plano .selo-rec{position:absolute;top:12px;right:12px;background:#fff;color:var(--green);
+  font-size:10px;font-weight:800;letter-spacing:1px;padding:4px 9px;border-radius:20px;text-transform:uppercase}
+.plano .nome{font-size:19px;font-weight:800;color:#fff}
+.plano .per{font-size:12px;color:rgba(255,255,255,.8);margin-top:2px}
+.plano .corpo{padding:18px;display:flex;flex-direction:column;flex:1}
+.plano .lin{border-bottom:1px solid var(--border);padding:11px 0}
+.plano .lin:last-of-type{border-bottom:0}
+.plano .rot{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.plano .val2{font-size:24px;font-weight:800;color:var(--navy);margin-top:2px;line-height:1.1}
+.plano .val2 small{font-size:12px;font-weight:600;color:var(--muted)}
+.plano .obs{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.plano .obs.bom{color:#166534}
+.plano .selo-eco{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:var(--green);
+  border-radius:20px;padding:2px 9px;margin-top:6px}
+.plano .btn{margin-top:auto;padding-top:16px}
+.plano .btn a{display:block;text-align:center;border-radius:11px;padding:13px;font-weight:800;
+  font-size:14.5px;text-decoration:none;transition:.15s}
+.plano .btn a.p{background:var(--green);color:#fff;box-shadow:0 5px 16px rgba(22,163,74,.28)}
+.plano .btn a.s{background:#fff;color:var(--navy);border:1.5px solid var(--border)}
+.plano .btn a:hover{transform:translateY(-1px)}
 footer{background:var(--navy);color:rgba(255,255,255,.75);padding:26px 0;margin-top:56px;font-size:12.5px}
 footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .whatsfloat{position:fixed;bottom:22px;right:22px;z-index:999;background:#25d366;color:#fff;font-weight:700;
@@ -189,8 +225,8 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"></iframe>
   </div>
 
-  <a class="cta" href="https://pay.kiwify.com.br/SPbx7J0" data-checkout data-plan="anual" style="margin-top:20px">Quero acessar o sistema por 1 ano
-    <small>R$ 420 · ou 12× no cartão · acesso liberado na hora</small></a>
+  <a class="cta" href="#planos" style="margin-top:20px">Quero ganhar tempo
+    <small>A partir de R$ 37,90 por mês · sem travar o limite do cartão</small></a>
   <p class="selo">🔒 Pagamento pela Kiwify · Pix, boleto ou cartão</p>
 
   <!-- 2 · AUTODIAGNÓSTICO ──────────────────────────────────────────────── -->
@@ -227,7 +263,7 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
       <div class="linha"><span>Horas que você gasta orçando por ano</span><b id="rHrs">—</b></div>
       <div class="linha"><span>O que isso vale no seu preço/hora</span><b id="rCusto">—</b></div>
       <div class="linha"><span>Com o ObraIA, sobrando ~70% desse tempo</span><b id="rEcon">—</b></div>
-      <div class="linha"><span>Custo da assinatura</span><b>R$ 420 / ano</b></div>
+      <div class="linha"><span>Custo da assinatura</span><b>R$ 37,90 / mês (plano anual)</b></div>
       <div class="destaque">
         <div class="n" id="rPaga">—</div>
         <div class="t" id="rTxt">é o que você recupera só em tempo, no primeiro ano</div>
@@ -246,6 +282,9 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
     <p style="margin:0">Daqui a doze meses, sem mudar nada, terão saído do seu bolso:</p>
     <div class="big" id="rInacao">—</div>
   </div>
+
+  <a class="cta" href="#planos" style="margin:26px auto 0">Quero parar de perder isso
+    <small>Ver os planos — a partir de R$ 37,90 por mês →</small></a>
 
   <!-- 5 · FUNCIONALIDADE TRADUZIDA EM CONSEQUÊNCIA ─────────────────────── -->
   <h2>O que isso muda na prática</h2>
@@ -271,12 +310,20 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
       <p class="p">Memória de cálculo, curva ABC, insumos e pendências. Cada preço com a origem à mostra.</p></div>
   </div>
 
+  <a class="cta" href="#planos" style="margin:26px auto 0">Quero ganhar tempo agora
+    <small>Escolher meu plano →</small></a>
+
   <!-- 6 · OBJEÇÕES NA RAIZ ─────────────────────────────────────────────── -->
   <h2>O que provavelmente está passando pela sua cabeça</h2>
   <p class="h2sub">Vou responder o que costuma estar por trás de cada uma.</p>
 
-  <div class="obj"><b>"R$ 420 está caro."</b>
-    <p>Comparado a quê? Parcelado, cada mês custa menos que uma hora sua. Se você faz um orçamento por mês
+  <div class="obj"><b>"Não quero comprometer o limite do meu cartão."</b>
+    <p>E não compromete. Não é parcelamento — é assinatura recorrente: entra <b>R$ 37,90 por mês</b>, e só.
+      O cartão não reserva o valor cheio de uma vez, então o seu limite continua livre para o que você
+      precisar na obra. Cancelou, para de ser cobrado.</p></div>
+
+  <div class="obj"><b>"R$ 37,90 por mês está caro."</b>
+    <p>Comparado a quê? Cada mês custa menos que uma hora sua. Se você faz um orçamento por mês
       e economiza 10 horas em cada, a assinatura já se pagou antes do meio do mês — e isso sem contar
       o cronograma pronto, a obra monitorada à distância e a incompatibilidade de projeto flagrada
       antes de virar retrabalho em campo. A pergunta certa não é se está caro: é quanto te custa o mês que você passar sem.</p></div>
@@ -298,14 +345,57 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
       O sistema faz o levantamento pesado; a assinatura embaixo continua sendo sua.</p></div>
 
   <!-- 7 · PREÇO, GARANTIA E FECHAMENTO ─────────────────────────────────── -->
-  <h2 id="planos">Investimento</h2>
-  <p class="h2sub">Um ano de acesso, com tudo incluído.</p>
+  <h2 id="planos">Escolha o seu plano</h2>
+  <p class="h2sub">Assinatura recorrente: uma cobrança pequena por mês, sem travar o limite do seu cartão.</p>
+
+  <div class="planos">
+    <div class="plano">
+      <div class="topo"><div class="nome">Semestral</div><div class="per">6 meses · recorrente</div></div>
+      <div class="corpo">
+        <div class="lin"><div class="rot">Assinatura</div><div class="val2">R$ 42,90<small> hoje</small></div>
+          <div class="obs">+ 5× de R$ 42,90 — cobrança automática mensal</div></div>
+        <div class="lin"><div class="rot">Por que pesa menos</div>
+          <div class="obs bom">Não trava o limite do cartão: entra R$ 42,90 por mês, não R$ 257 reservados de uma vez</div></div>
+        <div class="lin"><div class="rot">Para quem</div>
+          <div class="obs">quer testar numa obra ou num ciclo de propostas antes de se comprometer</div></div>
+        <div class="btn"><a class="s" href="https://pay.kiwify.com.br/3XpjVyo" data-checkout data-plan="semestral">Assinar 6 meses</a></div>
+      </div>
+    </div>
+
+    <div class="plano rec">
+      <div class="selo-rec">Recomendado</div>
+      <div class="topo"><div class="nome">Anual</div><div class="per">12 meses · recorrente</div></div>
+      <div class="corpo">
+        <div class="lin"><div class="rot">Assinatura</div><div class="val2">R$ 37,90<small> hoje</small></div>
+          <div class="obs">+ 11× de R$ 37,90 — cobrança automática mensal</div>
+          <span class="selo-eco">12% mais barato por mês</span></div>
+        <div class="lin"><div class="rot">Por que pesa menos</div>
+          <div class="obs bom">Não trava o limite do cartão: entra R$ 37,90 por mês, não R$ 455 reservados de uma vez</div></div>
+        <div class="lin"><div class="rot">Para quem</div>
+          <div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
+        <div class="btn"><a class="p" href="https://pay.kiwify.com.br/5dyUhfM" data-checkout data-plan="anual">Quero o anual</a></div>
+      </div>
+    </div>
+
+    <div class="plano">
+      <div class="topo"><div class="nome">2 anos</div><div class="per">24 meses de acesso</div></div>
+      <div class="corpo">
+        <div class="lin"><div class="rot">Valor</div><div class="val2">R$ 900,00</div>
+          <div class="obs">em até 12× no cartão</div></div>
+        <div class="lin"><div class="rot">Por que compensa</div>
+          <div class="obs bom">Menor custo por mês de todos — e trava o preço antes das próximas atualizações</div></div>
+        <div class="lin"><div class="rot">Para quem</div>
+          <div class="obs">já decidiu que IA entra no processo e não quer revisitar essa decisão tão cedo</div></div>
+        <div class="btn"><a class="s" href="https://pay.kiwify.com.br/fUflI3I" data-checkout data-plan="bienal">Assinar 24 meses</a></div>
+      </div>
+    </div>
+  </div>
+
   <div class="preco">
-    <div class="val">R$ 420<small> / ano</small></div>
-    <div class="par">ou em até 12× no cartão</div>
+    <div class="val">O que entra em qualquer plano</div>
     <ul class="inclui">
       <li>A planta em PDF vira proposta pronta, sem você medir nada no braço</li>
-      <li>Preço de serviço sempre atualizado, de qualquer estado — sem caçar tabela</li>
+      <li>Preço de serviço sempre atualizado, de qualquer estado — sem procurar tabela</li>
       <li>Saber antes o que vai atrasar a entrega, não descobrir depois</li>
       <li>Acompanhar a obra de longe, com a sua equipe atualizando ao vivo</li>
       <li>Suas composições, só suas — ninguém mais acessa</li>
@@ -317,9 +407,9 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
       <div class="selo7">7<small>DIAS</small></div>
       <p>Teste por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento — sem burocracia.</p>
     </div>
-    <a class="cta" href="https://pay.kiwify.com.br/SPbx7J0" data-checkout data-plan="anual">Começar agora
-      <small>acesso liberado assim que o pagamento for confirmado</small></a>
-    <p class="selo">🔒 Pagamento pela Kiwify · Pix, boleto ou cartão em até 12×</p>
+    <a class="cta" href="https://pay.kiwify.com.br/5dyUhfM" data-checkout data-plan="anual">Quero ganhar tempo agora
+      <small>R$ 37,90 hoje · acesso liberado assim que o pagamento for confirmado</small></a>
+    <p class="selo">🔒 Pagamento pela Kiwify · Pix, boleto ou cartão</p>
   </div>
 
   <div class="fecha" style="margin-top:30px">
@@ -349,7 +439,9 @@ src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1"></noscr
 // Calculadora de ROI — o diagnóstico que a página consegue fazer sozinha.
 // Números conservadores de propósito: prometer 90% de economia e entregar 60%
 // gera reembolso. 70% é o que o sistema faz de fato no levantamento e na cotação.
-const ECONOMIA = 0.70, ASSIN = 420;
+// Assinatura anual recorrente: 12 × R$ 37,90. A calculadora compara o custo
+// de um ano inteiro de uso, então usa o total, não a parcela.
+const ECONOMIA = 0.70, ASSIN = 37.90 * 12;
 const brl = v => "R$ " + (Math.round(v)).toLocaleString("pt-BR");
 function calc(){
   const n  = Math.max(0, +document.getElementById("qOrc").value || 0);
@@ -388,7 +480,7 @@ calc();
 <script>
 (function(){
   "use strict";
-  var PRECO = { anual: 420.00 };
+  var PRECO = { semestral: 42.90, anual: 37.90, bienal: 900.00 };
 
   function guardarOrigem(){
     try{
