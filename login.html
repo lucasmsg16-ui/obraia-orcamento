@@ -91,10 +91,9 @@ input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,146,192,.15)
     <div class="msg" id="msgBox"></div>
 
     <div class="divider">ou</div>
-    <button class="btn-google" id="googleBtn" disabled>
+    <button class="btn-google" id="googleBtn" type="button">
       <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
       Entrar com Google
-      <span class="soon">em breve</span>
     </button>
 
     <div class="toggle-row foot-link">
@@ -111,6 +110,36 @@ input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,146,192,.15)
 const SUPA_URL = "https://xjzbqikappmaijfkxmms.supabase.co";
 const SUPA_KEY = "sb_publishable_8h0mEd8mtbb5RY9JmhzoDw_W2RKJIYs";
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+/* ── Entrar com Google ─────────────────────────────────────────────
+   O redirectTo precisa apontar para a MESMA origem em que a página está sendo
+   servida. Usar location.origin em vez de um endereço fixo evita o erro mais
+   comum aqui: funcionar no domínio e quebrar em teste local (ou vice-versa).
+
+   Enquanto o provedor não estiver habilitado no painel do Supabase, a API
+   devolve "provider is not enabled". Em vez de mostrar esse texto técnico ao
+   engenheiro, traduzo para uma frase que ele entende e mantenho o caminho de
+   e-mail e senha funcionando — o botão nunca vira um beco sem saída. */
+document.getElementById("googleBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("googleBtn");
+  const box = document.getElementById("msgBox");
+  btn.disabled = true;
+  try{
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: location.origin + "/dashboard.html" }
+    });
+    if(error) throw error;
+  }catch(e){
+    const cru = (e && e.message ? e.message : "").toLowerCase();
+    box.className = "msg erro";
+    box.textContent = cru.includes("not enabled") || cru.includes("unsupported")
+      ? "A entrada pelo Google ainda está sendo liberada. Use seu e-mail e senha por enquanto."
+      : "Não consegui abrir o Google agora. Tente de novo ou use e-mail e senha.";
+    box.style.display = "block";
+    btn.disabled = false;
+  }
+});
 
 let mode = "login"; // ou "signup"
 
