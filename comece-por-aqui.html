@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comece por aqui — ObraIA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#002B40; --blue:#1792C0; --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
+  --text:#2c3e50; --muted:#7f8c8d; --shadow: 0 2px 12px rgba(26,60,94,.10);
+}
+*{box-sizing:border-box}
+body{ margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+header{
+  background:linear-gradient(135deg, var(--navy) 0%, #1792C0 100%);
+  color:#fff; padding:0 24px; height:60px; display:flex; align-items:center; gap:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+header .logo{ font-size:20px; font-weight:700; letter-spacing:-.5px; }
+header .logo span{ color:#4db8e8; }
+header a.back{ margin-left:auto; color:#fff; font-size:13px; text-decoration:none; opacity:.85; }
+header a.back:hover{ opacity:1; text-decoration:underline; }
+main{ max-width:760px; margin:0 auto; padding:48px 24px; text-align:center; }
+h1{ font-size:24px; color:var(--navy); margin:0 0 10px; }
+p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; }
+.player{
+  background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+  aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; flex-direction:column;
+  gap:12px; color:var(--muted);
+}
+.player .play{
+  width:64px; height:64px; border-radius:50%; background:var(--blue); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:26px;
+}
+.player p{ font-size:13.5px; margin:0; }
+.cta{ margin-top:30px; }
+.cta a{
+  display:inline-block; background:var(--navy); color:#fff; padding:12px 26px; border-radius:8px;
+  font-weight:700; text-decoration:none; font-size:14.5px;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Obra<span>IA</span></div>
+  <a class="back" href="dashboard.html">← voltar</a>
+</header>
+<main>
+  <h1>Comece por aqui</h1>
+  <p class="sub">Um vídeo curto sobre como tirar o melhor proveito do ObraIA.</p>
+  <div class="player">
+    <div class="play">▶</div>
+    <p>Vídeo em breve — esse espaço já está reservado.</p>
+  </div>
+  <div class="cta"><a href="index.html">Já quero usar o ObraIA</a></div>
+</main>
+
+<script>
+const sb = supabase.createClient("https://xjzbqikappmaijfkxmms.supabase.co", "sb_publishable_8h0mEd8mtbb5RY9JmhzoDw_W2RKJIYs");
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ window.location.href = "login.html"; }
+})();
+</script>
+</body>
+</html>
