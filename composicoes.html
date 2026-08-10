@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minhas composições — ObraIA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#002B40;--blue:#1792C0;--bg:#f0f4f8;--card:#fff;--border:#dce3ea;
+ --text:#2c3e50;--muted:#7f8c8d;--green:#16a34a;--red:#dc2626;--shadow:0 2px 12px rgba(26,60,94,.10)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--navy),#1792C0);color:#fff;padding:0 22px;height:58px;
+ display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.22);position:sticky;top:0;z-index:40}
+header .logo{font-size:19px;font-weight:700;letter-spacing:-.5px} header .logo span{color:#4db8e8}
+header a{color:#fff;text-decoration:none;font-size:13px;opacity:.85} header a:hover{opacity:1;text-decoration:underline}
+header .right{margin-left:auto;display:flex;align-items:center;gap:13px;font-size:12.5px;color:rgba(255,255,255,.9)}
+header button{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);color:#fff;
+ padding:6px 12px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit}
+main{max-width:1120px;margin:0 auto;padding:26px 20px 60px}
+h1{font-size:23px;margin:0 0 4px;color:var(--navy)}
+.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);padding:20px;margin-bottom:18px}
+.btn{padding:9px 17px;border:0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--navy);color:#fff} .btn-blue{background:var(--blue);color:#fff}
+.btn-out{background:#fff;color:var(--text);border:1.5px solid var(--border)}
+.btn-out:hover{border-color:var(--blue);color:var(--blue)}
+.btn-red{background:#fff;color:var(--red);border:1.5px solid #fecaca}
+input,select,textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;outline:0;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,146,192,.14)}
+label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px}
+.row{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:left}
+td{border-bottom:1px solid #eef2f7;padding:8px 9px;vertical-align:middle}
+td.num{text-align:right;white-space:nowrap}
+.vazio{text-align:center;padding:40px 18px;color:var(--muted)}
+.vazio .ic{font-size:44px;margin-bottom:10px}
+.msg{font-size:13px;padding:10px 13px;border-radius:8px;margin:10px 0}
+.msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.msg.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.hide{display:none}
+.modal{position:fixed;inset:0;background:rgba(0,20,35,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:60}
+.modal>div{background:#fff;border-radius:13px;max-width:720px;width:100%;max-height:90vh;overflow:auto;padding:22px}
+.ins{display:grid;grid-template-columns:1fr 78px 82px 96px 34px;gap:7px;align-items:end;margin-bottom:7px}
+.ins input{padding:7px 9px;font-size:13px}
+.tot{background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:9px;padding:12px 15px;margin-top:12px;
+ display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.priv{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:8px;padding:9px 13px;font-size:12.5px;margin-bottom:16px}
+@media(max-width:640px){.ins{grid-template-columns:1fr 1fr;gap:6px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Obra<span>IA</span></div>
+  <a href="dashboard.html">← Meus produtos</a>
+  <div class="right"><span id="uEmail"></span><button id="btnSair">Sair</button></div>
+</header>
+
+<main>
+  <h1>Minhas composições</h1>
+  <p class="sub">Suas composições de preço próprias, para usar no orçamento quando o SINAPI não tem o serviço.</p>
+
+  <div class="priv">
+    🔒 <b>São só suas.</b> Ficam presas à sua conta (<span id="uEmail2"></span>) e nenhum outro usuário do ObraIA
+    consegue vê-las ou usá-las — a restrição é aplicada pelo banco de dados, não pela tela.
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
+    <input id="busca" placeholder="Buscar por código ou descrição…" style="max-width:340px" oninput="pintar()">
+    <button class="btn btn-primary" style="margin-left:auto" onclick="abrirEditor()">+ Nova composição</button>
+  </div>
+  <div id="msg"></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="overflow:auto"><table>
+      <thead><tr><th style="width:130px">Código</th><th>Descrição</th><th style="width:70px">Un.</th>
+        <th class="num" style="width:120px">Preço</th><th style="width:80px">Insumos</th><th style="width:150px"></th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table></div>
+  </div>
+</main>
+
+<script>
+const SUPA_URL="https://xjzbqikappmaijfkxmms.supabase.co";
+const SUPA_KEY="sb_publishable_8h0mEd8mtbb5RY9JmhzoDw_W2RKJIYs";
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+let USER=null, COMPS=[];
+const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const setMsg=(t,k)=>{document.getElementById("msg").innerHTML=t?`<div class="msg ${k||"info"}">${t}</div>`:"";};
+
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ location.href="login.html"; return; }
+  USER=session.user;
+  document.getElementById("uEmail").textContent=USER.email;
+  document.getElementById("uEmail2").textContent=USER.email;
+  carregar();
+})();
+document.getElementById("btnSair").onclick=async()=>{ await sb.auth.signOut(); location.href="login.html"; };
+
+async function carregar(){
+  const {data,error}=await sb.from("composicoes").select("*").eq("ativo",true).order("codigo");
+  if(error){ setMsg("Não consegui carregar: "+esc(error.message),"err"); return; }
+  COMPS=data||[]; pintar();
+}
+function pintar(){
+  const q=(document.getElementById("busca").value||"").toLowerCase().trim();
+  const lista=COMPS.filter(c=>!q||String(c.codigo).toLowerCase().includes(q)||String(c.descricao).toLowerCase().includes(q));
+  const tb=document.getElementById("tb");
+  if(!lista.length){
+    tb.innerHTML=`<tr><td colspan="6"><div class="vazio"><div class="ic">🧱</div>
+      ${COMPS.length?"Nada encontrado com esse termo.":
+       "<b>Você ainda não tem composições próprias.</b><br>Crie a primeira quando precisar de um serviço que o SINAPI não cobre."}
+      </div></td></tr>`; return;
+  }
+  tb.innerHTML=lista.map(c=>`<tr>
+    <td><b style="color:var(--navy)">${esc(c.codigo)}</b></td>
+    <td>${esc(c.descricao)}${c.observacao?`<div style="font-size:11.5px;color:var(--muted)">${esc(c.observacao)}</div>`:""}</td>
+    <td>${esc(c.unidade)}</td>
+    <td class="num"><b>R$ ${nf(c.preco)}</b></td>
+    <td>${(c.insumos||[]).length||"—"}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn btn-out" style="padding:5px 11px;font-size:12px" onclick="abrirEditor('${c.id}')">Editar</button>
+      <button class="btn btn-red" style="padding:5px 11px;font-size:12px" onclick="excluir('${c.id}')">Excluir</button>
+    </td></tr>`).join("");
+}
+
+// ═══ EDITOR ═══
+// O preço pode ser digitado direto OU calculado pela soma dos insumos. Quando há
+// insumos, eles mandam: uma composição cujo preço não bate com os próprios itens
+// é a origem clássica de orçamento que não fecha.
+function abrirEditor(id){
+  const c=id?COMPS.find(x=>x.id===id):null;
+  const ins=(c&&c.insumos&&c.insumos.length)?c.insumos:[];
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div>
+    <h2 style="margin:0 0 3px;font-size:19px;color:var(--navy)">${c?"Editar composição":"Nova composição"}</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px">Fica disponível na busca de preços do seu orçamento.</p>
+    <div class="row" style="margin-bottom:12px">
+      <div><label>Código *</label><input id="cCod" value="${esc(c?c.codigo:"")}" placeholder="PROP-001" maxlength="40"></div>
+      <div><label>Unidade *</label><input id="cUn" value="${esc(c?c.unidade:"M2")}" placeholder="M2" maxlength="10"></div>
+    </div>
+    <div style="margin-bottom:12px"><label>Descrição do serviço *</label>
+      <input id="cDesc" value="${esc(c?c.descricao:"")}" placeholder="Alvenaria de bloco de concreto 14x19x39, junta 10mm" maxlength="400"></div>
+    <div style="margin-bottom:6px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <label style="margin:0">Insumos e mão de obra <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+      <button class="btn btn-out" style="padding:4px 10px;font-size:12px" onclick="addIns()">+ Insumo</button>
+    </div>
+    <div class="ins" style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px">
+      <span>Descrição</span><span>Un.</span><span>Coef.</span><span>Preço unit.</span><span></span></div>
+    <div id="insBox"></div>
+    <div class="tot">
+      <div><b style="color:var(--navy)">Preço da composição</b>
+        <div id="totNota" style="font-size:11.5px;color:var(--muted)"></div></div>
+      <div style="min-width:150px"><input id="cPreco" type="number" step="0.0001" min="0"
+        value="${c?Number(c.preco):0}" style="text-align:right;font-weight:700;font-size:16px"></div>
+    </div>
+    <div style="margin-top:12px"><label>Observação</label>
+      <textarea id="cObs" rows="2" maxlength="500" placeholder="De onde veio o preço, data da cotação, fornecedor…">${esc(c?c.observacao:"")}</textarea></div>
+    <div id="edMsg"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-out" onclick="this.closest('.modal').remove()">Cancelar</button>
+      <button class="btn btn-blue" onclick="salvar(${c?`'${c.id}'`:"null"})">Salvar</button>
+    </div></div>`;
+  document.body.appendChild(d);
+  d.onclick=e=>{ if(e.target===d) d.remove(); };
+  ins.forEach(i=>addIns(i)); if(!ins.length) addIns();
+  recalc();
+}
+function addIns(v){
+  const box=document.getElementById("insBox");
+  const l=document.createElement("div"); l.className="ins";
+  l.innerHTML=`<input class="iD" placeholder="Bloco de concreto 14x19x39" value="${esc(v?v.d:"")}">
+    <input class="iU" placeholder="UN" value="${esc(v?v.u:"")}">
+    <input class="iC" type="number" step="0.0001" min="0" placeholder="0" value="${v?Number(v.c):""}">
+    <input class="iP" type="number" step="0.0001" min="0" placeholder="0,00" value="${v?Number(v.p):""}">
+    <button class="btn btn-out" style="padding:6px 9px;font-size:13px" onclick="this.closest('.ins').remove();recalc()">✕</button>`;
+  box.appendChild(l);
+  l.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
+}
+function lerIns(){
+  return [...document.querySelectorAll("#insBox .ins")].map(l=>({
+    d:l.querySelector(".iD").value.trim(), u:l.querySelector(".iU").value.trim().toUpperCase(),
+    c:parseFloat(l.querySelector(".iC").value)||0, p:parseFloat(l.querySelector(".iP").value)||0
+  })).filter(i=>i.d);
+}
+function recalc(){
+  const ins=lerIns();
+  const soma=ins.reduce((s,i)=>s+i.c*i.p,0);
+  const nota=document.getElementById("totNota"), pv=document.getElementById("cPreco");
+  if(!nota) return;
+  if(ins.length){
+    pv.value=Math.round(soma*10000)/10000; pv.readOnly=true; pv.style.background="#f8fafc";
+    nota.textContent=`somatório de ${ins.length} insumo(s) — R$ ${nf(soma)}. Remova os insumos para digitar o preço direto.`;
+  } else {
+    pv.readOnly=false; pv.style.background="#fff";
+    nota.textContent="preço informado por você (sem detalhamento de insumos)";
+  }
+}
+async function salvar(id){
+  const cod=(document.getElementById("cCod").value||"").trim().toUpperCase();
+  const desc=(document.getElementById("cDesc").value||"").trim();
+  const un=(document.getElementById("cUn").value||"").trim().toUpperCase();
+  const preco=parseFloat(document.getElementById("cPreco").value)||0;
+  const obs=(document.getElementById("cObs").value||"").trim();
+  const ins=lerIns();
+  const em=(t,k)=>document.getElementById("edMsg").innerHTML=`<div class="msg ${k}">${t}</div>`;
+  if(!cod||!desc||!un){ em("Código, descrição e unidade são obrigatórios.","err"); return; }
+  if(!(preco>0)){ em("O preço precisa ser maior que zero.","err"); return; }
+  const reg={dono:USER.id,codigo:cod,descricao:desc,unidade:un,preco,insumos:ins,observacao:obs||null,atualizado_em:new Date().toISOString()};
+  const r = id ? await sb.from("composicoes").update(reg).eq("id",id)
+               : await sb.from("composicoes").insert(reg);
+  if(r.error){
+    em(/duplicate|unique/i.test(r.error.message)
+      ? `Você já tem uma composição com o código <b>${esc(cod)}</b>. Use outro código.`
+      : "Não consegui salvar: "+esc(r.error.message),"err");
+    return;
+  }
+  document.querySelector(".modal").remove();
+  setMsg(`Composição <b>${esc(cod)}</b> ${id?"atualizada":"criada"}.`,"ok");
+  carregar();
+}
+async function excluir(id){
+  const c=COMPS.find(x=>x.id===id); if(!c) return;
+  if(!confirm(`Excluir a composição "${c.codigo} — ${c.descricao}"?\n\nOrçamentos já salvos que usaram esta composição mantêm o preço que foi aplicado na época.`)) return;
+  // exclusão lógica: orçamento antigo continua rastreável
+  const {error}=await sb.from("composicoes").update({ativo:false}).eq("id",id);
+  if(error){ setMsg("Não consegui excluir: "+esc(error.message),"err"); return; }
+  setMsg("Composição excluída.","ok"); carregar();
+}
+</script>
+</body>
+</html>
