@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar — ObraIA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#002B40; --blue:#1792C0; --sky:#5ba3d9;
+  --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
+  --text:#2c3e50; --muted:#7f8c8d; --red:#e74c3c; --green:#27ae60;
+  --shadow: 0 2px 12px rgba(26,60,94,.10);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif;
+  background:var(--bg); color:var(--text);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.wrap{ width:100%; max-width:400px; }
+.brand{ text-align:center; margin-bottom:22px; }
+.brand .logo{ font-size:26px; font-weight:800; letter-spacing:-.5px; color:var(--navy); }
+.brand .logo span{ color:var(--blue); }
+.brand .tag{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  box-shadow:var(--shadow); padding:28px 26px;
+}
+h1{ font-size:19px; margin:0 0 4px; color:var(--navy); }
+.sub{ font-size:13px; color:var(--muted); margin:0 0 20px; }
+label{ display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:var(--text); }
+input[type=email], input[type=password], input[type=text]{
+  width:100%; padding:11px 12px; border:1.5px solid var(--border); border-radius:8px;
+  font-size:14.5px; font-family:inherit; outline:0; transition:.15s;
+}
+input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,146,192,.15); }
+.btn{
+  width:100%; padding:12px; border:0; border-radius:8px; font-size:15px; font-weight:700;
+  cursor:pointer; transition:.15s; margin-top:18px; font-family:inherit;
+}
+.btn-primary{ background:var(--navy); color:#fff; }
+.btn-primary:hover{ background:#013a56; }
+.btn-primary:disabled{ opacity:.6; cursor:not-allowed; }
+.divider{ display:flex; align-items:center; gap:10px; margin:20px 0; color:var(--muted); font-size:12px; }
+.divider::before,.divider::after{ content:""; flex:1; height:1px; background:var(--border); }
+.btn-google{
+  width:100%; padding:11px; border:1.5px solid var(--border); border-radius:8px; background:#fff;
+  font-size:14px; font-weight:600; color:var(--text); cursor:pointer; display:flex; align-items:center;
+  justify-content:center; gap:10px; position:relative;
+}
+.btn-google[disabled]{ opacity:.55; cursor:not-allowed; }
+.soon{
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  font-size:10px; background:var(--bg); color:var(--muted); border:1px solid var(--border);
+  padding:2px 7px; border-radius:20px; font-weight:700;
+}
+.foot-link{ text-align:center; font-size:13.5px; margin-top:18px; color:var(--muted); }
+.foot-link a{ color:var(--blue); font-weight:600; text-decoration:none; cursor:pointer; }
+.foot-link a:hover{ text-decoration:underline; }
+.msg{ font-size:13px; padding:10px 12px; border-radius:8px; margin-top:14px; display:none; }
+.msg.err{ background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; display:block; }
+.msg.ok{ background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; display:block; }
+.toggle-row{ text-align:center; margin-top:2px; }
+.footer-links{ text-align:center; margin-top:22px; font-size:11.5px; color:var(--muted); }
+.footer-links a{ color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <div class="logo">Obra<span>IA</span></div>
+    <div class="tag">MAR ABERTO ENGENHARIA</div>
+  </div>
+
+  <div class="card">
+    <h1 id="formTitle">Entrar</h1>
+    <p class="sub" id="formSub">Acesse a sua conta para usar o ObraIA.</p>
+
+    <form id="authForm">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" placeholder="seuemail@exemplo.com" required autocomplete="email">
+
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" placeholder="Digite sua senha" required autocomplete="current-password" minlength="6">
+
+      <button type="submit" class="btn btn-primary" id="submitBtn">Entrar</button>
+    </form>
+
+    <div class="msg" id="msgBox"></div>
+
+    <div class="divider">ou</div>
+    <button class="btn-google" id="googleBtn" disabled>
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+      Entrar com Google
+      <span class="soon">em breve</span>
+    </button>
+
+    <div class="toggle-row foot-link">
+      <span id="toggleText">Ainda não tem conta? <a id="toggleLink">Criar conta</a></span>
+    </div>
+  </div>
+
+  <div class="footer-links">
+    Ambiente de teste — ObraIA · <a href="index.html">voltar ao sistema</a>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = "https://xjzbqikappmaijfkxmms.supabase.co";
+const SUPA_KEY = "sb_publishable_8h0mEd8mtbb5RY9JmhzoDw_W2RKJIYs";
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let mode = "login"; // ou "signup"
+
+const form = document.getElementById("authForm");
+const submitBtn = document.getElementById("submitBtn");
+const msgBox = document.getElementById("msgBox");
+const toggleLink = document.getElementById("toggleLink");
+const toggleText = document.getElementById("toggleText");
+const formTitle = document.getElementById("formTitle");
+const formSub = document.getElementById("formSub");
+
+function setMode(m){
+  mode = m;
+  msgBox.className = "msg";
+  msgBox.textContent = "";
+  if(mode === "login"){
+    formTitle.textContent = "Entrar";
+    formSub.textContent = "Acesse a sua conta para usar o ObraIA.";
+    submitBtn.textContent = "Entrar";
+    toggleText.innerHTML = 'Ainda não tem conta? <a id="toggleLink">Criar conta</a>';
+  } else {
+    formTitle.textContent = "Criar conta";
+    formSub.textContent = "Cadastre-se para acessar o ObraIA.";
+    submitBtn.textContent = "Criar conta";
+    toggleText.innerHTML = 'Já tem conta? <a id="toggleLink">Entrar</a>';
+  }
+  document.getElementById("toggleLink").addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
+}
+toggleLink.addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+  submitBtn.disabled = true;
+  submitBtn.textContent = mode === "login" ? "Entrando..." : "Criando conta...";
+  msgBox.className = "msg";
+  msgBox.textContent = "";
+
+  try{
+    if(mode === "login"){
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+      if(error) throw error;
+      window.location.href = "dashboard.html";
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password: senha });
+      if(error) throw error;
+      if(data.session){
+        window.location.href = "dashboard.html";
+      } else {
+        setMode("login");
+        msgBox.className = "msg ok";
+        msgBox.textContent = "Conta criada! Verifique seu e-mail para confirmar o acesso antes de entrar.";
+      }
+    }
+  } catch(err){
+    msgBox.className = "msg err";
+    msgBox.textContent = traduzErro(err.message || String(err));
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = mode === "login" ? "Entrar" : "Criar conta";
+  }
+});
+
+function traduzErro(m){
+  const map = {
+    "Invalid login credentials": "E-mail ou senha incorretos.",
+    "User already registered": "Já existe uma conta com esse e-mail.",
+    "Email not confirmed": "Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).",
+    "Password should be at least 6 characters": "A senha precisa ter pelo menos 6 caracteres."
+  };
+  return map[m] || m;
+}
+
+// já logado? manda direto pro dashboard
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(session){ window.location.href = "dashboard.html"; }
+})();
+</script>
+</body>
+</html>
