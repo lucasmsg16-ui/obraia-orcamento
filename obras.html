@@ -1,0 +1,2250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitorar minhas obras — ObraIA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#002B40; --blue:#1792C0; --bg:#f0f4f8; --card:#fff; --border:#dce3ea;
+  --text:#2c3e50; --muted:#7f8c8d; --green:#16a34a; --amber:#d97706; --red:#dc2626;
+  --shadow:0 2px 12px rgba(26,60,94,.10);
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--navy) 0%,#1792C0 100%);color:#fff;padding:0 22px;height:58px;
+  display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(0,0,0,.22);position:sticky;top:0;z-index:40}
+header .logo{font-size:19px;font-weight:700;letter-spacing:-.5px}
+header .logo span{color:#4db8e8}
+header a{color:#fff;text-decoration:none;font-size:13px;opacity:.85}
+header a:hover{opacity:1;text-decoration:underline}
+header .right{margin-left:auto;display:flex;align-items:center;gap:13px;font-size:12.5px;color:rgba(255,255,255,.9)}
+header button{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);color:#fff;
+  padding:6px 12px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit}
+header button:hover{background:rgba(255,255,255,.22)}
+main{max-width:1180px;margin:0 auto;padding:26px 20px 60px}
+h1{font-size:23px;margin:0 0 4px;color:var(--navy)}
+.sub{color:var(--muted);font-size:14px;margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow);padding:20px;margin-bottom:18px}
+.btn{padding:9px 17px;border:0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:#013a56}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-out{background:#fff;color:var(--text);border:1.5px solid var(--border)}
+.btn-out:hover{border-color:var(--blue);color:var(--blue)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{padding:9px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;outline:0;width:100%}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(23,146,192,.14)}
+label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px}
+.grid{display:grid;gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:13px;margin-bottom:18px}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:11px;padding:14px 16px}
+.kpi .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+.kpi .v{font-size:24px;font-weight:800;color:var(--navy);margin-top:3px;line-height:1.15}
+.kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.ok .v{color:var(--green)} .kpi.warn .v{color:var(--amber)} .kpi.bad .v{color:var(--red)}
+.obra-card{display:flex;align-items:center;gap:16px;padding:14px;border:1px solid var(--border);border-radius:11px;
+  background:#fff;margin-bottom:10px;cursor:pointer;transition:.15s}
+.obra-card:hover{border-color:var(--blue);box-shadow:var(--shadow)}
+.obra-card .nm{font-weight:700;font-size:15px;color:var(--navy)}
+.obra-card .mt{font-size:12px;color:var(--muted);margin-top:2px}
+.bar{height:8px;background:#e8eef4;border-radius:20px;overflow:hidden;min-width:110px}
+.bar > i{display:block;height:100%;background:var(--blue);border-radius:20px;transition:width .35s}
+.bar.done > i{background:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:left;position:sticky;top:0;z-index:2}
+td{border-bottom:1px solid #eef2f7;padding:7px 9px;vertical-align:middle;overflow-wrap:anywhere}
+tr.fase td{background:#f1f5f9;font-weight:700;color:var(--navy);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td.num{text-align:right;white-space:nowrap}
+.pct-in{width:62px;text-align:right;padding:5px 7px;font-size:13px}
+.chip{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px}
+.chip.z{background:#f1f5f9;color:#64748b}
+.chip.p{background:#eaf6fb;color:var(--blue)}
+.chip.c{background:#dcfce7;color:#166534}
+.chip.man{background:#fef3c7;color:#92400e}
+.chip.ind{background:#ede9fe;color:#5b21b6;cursor:pointer}
+.chip.dir{background:#f1f5f9;color:#64748b;cursor:pointer;opacity:.75}
+.chip.ind:hover,.chip.dir:hover{filter:brightness(.94)}
+.vazio{text-align:center;padding:38px 18px;color:var(--muted)}
+.vazio .ic{font-size:44px;margin-bottom:10px}
+.hide{display:none}
+.msg{font-size:13px;padding:10px 13px;border-radius:8px;margin:10px 0}
+.msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.msg.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.live{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--green);font-weight:700}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.modal{position:fixed;inset:0;background:rgba(0,20,35,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:60}
+.modal > div{background:#fff;border-radius:13px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px}
+.tabs{display:flex;gap:6px;border-bottom:2px solid var(--border);margin-bottom:16px;flex-wrap:wrap}
+.tabs button{background:none;border:0;padding:9px 15px;font-size:13.5px;font-weight:600;color:var(--muted);cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit}
+.tabs button.on{color:var(--navy);border-bottom-color:var(--blue)}
+.hist{font-size:12px;color:var(--muted);border-left:2px solid var(--border);padding:5px 0 5px 10px;margin-top:5px}
+.via{border:1.5px solid var(--border);border-radius:11px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:.15s}
+.via:hover{border-color:var(--blue);box-shadow:var(--shadow)}
+.via .ic{font-size:28px}
+.via b{color:var(--navy);font-size:14.5px}
+.via p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.5;flex:1}
+.via .btn{align-self:flex-start}
+@media(max-width:720px){ th{position:static} .kpi .v{font-size:20px} }
+.gx text{dominant-baseline:middle}
+.av{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.av .u{font-size:11.5px;color:var(--muted);font-weight:600}
+.qtd-in{width:92px;text-align:right;padding:5px 7px;font-size:13px}
+/* campo de digitacao das duas colunas — o do acumulado vem em negrito porque
+   e o numero que representa a obra; o do avanco e um rascunho do mes.
+   min-width:0 é o que impede o input de "empurrar" a unidade para a linha de
+   baixo: sem ele o input tem largura intrínseca e o flex não deixa encolher. */
+.c-av .av,.c-ac .av{flex-wrap:nowrap;gap:5px}
+.ex-in{flex:1 1 auto;min-width:0;width:100%;text-align:right;padding:5px 6px;font-size:13px}
+.c-av .u,.c-ac .u{flex:none}
+.ex-in.forte{font-weight:700;color:var(--navy);background:#fff}
+.ex-in::placeholder{color:#b8c4d0}
+.nomes{font-size:10.5px;margin-top:4px;font-weight:700}
+.nomes.up{color:#166534}.nomes.dn{color:#991b1b}
+.nomes.vazio{color:#a9b6c4;font-weight:500;font-style:italic}
+.pctcalc{font-size:12px;font-weight:800;color:var(--blue);background:#eaf6fb;border-radius:20px;padding:2px 9px}
+.avsub{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.35}
+.pcts{color:var(--blue);font-weight:800;font-size:11.5px}
+.mais{font-size:16px;font-weight:800;color:var(--green);line-height:1}
+.acum{font-size:11.5px;font-weight:700;color:var(--navy);background:#eef2f7;border-radius:20px;padding:2px 9px;white-space:nowrap}
+/* ── cabeçalho e larguras ──
+   Avanço e Acumulado são DUAS COLUNAS, não um seletor. O usuário precisa ver os
+   dois números ao mesmo tempo: um é o que ele digita, o outro é a consequência.
+   Se fosse um botão que alterna, ele teria de clicar para descobrir se o total
+   ficou certo — e é exatamente aí que o erro de digitação passa batido. */
+th{vertical-align:bottom;line-height:1.32}
+.th-serv{width:auto;min-width:260px}
+.th-qtd{width:76px}
+.th-val{width:96px}
+/* ATENÇÃO: background-image, NUNCA background.
+   A shorthand `background` zera o background-color, e a regra base de th é
+   `background:var(--navy)`. Usar a shorthand aqui apagava o azul-marinho: o
+   cabeçalho ficava transparente e o texto branco sumia contra o fundo da
+   página. background-image sobrepõe o degradê e preserva a cor de baixo. */
+.th-av{width:132px;background-image:linear-gradient(180deg,transparent,rgba(77,184,232,.20))}
+.th-ac{width:164px;background-image:linear-gradient(180deg,transparent,rgba(77,184,232,.20))}
+.thsub{display:block;font-size:9.5px;font-weight:600;letter-spacing:.3px;
+  color:rgba(255,255,255,.60);text-transform:none;margin-top:1px}
+.th-rs{width:98px}
+.th-sit{width:100px}
+.th-sit .chip{white-space:nowrap}   /* "Em andamento" nao pode quebrar no meio */
+/* a dupla de colunas ganha um fundo levemente distinto: é a zona de digitação */
+td.c-av,td.c-ac{background:#f7fbfd}
+td.c-av{border-left:2px solid #d8ecf6}
+td.c-ac{border-right:2px solid #d8ecf6}
+/* ── níveis da EAP: grupo (prédio/frente) e subgrupo (etapa) ── */
+tr.grupo td{background:linear-gradient(90deg,var(--navy),#0d4763);color:#fff;padding:9px 10px;
+  border-bottom:0;position:relative}
+tr.grupo .gnome{font-weight:800;font-size:12.5px;letter-spacing:.5px;text-transform:uppercase}
+tr.grupo .gval{font-size:11.5px;color:#9fd4ec;margin-left:10px;font-weight:600}
+tr.grupo .gpct{float:right;font-size:12px;font-weight:800;color:#fff;background:rgba(255,255,255,.16);
+  border-radius:20px;padding:1px 9px;margin-left:8px}
+tr.grupo .gbar{display:block;height:3px;background:rgba(255,255,255,.18);border-radius:20px;margin-top:6px}
+tr.grupo .gbar i{display:block;height:100%;background:#4db8e8;border-radius:20px}
+tr.fase td{background:#eef3f8;color:#33506b;font-size:11px;padding:6px 10px 6px 22px;position:relative}
+tr.fase td::before{content:"";position:absolute;left:11px;top:50%;width:5px;height:5px;
+  border-radius:50%;background:var(--blue);transform:translateY(-50%)}
+.lixo{background:#fff;border:1.5px solid var(--border);color:#94a3b8;border-radius:8px;width:36px;height:36px;
+  font-size:15px;cursor:pointer;flex:none;font-family:inherit;transition:.15s}
+.lixo:hover{border-color:var(--red);color:var(--red);background:#fef2f2}
+.perigo{border:1px solid #fecaca;background:#fef2f2;border-radius:10px;padding:14px 16px;font-size:13.5px;color:#7f1d1d;margin:14px 0}
+.perigo b{color:#991b1b}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:#b91c1c}
+.btn-red:disabled{background:#fca5a5}
+/* trilha de meses a preencher (obra que começou antes da adesão) */
+.trilha{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.trilha button{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 14px;font-size:12.5px;
+  font-weight:600;cursor:pointer;font-family:inherit;color:var(--navy)}
+.trilha button:hover{border-color:var(--blue);color:var(--blue)}
+.trilha button.feito{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.trilha button.feito::before{content:"✓ "}
+.trilha button.atual{border-color:var(--blue);background:#eaf6fb;color:var(--blue)}
+/* ═══ COMPETÊNCIA (data-base) ═══════════════════════════════════════════════
+   Um seletor de MÊS, não de dia. Medição de obra é mensal; pedir dia a dia
+   burocratiza sem ganho. O mês escolhido vira a "data-base" de TODA a tela —
+   KPI, tabela e situação passam a mostrar a posição naquele fechamento. */
+.comp{display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:9px;overflow:hidden;background:#fff}
+.comp button{background:#fff;border:0;padding:8px 12px;font-size:15px;cursor:pointer;color:var(--navy);font-family:inherit;line-height:1}
+.comp button:hover:not(:disabled){background:#eaf6fb;color:var(--blue)}
+.comp button:disabled{opacity:.28;cursor:not-allowed}
+.comp .lb{padding:7px 14px;font-size:13.5px;font-weight:700;color:var(--navy);white-space:nowrap;
+  border-left:1px solid var(--border);border-right:1px solid var(--border);min-width:148px;text-align:center}
+.comp.past .lb{background:#fffbeb;color:#92400e}
+.comp.fut  .lb{background:#fef2f2;color:#991b1b}
+.tagbase{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
+  background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.tagbase.fut{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+/* alertas do painel */
+.alertas{display:grid;gap:8px;margin-bottom:6px}
+.al{display:flex;gap:10px;align-items:flex-start;border-radius:9px;padding:10px 13px;font-size:13px;border:1px solid}
+.al.r{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+.al.a{background:#fffbeb;border-color:#fde68a;color:#78350f}
+.al.g{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
+.al .ic{font-size:15px;line-height:1.3}
+.al b{font-weight:800}
+/* legenda de gráficos */
+.leg{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px;align-items:center}
+.leg i{display:inline-block;width:22px;height:0;border-top-width:3px;border-top-style:solid;vertical-align:middle;margin-right:5px}
+.leg .sq{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+/* tabela de previsão */
+.meta-in{width:66px;text-align:right;padding:5px 7px;font-size:13px}
+.dlt{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
+.dlt.up{background:#dcfce7;color:#166534}.dlt.dn{background:#fee2e2;color:#991b1b}.dlt.eq{background:#f1f5f9;color:#64748b}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Obra<span>IA</span></div>
+  <a href="dashboard.html">← Meus produtos</a>
+  <div class="right">
+    <span id="uEmail"></span>
+    <button id="btnSair">Sair</button>
+  </div>
+</header>
+
+<main>
+  <!-- ══ LISTA DE OBRAS ══ -->
+  <section id="viewLista">
+    <h1>Monitorar minhas obras</h1>
+    <p class="sub">Avanço físico e financeiro atualizado por quem está no canteiro — você acompanha de onde estiver.</p>
+    <div id="listaMsg"></div>
+    <div id="lista"></div>
+    <div class="card">
+      <b style="color:var(--navy);font-size:16px">Começar a monitorar uma obra</b>
+      <p style="font-size:13px;color:var(--muted);margin:5px 0 16px">
+        Três caminhos — nenhum deles obriga você a orçar aqui primeiro.
+      </p>
+      <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+        <div class="via">
+          <div class="ic">📄</div>
+          <b>Já tenho o orçamento</b>
+          <p>Envie a sua planilha (Excel ou CSV). O sistema lê os serviços, identifica as etapas e monta a obra.</p>
+          <button class="btn btn-primary" onclick="document.getElementById('arqPlan').click()">Enviar planilha</button>
+          <input type="file" id="arqPlan" accept=".xlsx,.xls,.csv" class="hide" onchange="lerPlanilha(this)">
+        </div>
+        <div class="via">
+          <div class="ic">🧱</div>
+          <b>Quero orçar no ObraIA</b>
+          <p>Envie a planta, gere o levantamento e o orçamento SINAPI. No fim, mande direto para o monitoramento.</p>
+          <a class="btn btn-out" href="index.html" target="_blank" rel="noopener">Abrir o ObraIA</a>
+        </div>
+        <div class="via">
+          <div class="ic">✏️</div>
+          <b>Começar do zero</b>
+          <p>Cria a obra vazia e você lança os serviços um a um, na mão.</p>
+          <button class="btn btn-out" onclick="novaObra()">Nova obra em branco</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ OBRA ABERTA ══ -->
+  <section id="viewObra" class="hide">
+    <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="flex:1;min-width:220px">
+        <h1 id="obraNome" style="margin-bottom:2px"></h1>
+        <p class="sub" id="obraMeta" style="margin-bottom:0"></p>
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <span id="seloBase"></span>
+        <span class="live hide" id="selo"><i></i> ao vivo</span>
+        <button class="btn btn-out" onclick="verLista()">← Obras</button>
+        <button class="btn btn-out" onclick="abrirEquipe()">👥 Equipe</button>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card">
+      <div class="tabs">
+        <button class="on" onclick="aba('serv',this)">Serviços</button>
+        <button onclick="aba('crono',this)">Cronograma</button>
+        <button onclick="aba('curva',this)">Curva S</button>
+        <button onclick="aba('prev',this)">Previsão</button>
+        <button onclick="aba('mes',this)">Mês a mês</button>
+        <button onclick="aba('hist',this)">Histórico</button>
+      </div>
+      <div id="abaServ">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:11px">
+          <span style="font-size:12.5px;font-weight:700;color:var(--navy)">Medição de</span>
+          <div class="comp" id="compBox">
+            <button onclick="compMover(-1)" title="Mês anterior">◀</button>
+            <div class="lb" id="compTxt">—</div>
+            <button onclick="compMover(1)" id="compProx" title="Mês seguinte">▶</button>
+          </div>
+          <button class="btn btn-out" id="btnHoje" style="padding:7px 13px;font-size:12.5px" onclick="compHoje()">Hoje</button>
+        </div>
+        <div id="trilha"></div>
+        <div id="avisoData"></div>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input id="filtro" placeholder="Filtrar serviço…" style="max-width:260px" oninput="pintarItens()">
+          <select id="fFase" style="max-width:200px" onchange="pintarItens()"><option value="">Todas as fases</option></select>
+          <select id="fSit" style="max-width:180px" onchange="pintarItens()">
+            <option value="">Toda situação</option>
+            <option value="z">Não iniciados</option>
+            <option value="p">Em andamento</option>
+            <option value="c">Concluídos</option>
+          </select>
+          <select id="fTipo" style="max-width:180px" onchange="pintarItens()">
+            <option value="">Direto + indireto</option>
+            <option value="direto">Só custo direto</option>
+            <option value="indireto">Só custo indireto</option>
+          </select>
+          <button class="btn btn-out" style="margin-left:auto" onclick="addItemManual()">+ Serviço manual</button>
+        </div>
+        <div id="itensMsg"></div>
+        <div style="overflow:auto;max-height:62vh">
+          <table>
+            <thead><tr>
+              <th class="th-serv">Serviço</th>
+              <th class="num th-qtd">Qtd do<br>contrato</th>
+              <th class="num th-val">Valor</th>
+              <th class="num th-av" title="Quanto andou NESTE período. Digite só o que avançou — o sistema soma sozinho.">Avanço<span class="thsub">no período</span></th>
+              <th class="th-ac" title="Total executado até aqui. É calculado, mas continua editável: se você errar o avanço, corrija o total direto neste campo.">Executado<span class="thsub">acumulado</span></th>
+              <th class="num th-rs">R$<br>executado</th>
+              <th class="th-sit">Situação</th>
+            </tr></thead>
+            <tbody id="tbItens"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="abaCrono" class="hide"></div>
+      <div id="abaCurva" class="hide"></div>
+      <div id="abaPrev" class="hide"></div>
+      <div id="abaMes" class="hide"></div>
+      <div id="abaHist" class="hide"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const SUPA_URL="https://xjzbqikappmaijfkxmms.supabase.co";
+const SUPA_KEY="sb_publishable_8h0mEd8mtbb5RY9JmhzoDw_W2RKJIYs";
+const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
+let USER=null, OBRA=null, ITENS=[], CANAL=null, AVANCOS=[], COMP=null;
+
+const nf=v=>(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money=v=>"R$ "+nf(v);
+const nf0=v=>(Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:2});
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const msg=(el,txt,tipo)=>{const e=document.getElementById(el); if(!e)return; e.innerHTML=txt?`<div class="msg ${tipo||"info"}">${txt}</div>`:"";};
+
+// ── sessão ──
+(async()=>{
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){ location.href="login.html"; return; }
+  USER=session.user;
+  document.getElementById("uEmail").textContent=USER.email;
+  await carregarLista();
+  const id=new URLSearchParams(location.search).get("obra");
+  if(id) abrirObra(id);
+  await importarDoOrcamento();
+})();
+document.getElementById("btnSair").onclick=async()=>{ await sb.auth.signOut(); location.href="login.html"; };
+
+// ═══ LISTA ═══
+async function carregarLista(){
+  const {data,error}=await sb.from("obra_resumo").select("*").order("ultimo_lancamento",{ascending:false,nullsFirst:false});
+  const host=document.getElementById("lista");
+  if(error){ msg("listaMsg","Não consegui carregar suas obras: "+esc(error.message),"err"); return; }
+  if(!data||!data.length){ host.innerHTML=""; return; }
+  host.innerHTML=data.map(o=>{
+    const p=Number(o.pct_fisico)||0;
+    const q=o.ultimo_lancamento? new Date(o.ultimo_lancamento).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "sem lançamento";
+    return `<div class="obra-card">
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="abrirObra('${o.id}')">
+        <div class="nm">${esc(o.nome)}</div>
+        <div class="mt">${o.itens} serviço(s) · ${money(o.valor_total)} · último lançamento: ${q}</div>
+      </div>
+      <div style="text-align:right;min-width:120px;cursor:pointer" onclick="abrirObra('${o.id}')">
+        <div style="font-weight:800;font-size:17px;color:${p>=100?"var(--green)":"var(--navy)"}">${nf(p)}%</div>
+        <div class="bar ${p>=100?"done":""}"><i style="width:${Math.min(100,p)}%"></i></div>
+      </div>
+      <button class="lixo" title="Excluir esta obra" onclick="event.stopPropagation();confirmarExcluir('${o.id}','${esc(o.nome).replace(/'/g,"\\'")}',${o.itens||0})">🗑</button>
+    </div>`;
+  }).join("");
+}
+function verLista(){
+  if(CANAL){ sb.removeChannel(CANAL); CANAL=null; }
+  document.getElementById("viewObra").classList.add("hide");
+  document.getElementById("viewLista").classList.remove("hide");
+  document.getElementById("selo").classList.add("hide");
+  history.replaceState({},"",location.pathname);
+  carregarLista();
+}
+async function novaObra(){
+  const nome=prompt("Nome da obra:",""); if(!nome) return;
+  const {data,error}=await sb.from("obras").insert({dono:USER.id,nome:nome.trim(),data_inicio:new Date().toISOString().slice(0,10)}).select().single();
+  if(error){ alert("Não consegui criar: "+error.message); return; }
+  await sb.from("obra_membros").insert({obra_id:data.id,usuario:USER.id,papel:"dono",email:USER.email});
+  abrirObra(data.id);
+}
+
+// ═══ IMPORTA O ORÇAMENTO VINDO DO OBRAIA ═══
+// O sistema principal grava o orçamento validado aqui; ao abrir esta tela,
+// ele vira uma obra monitorável. Assim o levantamento não é redigitado.
+async function importarDoOrcamento(){
+  let pend=null;
+  try{ pend=JSON.parse(localStorage.getItem("obraia_monitorar")||"null"); }catch(e){}
+  if(!pend||!pend.itens||!pend.itens.length) return;
+  localStorage.removeItem("obraia_monitorar");
+  if(!confirm(`Criar a obra "${pend.nome||"Sem nome"}" com ${pend.itens.length} serviço(s) do orçamento?`)) return;
+  const {data:o,error}=await sb.from("obras").insert({
+    dono:USER.id, nome:(pend.nome||"Obra sem nome").slice(0,160), cliente:pend.cliente||null,
+    data_inicio:pend.inicio||new Date().toISOString().slice(0,10), prazo_dias:pend.prazo||null, bdi:pend.bdi||0
+  }).select().single();
+  if(error){ alert("Falha ao criar a obra: "+error.message); return; }
+  await sb.from("obra_membros").insert({obra_id:o.id,usuario:USER.id,papel:"dono",email:USER.email});
+  const linhas=pend.itens.map((it,i)=>({
+    obra_id:o.id, ordem:i, categoria:it.categoria||null, fase:it.fase||null, codigo:it.codigo||null,
+    descricao:String(it.descricao||"Serviço").slice(0,400), unidade:it.unidade||null,
+    quantidade:Number(it.quantidade)||0, preco_unit:Number(it.preco)||0, valor:Number(it.valor)||0, manual:false
+  }));
+  for(let i=0;i<linhas.length;i+=500){
+    const {error:e2}=await sb.from("obra_itens").insert(linhas.slice(i,i+500));
+    if(e2){ alert("Falha ao gravar os serviços: "+e2.message); break; }
+  }
+  abrirObra(o.id);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// IMPORTAÇÃO DA PLANILHA DO PRÓPRIO USUÁRIO
+// A maioria dos orçamentistas JÁ tem a planilha pronta — obrigá-lo a reorçar
+// aqui só para poder acompanhar a obra seria um pedágio sem sentido. Aqui a
+// planilha dele é a fonte.
+// Duas coisas que todo importador sério faz e que fazem a diferença:
+//   1. NÃO adivinhar em silêncio. O sistema propõe o mapeamento das colunas e
+//      mostra a pré-visualização; quem confirma é o usuário.
+//   2. Ler a HIERARQUIA do item ("1", "1.1", "1.1.1"). Em planilha de obra as
+//      linhas sem quantidade são títulos de etapa, e é delas que sai a fase de
+//      cada serviço — sem isso o monitoramento vira uma lista solta de 300 itens.
+// ═════════════════════════════════════════════════════════════════════════════
+let PLAN = null;
+const _n = v => {
+  if (typeof v === "number") return v;
+  let s = String(v == null ? "" : v).replace(/[R$\s%]/g, "").trim();
+  if (!s) return 0;
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (s.includes(",")) s = s.replace(",", ".");
+  const x = parseFloat(s); return isFinite(x) ? x : 0;
+};
+const _norm = s => String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+function lerPlanilha(inp){
+  const f = inp.files && inp.files[0]; if(!f) return;
+  inp.value = "";
+  const fr = new FileReader();
+  fr.onload = e => {
+    let wb;
+    try{ wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"}); }
+    catch(err){ msg("listaMsg","Não consegui abrir o arquivo. Salve como .xlsx ou .csv e tente de novo.","err"); return; }
+    const aba = wb.SheetNames[0];
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[aba], {header:1, blankrows:false, defval:""});
+    if(linhas.length < 2){ msg("listaMsg","A planilha parece vazia.","err"); return; }
+    // acha a linha de cabeçalho: a primeira que tenha algo parecido com "descrição"
+    let hi = 0;
+    for(let i=0;i<Math.min(linhas.length,30);i++){
+      const t = linhas[i].map(_norm).join("|");
+      if(/descri|servic|discrimina/.test(t) && /(quant|qtd)/.test(t)){ hi = i; break; }
+      if(/descri|servic|discrimina/.test(t) && hi === 0) hi = i;
+    }
+    PLAN = { nomeArq: f.name, cab: linhas[hi].map(x=>String(x||"").trim()), corpo: linhas.slice(hi+1) };
+    mapear();
+  };
+  fr.readAsArrayBuffer(f);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// COLUNA DE VALOR: o erro mais caro da importação (2026-08-05)
+// Planilha de obra quase sempre traz DOIS valores por serviço: sem BDI e com BDI
+// ("TOTAL", "TOTAL C/ BDI", "PREÇO TOTAL", "VALOR COM BDI"…). Pegar a errada não
+// dá erro nenhum — só entrega uma obra 20~30% mais barata do que ela é, e o
+// engenheiro só descobre quando o financeiro não fecha.
+// Duas defesas: (1) a detecção PREFERE a coluna com BDI; (2) o usuário informa o
+// total da planilha dele e o sistema diz qual coluna reproduz aquele número.
+// ─────────────────────────────────────────────────────────────────────────────
+function _palpite(cab, chaves, prefere){
+  let achado = -1;
+  for(let i=0;i<cab.length;i++){
+    const c=_norm(cab[i]);
+    if(!chaves.some(k=>c.includes(k))) continue;
+    if(prefere && prefere.some(k=>c.includes(k))) return i;   // com BDI ganha na hora
+    if(achado<0) achado=i;
+  }
+  return achado;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTO INDIRETO — o que NÃO conta como avanço físico
+// Mobilização fecha 100% no dia 1. Se ela pesa no avanço físico ponderado por
+// custo, a obra marca vários por cento de execução antes do primeiro tijolo.
+// Administração local, canteiro, seguro e taxas são consumidos pelo TEMPO, não
+// pela produção. Eles continuam no financeiro (é dinheiro que sai de verdade),
+// mas ficam fora do % físico. É como o controle de obra separa as duas coisas.
+// ─────────────────────────────────────────────────────────────────────────────
+const _RE_INDIRETO = /(mobilizac|desmobilizac|administrac\w*\s+(local|d[ae]\s+obra|d[ao]\s+contrato)|adm\.?\s*local|canteiro|barracao|almoxarifad|refeitori|vestiari|container|conteiner|placa de obra|tapume|seguro|apolice|\btaxa\b|emolument|\bart\b|\brrt\b|licenc|alvara|vigilanc|seguranca do trabalho|engenheiro residente|mestre de obra|encarregado geral|(ligac|instalac)\w*\s+provisori|energia provisoria|agua e luz|limpeza permanente|equipamento de protecao|\bepi\b|ferramenta)/;
+function _classificaCusto(desc){ return _RE_INDIRETO.test(_norm(desc)) ? "indireto" : "direto"; }
+const _COM_BDI = ["com bdi","c/ bdi","c/bdi","com b.d.i","incl bdi","c/ b.d.i","total geral","final"];
+
+// Classifica as linhas do mesmo jeito que a importação faz. Somar uma coluna
+// sobre TODAS as linhas dá um número que não existe: em planilha de obra a linha
+// de etapa costuma repetir o subtotal daquela etapa, então tudo entra duas vezes.
+// A sugestão de coluna PRECISA olhar exatamente as linhas que vão ser importadas,
+// senão ela indica uma coluna que "bate" e que depois entrega outro total.
+function _tipoLinha(L, m){
+  const cel=i=>i>=0?L[i]:"";
+  const desc=String(cel(m.desc)||"").trim();
+  const qtd=_n(cel(m.qtd)), pu=_n(cel(m.pu));
+  let tot=m.tot>=0?_n(cel(m.tot)):0; if(!tot) tot=qtd*pu;
+  const item=String(cel(m.item)||"").trim();
+  const temItem=/^\d+(\.\d+)*$/.test(item);
+  if(!desc) return {tipo:"vazia"};
+  // ── CONTINUAÇÃO: descrição que quebrou em várias linhas no Excel ──
+  // Sem código de item, sem quantidade e sem valor. Tratar isso como "etapa"
+  // (o que o código fazia) apagava a etapa verdadeira E descartava o serviço
+  // inteiro — foi por isso que o total importado saiu muito menor que o da
+  // planilha. Aqui ela é COLADA na descrição do serviço anterior, que é o que
+  // ela realmente é.
+  if(!temItem && !qtd && !tot) return {tipo:"continua", desc};
+  // ── ETAPA: tem código de item e nenhuma quantidade (linha de título) ──
+  if(temItem && !qtd && !tot) return {tipo:"etapa", desc, item};
+  return {tipo:"servico", desc, item, qtd, pu, tot, cel};
+}
+function _classificarLinhas(){
+  const m=_lerMap(); const serv=[], etapas=[], cont=[];
+  PLAN.corpo.forEach(L=>{
+    const r=_tipoLinha(L,m);
+    if(r.tipo==="servico") serv.push({L,qtd:r.qtd,pu:r.pu});
+    else if(r.tipo==="etapa") etapas.push({L});
+    else if(r.tipo==="continua") cont.push({L});
+  });
+  return {serv, etapas, cont, m};
+}
+// Para cada coluna numérica: soma nas linhas de SERVIÇO, soma nas de ETAPA e
+// quanto ela é coerente com quantidade × preço unitário (isso separa uma coluna
+// de VALOR TOTAL de verdade de uma coluna qualquer que somou perto por acaso).
+function _somasColunas(){
+  const {serv, etapas, m}=_classificarLinhas(); const out={};
+  PLAN.cab.forEach((h,i)=>{
+    if(i===m.qtd || i===m.desc || i===m.item) return;
+    let sS=0,nS=0,sE=0, coer=0, testados=0;
+    serv.forEach(r=>{
+      const v=_n(r.L[i]); if(v){ sS+=v; nS++; }
+      const esperado=r.qtd*r.pu;
+      if(esperado>0 && v>0){ testados++; if(Math.abs(v-esperado)/esperado<=0.02) coer++; }
+    });
+    etapas.forEach(r=>{ sE+=_n(r.L[i]); });
+    if(nS>=3 && sS>0) out[i]={cab:h||("Coluna "+(i+1)), soma:sS, linhas:nS, somaEtapas:sE,
+                              coerencia: testados? coer/testados : null, testados};
+  });
+  return out;
+}
+function mapear(){
+  const cab = PLAN.cab;
+  const p = {
+    item: _palpite(cab, ["item","eap","seq"]),
+    cod:  _palpite(cab, ["codigo","cod.","cód","referencia","fonte"]),
+    desc: _palpite(cab, ["descri","servic","discrimina","especific"]),
+    un:   _palpite(cab, ["unid","und","un."]),
+    qtd:  _palpite(cab, ["quant","qtd"]),
+    pu:   _palpite(cab, ["unitario","unit","p.unit","preco unit","valor unit"], _COM_BDI),
+    tot:  _palpite(cab, ["total","valor total","preco total","subtotal"], _COM_BDI),
+  };
+  const opt = (sel,i)=>cab.map((c,k)=>`<option value="${k}"${k===i?" selected":""}>${esc(c||("Coluna "+(k+1)))}</option>`).join("");
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div style="max-width:820px">
+    <h2 style="margin:0 0 3px;font-size:19px;color:var(--navy)">Conferir a leitura da planilha</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px">
+      <b>${esc(PLAN.nomeArq)}</b> · ${PLAN.corpo.length} linha(s). Confirme de onde vem cada informação.</p>
+    <div class="row" style="grid-template-columns:repeat(auto-fit,minmax(158px,1fr));margin-bottom:6px">
+      <div><label>Item / EAP</label><select id="mItem"><option value="-1">— não tem —</option>${opt("item",p.item)}</select></div>
+      <div><label>Código</label><select id="mCod"><option value="-1">— não tem —</option>${opt("cod",p.cod)}</select></div>
+      <div><label>Descrição *</label><select id="mDesc">${opt("desc",p.desc)}</select></div>
+      <div><label>Unidade</label><select id="mUn"><option value="-1">— não tem —</option>${opt("un",p.un)}</select></div>
+      <div><label>Quantidade</label><select id="mQtd"><option value="-1">— não tem —</option>${opt("qtd",p.qtd)}</select></div>
+      <div><label>Preço unitário</label><select id="mPu"><option value="-1">— não tem —</option>${opt("pu",p.pu)}</select></div>
+      <div><label>Valor total</label><select id="mTot"><option value="-1">— calcular —</option>${opt("tot",p.tot)}</select></div>
+    </div>
+    <div class="row" style="grid-template-columns:1fr auto;align-items:end;gap:10px;margin:12px 0 4px">
+      <div><label>💰 Total da obra conforme a SUA planilha <span style="font-weight:400;color:var(--muted)">— confere se pegamos a coluna certa</span></label>
+        <input id="mEsperado" placeholder="Ex.: 1.284.377,52" oninput="previa()"></div>
+      <button class="btn btn-out" onclick="acharColuna()">Qual coluna dá esse total?</button>
+    </div>
+    <div id="bdiMsg"></div>
+    <div class="msg info" style="margin:10px 0">
+      Linhas <b>sem quantidade e sem valor</b> viram <b>etapas</b> (títulos), não serviços — é assim que a planilha
+      de obra costuma ser montada. Confira na prévia abaixo se ficou certo.
+    </div>
+    <div id="prev" style="max-height:270px;overflow:auto;border:1px solid var(--border);border-radius:9px"></div>
+    <div id="mapMsg"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-out" onclick="this.closest('.modal').remove()">Cancelar</button>
+      <button class="btn btn-blue" onclick="importarPlan()">Criar obra com estes serviços</button>
+    </div></div>`;
+  document.body.appendChild(d);
+  d.querySelectorAll("select").forEach(s=>s.addEventListener("change",previa));
+  previa();
+}
+function _lerMap(){
+  const g=id=>parseInt(document.getElementById(id).value,10);
+  return {item:g("mItem"),cod:g("mCod"),desc:g("mDesc"),un:g("mUn"),qtd:g("mQtd"),pu:g("mPu"),tot:g("mTot")};
+}
+// Converte as linhas cruas em serviços + etapas, aplicando a hierarquia do item.
+// ═════════════════════════════════════════════════════════════════════════════
+// GRUPOS E SUBGRUPOS — a planilha já traz a árvore, faltava lê-la
+// Orçamento de obra raramente é uma lista plana. Ele é organizado por frente:
+//   1     PRÉDIO PRINCIPAL
+//   1.1     SERVIÇOS PRELIMINARES
+//   1.1.1     Tapume ...
+//   2     GUARITA
+//   2.1     FUNDAÇÃO
+// O código antigo guardava uma variável só, então "1 PRÉDIO PRINCIPAL" era
+// apagada pela linha seguinte "1.1 SERVIÇOS PRELIMINARES": o usuário perdia
+// justamente a informação de QUAL prédio o serviço pertence. A profundidade já
+// está no próprio número do item — 1 é nível 1, 1.1 é nível 2 —, então basta
+// manter uma pilha de títulos e ler quem está acima quando o serviço aparece.
+// O caminho é gravado em `fase` separado por "›", sem exigir coluna nova.
+const _SEP_EAP = " › ";
+function _nivelItem(item){ return String(item||"").split(".").filter(Boolean).length; }
+function _extrair(){
+  const m=_lerMap(); const out=[]; const pilha=[];   // pilha[0]=grupo, pilha[1]=subgrupo…
+  const k=()=>1+(Number(PLAN.bdi)||0)/100;
+  const caminho=()=>pilha.filter(Boolean).join(_SEP_EAP).slice(0,180) || null;
+  PLAN.corpo.forEach(L=>{
+    const r=_tipoLinha(L,m);
+    if(r.tipo==="vazia") return;
+    if(r.tipo==="etapa"){
+      const n=Math.max(1,_nivelItem(r.item));
+      pilha.length=n-1;                 // fecha os níveis mais profundos
+      pilha[n-1]=r.desc.slice(0,120);
+      return;
+    }
+    if(r.tipo==="continua"){                       // emenda no serviço anterior
+      if(out.length) out[out.length-1].descricao=(out[out.length-1].descricao+" "+r.desc).slice(0,400);
+      return;
+    }
+    const cel=r.cel;
+    out.push({ item:r.item, fase:caminho(), codigo:String(cel(m.cod)||"").trim()||null,
+      descricao:r.desc.slice(0,400), unidade:String(cel(m.un)||"").trim().toUpperCase()||null,
+      quantidade:r.qtd, preco:(r.pu||(r.qtd?r.tot/r.qtd:0))*k(), valor:Math.round(r.tot*k()*100)/100 });
+  });
+  return out;
+}
+function previa(){
+  const its=_extrair();
+  const total=its.reduce((s,i)=>s+i.valor,0);
+  const fases=[...new Set(its.map(i=>i.fase).filter(Boolean))];
+  const semValor=its.filter(i=>!i.valor).length;
+  const host=document.getElementById("prev");
+  if(!its.length){ host.innerHTML=`<div class="vazio">Nenhum serviço reconhecido. Reveja a coluna de <b>Descrição</b>.</div>`; return; }
+  host.innerHTML=`<table><thead><tr><th>Etapa</th><th>Serviço</th><th class="num">Qtd</th><th>Un</th><th class="num">Valor</th></tr></thead><tbody>
+    ${its.slice(0,60).map(i=>`<tr><td style="font-size:11.5px;color:var(--muted)">${esc(i.fase||"—")}</td>
+      <td>${esc(i.descricao)}</td><td class="num">${nf(i.quantidade)}</td><td>${esc(i.unidade||"")}</td>
+      <td class="num">${money(i.valor)}</td></tr>`).join("")}
+    ${its.length>60?`<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:12px">…e mais ${its.length-60} serviço(s)</td></tr>`:""}
+    </tbody></table>`;
+  const m=_lerMap();
+  const {cont}=_classificarLinhas();
+  const mesmaCol = (m.pu>=0 && m.pu===m.tot);
+  msg("mapMsg",`<b>${its.length} serviço(s)</b> em <b>${fases.length} etapa(s)</b> · total lido: <b>${money(total)}</b>`+
+    (semValor?` · <b style="color:#b45309">${semValor} sem valor</b> (entram, mas não pesam no avanço financeiro)`:"")+
+    (cont.length?` · ${cont.length} linha(s) de descrição emendadas ao serviço acima`:"")+
+    (mesmaCol?`<br><b style="color:#b45309">⚠ Preço unitário e Valor total apontam para a MESMA coluna</b> — uma das duas está errada.`:""),
+    (semValor||mesmaCol)?"info":"ok");
+  conferirTotal(total);
+}
+// Compara o que foi lido com o total que o usuário conhece da planilha dele.
+function conferirTotal(lido){
+  const el=document.getElementById("mEsperado"); if(!el) return;
+  const esp=_n(el.value);
+  if(!esp){ msg("bdiMsg","",""); return; }
+  const dif=(lido-esp)/esp*100;
+  if(Math.abs(dif)<=0.5){
+    msg("bdiMsg",`✓ <b>Bate com a sua planilha</b> (${money(lido)}). Pode importar com segurança.`,"ok");
+    return;
+  }
+  const fator=esp/lido;
+  const bdiImplicito=(fator-1)*100;
+  const faltaBdi = fator>1.01 && fator<1.60;   // faixa de BDI de obra civil
+  msg("bdiMsg",
+    `⚠ <b>Não bate.</b> Lido ${money(lido)} × informado ${money(esp)} — diferença de <b>${nf(Math.abs(dif))}%</b>.`+
+    (faltaBdi
+      ? `<br>A razão entre os dois é <b>${nf(bdiImplicito)}%</b>, que é exatamente a cara de um <b>BDI não incluído</b>.
+         Provavelmente foi escolhida a coluna <b>sem BDI</b>.
+         <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">
+           <button class="btn btn-out" style="padding:5px 11px;font-size:12.5px" onclick="acharColuna()">Procurar a coluna com BDI</button>
+           <button class="btn btn-out" style="padding:5px 11px;font-size:12.5px" onclick="aplicarBDI(${bdiImplicito.toFixed(4)})">Aplicar BDI de ${nf(bdiImplicito)}% aos valores</button>
+         </div>`
+      : `<br>Confira a coluna de <b>Valor total</b> — pode ser outra. Clique em <b>"Qual coluna dá esse total?"</b>.`),
+    "err");
+}
+// Procura, entre todas as colunas numéricas, a que reproduz o total informado.
+function acharColuna(){
+  const esp=_n((document.getElementById("mEsperado")||{}).value);
+  if(!esp){ msg("bdiMsg","Informe primeiro o total da sua planilha no campo acima.","info"); return; }
+  const m=_lerMap(); const sums=_somasColunas();
+  const cand=Object.keys(sums).map(i=>{
+    const c={i:+i, ...sums[i]};
+    c.dif=Math.abs(c.soma-esp)/esp*100;
+    c.difEtapas=c.somaEtapas>0 ? Math.abs(c.somaEtapas-esp)/esp*100 : null;
+    // um "valor total" de verdade reproduz quantidade × preço unitário na linha
+    c.valeComoTotal = (c.coerencia==null) ? null : c.coerencia>=0.6;
+    c.ehPU = (+i===m.pu);
+    return c;
+  });
+  const bons=cand.filter(c=>c.dif<=1 && c.valeComoTotal!==false && !c.ehPU).sort((a,b)=>a.dif-b.dif);
+  const suspeito=cand.filter(c=>c.dif<=1 && (c.valeComoTotal===false || c.ehPU));
+  const porEtapa=cand.filter(c=>c.difEtapas!=null && c.difEtapas<=1).sort((a,b)=>a.difEtapas-b.difEtapas);
+  if(bons.length){
+    const b=bons[0];
+    msg("bdiMsg",`✓ A coluna <b>"${esc(b.cab)}"</b> soma <b>${money(b.soma)}</b> nas ${b.linhas} linhas de serviço — bate com a sua planilha`+
+      (b.coerencia!=null?` e confere com quantidade × preço unitário em ${Math.round(b.coerencia*100)}% das linhas`:"")+`.
+      <div style="margin-top:8px"><button class="btn btn-blue" style="padding:5px 12px;font-size:12.5px"
+        onclick="usarColuna(${b.i})">Usar esta coluna como Valor total</button></div>`,"ok");
+    return;
+  }
+  let txt="";
+  if(suspeito.length){
+    const s=suspeito[0];
+    txt+=`⚠ A coluna <b>"${esc(s.cab)}"</b> soma perto do seu total, mas <b>não é um valor total</b>:
+      ${s.ehPU?"ela já está mapeada como <b>preço unitário</b>":"os valores dela não correspondem a quantidade × preço unitário"}.
+      Somar preço unitário não significa nada — foi coincidência. Não use.<br><br>`;
+  }
+  if(porEtapa.length){
+    const e=porEtapa[0];
+    txt+=`💡 Achei o seu total <b>nas linhas de ETAPA</b> da coluna "${esc(e.cab)}" (${money(e.somaEtapas)}).
+      Sua planilha guarda o subtotal na linha do título da etapa. Para o monitoramento eu preciso do valor
+      <b>serviço a serviço</b> — confira se existe uma coluna de total preenchida nas linhas de serviço.<br><br>`;
+  }
+  const top=cand.filter(c=>!c.ehPU).sort((a,b)=>a.dif-b.dif).slice(0,4);
+  txt+=`Somas nas linhas de serviço:<br>`+top.map(c=>
+    `• <b>${esc(c.cab)}</b>: ${money(c.soma)} (${nf(c.dif)}% de diferença)`+
+    (c.coerencia!=null?` · confere com qtd×preço em ${Math.round(c.coerencia*100)}%`:"")+
+    ` <button class="btn btn-out" style="padding:2px 8px;font-size:11.5px;margin-left:4px" onclick="usarColuna(${c.i})">usar</button>`).join("<br>");
+  txt+=`<br><br><button class="btn btn-out" style="padding:4px 11px;font-size:12.5px" onclick="usarColuna(-1)">
+    Calcular pelo quantidade × preço unitário</button>`;
+  msg("bdiMsg",txt,"info");
+}
+function usarColuna(i){
+  document.getElementById("mTot").value=String(i);
+  // se o usuário escolher para TOTAL a mesma coluna do preço unitário, o cálculo
+  // vira preço unitário puro — libera o unitário para o sistema recalcular
+  if(i>=0 && String(i)===document.getElementById("mPu").value) document.getElementById("mPu").value="-1";
+  previa();
+}
+// Sem coluna com BDI na planilha: aplica o percentual sobre os valores lidos.
+function aplicarBDI(p){
+  const v=prompt("BDI a aplicar sobre os valores lidos (%):", nf(p).replace(".",""));
+  if(v===null) return;
+  const n=_n(v);
+  if(!(n>0&&n<100)){ msg("bdiMsg","Informe um BDI entre 0 e 100%.","err"); return; }
+  PLAN.bdi=n; previa();
+  msg("bdiMsg",`BDI de <b>${nf(n)}%</b> aplicado sobre os valores da planilha. Confira o total acima.`,"ok");
+}
+async function importarPlan(){
+  const its=_extrair();
+  if(!its.length){ msg("mapMsg","Não há serviços para importar.","err"); return; }
+  const total=its.reduce((s,i)=>s+i.valor,0);
+  const esp=_n((document.getElementById("mEsperado")||{}).value);
+  // trava final: se o usuário informou o total e ele não bate, não deixa passar calado
+  if(esp && Math.abs(total-esp)/esp > 0.005){
+    if(!confirm(`ATENÇÃO — o total não bate com a sua planilha.\n\n`+
+      `Lido: R$ ${nf(total)}\nSua planilha: R$ ${nf(esp)}\nDiferença: ${nf(Math.abs(total-esp)/esp*100)}%\n\n`+
+      `Isso costuma ser coluna sem BDI. Importar assim deixa a obra mais barata do que ela é, `+
+      `e o avanço financeiro sairá errado.\n\nOK = importar mesmo assim · Cancelar = corrigir a coluna`)) return;
+  }
+  const nome=prompt("Nome da obra:", PLAN.nomeArq.replace(/\.(xlsx?|csv)$/i,"")) || "";
+  if(!nome.trim()) return;
+  const {data:o,error}=await sb.from("obras").insert({
+    dono:USER.id, nome:nome.trim().slice(0,160), bdi:Number(PLAN.bdi)||0,
+    data_inicio:new Date().toISOString().slice(0,10)
+  }).select().single();
+  if(error){ msg("mapMsg","Falha ao criar a obra: "+esc(error.message),"err"); return; }
+  await sb.from("obra_membros").insert({obra_id:o.id,usuario:USER.id,papel:"dono",email:USER.email});
+  const linhas=its.map((it,i)=>({
+    obra_id:o.id, ordem:i, fase:it.fase||null, codigo:it.codigo,
+    descricao:it.descricao, unidade:it.unidade, quantidade:it.quantidade,
+    preco_unit:Math.round((it.preco||0)*10000)/10000, valor:it.valor, manual:true,
+    tipo_custo:_classificaCusto(it.descricao+' '+(it.fase||''))
+  }));
+  for(let i=0;i<linhas.length;i+=500){
+    const {error:e2}=await sb.from("obra_itens").insert(linhas.slice(i,i+500));
+    if(e2){ msg("mapMsg","Falha ao gravar: "+esc(e2.message),"err"); return; }
+  }
+  document.querySelector(".modal").remove();
+  abrirObra(o.id);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// EXCLUIR OBRA — irreversível, então exige digitar o nome
+// Botão de lixeira que apaga na hora é como se perde meses de medição. Aqui o
+// usuário precisa escrever o nome da obra: quem está distraído não consegue.
+//
+// UM ÚNICO DELETE, DE PROPÓSITO.
+// A tentação é apagar os filhos primeiro (avanços, itens, membros) e depois a
+// obra. É errado aqui, e perigoso: a política de obra_itens permite a QUEM PODE
+// EDITAR — o que inclui membro convidado —, enquanto a de obras exige ser o
+// dono. Apagando em etapas, um membro conseguiria limpar todos os serviços e só
+// então ser barrado na obra: sobraria a obra de outra pessoa destruída pela
+// metade, sem volta.
+// Apagando só a obra, a permissão é avaliada UMA vez, no lugar certo: ou o dono
+// apaga tudo, ou nada acontece. As chaves estrangeiras estão com ON DELETE
+// CASCADE (verificado no banco), então itens, avanços e membros caem junto —
+// e o histórico de medição continua impossível de apagar isoladamente, que é a
+// garantia que faz o log servir de prova.
+// ═════════════════════════════════════════════════════════════════════════════
+function confirmarExcluir(id,nome,itens){
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div>
+    <h2 style="margin:0 0 4px;font-size:19px;color:var(--navy)">Excluir "${esc(nome)}"</h2>
+    <p class="sub" style="margin-bottom:0">Esta ação não tem volta.</p>
+    <div class="perigo">
+      Vai apagar <b>de vez</b>: os ${itens} serviços importados, <b>todo o histórico de medição</b>
+      (inclusive os meses retroativos que você preencheu), o cronograma ajustado, as previsões
+      e o acesso da equipe. Não existe lixeira — não dá para recuperar depois.
+      Se a ideia é só tirar a obra da sua lista, saia dela em <b>Equipe</b> em vez de excluir.
+    </div>
+    <label>Para confirmar, digite o nome da obra:</label>
+    <input id="exNome" placeholder="${esc(nome)}" autocomplete="off" data-nome="${esc(nome)}"
+      oninput="document.getElementById('btnEx').disabled = this.value.trim()!==this.dataset.nome">
+    <div id="exMsg"></div>
+    <div style="display:flex;gap:9px;margin-top:16px">
+      <button class="btn btn-red" id="btnEx" disabled onclick="excluirObra('${id}',this)">Excluir definitivamente</button>
+      <button class="btn btn-out" onclick="this.closest('.modal').remove()">Cancelar</button>
+    </div></div>`;
+  document.body.appendChild(d);
+  setTimeout(()=>{const e=document.getElementById("exNome"); if(e) e.focus();},50);
+}
+async function excluirObra(id,btn){
+  btn.disabled=true; btn.textContent="Excluindo…";
+  const falha=t=>{ msg("exMsg",t,"err"); btn.disabled=false; btn.textContent="Excluir definitivamente"; };
+  const {data,error}=await sb.from("obras").delete().eq("id",id).select("id");
+  if(error) return falha("Não consegui excluir: "+esc(error.message));
+  // RLS que barra um DELETE não devolve erro: simplesmente apaga zero linhas.
+  // Sem conferir isso, a tela diria "excluída" e ela voltaria no próximo F5.
+  if(!data||!data.length) return falha(
+    "A obra <b>não</b> foi excluída — nada foi alterado. Só o dono pode excluir uma obra, "+
+    "e você está como convidado nesta. Peça a quem criou, ou saia dela em <b>Equipe</b>.");
+  const m=document.querySelector(".modal"); if(m) m.remove();
+  if(OBRA&&OBRA.id===id){ OBRA=null; verLista(); }
+  await carregarLista();
+  msg("listaMsg","Obra excluída.","ok");
+  setTimeout(()=>msg("listaMsg","",""),4000);
+}
+
+// ═══ OBRA ═══
+async function abrirObra(id){
+  const {data:o,error}=await sb.from("obras").select("*").eq("id",id).single();
+  if(error||!o){ alert("Obra não encontrada ou sem acesso."); verLista(); return; }
+  OBRA=o;
+  document.getElementById("viewLista").classList.add("hide");
+  document.getElementById("viewObra").classList.remove("hide");
+  document.getElementById("obraNome").textContent=o.nome;
+  document.getElementById("obraMeta").textContent=
+    [o.cliente, o.data_inicio?("início "+new Date(o.data_inicio+"T00:00:00").toLocaleDateString("pt-BR")):null,
+     o.prazo_dias?(o.prazo_dias+" dias de prazo"):null].filter(Boolean).join(" · ")||"—";
+  history.replaceState({},"","?obra="+id);
+  COMP=_compHoje();
+  await carregarItens();
+  ligarTempoReal(id);
+}
+async function carregarItens(){
+  const [r1,r2]=await Promise.all([
+    sb.from("obra_itens_situacao").select("*").eq("obra_id",OBRA.id).order("ordem"),
+    sb.from("obra_avancos").select("item_id,pct,data_ref,autor_email,criado_em").eq("obra_id",OBRA.id).order("data_ref")
+  ]);
+  if(r1.error){ msg("itensMsg","Falha ao carregar os serviços: "+esc(r1.error.message),"err"); return; }
+  ITENS=r1.data||[];
+  // O log inteiro fica no cliente: é ele que permite ler a obra "como estava" em
+  // qualquer mês. Sem isso, retroativo vira chute — você lançaria março olhando
+  // o número de agosto. Ordena por data_ref e, no empate, por quando foi digitado.
+  AVANCOS=(r2.data||[]).slice().sort((a,b)=>
+    a.data_ref===b.data_ref ? String(a.criado_em).localeCompare(String(b.criado_em))
+                            : String(a.data_ref).localeCompare(String(b.data_ref)));
+  const fases=[...new Set(ITENS.map(i=>i.fase).filter(Boolean))];
+  const sel=document.getElementById("fFase");
+  // agrupa o dropdown por frente de obra: o caminho inteiro em cada linha ficaria
+  // longo demais e o usuário perde a noção de a qual prédio a etapa pertence
+  const porG={};
+  fases.forEach(f=>{ const P=_partesEAP({fase:f}); (porG[P.grupo||"—"]=porG[P.grupo||"—"]||[]).push({f,sub:P.sub}); });
+  sel.innerHTML='<option value="">Todas as etapas</option>'+Object.keys(porG).map(g=>{
+    const ls=porG[g];
+    // grupo sem subgrupo vira opção simples; com subgrupos, vira optgroup
+    if(ls.length===1 && !ls[0].sub) return `<option value="${esc(ls[0].f)}">${esc(g)}</option>`;
+    return `<optgroup label="${esc(g)}">`+ls.map(x=>
+      `<option value="${esc(x.f)}">${esc(x.sub||g)}</option>`).join("")+`</optgroup>`;
+  }).join("");
+  pintarComp(); pintarTrilha(); pintarKPIs(); pintarItens();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// POSIÇÃO EM UMA DATA — o coração do retroativo
+// pctMapa(ate) devolve o % de cada serviço COMO ESTAVA no fim daquela data.
+// É só varrer o log até ali e ficar com o último valor de cada item. Com isso a
+// tela inteira (KPI, tabela, curva) sabe responder "e em março, como estava?".
+// ═════════════════════════════════════════════════════════════════════════════
+function pctMapa(ate){
+  const m={};
+  for(const a of AVANCOS){ if(a.data_ref<=ate) m[a.item_id]=Number(a.pct)||0; else break; }
+  return m;
+}
+function itensEm(ate){
+  const m=pctMapa(ate);
+  return ITENS.map(i=>{ const p=(m[i.id]!==undefined)?m[i.id]:0;
+    return {...i, pct:p, valor_executado:(Number(i.valor)||0)*p/100}; });
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// VALOR AGREGADO (EVM) — a leitura que separa relatório bonito de gestão real
+//   PV (previsto)  = quanto de obra o cronograma dizia que estaria pronto na data
+//   EV (agregado)  = quanto de obra ESTÁ pronto, medido a preço de contrato
+//   SPI = EV/PV    → abaixo de 1, atrasado
+//   Atraso em DIAS = há quantos dias o cronograma já previa o volume que você tem
+//                    hoje. É o número que o cliente entende; "p.p." não diz nada
+//                    para quem pergunta "vamos entregar quando?".
+// ═════════════════════════════════════════════════════════════════════════════
+function _pvEm(d, t){ let ac=0; d.ativ.forEach(a=>{ ac+=a.valor*Math.max(0,Math.min(1,(t-a.ini)/(a.dur||1))); }); return ac; }
+function _diaDaObra(dtISO){
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  return (new Date(dtISO+"T00:00:00")-d0)/86400000;
+}
+// Em que dia do cronograma o PV alcança um valor? (busca binária na curva)
+function _diaDoValor(d, alvo){
+  if(alvo<=0) return 0;
+  if(alvo>=d.total) return d.fim;
+  let lo=0, hi=d.fim;
+  for(let k=0;k<40;k++){ const m=(lo+hi)/2; if(_pvEm(d,m)<alvo) lo=m; else hi=m; }
+  return (lo+hi)/2;
+}
+function evm(dataISO){
+  const d=_calcCrono(); if(!d||!d.total) return null;
+  const t=_diaDaObra(dataISO);
+  const its=itensEm(dataISO);
+  const EV=its.reduce((s,i)=>s+Number(i.valor_executado||0),0);
+  const PV=_pvEm(d,t);
+  const spi = PV>0 ? EV/PV : (EV>0?1:0);
+  const tEV=_diaDoValor(d,EV);
+  const atrasoDias = Math.round(t - tEV);          // >0 atrasado, <0 adiantado
+  const restante = d.total-EV;
+  const diasRest = Math.max(0, d.fim - t);
+  // ritmo: o que já se produziu por mês x o que precisa produzir para entregar
+  const ritmoReal = t>0 ? EV/t*30 : 0;
+  const ritmoNec  = diasRest>0 ? restante/diasRest*30 : restante;
+  // ── QUANDO O SPI AINDA NÃO SIGNIFICA NADA ────────────────────────────────
+  // No começo da obra o previsto é quase zero, e dividir por quase zero produz
+  // número grande e sem sentido: com R$ 2 mil executados no 3º dia o SPI dá
+  // 0,17 e o "término provável" salta para 1.500 dias numa obra de 255.
+  // Isso não é um alerta útil — é uma mentira com aparência de precisão, do
+  // tipo que um engenheiro mostra ao cliente sem desconfiar.
+  // Prática usual de gestão por valor agregado: só projetar quando há massa
+  // medida suficiente. Aqui: 10% do previsto E 15 dias corridos.
+  const maduro = (PV >= d.total*0.10) && (t >= 15) && (EV > 0);
+  const fimProv = maduro ? d.fim/Math.max(0.35, Math.min(spi,2.5)) : null;
+  return {d,t,its,EV,PV,spi,atrasoDias,restante,diasRest,ritmoReal,ritmoNec,fimProv,maduro,total:d.total};
+}
+
+function pintarKPIs(){
+  const base=dataBase(), fut=ehFuturo();
+  const its=itensEm(base);
+  const dir=its.filter(i=>i.tipo_custo!=="indireto");
+  const ind=its.filter(i=>i.tipo_custo==="indireto");
+  const tDir=dir.reduce((s,i)=>s+Number(i.valor||0),0), eDir=dir.reduce((s,i)=>s+Number(i.valor_executado||0),0);
+  const tInd=ind.reduce((s,i)=>s+Number(i.valor||0),0), eInd=ind.reduce((s,i)=>s+Number(i.valor_executado||0),0);
+  const total=tDir+tInd, feito=eDir+eInd;
+  // FÍSICO usa só custo direto — indireto é consumido pelo tempo, não pela produção
+  const pctFis=tDir>0?eDir/tDir*100:0;
+  const pctFin=total>0?feito/total*100:0;
+  const E=evm(base);
+  const conc=dir.filter(i=>Number(i.pct)>=100).length, and=dir.filter(i=>Number(i.pct)>0&&Number(i.pct)<100).length;
+  const selo = base===_hoje() ? "" :
+    `<span class="tagbase ${fut?"fut":""}">${fut?"🔮":"🕑"} posição em ${new Date(base+"T00:00:00").toLocaleDateString("pt-BR")}</span>`;
+  document.getElementById("obraMeta").dataset.base=base;
+  const bx=document.getElementById("seloBase"); if(bx) bx.innerHTML=selo;
+
+  let kAtraso="";
+  if(E){
+    const a=E.atrasoDias;
+    const cls = a<=2?"ok":a<=15?"warn":"bad";
+    kAtraso=`<div class="kpi ${cls}"><div class="l">${a>=0?"Atraso":"Adiantamento"}</div>
+      <div class="v">${Math.abs(a)}<span style="font-size:14px;color:var(--muted)"> dias</span></div>
+      <div class="s">SPI ${E.spi.toFixed(2)} · ${a>=0?"falta":"sobra"} ${money(Math.abs(E.PV-E.EV))} de obra</div></div>`;
+  }
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="l">Avanço físico</div><div class="v">${nf(pctFis)}%</div>
+      <div class="s">só custo direto · ${money(eDir)} de ${money(tDir)}</div>
+      <div class="bar" style="margin-top:7px"><i style="width:${Math.min(100,pctFis)}%"></i></div></div>
+    <div class="kpi"><div class="l">Financeiro</div><div class="v">${nf(pctFin)}%</div>
+      <div class="s">tudo · ${money(feito)} de ${money(total)}</div></div>
+    ${E?`<div class="kpi"><div class="l">Previsto para a data</div><div class="v">${nf(E.total>0?E.PV/E.total*100:0)}%</div>
+      <div class="s">pelo cronograma · ${money(E.PV)}</div></div>`:""}
+    ${kAtraso}
+    ${tInd>0?`<div class="kpi"><div class="l">Custo indireto</div><div class="v" style="font-size:19px">${money(eInd)}</div>
+      <div class="s">de ${money(tInd)} · ${nf(tInd>0?eInd/tInd*100:0)}% · fora do físico</div></div>`:""}
+    <div class="kpi"><div class="l">Serviços diretos</div><div class="v">${conc}<span style="font-size:15px;color:var(--muted)">/${dir.length}</span></div>
+      <div class="s">${and} em andamento</div></div>
+    <div class="kpi"><div class="l">A executar</div><div class="v" style="font-size:19px">${money(total-feito)}</div>
+      <div class="s">saldo do contrato</div></div>`;
+}
+// Lê a árvore gravada em `fase`. Planilha de um nível só continua funcionando:
+// o grupo é o próprio título e não existe subgrupo.
+function _partesEAP(i){
+  const t=String((i&&i.fase)||"").split(_SEP_EAP).map(x=>x.trim()).filter(Boolean);
+  return { grupo: t[0]||null, sub: t.slice(1).join(_SEP_EAP)||null, cheio: t.join(_SEP_EAP)||null };
+}
+function pintarItens(){
+  const base=dataBase(), fut=ehFuturo();
+  const its=itensEm(base);
+  const q=(document.getElementById("filtro").value||"").toLowerCase().trim();
+  const ff=document.getElementById("fFase").value, fs=document.getElementById("fSit").value;
+  const ft=(document.getElementById("fTipo")||{}).value||"";
+  const sit=i=>{const p=Number(i.pct)||0; return p>=100?"c":p>0?"p":"z";};
+  // % no mês anterior: mostra o quanto ANDOU nesta competência, não só o acumulado
+  const c=compAtual(); const [ay,am]=c.split("-").map(Number);
+  const antISO=new Date(ay,am-1,0).toISOString().slice(0,10);
+  const mAnt=pctMapa(antISO);
+  const lista=its.filter(i=>
+    (!q||String(i.descricao).toLowerCase().includes(q)||String(i.codigo||"").toLowerCase().includes(q))&&
+    (!ff||i.fase===ff)&&(!fs||sit(i)===fs)&&(!ft||(i.tipo_custo||"direto")===ft));
+  if(!lista.length){ document.getElementById("tbItens").innerHTML=
+    `<tr><td colspan="7" class="vazio">Nenhum serviço com esse filtro.</td></tr>`; return; }
+  // totais por grupo, para o cabeçalho mostrar peso e avanço da frente de obra
+  const porGrupo={};
+  its.forEach(x=>{ const g=_partesEAP(x).grupo||"—";
+    porGrupo[g]=porGrupo[g]||{v:0,e:0};
+    porGrupo[g].v+=Number(x.valor)||0; porGrupo[g].e+=Number(x.valor_executado)||0; });
+  let html="", gAtual=null, sAtual=null;
+  lista.forEach(i=>{
+    const P=_partesEAP(i);
+    if(P.grupo&&P.grupo!==gAtual){
+      gAtual=P.grupo; sAtual=null;
+      const t=porGrupo[P.grupo]||{v:0,e:0};
+      const pg=t.v>0?t.e/t.v*100:0;
+      html+=`<tr class="grupo"><td colspan="7">
+        <span class="gnome">${esc(P.grupo)}</span>
+        <span class="gval">${money(t.v)}</span>
+        <span class="gpct">${nf(pg)}%</span>
+        <span class="gbar"><i style="width:${Math.min(100,pg)}%"></i></span></td></tr>`;
+    }
+    if(P.sub&&P.sub!==sAtual){ sAtual=P.sub; html+=`<tr class="fase"><td colspan="7">${esc(P.sub)}</td></tr>`; }
+    else if(!P.sub&&!P.grupo&&sAtual!==null){ sAtual=null; }
+    const p=Number(i.pct)||0, s=sit(i);
+    const pa=mAnt[i.id]||0, dl=Math.round((p-pa)*100)/100;
+    const lbl={z:"Não iniciado",p:"Em andamento",c:"Concluído"}[s];
+    const ult=[...AVANCOS].reverse().find(a=>a.item_id===i.id&&a.data_ref<=base);
+    const quem=ult?`<div class="hist">último: ${esc(ult.autor_email||"—")} · ${new Date(ult.data_ref+"T00:00:00").toLocaleDateString("pt-BR")}</div>`:"";
+    const chipTipo = (i.tipo_custo==="indireto")
+      ? `<span class="chip ind" title="Custo indireto: entra no financeiro, mas NÃO no avanço físico. Clique para alternar." onclick="alternarTipo('${i.id}')">indireto</span>`
+      : `<span class="chip dir" title="Custo direto: conta no avanço físico. Clique para alternar." onclick="alternarTipo('${i.id}')">direto</span>`;
+    html+=`<tr>
+      <td><b>${esc(i.descricao)}</b>${i.manual?' <span class="chip man">manual</span>':""} ${chipTipo}
+        <div style="font-size:11.5px;color:var(--muted)">${esc(i.codigo||"—")}</div>${quem}</td>
+      <td class="num">${nf(i.quantidade)}<div style="font-size:11px;color:var(--muted)">${esc(i.unidade||"")}</div></td>
+      <td class="num">${money(i.valor)}</td>
+      ${_celsExec(i,p,dl,fut)}
+      <td class="num">${money(i.valor_executado)}</td>
+      <td><span class="chip ${s}">${lbl}</span></td>
+    </tr>`;
+  });
+  document.getElementById("tbItens").innerHTML=html;
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPETÊNCIA — a data-base da tela
+// Medição de obra é mensal. Pedir dia exato para lançar avanço é burocracia que
+// ninguém cumpre. Aqui existe UM controle: o mês. Ele é a data-base de tudo —
+// KPI, tabela e situação mostram a obra COMO ESTAVA no fechamento daquele mês.
+// Assim quem adere com a obra no meio simplesmente volta os meses e preenche.
+//   · mês corrente  → data_ref = hoje
+//   · mês passado   → data_ref = último dia do mês (é o fechamento da medição)
+//   · mês futuro    → não se lança avanço real; vai para a aba Previsão
+// ═════════════════════════════════════════════════════════════════════════════
+const MESES_PT=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function _hoje(){ return new Date().toISOString().slice(0,10); }
+function _compHoje(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function _compRotulo(c){ const [a,m]=c.split("-").map(Number); return MESES_PT[m-1]+" de "+a; }
+function _fimDoMes(c){ const [a,m]=c.split("-").map(Number);
+  return new Date(a,m,0).toISOString().slice(0,10); }   // dia 0 do mês seguinte = último do mês
+function _compInicio(){   // primeira competência = mês de início da obra (ou 12 meses atrás)
+  if(OBRA&&OBRA.data_inicio) return OBRA.data_inicio.slice(0,7);
+  const d=new Date(); d.setMonth(d.getMonth()-12);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+function compAtual(){ return COMP||_compHoje(); }
+function ehFuturo(c){ return (c||compAtual())>_compHoje(); }
+// data-base = até quando a tela enxerga o log
+function dataBase(){ const c=compAtual();
+  return c===_compHoje()? _hoje() : _fimDoMes(c); }
+// data em que o lançamento é gravado
+function dataRef(){ return dataBase(); }
+function compMover(n){
+  const [a,m]=compAtual().split("-").map(Number);
+  const d=new Date(a,m-1+n,1);
+  COMP=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+  if(COMP<_compInicio()) COMP=_compInicio();
+  pintarComp(); pintarKPIs(); pintarItens();
+}
+function compHoje(){ COMP=_compHoje(); pintarComp(); pintarKPIs(); pintarItens(); }
+function pintarComp(){
+  const c=compAtual(), hoje=_compHoje(), box=document.getElementById("compBox");
+  const txt=document.getElementById("compTxt"), av=document.getElementById("avisoData");
+  if(txt) txt.textContent=_compRotulo(c).replace(/^./,x=>x.toUpperCase());
+  if(box){ box.classList.toggle("past", c<hoje); box.classList.toggle("fut", c>hoje); }
+  const bh=document.getElementById("btnHoje"); if(bh) bh.style.display = c===hoje?"none":"";
+  const bp=document.getElementById("compProx"); if(bp) bp.disabled = false;
+  const ba=box&&box.querySelector("button"); if(ba) ba.disabled = c<=_compInicio();
+  if(!av) return;
+  if(c===hoje){ av.innerHTML=""; return; }
+  if(c>hoje){
+    av.innerHTML=`<div class="msg err" style="margin:0 0 11px">
+      🔮 <b>${_compRotulo(c).replace(/^./,x=>x.toUpperCase())} ainda não aconteceu.</b>
+      Aqui não se lança avanço real de mês futuro — o número viraria ficção no seu relatório.
+      Para planejar o que pretende executar, use a aba
+      <b><a href="#" onclick="irPrevisao();return false" style="color:#991b1b">Previsão</a></b>.
+      <button class="btn btn-out" style="padding:3px 10px;font-size:12px;margin-left:8px" onclick="compHoje()">Voltar para hoje</button></div>`;
+    return;
+  }
+  av.innerHTML=`<div class="msg info" style="margin:0 0 11px">
+    🕑 <b>Você está no fechamento de ${_compRotulo(c)}.</b>
+    A tela inteira mostra a obra <b>como estava em ${new Date(_fimDoMes(c)+"T00:00:00").toLocaleDateString("pt-BR")}</b>,
+    e o que você marcar entra como avanço daquele mês — não de hoje.
+    É assim que se preenche o histórico de uma obra que já estava andando.
+    <button class="btn btn-out" style="padding:3px 10px;font-size:12px;margin-left:8px" onclick="compHoje()">Voltar para hoje</button></div>`;
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// TRILHA DE ADESÃO — obra que já estava andando quando o usuário chegou
+// Caso real: assina hoje, a obra começou em junho. Saber que "dá para voltar o
+// mês" não basta — ele precisa ver QUANTOS meses faltam e quais já preencheu.
+// A trilha mostra cada mês do início da obra até hoje, marca de verde os que já
+// têm lançamento e leva direto ao que falta. Vira uma lista de tarefas curta,
+// em vez de uma tela em branco com um seletor.
+// ═════════════════════════════════════════════════════════════════════════════
+function _mesesAteHoje(){
+  const ini=_compInicio(), hoje=_compHoje(), out=[];
+  let [a,m]=ini.split("-").map(Number);
+  while(true){ const c=a+"-"+String(m).padStart(2,"0");
+    out.push(c); if(c===hoje||out.length>60) break;
+    m++; if(m>12){m=1;a++;} }
+  return out;
+}
+function _mesTemLancamento(c){
+  const [a,m]=c.split("-").map(Number);
+  const de=new Date(a,m-1,1).toISOString().slice(0,10), ate=_fimDoMes(c);
+  return AVANCOS.some(x=>x.data_ref>=de&&x.data_ref<=ate);
+}
+function pintarTrilha(){
+  const host=document.getElementById("trilha"); if(!host) return;
+  const meses=_mesesAteHoje();
+  // só aparece quando faz sentido: obra que começou antes do mês corrente
+  if(meses.length<2){ host.innerHTML=""; return; }
+  const feitos=meses.filter(_mesTemLancamento).length;
+  const faltam=meses.length-feitos;
+  if(faltam===0){ host.innerHTML=""; return; }   // tudo preenchido, some da tela
+  const atual=compAtual();
+  host.innerHTML=`<div class="msg info" style="margin:0 0 12px">
+    🗓️ <b>Esta obra começou antes de você entrar na plataforma.</b>
+    São ${meses.length} meses de ${_compRotulo(meses[0])} até agora e
+    <b>${faltam} ainda sem nenhum lançamento</b>. Clique num mês e marque o que já tinha sido executado
+    até o fim dele — o acumulado de cada mês, não só o que andou.
+    <div class="trilha">${meses.map(c=>{
+      const ok=_mesTemLancamento(c);
+      const [,mm]=c.split("-");
+      return `<button class="${ok?"feito":""} ${c===atual?"atual":""}" onclick="irMes('${c}')"
+        title="${_compRotulo(c)}">${MESES_PT[Number(mm)-1].slice(0,3)}/${c.slice(2,4)}</button>`;
+    }).join("")}</div></div>`;
+}
+function irMes(c){ COMP=c; pintarComp(); pintarKPIs(); pintarItens(); pintarTrilha();
+  const t=document.getElementById("compBox"); if(t) t.scrollIntoView({behavior:"smooth",block:"center"}); }
+function irPrevisao(){
+  const bs=[...document.querySelectorAll(".tabs button")];
+  const b=bs.find(x=>x.textContent.trim()==="Previsão"); if(b) aba("prev",b);
+}
+// Alterna direto/indireto de um serviço (a classificação automática erra às vezes)
+async function alternarTipo(id){
+  const it=ITENS.find(x=>x.id===id); if(!it) return;
+  const novo=(it.tipo_custo==="indireto")?"direto":"indireto";
+  const {error}=await sb.from("obra_itens").update({tipo_custo:novo}).eq("id",id);
+  if(error){ msg("itensMsg","Não consegui alterar: "+esc(error.message),"err"); return; }
+  carregarItens();
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// AVANÇO POR QUANTITATIVO — como se mede obra de verdade
+// Ninguém vai ao canteiro e conclui "a alvenaria está em 42%". Mede-se
+// "levantei 214 dos 510 m²" — e o percentual é consequência. Pedir o % obriga o
+// engenheiro a fazer a conta de cabeça, e é aí que entra erro na medição.
+// O banco continua guardando %, que é o que serve para somar serviços de
+// unidades diferentes; a conversão acontece aqui, na entrada.
+// Serviço sem quantidade (verba, VB, taxa) não tem o que medir: cai no % mesmo.
+// ═════════════════════════════════════════════════════════════════════════════
+// Qualquer serviço com quantidade contratada é mensurável na própria unidade —
+// inclusive "1,00 UN" e "1,00 VB". O engenheiro que instala o canteiro provisório
+// não pensa "estou em 20%": pensa "fiz 0,2 da unidade". Era eu que estava
+// impondo a conta de cabeça ao excluir essas unidades. Só cai no percentual
+// quem realmente não tem quantidade contratada (0 ou vazio).
+function _temQtd(i){ return (Number(i.quantidade)||0) > 0; }
+
+// aceita "1.234,56", "1234.56", "1234,56" e "1234"
+function _numBR(v){
+  let t=String(v==null?"":v).trim().replace(/\s/g,"");
+  if(!t) return NaN;
+  if(t.includes(",")) t=t.replace(/\./g,"").replace(",",".");
+  else if((t.match(/\./g)||[]).length>1) t=t.replace(/\./g,"");
+  return parseFloat(t);
+}
+// quantidade com casas suficientes p/ unidade pequena: 1 UN precisa ver 0,20
+const _nfQ=(v,q)=>(Number(v)||0).toLocaleString("pt-BR",
+  {minimumFractionDigits:(Number(q)||0)<=2?2:2, maximumFractionDigits:(Number(q)||0)<=2?3:2});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ACUMULADO × AVANÇO — quem mede obra não soma de cabeça
+// Em agosto a alvenaria fechou 100 m². Em setembro sobem 10 m² na semana 1 e
+// 20 m² na semana 2. Exigir que o usuário digite 110 e depois 130 é pedir que
+// ele faça — e confira — uma conta que o sistema já tem como fazer. Pior: é
+// onde nasce erro de medição, porque basta ele errar a soma uma vez para o
+// acumulado ficar torto até alguém conferir a planilha inteira.
+// No modo AVANÇO ele digita só o que andou no período; o sistema soma ao que já
+// existe e grava o acumulado. O banco continua guardando acumulado — é o que
+// permite ler a obra em qualquer data —, mas a entrada passa a ser incremental.
+// ═════════════════════════════════════════════════════════════════════════════
+// Devolve AS DUAS CÉLULAS (avanço e acumulado) de uma vez, porque elas são a
+// mesma informação vista de dois lados e precisam ficar em sintonia.
+//
+// Por que o acumulado continua editável, se ele é calculado?
+//   Porque o avanço é digitado por gente com pressa em canteiro de obra. Quem
+//   quis lançar 12 e lançou 120 precisa de um lugar para desfazer — e o lugar
+//   natural é o próprio total, que é o número que ficou errado. Sem isso, a
+//   única saída seria lançar um avanço negativo de -108, o que ninguém faz de
+//   cabeça. O log em obra_avancos guarda as duas entradas, então a correção
+//   fica registrada em vez de apagar história.
+function _celsExec(i,p,dl,fut){
+  const q=Number(i.quantidade)||0, un=esc(i.unidade||"");
+  const barra=`<div class="bar" style="margin-top:6px"><i style="width:${Math.min(100,p)}%"></i></div>`;
+  const trava=fut?"disabled title='Mês futuro — use a aba Previsão'":"";
+  // O que já entrou nesta competência: fica na coluna do AVANÇO, que é onde a
+  // pergunta "eu já lancei esse mês?" nasce.
+  const jaNoMes = dl
+    ? `<div class="nomes ${dl>0?"up":"dn"}" title="já lançado nesta competência">${dl>0?"+":""}${nf(dl)} p.p. no mês</div>`
+    : `<div class="nomes vazio">sem lançamento no mês</div>`;
+
+  if(!_temQtd(i)){   // sem quantidade contratada: só resta o percentual
+    return `<td class="c-av">
+        <div class="av"><span class="mais">+</span>
+          <input class="ex-in" type="text" inputmode="decimal" placeholder="0" value="" ${trava}
+            onchange="lancarDelta('${i.id}',this.value,this,'pct')"
+            title="Quanto avançou neste período, em pontos percentuais"><span class="u">%</span></div>
+        ${jaNoMes}</td>
+      <td class="c-ac">
+        <div class="av">
+          <input class="ex-in forte" type="text" inputmode="decimal" value="${nf(p)}" ${trava}
+            onchange="lancarPct('${i.id}',this.value,this)"
+            title="Total acumulado. Errou o avanço? Corrija o total aqui."><span class="u">%</span></div>
+        <div class="avsub">serviço sem quantitativo</div>${barra}</td>`;
+  }
+
+  const feito=q*p/100, falta=Math.max(0,q-feito);
+  return `<td class="c-av">
+      <div class="av"><span class="mais">+</span>
+        <input class="ex-in" type="text" inputmode="decimal" placeholder="0" value="" ${trava}
+          onchange="lancarDelta('${i.id}',this.value,this,'qtd')"
+          title="Quanto avançou neste período, na unidade da planilha">
+        <span class="u">${un}</span></div>
+      ${jaNoMes}</td>
+    <td class="c-ac">
+      <div class="av">
+        <input class="ex-in forte" type="text" inputmode="decimal" value="${_nfQ(feito,q)}" ${trava}
+          onchange="lancarQtd('${i.id}',this.value,this)"
+          title="Total executado até aqui. Errou o avanço? Corrija o total aqui.">
+        <span class="u">${un}</span></div>
+      <div class="avsub"><b class="pcts">${nf(p)}%</b> · ${p>=100?"concluído":`falta ${_nfQ(falta,q)} ${un}`}</div>${barra}</td>`;
+      // O "de ${_nfQ(q,q)} ${un}" saiu daqui de propósito: a quantidade contratada
+      // já tem coluna própria ao lado. Repetir custava largura e não informava nada.
+}
+// Correção do acumulado em percentual (serviços sem quantitativo).
+async function lancarPct(itemId,valor,el){
+  const v=_numBR(valor);
+  if(!isFinite(v)||v<0||v>100){ alert("O percentual acumulado precisa ficar entre 0 e 100."); pintarItens(); return; }
+  await lancar(itemId, Math.round(v*100)/100, el);
+}
+// Lança a partir da QUANTIDADE executada acumulada.
+async function lancarQtd(itemId,valor,el){
+  const it=ITENS.find(x=>x.id===itemId); if(!it) return;
+  const q=Number(it.quantidade)||0;
+  const v=_numBR(valor);
+  if(!isFinite(v)||v<0){ alert("Informe a quantidade executada — por exemplo 214,5"); pintarItens(); return; }
+  if(v>q*1.0001 && !_confirmaExcedente(it,v,q)){ pintarItens(); return; }
+  const pct = q>0 ? Math.min(100, v/q*100) : 0;
+  await lancar(itemId, Math.round(pct*100)/100, el);
+}
+// Lança a partir do AVANÇO do período: soma ao que já existe.
+async function lancarDelta(itemId,valor,el,tipo){
+  const it=ITENS.find(x=>x.id===itemId); if(!it) return;
+  const d=_numBR(valor);
+  if(!isFinite(d)){ pintarItens(); return; }            // campo vazio: nada a fazer
+  const atualPct = Number((itensEm(dataBase()).find(x=>x.id===itemId)||{}).pct) || 0;
+  if(tipo==="pct"){
+    const novo = atualPct + d;
+    if(novo < 0){ alert("O avanço negativo é maior que o já executado."); pintarItens(); return; }
+    await lancar(itemId, Math.min(100, Math.round(novo*100)/100), el);
+    return;
+  }
+  const q=Number(it.quantidade)||0;
+  const feito = q*atualPct/100;
+  const novoQ = feito + d;
+  if(novoQ < -0.0001){ alert("O avanço negativo é maior que o já executado."); pintarItens(); return; }
+  if(novoQ > q*1.0001 && !_confirmaExcedente(it,novoQ,q,feito,d)){ pintarItens(); return; }
+  const pct = q>0 ? Math.min(100, Math.max(0,novoQ)/q*100) : 0;
+  await lancar(itemId, Math.round(pct*100)/100, el);
+}
+// Excedente vira aditivo — o sistema não pode medir mais que o contratado calado.
+function _confirmaExcedente(it,total,q,feito,d){
+  const un=it.unidade||"";
+  return confirm(
+    (d!=null ? `Somando ${nf(d)} ${un} ao que já havia (${nf(feito)} ${un}), o total fica ${nf(total)} ${un}.\n\n`
+             : `Você informou ${nf(total)} ${un}, acima dos ${nf(q)} do contrato.\n\n`)
+    + `Isso passa dos ${nf(q)} ${un} contratados. Executar acima do previsto normalmente vira aditivo — `
+    + `o sistema registra 100% e o excedente NÃO entra no valor medido.\n\nRegistrar como concluído (100%)?`);
+}
+// ═══ LANÇAMENTO — insere no log, nunca sobrescreve ═══
+async function lancar(itemId,valor,el){
+  if(ehFuturo()){ alert("Este mês ainda não aconteceu. Para planejar o que pretende executar, use a aba Previsão."); pintarItens(); return; }
+  let p=parseFloat(String(valor).replace(",","."));
+  if(!(p>=0&&p<=100)){ alert("O percentual precisa ficar entre 0 e 100."); carregarItens(); return; }
+  p=Math.round(p*100)/100;
+  if(el) el.disabled=true;
+  const {error}=await sb.from("obra_avancos").insert({
+    obra_id:OBRA.id, item_id:itemId, pct:p, data_ref:dataRef(),
+    autor:USER.id, autor_email:USER.email
+  });
+  if(el) el.disabled=false;
+  if(error){ msg("itensMsg","Não consegui gravar o lançamento: "+esc(error.message),"err"); return; }
+  msg("itensMsg","","");
+  await carregarItens();
+}
+async function addItemManual(){
+  const d=prompt("Descrição do serviço (ex.: Escavação de vala para tapume):",""); if(!d) return;
+  const un=prompt("Unidade (M2, M3, UN, VB…):","UN")||"UN";
+  const qt=parseFloat(String(prompt("Quantidade:","1")||"1").replace(",","."))||0;
+  const pu=parseFloat(String(prompt("Preço unitário (R$):","0")||"0").replace(",","."))||0;
+  const fase=prompt("Fase (opcional, ex.: Serviços Preliminares):","")||null;
+  const ordem=ITENS.length?Math.max(...ITENS.map(i=>i.ordem||0))+1:0;
+  const {error}=await sb.from("obra_itens").insert({
+    obra_id:OBRA.id,ordem,fase,descricao:d.trim().slice(0,400),unidade:un.trim().toUpperCase(),
+    quantidade:qt,preco_unit:pu,valor:Math.round(qt*pu*100)/100,manual:true});
+  if(error){ alert("Não consegui incluir: "+error.message); return; }
+  carregarItens();
+}
+
+// ═══ TEMPO REAL — o painel de quem está viajando ═══
+function ligarTempoReal(obraId){
+  if(CANAL) sb.removeChannel(CANAL);
+  CANAL=sb.channel("obra-"+obraId)
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"obra_avancos",filter:"obra_id=eq."+obraId},
+      ()=>{ carregarItens(); })
+    // cronograma e metas mudam pela mão de outra pessoa; sem isto a tela seguiria
+    // desenhando o plano velho e a próxima gravação daqui empurraria o obsoleto
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"obras",filter:"id=eq."+obraId},
+      p=>{ if(p&&p.new){ OBRA=Object.assign({},OBRA,p.new);
+             const ab=document.querySelector(".tabs button.on");
+             const q=ab?ab.textContent.trim():"";
+             if(q==="Cronograma") cronograma(); else if(q==="Curva S") curvaS();
+             else if(q==="Previsão") previsao(); else if(q==="Mês a mês") mesAmes();
+             pintarKPIs(); } })
+    .subscribe(st=>{ document.getElementById("selo").classList.toggle("hide", st!=="SUBSCRIBED"); });
+}
+
+// ═══ ABAS ═══
+function aba(qual,btn){
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+  ["Serv","Crono","Curva","Prev","Mes","Hist"].forEach(x=>document.getElementById("aba"+x).classList.add("hide"));
+  if(qual==="serv") document.getElementById("abaServ").classList.remove("hide");
+  if(qual==="crono"){ document.getElementById("abaCrono").classList.remove("hide"); cronograma(); }
+  if(qual==="curva"){ document.getElementById("abaCurva").classList.remove("hide"); curvaS(); }
+  if(qual==="prev"){ document.getElementById("abaPrev").classList.remove("hide"); previsao(); }
+  if(qual==="mes"){ document.getElementById("abaMes").classList.remove("hide"); mesAmes(); }
+  if(qual==="hist"){ document.getElementById("abaHist").classList.remove("hide"); historico(); }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CRONOGRAMA PDM DA OBRA — mesmo modelo do ObraIA (TI / II / TT / IT)
+// As ETAPAS da planilha viram as atividades da rede. A duração de cada uma nasce
+// do peso dela no custo (prática usual quando não há produtividade lançada) e
+// pode ser editada. Os vínculos entre etapas são ajustáveis um a um.
+// A curva S PREVISTA sai daqui: cada etapa distribui o seu valor ao longo da
+// própria barra, e o acumulado dia a dia é a curva. Não é uma reta chutada — é o
+// desenho do cronograma que você montou.
+// ═════════════════════════════════════════════════════════════════════════════
+const TIPOS_V = {
+  FS:{lb:"TI", nome:"Término → Início",  desc:"só começa quando a anterior termina"},
+  SS:{lb:"II", nome:"Início → Início",   desc:"começa junto com a anterior (paralelo)"},
+  FF:{lb:"TT", nome:"Término → Término", desc:"termina junto com a anterior (paralelo)"},
+  SF:{lb:"IT", nome:"Início → Término",  desc:"termina quando a anterior começa (raro)"},
+};
+const _lagD=(v,durPred)=> v.un==="d" ? v.lag : (v.lag/100)*(durPred||0);
+const _vLabel=(v,durPred)=>{ const t=TIPOS_V[v.tipo]||TIPOS_V.FS;
+  if(!v.lag) return t.lb;
+  const sg=v.lag>0?"+":"−", n=Math.abs(v.lag);
+  return v.un==="d" ? `${t.lb}${sg}${n}d` : `${t.lb}${sg}${n}%`; };
+
+function _fases(){
+  const m=new Map();
+  ITENS.forEach(i=>{ const f=i.fase||"Sem etapa";
+    if(!m.has(f)) m.set(f,{nome:f,valor:0,exec:0,itens:0});
+    const o=m.get(f); o.valor+=Number(i.valor)||0; o.exec+=Number(i.valor_executado)||0; o.itens++; });
+  return [...m.values()];
+}
+// Rede padrão sugerida: cadeia TI entre as etapas, na ordem da planilha, com
+// 20% de sobreposição — obra real não é fila, mas também não começa tudo junto.
+function _cronoCfg(){
+  const fs=_fases();
+  const salvo=(OBRA.cronograma&&typeof OBRA.cronograma==="object")?OBRA.cronograma:{};
+  const cfg={prazo:Number(OBRA.prazo_dias)||180, dur:{}, links:{}};
+  Object.assign(cfg, salvo);
+  cfg.dur=Object.assign({},salvo.dur||{});
+  cfg.links=Object.assign({},salvo.links||{});
+  cfg.plano=Object.assign({},salvo.plano||{});   // metas de previsão, por mês
+  fs.forEach((f,i)=>{ if(!cfg.links[f.nome])
+    cfg.links[f.nome]= i===0?[]:[{p:fs[i-1].nome,tipo:"SS",lag:80,un:"%"}]; });
+  return cfg;
+}
+// Forward/backward pass do PDM sobre as etapas.
+function _calcCrono(){
+  const fs=_fases(); if(!fs.length) return null;
+  const cfg=_cronoCfg();
+  const total=fs.reduce((s,f)=>s+f.valor,0);
+  const nomes=fs.map(f=>f.nome);
+  const dur={};
+  fs.forEach(f=>{ dur[f.nome]= cfg.dur[f.nome]>0 ? cfg.dur[f.nome]
+    : Math.max(1, Math.round(cfg.prazo*(total>0?f.valor/total:1/fs.length))); });
+  const preds={}, succ={};
+  nomes.forEach(n=>{ preds[n]=(cfg.links[n]||[]).filter(v=>nomes.includes(v.p)); succ[n]=[]; });
+  nomes.forEach(n=>preds[n].forEach(v=>succ[v.p].push({n,...v})));
+  // ordem topológica (com proteção contra ciclo)
+  const indeg={}; nomes.forEach(n=>indeg[n]=new Set(preds[n].map(v=>v.p)).size);
+  const fila=nomes.filter(n=>indeg[n]===0), ordem=[], visto={}; nomes.forEach(n=>visto[n]=new Set());
+  while(fila.length){ const n=fila.shift(); ordem.push(n);
+    succ[n].forEach(s=>{ if(!visto[s.n].has(n)){ visto[s.n].add(n); if(--indeg[s.n]===0) fila.push(s.n); } }); }
+  const ciclo = ordem.length!==nomes.length;
+  if(ciclo) ordem.splice(0,ordem.length,...nomes);
+  const ES={},EF={};
+  ordem.forEach(n=>{ let es=0;
+    preds[n].forEach(v=>{ const lag=_lagD(v,dur[v.p]); let c;
+      if(v.tipo==="SS") c=ES[v.p]+lag;
+      else if(v.tipo==="FF") c=EF[v.p]+lag-dur[n];
+      else if(v.tipo==="SF") c=ES[v.p]+lag-dur[n];
+      else c=EF[v.p]+lag;
+      if(c>es) es=c; });
+    ES[n]=Math.max(0,es); EF[n]=ES[n]+dur[n]; });
+  const fim=Math.max(...nomes.map(n=>EF[n]));
+  const LS={},LF={};
+  [...ordem].reverse().forEach(n=>{ let lf=fim;
+    succ[n].forEach(s=>{ const lag=_lagD(s,dur[n]); let c;
+      if(s.tipo==="SS") c=LS[s.n]-lag+dur[n];
+      else if(s.tipo==="FF") c=LF[s.n]-lag;
+      else if(s.tipo==="SF") c=LF[s.n]-lag+dur[n];
+      else c=LS[s.n]-lag;
+      if(c<lf) lf=c; });
+    LF[n]=lf; LS[n]=lf-dur[n]; });
+  const ativ=fs.map(f=>({...f, dur:dur[f.nome], ini:ES[f.nome], fim:EF[f.nome],
+    folga:Math.round(LS[f.nome]-ES[f.nome]),
+    critica:Math.round(LS[f.nome]-ES[f.nome])<=0,
+    pct: f.valor>0? f.exec/f.valor*100 : 0,
+    preds:preds[f.nome].map(v=>({...v,label:_vLabel(v,dur[v.p])}))}))
+    .sort((a,b)=>a.ini-b.ini);
+  return {ativ, fim, total, cfg, ciclo};
+}
+// Curva S PREVISTA: cada etapa espalha o seu valor pela própria barra.
+function _curvaPrevista(d, passos){
+  const pts=[];
+  for(let k=0;k<=passos;k++){
+    const t=d.fim*k/passos;
+    let ac=0;
+    d.ativ.forEach(a=>{ const fr=Math.max(0,Math.min(1,(t-a.ini)/(a.dur||1))); ac+=a.valor*fr; });
+    pts.push({t, v:ac, pct: d.total>0? ac/d.total*100 : 0});
+  }
+  return pts;
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// GANTT — o que os softwares de planejamento mostram e a maioria dos painéis não
+//   · seta ligando predecessora → sucessora (dá para LER a rede, não só a tabela)
+//   · marca de "avanço esperado hoje" dentro de cada barra: bate o que a etapa
+//     deveria ter feito contra o que fez. É o diagnóstico por etapa, não da obra
+//     inteira — atraso na obra não diz ONDE está o problema.
+//   · cor por situação, e um painel do que exige atenção agora
+// ═════════════════════════════════════════════════════════════════════════════
+function _statusEtapa(a, hoje){
+  if(a.pct>=99.95) return {k:"ok",  cor:"#16a34a", lbl:"concluída"};
+  if(hoje<a.ini)   return {k:"fut", cor:"#94a3b8", lbl:"não começou (previsto adiante)"};
+  const esper=Math.max(0,Math.min(1,(hoje-a.ini)/(a.dur||1)))*100;
+  if(a.pct<=0)     return {k:"nao", cor:"#dc2626", lbl:"deveria ter começado", esper};
+  if(hoje>a.fim)   return {k:"atr", cor:"#dc2626", lbl:"passou do término", esper};
+  if(a.pct < esper-8) return {k:"lento", cor:"#d97706", lbl:"abaixo do previsto", esper};
+  return {k:"and", cor:"#1792C0", lbl:"em dia", esper};
+}
+function cronograma(){
+  const host=document.getElementById("abaCrono");
+  const d=_calcCrono();
+  if(!d||!d.total){ host.innerHTML=`<div class="vazio"><div class="ic">📅</div>
+    Sem etapas com valor para montar o cronograma.</div>`; return; }
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const dia=n=>{const x=new Date(d0); x.setDate(x.getDate()+Math.round(n)); return x;};
+  const fmt=x=>x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"});
+  const hoje=(Date.now()-d0.getTime())/86400000;
+  const W=1020, LBL=236, TRK=W-LBL-14, RH=32;
+  const px=t=>LBL+(d.fim>0? t/d.fim*TRK : 0);
+  const yDe={}; d.ativ.forEach((a,i)=>yDe[a.nome]=40+i*RH);
+  const meses=[]; let cur=new Date(d0.getFullYear(),d0.getMonth(),1);
+  while(true){ const off=(cur-d0)/86400000; if(off>d.fim) break;
+    if(off>=0) meses.push({off, txt:cur.toLocaleDateString("pt-BR",{month:"short"}).replace(".","")+"/"+String(cur.getFullYear()).slice(2)});
+    cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+  const H=d.ativ.length*RH+62;
+
+  // ── setas de dependência ──
+  const setas=d.ativ.map(a=>a.preds.map(v=>{
+    const pr=d.ativ.find(x=>x.nome===v.p); if(!pr) return "";
+    const yP=yDe[pr.nome], yS=yDe[a.nome];
+    const saiT = (v.tipo==="SS"||v.tipo==="SF") ? pr.ini : pr.fim;
+    const chegaT = (v.tipo==="FF"||v.tipo==="SF") ? a.fim : a.ini;
+    const x1=px(saiT), x2=px(chegaT);
+    const crit=pr.critica&&a.critica;
+    const cor=crit?"#dc2626":"#b6c6d4", op=crit?".85":".55";
+    const dy=yS>yP?1:-1;
+    // desvia por baixo quando a sucessora começa antes da saída (evita reta cortando barras)
+    const dPath = x2>=x1+8
+      ? `M${x1},${yP} L${x1+6},${yP} L${x1+6},${yS-dy*9} L${x2-7},${yS-dy*9} L${x2-7},${yS}`
+      : `M${x1},${yP} L${x1+6},${yP} L${x1+6},${yP+dy*(RH/2-3)} L${x2-9},${yP+dy*(RH/2-3)} L${x2-9},${yS-dy*9} L${x2-4},${yS-dy*9} L${x2-4},${yS}`;
+    return `<path d="${dPath}" fill="none" stroke="${cor}" stroke-width="${crit?1.5:1.1}" opacity="${op}" marker-end="url(#seta${crit?"C":""})"/>`;
+  }).join("")).join("");
+
+  const barras=d.ativ.map((a,i)=>{
+    const y=yDe[a.nome], x1=px(a.ini), x2=px(a.fim), w=Math.max(3,x2-x1);
+    const st=_statusEtapa(a,hoje);
+    const fim1=x1+w, pctDentro=fim1>W-76;
+    const xEsp = st.esper!=null ? x1+w*Math.min(1,st.esper/100) : null;
+    return `<g>
+      <rect x="0" y="${y-13}" width="${W}" height="${RH-4}" fill="${i%2?"#f8fafc":"#fff"}"/>
+      <g clip-path="url(#clpLbl)"><text x="8" y="${y+4}" font-size="12" font-weight="600" fill="#002B40">${esc(a.nome)}</text></g>
+      <text x="${LBL-10}" y="${y+4}" font-size="10" fill="#94a3b8" text-anchor="end">${a.dur}d</text>
+      <rect x="${x1}" y="${y-9}" width="${w}" height="19" rx="4" fill="${st.cor}" opacity=".15"/>
+      <rect x="${x1}" y="${y-9}" width="${w*Math.min(1,a.pct/100)}" height="19" rx="4" fill="${st.cor}"/>
+      <rect x="${x1}" y="${y-9}" width="${w}" height="19" rx="4" fill="none" stroke="${st.cor}" stroke-width="${a.critica?1.7:1}"/>
+      ${xEsp!=null&&st.k!=="ok"?`<line x1="${xEsp}" y1="${y-12}" x2="${xEsp}" y2="${y+13}" stroke="#0f172a" stroke-width="1.5" opacity=".62"/>`:""}
+      <text x="${pctDentro? fim1-5 : fim1+6}" y="${y+4}" font-size="10.5" font-weight="700"
+        text-anchor="${pctDentro?"end":"start"}"
+        fill="${pctDentro && a.pct>55 ? "#fff" : (a.pct>0?st.cor:"#94a3b8")}">${nf(a.pct)}%</text>
+      <title>${esc(a.nome)} — ${st.lbl}\n${fmt(dia(a.ini))} → ${fmt(dia(a.fim))} · ${a.dur} dias\n${money(a.valor)} · executado ${nf(a.pct)}%${st.esper!=null?" (esperado hoje "+nf(st.esper)+"%)":""}\n${a.critica?"CAMINHO CRÍTICO":"folga "+a.folga+" dias"}</title>
+    </g>`;
+  }).join("");
+
+  const gantt=`<svg class="gx" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;min-width:780px">
+    <defs>
+      <clipPath id="clpLbl"><rect x="0" y="0" width="${LBL-36}" height="${H}"/></clipPath>
+      <marker id="seta" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 z" fill="#b6c6d4"/></marker>
+      <marker id="setaC" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 z" fill="#dc2626"/></marker>
+    </defs>
+    <rect x="${LBL}" y="20" width="${TRK}" height="${H-36}" fill="#fff"/>
+    ${meses.map(m=>`<line x1="${px(m.off)}" y1="20" x2="${px(m.off)}" y2="${H-16}" stroke="#e8eef4"/>
+      <text x="${Math.min(px(m.off)+3, W-32)}" y="14" font-size="10" fill="#94a3b8">${m.txt}</text>`).join("")}
+    ${setas}
+    ${barras}
+    ${hoje>=0&&hoje<=d.fim?`<line x1="${px(hoje)}" y1="20" x2="${px(hoje)}" y2="${H-16}" stroke="#dc2626" stroke-width="1.6" stroke-dasharray="5,4"/>
+      <text x="${px(hoje)+4}" y="${H-20}" font-size="10" font-weight="700" fill="#dc2626">hoje</text>`:""}
+  </svg>`;
+
+  // ── o que exige atenção agora ──
+  const naoIniciou=d.ativ.filter(a=>_statusEtapa(a,hoje).k==="nao");
+  const estourou =d.ativ.filter(a=>_statusEtapa(a,hoje).k==="atr");
+  const lentas   =d.ativ.filter(a=>_statusEtapa(a,hoje).k==="lento");
+  const critAtras=d.ativ.filter(a=>a.critica&&["nao","atr","lento"].includes(_statusEtapa(a,hoje).k));
+  let al="";
+  if(critAtras.length) al+=`<div class="al r"><span class="ic">🚨</span><div>
+    <b>${critAtras.length} etapa(s) do caminho crítico fora do previsto:</b> ${critAtras.map(a=>esc(a.nome)).join(", ")}.
+    Etapa crítica não tem folga — cada dia perdido aqui é um dia a mais na entrega.</div></div>`;
+  if(estourou.length) al+=`<div class="al r"><span class="ic">⏰</span><div>
+    <b>Passou do término previsto e não fechou:</b> ${estourou.map(a=>esc(a.nome)+" ("+nf(a.pct)+"%)").join(" · ")}.</div></div>`;
+  if(naoIniciou.length) al+=`<div class="al a"><span class="ic">🚧</span><div>
+    <b>Deveria ter começado e está zerada:</b> ${naoIniciou.map(a=>esc(a.nome)).join(", ")}.
+    Ou a equipe não entrou, ou o avanço não foi lançado.</div></div>`;
+  if(lentas.length) al+=`<div class="al a"><span class="ic">🐢</span><div>
+    <b>Andando abaixo do previsto:</b> ${lentas.map(a=>esc(a.nome)+" ("+nf(a.pct)+"% de "+nf(_statusEtapa(a,hoje).esper)+"% esperados)").join(" · ")}.</div></div>`;
+  if(!al) al=`<div class="al g"><span class="ic">✅</span><div><b>Nenhuma etapa fora do previsto.</b> O cronograma está sendo cumprido.</div></div>`;
+
+  const crit=d.ativ.filter(a=>a.critica);
+  host.innerHTML=`
+    ${d.ciclo?`<div class="msg err">⚠ Há dependência circular entre etapas — o caminho crítico não é confiável até corrigir.</div>`:""}
+    <div class="alertas">${al}</div>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:16px 0 14px">
+      <label style="margin:0">Prazo total (dias)
+        <input type="number" min="1" value="${d.cfg.prazo}" style="width:92px;margin-left:6px" onchange="salvarPrazo(this.value)"></label>
+      <span style="font-size:12.5px;color:var(--muted)">Conclusão: <b style="color:var(--navy)">${fmt(dia(d.fim))}</b> · ${Math.round(d.fim)} dias</span>
+      <button class="btn btn-out" style="padding:5px 12px;font-size:12.5px;margin-left:auto" onclick="resetCrono()">↺ Rede sugerida</button>
+    </div>
+    <div style="overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff">${gantt}</div>
+    <div class="leg" style="margin-top:9px">
+      <span><span class="sq" style="background:#16a34a"></span>concluída</span>
+      <span><span class="sq" style="background:#1792C0"></span>em dia</span>
+      <span><span class="sq" style="background:#d97706"></span>abaixo do previsto</span>
+      <span><span class="sq" style="background:#dc2626"></span>atrasada / não começou</span>
+      <span><span class="sq" style="background:#94a3b8"></span>ainda não começa</span>
+      <span><b style="color:#0f172a">│</b> avanço esperado hoje</span>
+      <span>seta = dependência entre etapas</span>
+    </div>
+    ${crit.length?`<div style="font-size:11.5px;color:var(--muted);margin-top:7px">
+      Caminho crítico: <b style="color:#dc2626">${crit.map(a=>esc(a.nome)).join(" → ")}</b> — atrasar qualquer uma dessas atrasa a entrega.</div>`:""}
+    <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Etapas e vínculos</h3>
+    <div style="overflow:auto"><table>
+      <thead><tr><th>Etapa</th><th>Situação</th><th class="num">Valor</th><th class="num">Duração</th>
+        <th class="num">Início</th><th class="num">Término</th><th>Depende de</th><th class="num">Folga</th></tr></thead>
+      <tbody>${d.ativ.map(a=>{const st=_statusEtapa(a,hoje); return `<tr>
+        <td><b>${esc(a.nome)}</b><div style="font-size:11px;color:var(--muted)">${a.itens} serviço(s) · ${nf(a.pct)}% executado</div></td>
+        <td><span class="chip" style="background:${st.cor}1f;color:${st.cor}">${st.lbl}</span></td>
+        <td class="num">${money(a.valor)}</td>
+        <td class="num"><span style="cursor:pointer;color:var(--blue);font-weight:600" onclick="editarDur('${esc(a.nome).replace(/'/g,"\\'")}')">${a.dur}d ✎</span></td>
+        <td class="num">${fmt(dia(a.ini))}</td><td class="num">${fmt(dia(a.fim))}</td>
+        <td style="font-size:11.5px">${a.preds.length? a.preds.map(v=>
+            `<span class="pred-chip" title="${TIPOS_V[v.tipo].nome} — ${TIPOS_V[v.tipo].desc}. Clique para editar."
+              onclick="editarLink('${esc(a.nome).replace(/'/g,"\\'")}','${esc(v.p).replace(/'/g,"\\'")}')">${esc(v.p.slice(0,22))}
+              <span class="lag-badge ${v.tipo==="SS"||v.tipo==="FF"?"par":""}">${v.label}</span></span>`).join(" ")
+          : `<span style="color:var(--muted)">— início da obra</span>`}</td>
+        <td class="num">${a.critica?`<b style="color:#dc2626">crítica</b>`:a.folga+"d"}</td></tr>`;}).join("")}
+      </tbody></table></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">
+      <span class="lag-badge">TI</span> término→início ·
+      <span class="lag-badge par">II</span> início→início ·
+      <span class="lag-badge par">TT</span> término→término ·
+      <span class="lag-badge">IT</span> início→término. Clique num vínculo para mudar o tipo e o atraso.
+    </div>`;
+}
+function editarDur(fase){
+  const d=_calcCrono(); const a=d.ativ.find(x=>x.nome===fase); if(!a) return;
+  const v=prompt(`Duração de "${fase}", em dias:`, a.dur);
+  if(v===null) return;
+  const n=parseInt(String(v).replace(/[^0-9]/g,""),10);
+  const cfg=_cronoCfg(); if(n>0) cfg.dur[fase]=n; else delete cfg.dur[fase];
+  gravarCrono(cfg);
+}
+function editarLink(fase, pred){
+  const d=_calcCrono(); const a=d.ativ.find(x=>x.nome===fase); if(!a) return;
+  const v=a.preds.find(x=>x.p===pred); if(!v) return;
+  const ex=document.getElementById("linkPop"); if(ex) ex.remove();
+  const pop=document.createElement("div"); pop.id="linkPop"; pop.className="vinc-pop";
+  pop.innerHTML=`
+    <div class="vp-h"><b>${esc(fase)}</b> depende de <b>${esc(pred)}</b></div>
+    <div class="vp-g">${Object.keys(TIPOS_V).map(k=>`
+      <label class="vp-t ${k===v.tipo?"on":""}"><input type="radio" name="lkTipo" value="${k}" ${k===v.tipo?"checked":""}>
+        <b>${TIPOS_V[k].lb}</b><span>${TIPOS_V[k].nome}</span><em>${TIPOS_V[k].desc}</em></label>`).join("")}</div>
+    <div class="vp-l">
+      <label>Atraso<input type="number" id="lkLag" step="1" value="${v.lag}" style="width:80px"></label>
+      <label>Unidade<select id="lkUn">
+        <option value="%" ${v.un==="%"?"selected":""}>% da duração da anterior</option>
+        <option value="d" ${v.un==="d"?"selected":""}>dias</option></select></label>
+      <div class="vp-hint">Positivo espera · negativo adianta</div>
+    </div>
+    <div class="vp-b">
+      <button class="btn btn-blue" onclick="salvarLink('${esc(fase).replace(/'/g,"\\'")}','${esc(pred).replace(/'/g,"\\'")}')">Aplicar</button>
+      <button class="btn btn-out" onclick="removerLink('${esc(fase).replace(/'/g,"\\'")}','${esc(pred).replace(/'/g,"\\'")}')">Remover vínculo</button>
+      <button class="btn btn-out" onclick="document.getElementById('linkPop').remove()">Cancelar</button>
+    </div>`;
+  const h=document.getElementById("abaCrono"); h.insertBefore(pop,h.firstChild);
+  pop.querySelectorAll(".vp-t").forEach(l=>l.addEventListener("click",()=>{
+    pop.querySelectorAll(".vp-t").forEach(x=>x.classList.remove("on")); l.classList.add("on"); }));
+  pop.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function salvarLink(fase,pred){
+  const pop=document.getElementById("linkPop"); if(!pop) return;
+  const tipo=(pop.querySelector('input[name="lkTipo"]:checked')||{}).value||"FS";
+  const lag=parseInt(String(document.getElementById("lkLag").value).replace(/[^0-9-]/g,""),10)||0;
+  const un=document.getElementById("lkUn").value==="d"?"d":"%";
+  const cfg=_cronoCfg();
+  cfg.links[fase]=(cfg.links[fase]||[]).map(v=>v.p===pred?{p:pred,tipo,lag,un}:v);
+  pop.remove(); gravarCrono(cfg);
+}
+function removerLink(fase,pred){
+  const cfg=_cronoCfg();
+  cfg.links[fase]=(cfg.links[fase]||[]).filter(v=>v.p!==pred);
+  const pop=document.getElementById("linkPop"); if(pop) pop.remove();
+  gravarCrono(cfg);
+}
+async function salvarPrazo(v){
+  const n=Math.max(1,parseInt(v,10)||180);
+  const merged=await _mesclarCrono(m=>{ m.prazo=n; });
+  if(!merged) return;
+  if(await _persistirCrono(merged,{prazo_dias:n})){ OBRA.prazo_dias=n; pintarKPIs(); cronograma(); }
+}
+async function resetCrono(){
+  if(!confirm("Voltar à rede sugerida? Suas durações e vínculos editados serão perdidos.\n\n(As metas de previsão que você lançou são preservadas.)")) return;
+  // preserva o plano: resetar o desenho da rede não deveria apagar planejamento
+  const merged=await _mesclarCrono(m=>{ m.dur={}; m.links={}; });
+  if(!merged) return;
+  if(await _persistirCrono(merged)) cronograma();
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// GRAVAÇÃO DO CRONOGRAMA — relê antes de escrever
+// O cronograma e as metas de previsão moram no mesmo jsonb da obra, e a tela
+// trabalhava sobre o snapshot carregado ao ABRIR a obra. Numa obra com equipe
+// isso apagava trabalho sem avisar: você abre às 9h, seu sócio ajusta uma
+// duração às 10h, você mexe em outra às 11h — e o seu POST leva o estado das 9h,
+// enterrando a alteração dele. Ninguém via nada.
+// Agora toda gravação relê o estado atual e mescla campo a campo. Só sobrescreve
+// o que VOCÊ acabou de mudar; o resto vem do banco. É o mínimo para um painel
+// que se vende como colaborativo.
+// ═════════════════════════════════════════════════════════════════════════════
+async function _mesclarCrono(mut){
+  const {data,error}=await sb.from("obras").select("cronograma,prazo_dias").eq("id",OBRA.id).single();
+  if(error){ msg("itensMsg","Não consegui reler o cronograma: "+esc(error.message),"err"); return null; }
+  const atual=(data&&data.cronograma&&typeof data.cronograma==="object")?data.cronograma:{};
+  const base={prazo:Number(data&&data.prazo_dias)||Number(OBRA.prazo_dias)||180,dur:{},links:{},plano:{}};
+  const merged=Object.assign(base,atual,{
+    dur:Object.assign({},atual.dur||{}),
+    links:Object.assign({},atual.links||{}),
+    plano:Object.assign({},atual.plano||{})
+  });
+  mut(merged);                       // aplica só a alteração desta tela
+  OBRA.cronograma=merged;
+  if(data&&data.prazo_dias) OBRA.prazo_dias=data.prazo_dias;
+  return merged;
+}
+async function _persistirCrono(cfg,extra){
+  const {error}=await sb.from("obras").update(Object.assign({cronograma:cfg},extra||{})).eq("id",OBRA.id);
+  if(error){ msg("itensMsg","Não consegui salvar: "+esc(error.message),"err"); return false; }
+  return true;
+}
+async function gravarCrono(cfg){
+  // cfg vem de _cronoCfg() sobre o snapshot local; reaplica a mudança sobre o
+  // estado fresco em vez de empurrar o snapshot inteiro
+  const merged=await _mesclarCrono(m=>{
+    m.prazo=cfg.prazo;
+    Object.assign(m.dur,cfg.dur||{});
+    m.links=Object.assign({},cfg.links||{});   // vínculos são substituídos em bloco
+  });
+  if(!merged) return;
+  if(await _persistirCrono(merged)){ cronograma(); pintarKPIs(); }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CURVA S — três leituras na mesma tela
+//   PREVISTO   tracejado azul  · o desenho do cronograma que você montou
+//   REAL       cheio verde     · o que a equipe lançou, acumulado
+//   TENDÊNCIA  pontilhado âmbar· para onde isso vai se o ritmo não mudar
+// Ao fundo, as barras de desembolso mensal (previsto x realizado). Curva sozinha
+// esconde o que interessa na obra: em que MÊS o dinheiro sai e se a equipe está
+// produzindo no ritmo que o prazo exige.
+// ═════════════════════════════════════════════════════════════════════════════
+function _mesesGrade(){
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const d=_calcCrono(); const fim=d?d.fim:(Number(OBRA.prazo_dias)||180);
+  const out=[]; let c=new Date(d0.getFullYear(),d0.getMonth(),1);
+  const ultimo=new Date(d0.getTime()+fim*86400000);
+  while(c<=ultimo && out.length<72){
+    const fimM=new Date(c.getFullYear(),c.getMonth()+1,0,12);
+    out.push({ini:new Date(c), fim:fimM,
+      chave:`${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,"0")}`,
+      curto:c.toLocaleDateString("pt-BR",{month:"short"}).replace(".","")+"/"+String(c.getFullYear()).slice(2),
+      rotulo:c.toLocaleDateString("pt-BR",{month:"long",year:"numeric"}),
+      tIni:(c-d0)/86400000, tFim:(fimM-d0)/86400000});
+    c=new Date(c.getFullYear(),c.getMonth()+1,1);
+  }
+  return out;
+}
+function _seriesMensais(d){
+  const meses=_mesesGrade(); const hojeISO=_hoje();
+  let pvAnt=0, evAnt=0;
+  return meses.map(m=>{
+    const pv=_pvEm(d,m.tFim);
+    const its=itensEm(m.fim.toISOString().slice(0,10));
+    const ev=its.reduce((s,i)=>s+Number(i.valor_executado||0),0);
+    const o={...m, pvAc:pv, evAc:ev, pvMes:pv-pvAnt, evMes:ev-evAnt,
+      passou: m.fim.toISOString().slice(0,10)<=hojeISO};
+    pvAnt=pv; evAnt=ev; return o;
+  });
+}
+function curvaS(){
+  const host=document.getElementById("abaCurva");
+  const E=evm(_hoje());
+  if(!E){ host.innerHTML=`<div class="vazio"><div class="ic">📈</div>Sem dados para a curva.</div>`; return; }
+  const d=E.d;
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const dia=n=>{const x=new Date(d0); x.setDate(x.getDate()+Math.round(n)); return x;};
+  const fmt=x=>x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"});
+  const meses=_seriesMensais(d);
+  const hoje=E.t;
+
+  // ── curvas ──
+  const prev=_curvaPrevista(d,90);
+  const real=meses.filter(m=>m.passou).map(m=>({t:m.tFim, pct:d.total>0?m.evAc/d.total*100:0, v:m.evAc}));
+  if(real.length&&Math.abs(real[real.length-1].t-hoje)>3) real.push({t:hoje, pct:d.total>0?E.EV/d.total*100:0, v:E.EV});
+  // tendência: do ponto de hoje até 100%, no ritmo medido
+  const tend=[];
+  if(E.maduro&&E.EV>0&&hoje>0){   // sem massa medida, a tendência vira ficção
+    const ritmoDia=E.EV/hoje;
+    const tFim100 = ritmoDia>0 ? d.total/ritmoDia : d.fim*3;
+    for(let k=0;k<=24;k++){ const t=hoje+(tFim100-hoje)*k/24;
+      tend.push({t, pct:Math.min(100,(E.EV+ritmoDia*(t-hoje))/d.total*100)}); }
+  }
+  const tMax=Math.max(d.fim, tend.length?tend[tend.length-1].t:0)*1.02;
+
+  const W=980,H=380,PL=62,PR=54,PT=16,PB=46;
+  const X=t=>PL+(tMax>0? Math.max(0,Math.min(1,t/tMax)):0)*(W-PL-PR);
+  const Y=p=>H-PB-(Math.max(0,Math.min(100,p))/100)*(H-PT-PB);
+  const path=a=>a.map((p,i)=>`${i?"L":"M"}${X(p.t).toFixed(1)},${Y(p.pct).toFixed(1)}`).join(" ");
+  const area=prev.length?`${path(prev)} L${X(prev[prev.length-1].t).toFixed(1)},${Y(0)} L${X(prev[0].t).toFixed(1)},${Y(0)} Z`:"";
+
+  // barras mensais (escala própria à direita)
+  const maxMes=Math.max(1,...meses.map(m=>Math.max(m.pvMes,m.evMes)));
+  const hBar=p=>(p/maxMes)*(H-PT-PB)*0.42;
+  const barras=meses.map(m=>{
+    const x1=X(m.tIni), x2=X(m.tFim), w=Math.max(2,(x2-x1)*0.78), cx=x1+(x2-x1)*0.11;
+    const yb=H-PB;
+    return `<g>
+      <rect x="${cx}" y="${yb-hBar(m.pvMes)}" width="${w/2}" height="${hBar(m.pvMes)}" fill="#1792C0" opacity=".16"/>
+      <rect x="${cx+w/2}" y="${yb-hBar(m.evMes)}" width="${w/2}" height="${hBar(m.evMes)}" fill="#16a34a" opacity="${m.passou?".34":".10"}"/>
+      <title>${m.rotulo}\nPrevisto no mês: ${money(m.pvMes)}\n${m.passou?"Realizado no mês: "+money(m.evMes):"(mês futuro)"}</title></g>`;
+  }).join("");
+
+  const spiCls=E.spi>=0.98?"ok":E.spi>=0.9?"warn":"bad";
+  const atrCls=E.atrasoDias<=2?"ok":E.atrasoDias<=15?"warn":"bad";
+  const ritCls=E.ritmoNec<=E.ritmoReal*1.05?"ok":E.ritmoNec<=E.ritmoReal*1.35?"warn":"bad";
+  const dtProv=E.maduro?dia(E.fimProv):null;
+  const dtPrev=dia(d.fim);
+  const estouro=E.maduro?Math.round(E.fimProv-d.fim):null;
+
+  host.innerHTML=`
+    <div class="kpis" style="margin-bottom:6px">
+      <div class="kpi ${atrCls}"><div class="l">${E.atrasoDias>=0?"Atraso acumulado":"Adiantado"}</div>
+        <div class="v">${Math.abs(E.atrasoDias)}<span style="font-size:14px;color:var(--muted)"> dias</span></div>
+        <div class="s">o cronograma previa esse volume em ${fmt(dia(E.t-E.atrasoDias))}</div></div>
+      ${E.maduro
+        ? `<div class="kpi ${spiCls}"><div class="l">Desempenho (SPI)</div><div class="v">${E.spi.toFixed(2)}</div>
+             <div class="s">produziu ${nf(E.spi*100)}% do planejado no período</div></div>`
+        : `<div class="kpi"><div class="l">Desempenho (SPI)</div><div class="v" style="font-size:15px;color:var(--muted)">cedo demais</div>
+             <div class="s">no início da obra o índice oscila demais para significar algo</div></div>`}
+      <div class="kpi"><div class="l">Executado · previsto</div><div class="v" style="font-size:19px">${nf(d.total>0?E.EV/d.total*100:0)}%</div>
+        <div class="s">${money(E.EV)} de ${money(E.PV)} previstos</div></div>
+      <div class="kpi ${ritCls}"><div class="l">Ritmo necessário</div><div class="v" style="font-size:19px">${money(E.ritmoNec)}</div>
+        <div class="s">por mês · você vem fazendo ${money(E.ritmoReal)}</div></div>
+      ${E.maduro
+        ? `<div class="kpi ${estouro<=0?"ok":estouro<=20?"warn":"bad"}"><div class="l">Término provável</div>
+             <div class="v" style="font-size:17px">${dtProv.toLocaleDateString("pt-BR")}</div>
+             <div class="s">cronograma ${dtPrev.toLocaleDateString("pt-BR")} · ${estouro>0?"+"+estouro+" dias":estouro<0?estouro+" dias":"em cima"}</div></div>`
+        : `<div class="kpi"><div class="l">Término provável</div>
+             <div class="v" style="font-size:15px;color:var(--muted)">sem base ainda</div>
+             <div class="s">projeção exige 10% da obra medida e 15 dias — hoje há ${nf(d.total>0?E.EV/d.total*100:0)}%</div></div>`}
+    </div>
+    ${_alertaRitmo(E)}
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;min-width:680px">
+      <defs><linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1792C0" stop-opacity=".20"/><stop offset="100%" stop-color="#1792C0" stop-opacity="0"/>
+      </linearGradient></defs>
+      ${[0,25,50,75,100].map(p=>`<line x1="${PL}" y1="${Y(p)}" x2="${W-PR}" y2="${Y(p)}" stroke="#eef2f7"/>
+        <text x="${PL-9}" y="${Y(p)+4}" font-size="10.5" fill="#94a3b8" text-anchor="end">${p}%</text>`).join("")}
+      ${barras}
+      ${area?`<path d="${area}" fill="url(#gP)"/>`:""}
+      <path d="${path(prev)}" fill="none" stroke="#1792C0" stroke-width="2.6" stroke-dasharray="8,5"/>
+      ${tend.length>1?`<path d="${path(tend)}" fill="none" stroke="#d97706" stroke-width="2.2" stroke-dasharray="2,4"/>`:""}
+      ${real.length>1?`<path d="${path(real)}" fill="none" stroke="#16a34a" stroke-width="3.2" stroke-linejoin="round"/>`:""}
+      ${real.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.pct)}" r="3.4" fill="#16a34a"><title>${fmt(dia(p.t))}: ${nf(p.pct)}% · ${money(p.v)}</title></circle>`).join("")}
+      ${hoje>=0&&hoje<=tMax?`<line x1="${X(hoje)}" y1="${PT}" x2="${X(hoje)}" y2="${H-PB}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,4"/>
+        <text x="${X(hoje)+4}" y="${PT+10}" font-size="10.5" font-weight="700" fill="#dc2626">hoje</text>`:""}
+      ${d.fim<=tMax?`<line x1="${X(d.fim)}" y1="${PT}" x2="${X(d.fim)}" y2="${H-PB}" stroke="#94a3b8" stroke-width="1.2"/>
+        <text x="${X(d.fim)-4}" y="${PT+10}" font-size="10" fill="#64748b" text-anchor="end">prazo</text>`:""}
+      ${E.atrasoDias>3&&hoje<=tMax?`<line x1="${X(E.t-E.atrasoDias)}" y1="${Y(d.total>0?E.EV/d.total*100:0)}" x2="${X(hoje)}" y2="${Y(d.total>0?E.EV/d.total*100:0)}"
+        stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3,3"/>
+        <text x="${(X(E.t-E.atrasoDias)+X(hoje))/2}" y="${Y(d.total>0?E.EV/d.total*100:0)-7}" font-size="10" font-weight="700" fill="#dc2626" text-anchor="middle">${E.atrasoDias}d</text>`:""}
+      ${meses.filter((m,i)=>meses.length<=14||i%Math.ceil(meses.length/14)===0).map(m=>
+        `<text x="${X((m.tIni+m.tFim)/2)}" y="${H-16}" font-size="9.5" fill="#64748b" text-anchor="middle">${m.curto}</text>`).join("")}
+    </svg>
+    <div class="leg">
+      <span><i style="border-color:#1792C0;border-top-style:dashed"></i>Previsto pelo cronograma</span>
+      <span><i style="border-color:#16a34a"></i>Real executado</span>
+      <span><i style="border-color:#d97706;border-top-style:dotted"></i>Tendência no ritmo atual</span>
+      <span><span class="sq" style="background:#1792C0;opacity:.3"></span>Desembolso previsto/mês</span>
+      <span><span class="sq" style="background:#16a34a;opacity:.45"></span>Realizado/mês</span>
+    </div>
+    <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Fechamento mês a mês</h3>
+    <div style="overflow:auto;max-height:340px"><table>
+      <thead><tr><th>Mês</th><th class="num">Previsto no mês</th><th class="num">Realizado no mês</th>
+        <th class="num">Acum. previsto</th><th class="num">Acum. real</th><th class="num">Desvio</th></tr></thead>
+      <tbody>${meses.map(m=>{
+        const dv=d.total>0?(m.evAc-m.pvAc)/d.total*100:0;
+        const cor=!m.passou?"#94a3b8":dv>=-2?"#16a34a":dv>=-10?"#d97706":"#dc2626";
+        return `<tr${m.passou?"":' style="opacity:.55"'}>
+          <td><b>${m.rotulo.charAt(0).toUpperCase()+m.rotulo.slice(1)}</b>${m.passou?"":' <span style="font-size:10.5px;color:#dc2626;font-weight:700">futuro</span>'}</td>
+          <td class="num" style="color:var(--muted)">${money(m.pvMes)}</td>
+          <td class="num"><b>${m.passou?money(m.evMes):"—"}</b></td>
+          <td class="num" style="color:var(--muted)">${nf(d.total>0?m.pvAc/d.total*100:0)}%</td>
+          <td class="num"><b>${m.passou?nf(d.total>0?m.evAc/d.total*100:0)+"%":"—"}</b></td>
+          <td class="num"><b style="color:${cor}">${m.passou?(dv>=0?"+":"")+nf(dv)+" p.p.":"—"}</b></td>
+        </tr>`;}).join("")}
+      </tbody></table></div>
+    <div class="msg info" style="margin-top:14px">
+      A curva prevista é o desenho do <b>seu</b> cronograma — muda quando você ajusta durações ou vínculos na aba Cronograma.
+      O <b>atraso em dias</b> responde a pergunta que o cliente faz: o volume de obra que existe hoje era o previsto
+      para ${fmt(dia(E.t-E.atrasoDias))}, ou seja, ${Math.abs(E.atrasoDias)} dias ${E.atrasoDias>=0?"atrás":"à frente"}.
+    </div>`;
+}
+// Frase única, sem rodeio, sobre o que o ritmo está dizendo.
+function _alertaRitmo(E){
+  if(E.diasRest<=0) return `<div class="alertas"><div class="al a"><span class="ic">⏳</span><div>
+    <b>A data de término do cronograma já passou</b> e restam ${money(E.restante)} de obra.
+    Renegocie o prazo ou registre o aditivo — o cronograma atual não descreve mais a realidade.</div></div></div>`;
+  if(E.EV<=0) return `<div class="alertas"><div class="al a"><span class="ic">👋</span><div>
+    <b>Nenhum avanço lançado ainda.</b> Volte os meses no seletor da aba Serviços e preencha o que já foi executado —
+    a curva e o atraso só ficam confiáveis depois disso.</div></div></div>`;
+  const razao=E.ritmoReal>0? E.ritmoNec/E.ritmoReal : 99;
+  if(razao<=1.05) return `<div class="alertas"><div class="al g"><span class="ic">✅</span><div>
+    <b>Ritmo compatível com o prazo.</b> Mantendo ${money(E.ritmoReal)} por mês, a obra fecha dentro do contrato.</div></div></div>`;
+  const cls=razao<=1.35?"a":"r";
+  return `<div class="alertas"><div class="al ${cls}"><span class="ic">${cls==="r"?"🚨":"⚠"}</span><div>
+    Para fechar na data do cronograma você precisa produzir <b>${money(E.ritmoNec)} por mês</b> nos ${Math.round(E.diasRest)} dias que restam.
+    O ritmo medido até aqui é <b>${money(E.ritmoReal)}</b> — ou seja, <b>${razao.toFixed(1)}× mais rápido</b> do que vem andando.
+    ${cls==="r"?"Nesse patamar, o prazo não se sustenta sem reforço de equipe ou revisão de escopo.":"Dá para recuperar, mas exige reforço já no próximo mês."}</div></div></div>`;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PREVISÃO — o que se pretende executar no mês que vem
+// Diferente do avanço (que é fato, vai para o log e nunca some), a previsão é
+// PLANO: muda o tempo todo e não pode contaminar a medição. Por isso mora no
+// jsonb da obra (obras.cronograma.plano), separada do histórico.
+// A meta de cada serviço já vem sugerida pelo cronograma — quem planeja parte de
+// algo pronto e ajusta, em vez de encarar uma tabela em branco.
+// Depois que o mês passa, a mesma tela vira prestação de contas: meta x realizado.
+// ═════════════════════════════════════════════════════════════════════════════
+let PREV_MES=null;
+function _proxMes(){ const d=new Date(); d.setMonth(d.getMonth()+1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function _plano(){ const c=(OBRA.cronograma&&OBRA.cronograma.plano)||{}; return c; }
+function _planoMes(m){ return _plano()[m]||{}; }
+// meta sugerida = o que o cronograma diz que a etapa daquele serviço terá feito
+// no fim do mês. Nunca sugere menos do que já está executado.
+function _metaSugerida(mes){
+  const d=_calcCrono(); if(!d) return {};
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const [a,m]=mes.split("-").map(Number);
+  const t=(new Date(a,m,0,12)-d0)/86400000;
+  const porFase={}; d.ativ.forEach(x=>porFase[x.nome]=Math.max(0,Math.min(1,(t-x.ini)/(x.dur||1)))*100);
+  const jaFeito=pctMapa(_fimDoMes(mes));
+  const out={};
+  ITENS.forEach(i=>{ const alvo=porFase[i.fase||"Sem etapa"];
+    if(alvo==null) return;
+    out[i.id]=Math.max(Math.round(alvo), Math.round(jaFeito[i.id]||0)); });
+  return out;
+}
+function previsao(){
+  const host=document.getElementById("abaPrev");
+  const d=_calcCrono();
+  if(!d||!d.total){ host.innerHTML=`<div class="vazio"><div class="ic">🔮</div>Importe a planilha para poder planejar.</div>`; return; }
+  if(!PREV_MES) PREV_MES=_proxMes();
+  const mes=PREV_MES, hojeC=_compHoje();
+  const passou = mes<hojeC;
+  const fimMes=_fimDoMes(mes);
+  const [ay,am]=mes.split("-").map(Number);
+  const antISO=new Date(ay,am-1,0).toISOString().slice(0,10);
+  const base=pctMapa(antISO);                 // ponto de partida: fim do mês anterior
+  const real=pctMapa(fimMes);                 // o que de fato aconteceu (se já passou)
+  const salvo=_planoMes(mes), sug=_metaSugerida(mes);
+  const metaDe=id => salvo[id]!==undefined ? salvo[id] : (sug[id]||0);
+
+  let vBase=0,vMeta=0,vReal=0;
+  const linhas=ITENS.map(i=>{
+    const v=Number(i.valor)||0, b=base[i.id]||0, mt=Math.max(b,metaDe(i.id)), rl=real[i.id]||0;
+    vBase+=v*b/100; vMeta+=v*mt/100; vReal+=v*rl/100;
+    return {...i, b, mt, rl, v, mine:salvo[i.id]!==undefined};
+  });
+  const aProduzir=vMeta-vBase, produzido=vReal-vBase;
+  // meses disponíveis: do mês corrente até o fim do cronograma
+  const opts=_mesesGrade().filter(m=>m.chave>=hojeC || m.chave>=_compHoje()).map(m=>
+    `<option value="${m.chave}" ${m.chave===mes?"selected":""}>${m.rotulo.replace(/^./,x=>x.toUpperCase())}</option>`).join("");
+  const optsTodos=_mesesGrade().map(m=>
+    `<option value="${m.chave}" ${m.chave===mes?"selected":""}>${m.rotulo.replace(/^./,x=>x.toUpperCase())}${m.chave<hojeC?" (encerrado)":""}</option>`).join("");
+
+  const mov=linhas.filter(l=>l.mt>l.b);
+  const cumpr = passou&&aProduzir>0 ? produzido/aProduzir*100 : null;
+  const E=evm(_hoje());
+  const capac = E&&E.ritmoReal>0 ? E.ritmoReal : null;
+  const viavel = capac!=null ? aProduzir/capac : null;
+
+  host.innerHTML=`
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <label style="margin:0;font-weight:700;color:var(--navy)">Planejar
+        <select id="prevSel" style="margin-left:6px;max-width:250px" onchange="PREV_MES=this.value;previsao()">${optsTodos}</select></label>
+      <button class="btn btn-out" style="padding:7px 13px;font-size:12.5px" onclick="prevSugerir()">↺ Usar sugestão do cronograma</button>
+      ${Object.keys(salvo).length?`<button class="btn btn-out" style="padding:7px 13px;font-size:12.5px" onclick="prevLimpar()">Apagar meu plano deste mês</button>`:""}
+      <span style="font-size:12px;color:var(--muted);margin-left:auto">A previsão não entra na medição — é plano, não avanço.</span>
+    </div>
+    ${passou?`<div class="msg info" style="margin-top:0">
+      📊 <b>${_compRotulo(mes)} já encerrou.</b> Esta tela virou prestação de contas: a coluna
+      <b>Realizado</b> mostra o que de fato aconteceu contra o que você tinha planejado.</div>`:""}
+    <div class="kpis">
+      <div class="kpi"><div class="l">Ponto de partida</div><div class="v" style="font-size:19px">${money(vBase)}</div>
+        <div class="s">executado até ${new Date(antISO+"T00:00:00").toLocaleDateString("pt-BR")}</div></div>
+      <div class="kpi"><div class="l">Meta do mês</div><div class="v" style="font-size:19px">${money(aProduzir)}</div>
+        <div class="s">${mov.length} serviço(s) com avanço planejado</div></div>
+      <div class="kpi"><div class="l">Acumulado ao fim do mês</div><div class="v">${nf(d.total>0?vMeta/d.total*100:0)}%</div>
+        <div class="s">${money(vMeta)} de ${money(d.total)}</div></div>
+      ${passou?`<div class="kpi ${cumpr==null?"":cumpr>=95?"ok":cumpr>=70?"warn":"bad"}">
+        <div class="l">Cumprimento</div><div class="v">${cumpr==null?"—":nf(cumpr)+"%"}</div>
+        <div class="s">realizou ${money(produzido)} do que planejou</div></div>`
+      :(viavel!=null?`<div class="kpi ${viavel<=1.1?"ok":viavel<=1.5?"warn":"bad"}">
+        <div class="l">Contra o seu ritmo</div><div class="v">${viavel.toFixed(1)}×</div>
+        <div class="s">seu ritmo médio é ${money(capac)}/mês</div></div>`:"")}
+    </div>
+    ${!passou&&viavel!=null&&viavel>1.5?`<div class="alertas"><div class="al a"><span class="ic">⚠</span><div>
+      Esta meta é <b>${viavel.toFixed(1)}× o ritmo que a obra vem tendo</b> (${money(capac)}/mês).
+      Planejar acima da capacidade real só adia a conversa difícil — ou entra reforço, ou a meta precisa ser outra.</div></div></div>`:""}
+    ${_desembolso(mes)}
+    <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Meta por serviço — ${_compRotulo(mes)}</h3>
+    <div style="overflow:auto;max-height:56vh"><table>
+      <thead><tr><th>Serviço</th><th class="num">Valor</th>
+        <th class="num">Início do mês</th><th style="width:130px">Meta no fim do mês</th>
+        <th class="num">A produzir</th>${passou?'<th class="num">Realizado</th><th class="num">Diferença</th>':""}</tr></thead>
+      <tbody>${(()=>{let h="",f=null; linhas.forEach(l=>{
+        if(l.fase&&l.fase!==f){ f=l.fase; h+=`<tr class="fase"><td colspan="${passou?7:5}">${esc(l.fase)}</td></tr>`; }
+        const prod=l.v*(l.mt-l.b)/100, feito=l.v*(l.rl-l.b)/100, dif=l.rl-l.mt;
+        h+=`<tr${l.mt<=l.b?' style="opacity:.5"':""}>
+          <td><b>${esc(l.descricao)}</b>${l.mine?' <span class="chip man" title="meta ajustada por você">manual</span>':""}
+            <div style="font-size:11px;color:var(--muted)">${esc(l.codigo||"—")}</div></td>
+          <td class="num">${money(l.v)}</td>
+          <td class="num" style="color:var(--muted)">${nf(l.b)}%</td>
+          <td><input class="meta-in" type="number" min="${Math.ceil(l.b)}" max="100" step="1" value="${Math.round(l.mt)}"
+                onchange="prevMeta('${l.id}',this.value)"> %</td>
+          <td class="num">${prod>0?money(prod):"—"}</td>
+          ${passou?`<td class="num"><b>${nf(l.rl)}%</b><div style="font-size:11px;color:var(--muted)">${feito>0?money(feito):"—"}</div></td>
+            <td class="num">${dif?`<span class="dlt ${dif>0?"up":"dn"}">${dif>0?"+":""}${nf(dif)} p.p.</span>`:'<span class="dlt eq">na meta</span>'}</td>`:""}
+        </tr>`;}); return h;})()}
+      </tbody></table></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:10px">
+      A meta já vem preenchida pelo cronograma — mexa só no que for diferente. Nada aqui altera a medição:
+      quando o mês chegar, você lança o avanço real na aba <b>Serviços</b> e volta aqui para comparar.
+    </div>`;
+}
+// ═════════════════════════════════════════════════════════════════════════════
+// DESEMBOLSO PREVISTO — a pergunta de caixa, não de cronograma
+// "Quanto vou ter que desembolsar nos próximos meses?" é o que decide se a obra
+// para por falta de dinheiro. A resposta sai da mesma curva do cronograma, mas
+// apresentada em REAIS POR MÊS, com o acumulado ao lado — e o mês que você está
+// planejando usa a SUA meta, não a do cronograma, quando você ajustou alguma.
+// ═════════════════════════════════════════════════════════════════════════════
+function _desembolso(mesFoco){
+  const d=_calcCrono(); if(!d) return "";
+  const hojeC=_compHoje();
+  const grade=_mesesGrade().filter(m=>m.chave>=hojeC);
+  if(!grade.length) return "";
+  const plano=_plano();
+  // valor acumulado que o plano do usuário prevê ao fim de um mês (se houver plano)
+  const acumPlano=c=>{ const pl=plano[c]; if(!pl) return null;
+    return ITENS.reduce((sm,i)=>sm+(Number(i.valor)||0)*Math.min(100,Math.max(0,pl[i.id]||0))/100,0); };
+  let ant=(()=>{ const its=itensEm(_hoje()); return its.reduce((sm,i)=>sm+Number(i.valor_executado||0),0); })();
+  const antIni=ant;
+  const linhas=grade.slice(0,12).map(m=>{
+    const doPlano=acumPlano(m.chave);
+    const ac = doPlano!=null ? Math.max(ant,doPlano) : _pvEm(d,m.tFim);
+    const mes=Math.max(0,ac-ant); ant=ac;
+    return {...m, mes, ac, fonte: doPlano!=null?"plano":"cronograma"};
+  });
+  const maxM=Math.max(1,...linhas.map(l=>l.mes));
+  const total12=linhas.reduce((s,l)=>s+l.mes,0);
+  const prox=linhas[0], prox3=linhas.slice(0,3).reduce((s,l)=>s+l.mes,0);
+  return `
+    <h3 style="font-size:14px;color:var(--navy);margin:20px 0 4px">Desembolso previsto</h3>
+    <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">
+      Quanto de obra precisa ser paga em cada mês daqui pra frente. Sai do cronograma —
+      e do <b>seu plano</b> nos meses em que você ajustou as metas.</p>
+    <div class="kpis" style="margin-bottom:10px">
+      <div class="kpi"><div class="l">${prox.rotulo.replace(/^./,x=>x.toUpperCase())}</div>
+        <div class="v" style="font-size:19px">${money(prox.mes)}</div><div class="s">próximo mês</div></div>
+      <div class="kpi"><div class="l">Próximos 3 meses</div><div class="v" style="font-size:19px">${money(prox3)}</div>
+        <div class="s">média ${money(prox3/3)}/mês</div></div>
+      <div class="kpi"><div class="l">Saldo a desembolsar</div><div class="v" style="font-size:19px">${money(d.total-antIni)}</div>
+        <div class="s">${nf(d.total>0?(d.total-antIni)/d.total*100:0)}% do contrato</div></div>
+    </div>
+    <div style="overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff"><table>
+      <thead><tr><th>Mês</th><th class="num">A desembolsar</th><th style="width:190px">Peso</th>
+        <th class="num">Acumulado</th><th class="num">% da obra</th><th>Base</th></tr></thead>
+      <tbody>${linhas.map(l=>`<tr${l.chave===mesFoco?' style="background:#eaf6fb"':""}>
+        <td><b>${l.rotulo.replace(/^./,x=>x.toUpperCase())}</b></td>
+        <td class="num"><b>${money(l.mes)}</b></td>
+        <td><div class="bar"><i style="width:${l.mes/maxM*100}%;background:${l.chave===mesFoco?"var(--navy)":"var(--blue)"}"></i></div></td>
+        <td class="num" style="color:var(--muted)">${money(l.ac)}</td>
+        <td class="num">${nf(d.total>0?l.ac/d.total*100:0)}%</td>
+        <td><span class="chip ${l.fonte==="plano"?"p":"z"}">${l.fonte}</span></td></tr>`).join("")}
+      </tbody>
+      <tfoot><tr><td><b>Total dos ${linhas.length} meses</b></td><td class="num"><b>${money(total12)}</b></td>
+        <td colspan="4"></td></tr></tfoot>
+    </table></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">
+      <span class="chip z">cronograma</span> mês ainda sem plano seu — usa a distribuição do cronograma ·
+      <span class="chip p">plano</span> mês em que você definiu metas na tabela abaixo.
+    </div>`;
+}
+async function prevMeta(id,v){
+  const n=Math.max(0,Math.min(100,parseFloat(String(v).replace(",","."))||0));
+  const mes=PREV_MES;
+  // grava UMA meta, sem carregar junto o resto do plano do snapshot local:
+  // duas pessoas planejando o mesmo mês não se apagam
+  const merged=await _mesclarCrono(m=>{
+    m.plano[mes]=Object.assign({},m.plano[mes]||{});
+    m.plano[mes][id]=Math.round(n*100)/100;
+  });
+  if(!merged) return;
+  if(await _persistirCrono(merged)) previsao();
+}
+async function prevSugerir(){
+  const mes=PREV_MES, sug=_metaSugerida(mes);
+  const merged=await _mesclarCrono(m=>{ m.plano[mes]=sug; });
+  if(!merged) return;
+  if(await _persistirCrono(merged)) previsao();
+}
+async function prevLimpar(){
+  if(!confirm("Apagar as metas que você ajustou em "+_compRotulo(PREV_MES)+"?")) return;
+  const mes=PREV_MES;
+  const merged=await _mesclarCrono(m=>{ delete m.plano[mes]; });
+  if(!merged) return;
+  if(await _persistirCrono(merged)) previsao();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AVANÇO MÊS A MÊS — a leitura que o dono da obra faz na prática
+// Um acumulado sozinho não responde "como foi ESTE mês". Aqui cada mês desde o
+// início mostra o que foi feito no período e o acumulado ao fim dele, comparado
+// com o que o cronograma previa para a mesma data.
+// ═════════════════════════════════════════════════════════════════════════════
+function _mesesObra(){ return _mesesGrade(); }
+function mesAmes(){
+  const host=document.getElementById("abaMes");
+  const d=_calcCrono();
+  if(!d||!d.total){ host.innerHTML=`<div class="vazio"><div class="ic">📆</div>Sem dados para o mês a mês.</div>`; return; }
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const av=AVANCOS;   // já carregado; não vale um round-trip a mais só para reler o mesmo log
+  const vmap={},nmap={}; ITENS.forEach(i=>{vmap[i.id]=Number(i.valor)||0; nmap[i.id]=i.descricao;});
+  const meses=_mesesObra();
+  // acumulado real ao FIM de cada mês = último % de cada item até aquela data
+  const ult={}; const linhas=[]; let antes=0;
+  meses.forEach(m=>{
+    (av||[]).filter(x=>{ const t=new Date(x.data_ref+"T00:00:00"); return t<=m.fim; })
+      .forEach(x=>{ ult[x.item_id]=Number(x.pct); });
+    const acum=Object.keys(ult).reduce((s,k)=>s+(vmap[k]||0)*ult[k]/100,0);
+    const noMes=acum-antes; antes=acum;
+    // previsto acumulado no fim do mês, pelo cronograma
+    const t=(m.fim-d0)/86400000;
+    let prev=0; d.ativ.forEach(a=>{ prev+=a.valor*Math.max(0,Math.min(1,(t-a.ini)/(a.dur||1))); });
+    linhas.push({...m, acum, noMes, prev,
+      pctAcum:d.total>0?acum/d.total*100:0, pctPrev:d.total>0?prev/d.total*100:0,
+      passou: m.fim<=new Date()});
+  });
+  const maxMes=Math.max(1,...linhas.map(l=>Math.abs(l.noMes)));
+  const opts=linhas.map(l=>`<option value="${l.chave}">${l.rotulo}</option>`).join("");
+  host.innerHTML=`
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <label style="margin:0">Ver detalhe de
+        <select id="mesSel" style="margin-left:6px;max-width:230px" onchange="detalheMes()">
+          <option value="">— todos os meses —</option>${opts}
+        </select></label>
+      <span style="font-size:12px;color:var(--muted)">Só os meses já vencidos entram na comparação.</span>
+    </div>
+    <div style="overflow:auto"><table>
+      <thead><tr><th>Mês</th><th class="num">Executado no mês</th><th style="width:170px">Ritmo</th>
+        <th class="num">Acumulado real</th><th class="num">Previsto</th><th class="num">Desvio</th></tr></thead>
+      <tbody>${linhas.map(l=>{
+        const dv=l.pctAcum-l.pctPrev;
+        const cor=!l.passou?"#94a3b8":dv>=-2?"#16a34a":dv>=-10?"#d97706":"#dc2626";
+        return `<tr${l.passou?"":' style="opacity:.62"'}>
+          <td><b>${l.rotulo.charAt(0).toUpperCase()+l.rotulo.slice(1)}</b>${l.passou?"":' <span class="chip" style="background:#fee2e2;color:#991b1b">futuro</span>'}</td>
+          <td class="num">${l.noMes>0?money(l.noMes):"—"}</td>
+          <td><div class="bar"><i style="width:${Math.min(100,Math.abs(l.noMes)/maxMes*100)}%;background:${l.noMes>0?"var(--blue)":"#e8eef4"}"></i></div></td>
+          <td class="num"><b>${nf(l.pctAcum)}%</b></td>
+          <td class="num" style="color:var(--muted)">${nf(l.pctPrev)}%</td>
+          <td class="num"><b style="color:${cor}">${l.passou?(dv>=0?"+":"")+nf(dv)+" p.p.":"—"}</b></td>
+        </tr>`;}).join("")}
+      </tbody></table></div>
+    <div id="detMes" style="margin-top:16px"></div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:10px">
+      <b>Executado no mês</b> = quanto de obra avançou naquele período (diferença do acumulado).
+      <b>Desvio</b> = real menos previsto pelo cronograma, em pontos percentuais.
+    </div>`;
+  window.__mesLinhas=linhas; window.__av=av||[]; window.__nmap=nmap; window.__vmap=vmap;
+}
+function detalheMes(){
+  const ch=document.getElementById("mesSel").value;
+  const host=document.getElementById("detMes");
+  if(!ch){ host.innerHTML=""; return; }
+  const l=(window.__mesLinhas||[]).find(x=>x.chave===ch); if(!l) return;
+  const dentro=(window.__av||[]).filter(x=>{ const t=new Date(x.data_ref+"T00:00:00"); return t>=l.ini&&t<=l.fim; });
+  if(!dentro.length){ host.innerHTML=`<div class="msg info">Nenhum lançamento em ${l.rotulo}.</div>`; return; }
+  // último lançamento de cada serviço no mês
+  const porItem={}; dentro.forEach(x=>{ porItem[x.item_id]=x; });
+  const linhas=Object.keys(porItem).map(k=>({...porItem[k], nome:(window.__nmap||{})[k]||"(serviço removido)", valor:(window.__vmap||{})[k]||0}));
+  host.innerHTML=`<div class="card" style="margin:0">
+    <b style="color:var(--navy)">${l.rotulo.charAt(0).toUpperCase()+l.rotulo.slice(1)}</b>
+    <span style="font-size:12.5px;color:var(--muted)"> · ${linhas.length} serviço(s) movimentado(s) · ${dentro.length} lançamento(s)</span>
+    <div style="overflow:auto;margin-top:10px"><table>
+      <thead><tr><th>Serviço</th><th class="num">% no fim do mês</th><th class="num">Valor</th><th>Quem lançou</th></tr></thead>
+      <tbody>${linhas.map(x=>`<tr><td>${esc(x.nome)}</td><td class="num"><b>${nf(x.pct)}%</b></td>
+        <td class="num">${money(x.valor*x.pct/100)}</td>
+        <td style="font-size:12px">${esc(x.autor_email||"—")}</td></tr>`).join("")}
+      </tbody></table></div></div>`;
+}
+
+async function historico(){
+  const host=document.getElementById("abaHist");
+  const {data}=await sb.from("obra_avancos").select("*").eq("obra_id",OBRA.id).order("criado_em",{ascending:false}).limit(200);
+  if(!data||!data.length){ host.innerHTML=`<div class="vazio"><div class="ic">🕑</div>Nenhum lançamento ainda.</div>`; return; }
+  const nome={}; ITENS.forEach(i=>nome[i.id]=i.descricao);
+  host.innerHTML=`<div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+    Registro completo, em ordem. Nada é apagado nem sobrescrito — é assim que se sabe quem informou o quê.</div>
+    <table><thead><tr><th>Quando</th><th>Serviço</th><th class="num">%</th><th>Quem</th></tr></thead><tbody>
+    ${data.map(a=>`<tr>
+      <td style="white-space:nowrap">${new Date(a.criado_em).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</td>
+      <td>${esc(nome[a.item_id]||"(serviço removido)")}</td>
+      <td class="num"><b>${nf(a.pct)}%</b></td>
+      <td style="font-size:12px">${esc(a.autor_email||"—")}</td></tr>`).join("")}
+    </tbody></table>`;
+}
+
+// ═══ EQUIPE ═══
+async function abrirEquipe(){
+  const {data}=await sb.from("obra_membros").select("*").eq("obra_id",OBRA.id);
+  const dono=OBRA.dono===USER.id;
+  const d=document.createElement("div"); d.className="modal";
+  d.innerHTML=`<div>
+    <h2 style="margin:0 0 4px;font-size:18px;color:var(--navy)">👥 Equipe da obra</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px">
+      Quem tem acesso pode lançar o avanço, e cada lançamento fica registrado com o nome de quem informou.</p>
+    <div style="margin-bottom:14px">${(data||[]).map(m=>`
+      <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #eef2f7;font-size:13px">
+        <span style="flex:1">${esc(m.email||m.usuario)}</span>
+        <span class="chip ${m.papel==="dono"?"c":"p"}">${esc(m.papel)}</span>
+        ${dono&&m.usuario!==USER.id?`<button class="btn btn-out" style="padding:3px 9px;font-size:11.5px" onclick="tirarMembro('${m.usuario}',this)">remover</button>`:""}
+      </div>`).join("")||'<p style="font-size:13px;color:var(--muted)">Só você.</p>'}</div>
+    ${dono?`<div class="msg info" style="margin:0 0 12px">
+      Para incluir alguém: a pessoa precisa <b>criar a conta dela</b> no ObraIA primeiro. Depois informe o e-mail abaixo.</div>
+      <label>E-mail de quem vai lançar</label>
+      <div style="display:flex;gap:7px"><input id="mEmail" type="email" placeholder="pessoa@exemplo.com">
+      <button class="btn btn-blue" onclick="addMembro()">Incluir</button></div>
+      <div id="mMsg"></div>`:""}
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn btn-out" onclick="this.closest('.modal').remove()">Fechar</button></div>
+  </div>`;
+  document.body.appendChild(d);
+  d.onclick=e=>{ if(e.target===d) d.remove(); };
+}
+async function addMembro(){
+  const em=(document.getElementById("mEmail").value||"").trim().toLowerCase();
+  if(!em) return;
+  // o convite exige que a conta exista: sem user_id não há como registrar autoria
+  const {data,error}=await sb.rpc("buscar_usuario_por_email",{p_email:em});
+  if(error||!data){ msg("mMsg","Não achei uma conta com esse e-mail. Peça para a pessoa se cadastrar no ObraIA primeiro.","err"); return; }
+  const {error:e2}=await sb.from("obra_membros").insert({obra_id:OBRA.id,usuario:data,papel:"editor",email:em});
+  if(e2){ msg("mMsg","Não consegui incluir: "+esc(e2.message),"err"); return; }
+  msg("mMsg","Incluído. A pessoa já pode lançar o avanço desta obra.","ok");
+  document.getElementById("mEmail").value="";
+}
+async function tirarMembro(uid,btn){
+  if(!confirm("Remover o acesso desta pessoa? Os lançamentos que ela já fez continuam no histórico.")) return;
+  await sb.from("obra_membros").delete().eq("obra_id",OBRA.id).eq("usuario",uid);
+  btn.closest("div").remove();
+}
+</script>
+</body>
+</html>
