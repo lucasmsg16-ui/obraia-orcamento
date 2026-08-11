@@ -27,6 +27,12 @@ header .right button{
   padding:7px 14px; border-radius:7px; font-size:12.5px; cursor:pointer; font-family:inherit;
 }
 header .right button:hover{ background:rgba(255,255,255,.2); }
+header .right a.suporte{
+  background:#25D366; border:0; color:#fff; padding:7px 14px; border-radius:7px;
+  font-size:12.5px; font-weight:700; text-decoration:none; display:inline-flex;
+  align-items:center; gap:5px; font-family:inherit;
+}
+header .right a.suporte:hover{ background:#1ebe57; }
 main{ max-width:940px; margin:0 auto; padding:48px 24px; }
 .welcome{ margin-bottom:34px; }
 .welcome h1{ font-size:24px; margin:0 0 6px; color:var(--navy); }
@@ -96,6 +102,7 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
   <div class="logo">Obra<span>IA</span><small class="porquem">por Mar Aberto Engenharia</small></div>
   <div class="right">
     <span id="userEmail"></span>
+    <a class="suporte" id="suporteLink" href="https://wa.me/5581997977068?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20com%20o%20ObraIA." target="_blank" rel="noopener">&#128241; Suporte</a>
     <button id="logoutBtn">Sair</button>
   </div>
 </header>
@@ -213,14 +220,19 @@ async function mostrarChave(){
 // golpe — e ter comprado com um e-mail e entrado com outro. Por isso mostramos
 // qual e-mail esta logado.
 function bloquear(email){
+  const msgZap = encodeURIComponent(
+    "Ola! Comprei o ObraIA mas nao consigo acessar. Entrei com o e-mail " + email + " e apareceu que nao ha compra ativa."
+  );
   document.querySelector("main").innerHTML =
     '<div class="bloqueio"><div class="ico">&#128274;</div>' +
     '<h1>Nao encontramos uma compra para este e-mail</h1>' +
     '<p>Voce entrou como <strong>' + email + '</strong>, e nao ha assinatura ativa ligada a ele.</p>' +
     '<p class="dica">Se voce ja comprou, o mais provavel e ter usado outro e-mail no checkout. ' +
     'Saia e entre com o e-mail da compra — o acesso esta nele. Se comprou agora ha pouco, ' +
-    'pode levar alguns minutos ate liberar.</p>' +
+    'pode levar alguns minutos ate liberar. Se nada disso resolver, fale com o suporte — ' +
+    'e a via mais rapida quando algo nao bate.</p>' +
     '<div class="acoes">' +
+    '<a class="btn-s" href="https://wa.me/5581997977068?text=' + msgZap + '" target="_blank" rel="noopener">&#128241; Falar com o suporte</a>' +
     '<a class="btn-p" href="diagnostico.html">Ver os planos</a>' +
     '<button class="btn-t" id="sairBloq" type="button">Entrar com outro e-mail</button>' +
     '</div></div>';
