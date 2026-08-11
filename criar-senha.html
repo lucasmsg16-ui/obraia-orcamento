@@ -125,6 +125,27 @@ function telaSenha(email){
   });
 }
 
+// ─── Trava contra pré-carregamento de e-mail ───────────────────────────────
+// Alguns provedores (antivírus corporativo, alguns apps de e-mail) abrem o
+// link sozinhos para "escanear" antes da pessoa clicar — e como o link só
+// vale uma vez, ele já chega queimado, e o usuário só vê "link expirado" sem
+// nunca ter clicado em nada. É provavelmente o que aconteceu com o Marco e a
+// Vanessa: os dois pediram reenvio e o link morreu antes do clique deles.
+// A correção (recomendada pela própria Supabase): o e-mail não aponta mais
+// direto pro link de uso único — aponta pra ESTA tela, com o link real
+// escondido num parâmetro. Só quando a PESSOA clica no botão é que o link
+// de uso único é de fato acessado. Um robô de escaneamento carrega a página,
+// não clica em botão — então não queima nada.
+function telaConfirmar(confUrl){
+  card.innerHTML = `
+    <h1>Quase lá</h1>
+    <p class="sub">Por segurança, confirme com um clique para continuar criando sua senha.</p>
+    <button class="btn btn-primary" id="btnConf" type="button">Confirmar e continuar</button>`;
+  document.getElementById("btnConf").addEventListener("click", () => {
+    window.location.href = confUrl;
+  });
+}
+
 function telaExpirado(){
   card.innerHTML = `
     <h1>Este link não é mais válido</h1>
@@ -161,11 +182,20 @@ function telaExpirado(){
 }
 
 (async () => {
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(location.search);
+
+  // Se o e-mail já veio no formato "clique para confirmar" (ver telaConfirmar
+  // acima), o link de uso único fica aqui, intocado, até a pessoa clicar.
+  const confUrl = query.get("confirmation_url");
+  if(confUrl){
+    telaConfirmar(confUrl);
+    return;
+  }
+
   // Erros de link (expirado, já usado, inválido) chegam pela Supabase como
   // parâmetros no hash OU na query string, dependendo da rota — cobrimos as
   // duas formas antes de checar a sessão.
-  const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-  const query = new URLSearchParams(location.search);
   const erro = hash.get("error") || query.get("error") ||
                hash.get("error_code") || query.get("error_code");
 
