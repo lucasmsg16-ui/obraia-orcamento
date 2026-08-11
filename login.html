@@ -82,11 +82,15 @@ input:focus{ border-color:var(--blue); box-shadow:0 0 0 3px rgba(23,146,192,.15)
       <label for="email">E-mail</label>
       <input type="email" id="email" placeholder="seuemail@exemplo.com" required autocomplete="email">
 
-      <label for="senha">Senha</label>
-      <input type="password" id="senha" placeholder="Digite sua senha" required autocomplete="current-password" minlength="6">
+      <label for="senha" id="labelSenha">Senha</label>
+      <input type="password" id="senha" placeholder="Digite sua senha" autocomplete="current-password" minlength="6">
 
       <button type="submit" class="btn btn-primary" id="submitBtn">Entrar</button>
     </form>
+
+    <div class="toggle-row foot-link" id="esqueciRow">
+      <a id="esqueciLink">Esqueci minha senha</a>
+    </div>
 
     <div class="msg" id="msgBox"></div>
 
@@ -132,7 +136,7 @@ document.getElementById("googleBtn").addEventListener("click", async () => {
     if(error) throw error;
   }catch(e){
     const cru = (e && e.message ? e.message : "").toLowerCase();
-    box.className = "msg erro";
+    box.className = "msg err";
     box.textContent = cru.includes("not enabled") || cru.includes("unsupported")
       ? "A entrada pelo Google ainda está sendo liberada. Use seu e-mail e senha por enquanto."
       : "Não consegui abrir o Google agora. Tente de novo ou use e-mail e senha.";
@@ -141,7 +145,7 @@ document.getElementById("googleBtn").addEventListener("click", async () => {
   }
 });
 
-let mode = "login"; // ou "signup"
+let mode = "login"; // "login" | "signup" | "recovery"
 
 const form = document.getElementById("authForm");
 const submitBtn = document.getElementById("submitBtn");
@@ -150,6 +154,10 @@ const toggleLink = document.getElementById("toggleLink");
 const toggleText = document.getElementById("toggleText");
 const formTitle = document.getElementById("formTitle");
 const formSub = document.getElementById("formSub");
+const senhaInput = document.getElementById("senha");
+const labelSenha = document.getElementById("labelSenha");
+const esqueciRow = document.getElementById("esqueciRow");
+const esqueciLink = document.getElementById("esqueciLink");
 
 function setMode(m){
   mode = m;
@@ -160,22 +168,37 @@ function setMode(m){
     formSub.textContent = "Acesse a sua conta para usar o ObraIA.";
     submitBtn.textContent = "Entrar";
     toggleText.innerHTML = 'Ainda não tem conta? <a id="toggleLink">Criar conta</a>';
-  } else {
+    senhaInput.style.display = ""; labelSenha.style.display = "";
+    senhaInput.required = true;
+    esqueciRow.style.display = "";
+  } else if(mode === "signup"){
     formTitle.textContent = "Criar conta";
     formSub.textContent = "Cadastre-se para acessar o ObraIA.";
     submitBtn.textContent = "Criar conta";
     toggleText.innerHTML = 'Já tem conta? <a id="toggleLink">Entrar</a>';
+    senhaInput.style.display = ""; labelSenha.style.display = "";
+    senhaInput.required = true;
+    esqueciRow.style.display = "none";
+  } else { // recovery
+    formTitle.textContent = "Recuperar acesso";
+    formSub.textContent = "Informe o e-mail da sua compra. Mandamos um link para você criar uma senha nova.";
+    submitBtn.textContent = "Enviar link de acesso";
+    toggleText.innerHTML = 'Lembrou a senha? <a id="toggleLink">Entrar</a>';
+    senhaInput.style.display = "none"; labelSenha.style.display = "none";
+    senhaInput.required = false;
+    esqueciRow.style.display = "none";
   }
   document.getElementById("toggleLink").addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
 }
 toggleLink.addEventListener("click", () => setMode(mode === "login" ? "signup" : "login"));
+esqueciLink.addEventListener("click", () => setMode("recovery"));
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value;
+  const senha = senhaInput.value;
   submitBtn.disabled = true;
-  submitBtn.textContent = mode === "login" ? "Entrando..." : "Criando conta...";
+  submitBtn.textContent = mode === "login" ? "Entrando..." : mode === "signup" ? "Criando conta..." : "Enviando...";
   msgBox.className = "msg";
   msgBox.textContent = "";
 
@@ -184,7 +207,7 @@ form.addEventListener("submit", async (e) => {
       const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
       if(error) throw error;
       window.location.href = "dashboard.html";
-    } else {
+    } else if(mode === "signup"){
       const { data, error } = await sb.auth.signUp({ email, password: senha });
       if(error) throw error;
       if(data.session){
@@ -194,13 +217,20 @@ form.addEventListener("submit", async (e) => {
         msgBox.className = "msg ok";
         msgBox.textContent = "Conta criada! Verifique seu e-mail para confirmar o acesso antes de entrar.";
       }
+    } else { // recovery
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: location.origin + "/criar-senha.html"
+      });
+      if(error) throw error;
+      msgBox.className = "msg ok";
+      msgBox.textContent = "Se este e-mail tiver uma compra ativa, o link chega em instantes. Confira também o spam.";
     }
   } catch(err){
     msgBox.className = "msg err";
     msgBox.textContent = traduzErro(err.message || String(err));
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = mode === "login" ? "Entrar" : "Criar conta";
+    submitBtn.textContent = mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link de acesso";
   }
 });
 

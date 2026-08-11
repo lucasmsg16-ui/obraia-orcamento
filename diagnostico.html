@@ -187,6 +187,34 @@ body.com-barra{padding-bottom:90px}
 .plano .cta a.p{background:linear-gradient(135deg,var(--cyan),#1ea8b5);color:#03212a}
 .plano .cta a.s{background:transparent;color:var(--ice);border:1.5px solid var(--line)}
 .plano .cta a:hover{transform:translateY(-1px)}
+
+/* ═══ PREÇO RECORRENTE EM DESTAQUE ═══════════════════════════════════════
+   A objeção do engenheiro não é "é caro", é "quanto sai do meu bolso ESTE
+   mês". Por isso o número grande é a MENSALIDADE, não o total do contrato.
+   O total aparece depois, pequeno, como informação — nunca como manchete. */
+.plano .preco{display:flex;align-items:flex-start;gap:2px;margin:2px 0 4px;line-height:1}
+.plano .preco .cifra{font-size:15px;font-weight:800;color:var(--muted);margin-top:8px}
+.plano .preco .num{font-size:48px;font-weight:900;color:#fff;letter-spacing:-2.5px}
+.plano.rec .preco .num{color:var(--cyan)}
+.plano .preco .cent{font-size:21px;font-weight:900;color:#fff;margin-top:5px;letter-spacing:-.5px}
+.plano.rec .preco .cent{color:var(--cyan)}
+.plano .preco .mes{font-size:14px;font-weight:800;color:var(--muted);margin-top:24px;margin-left:3px}
+.plano .pordia{font-size:12.5px;font-weight:800;color:var(--green);margin-bottom:9px}
+.plano .comorec{font-size:12px;color:var(--muted);line-height:1.5;background:rgba(13,33,56,.55);
+  border-left:2px solid #2d5480;border-radius:0 7px 7px 0;padding:8px 10px;margin-bottom:9px}
+.plano .comorec b{color:var(--ice);font-weight:800}
+/* Selo de cancelamento: some do caminho do olho quando não é preciso, mas
+   está sempre lá — é a trava mental que destrava a assinatura. */
+.selo-cancela{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;
+  color:#b6f5d3;background:rgba(74,222,128,.10);border:1px solid rgba(74,222,128,.28);
+  border-radius:8px;padding:7px 10px;margin-bottom:10px}
+.selo-cancela span{font-size:13px;line-height:1}
+/* Barra de segurança abaixo dos planos: as três objeções finais, juntas. */
+.barra-seg{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px 0 4px}
+.barra-seg div{font-size:12.5px;font-weight:700;color:var(--muted);background:rgba(22,50,79,.5);
+  border:1px solid var(--line);border-radius:20px;padding:8px 14px}
+.barra-seg b{color:#b6f5d3}
+@media(max-width:520px){.plano .preco .num{font-size:42px}}
 .economia{display:inline-block;font-size:11px;font-weight:800;color:#03212a;background:var(--cyan);
   border-radius:20px;padding:2px 9px;margin-top:6px}
 
@@ -281,6 +309,18 @@ const PLANO_ANUAL_TOTAL = PLANO_ANUAL_MENSAL * PLANO_ANUAL_MESES;
 const PLANO_BIENAL_MENSAL = 30.00, PLANO_BIENAL_MESES = 24;
 const PLANO_BIENAL_TOTAL = PLANO_BIENAL_MENSAL * PLANO_BIENAL_MESES;
 const brlCents = v => "R$ " + v.toFixed(2).replace(".", ",");
+// Preço partido em pedaços para o número grande ficar grande de verdade e os
+// centavos ficarem pequenos — é o truque tipográfico que faz R$ 37,90 parecer
+// o que ele é (baixo) em vez de parecer uma etiqueta de contrato.
+const precoHTML = v => {
+  const [i, c] = v.toFixed(2).split(".");
+  return `<div class="preco"><span class="cifra">R$</span><span class="num">${i}</span>` +
+         `<span class="cent">,${c}</span><span class="mes">/mês</span></div>`;
+};
+// Ancoragem por dia: o cérebro compara R$ 1,26/dia com um café, não com um
+// software. É a mesma conta, numa unidade que já tem referência na cabeça.
+const porDia = v => "R$ " + (v/30).toFixed(2).replace(".", ",") + " por dia";
+const SELO_CANCELA = '<div class="selo-cancela"><span>&#10003;</span> Cancele quando quiser</div>';
 
 // ── bifurcação ──
 const Q0 = {
@@ -571,7 +611,7 @@ function resultado(){
 
     <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
       Quero economizar ${brl(c.economiaAno)} por ano
-      <small>Escolher meu plano →</small></a>
+      <small>Planos a partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
 
     <div class="cards">
       <div class="mini good"><div class="r">Cabem no tempo devolvido</div><div class="v">+${c.cabem}</div>
@@ -587,7 +627,7 @@ function resultado(){
 
     <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
       Quero essa semana de volta
-      <small>A partir de ${brlCents(PLANO_ANUAL_MENSAL)} por mês →</small></a>
+      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
 
     <div class="nave">
       <h3>E isso é só o primeiro degrau</h3>
@@ -605,21 +645,21 @@ function resultado(){
 
     <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
       Quero ganhar tempo agora
-      <small>Ver planos e preços →</small></a>
+      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
 
-    <h1 id="planos" style="font-size:26px;margin:34px 0 6px;scroll-margin-top:18px">Escolha o melhor plano para você</h1>
+    <h1 id="planos" style="font-size:26px;margin:34px 0 6px;scroll-margin-top:18px">Todos os planos são mensais. Cancele quando quiser.</h1>
     <p class="lead" style="margin-bottom:18px">Pelo seu perfil, o <b>anual</b> é o que faz mais sentido:
       é o ciclo em que dá para medir resultado numa obra inteira, e o custo por mês fica no menor patamar
       com compromisso curto.</p>
 
     <div class="planos">
       <div class="plano">
-        <div class="topo"><div class="nome">Semestral</div><div class="per">6 meses de acesso · recorrente</div></div>
+        <div class="topo"><div class="nome">Semestral</div><div class="per">assinatura mensal · 6 meses</div></div>
         <div class="corpo">
-          <div class="lin"><div class="rot">Assinatura</div><div class="val">${brlCents(PLANO_SEMESTRAL_MENSAL)}<small> hoje</small></div>
-            <div class="obs">+ 5× de ${brlCents(PLANO_SEMESTRAL_MENSAL)} — cobrança automática mensal</div></div>
-          <div class="lin"><div class="rot">Vantagem</div>
-            <div class="obs" style="color:#b6f5d3">Não trava o limite do seu cartão: cada mês é uma cobrança pequena, não um parcelamento que reserva o valor cheio de uma vez</div></div>
+          ${precoHTML(PLANO_SEMESTRAL_MENSAL)}
+          <div class="pordia">${porDia(PLANO_SEMESTRAL_MENSAL)}</div>
+          <div class="comorec"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_SEMESTRAL_MENSAL)} hoje e mais 5 mensalidades iguais, uma por mês. Não é parcelamento: não trava limite do cartão.</div>
+          ${SELO_CANCELA}
           <div class="lin"><div class="rot">Para quem</div><div class="obs">quer testar o sistema numa obra ou num ciclo de propostas antes de se comprometer</div></div>
           <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno/2)}</div>
             <div class="obs">no período, pelos seus números</div></div>
@@ -629,13 +669,14 @@ function resultado(){
 
       <div class="plano rec">
         <div class="selo">Recomendado</div>
-        <div class="topo"><div class="nome">Anual</div><div class="per">12 meses de acesso · recorrente</div></div>
+        <div class="topo"><div class="nome">Anual</div><div class="per">assinatura mensal · 12 meses</div></div>
         <div class="corpo">
-          <div class="lin"><div class="rot">Assinatura</div><div class="val">${brlCents(PLANO_ANUAL_MENSAL)}<small> hoje</small></div>
-            <div class="obs">+ 11× de ${brlCents(PLANO_ANUAL_MENSAL)} — cobrança automática mensal</div>
-            <span class="economia">12% mais barato por mês que o semestral</span></div>
-          <div class="lin"><div class="rot">Vantagem</div>
-            <div class="obs" style="color:#b6f5d3">Não trava o limite do seu cartão: cada mês é uma cobrança pequena, não um parcelamento que reserva o valor cheio de uma vez</div></div>
+          ${precoHTML(PLANO_ANUAL_MENSAL)}
+          <div class="pordia">${porDia(PLANO_ANUAL_MENSAL)}</div>
+          <span class="economia">12% mais barato por mês que o semestral</span>
+          <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_ANUAL_MENSAL)} hoje e mais 11 mensalidades iguais, uma por mês. Não é parcelamento: não trava limite do cartão.</div>
+          ${SELO_CANCELA}
+          <div class="lin"><div class="rot">Para quem</div><div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
           <div class="lin"><div class="rot">Para quem</div><div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
           <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno)}</div>
             <div class="obs">${(c.economiaAno/PLANO_ANUAL_TOTAL).toFixed(0)}× o valor do plano</div></div>
@@ -644,13 +685,14 @@ function resultado(){
       </div>
 
       <div class="plano">
-        <div class="topo"><div class="nome">2 anos</div><div class="per">24 meses de acesso · recorrente</div></div>
+        <div class="topo"><div class="nome">2 anos</div><div class="per">assinatura mensal · 24 meses</div></div>
         <div class="corpo">
-          <div class="lin"><div class="rot">Assinatura</div><div class="val">${brlCents(PLANO_BIENAL_MENSAL)}<small> hoje</small></div>
-            <div class="obs">+ 23× de ${brlCents(PLANO_BIENAL_MENSAL)} — cobrança automática mensal</div>
-            <span class="economia">o menor valor por mês</span></div>
-          <div class="lin"><div class="rot">Vantagem</div>
-            <div class="obs" style="color:#b6f5d3">Menos de R$ 1 por dia, e o preço fica travado por dois anos: as próximas atualizações do sistema entram sem custo nenhum para você</div></div>
+          ${precoHTML(PLANO_BIENAL_MENSAL)}
+          <div class="pordia">${porDia(PLANO_BIENAL_MENSAL)} — o menor valor por mês</div>
+          <span class="economia">preço travado por 2 anos</span>
+          <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_BIENAL_MENSAL)} hoje e mais 23 mensalidades iguais, uma por mês. As atualizações do sistema entram sem custo.</div>
+          ${SELO_CANCELA}
+          <div class="lin"><div class="rot">Para quem</div><div class="obs">já decidiu que IA entra no processo e não quer revisitar essa conta a cada ano</div></div>
           <div class="lin"><div class="rot">Para quem</div><div class="obs">já decidiu que IA entra no processo e não quer revisitar essa conta a cada ano</div></div>
           <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno*2)}</div>
             <div class="obs">nos 24 meses, pelos seus números</div></div>
@@ -659,14 +701,23 @@ function resultado(){
       </div>
     </div>
 
+    <div class="barra-seg">
+      <div>&#10003; <b>Cancele quando quiser</b></div>
+      <div>&#10003; <b>7 dias</b> de garantia</div>
+      <div>&#10003; Sem multa, sem fidelidade</div>
+      <div>&#10003; Pagamento seguro Kiwify</div>
+    </div>
+
     <div class="garantia">
       <div class="s7">7<small>DIAS</small></div>
-      <p>Teste por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento — sem burocracia.</p>
+      <p>Teste por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento — sem burocracia.<br>
+         <b style="color:#eafff3">E depois disso você segue livre:</b> cancele quando quiser, em um clique, direto pelo
+         e-mail da compra. Não tem multa nem período mínimo — se parar de fazer sentido, você para de pagar.</p>
     </div>
 
     <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
       Quero economizar — sem risco por 7 dias
-      <small>Se não servir, você recebe de volta →</small></a>
+      <small>7 dias de garantia · cancele quando quiser →</small></a>
 
     <div class="bloco" style="margin-top:20px">
       <h3 style="color:var(--ice)">Antes de fechar a aba</h3>
@@ -680,7 +731,7 @@ function resultado(){
 
     <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
       Não quero fazer essa conta de novo
-      <small>Começar agora por ${brlCents(PLANO_ANUAL_MENSAL)} por mês →</small></a>
+      <small>Começar por ${brlCents(PLANO_ANUAL_MENSAL)}/mês · cancele quando quiser →</small></a>
 
     <div style="max-width:420px;margin:26px auto 0">
       <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-bottom:12px">
@@ -739,7 +790,8 @@ function _ligarBarraFixa(c){
   const bar = document.createElement("div");
   bar.id = "ctaFixo"; bar.className = "cta-fixo";
   bar.innerHTML = `<a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero economizar ${brl(c.economiaAno)} por ano</a>`;
+      Quero economizar ${brl(c.economiaAno)} por ano
+      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)}/m\u00eas \u00b7 cancele quando quiser</small></a>`;
   document.body.appendChild(bar);
   document.body.classList.add("com-barra");
 

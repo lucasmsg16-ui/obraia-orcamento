@@ -435,6 +435,42 @@ const _n = v => {
 };
 const _norm = s => String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// O TOTAL QUE A PRÓPRIA PLANILHA DECLARA
+// Quase todo orçamento traz, fora da tabela, uma linha "Valor Final do Orçamento
+// COM BDI" — no cabeçalho ou no rodapé. Esse número é a melhor testemunha que
+// existe: foi o orçamentista quem escreveu. Achando-o, a conferência deixa de
+// depender de o usuário lembrar de digitar o total, e o sistema passa a saber
+// sozinho quando leu errado. Preferimos sempre a versão COM BDI, que é o valor
+// do contrato — o mesmo cuidado que a escolha da coluna já toma.
+// ─────────────────────────────────────────────────────────────────────────────
+function _acharTotalDeclarado(linhas, hi){
+  const cands=[];
+  const olhar=(ini,fim)=>{
+    for(let i=ini;i<fim && i<linhas.length;i++){
+      const L=linhas[i]||[];
+      for(let c=0;c<L.length;c++){
+        const rot=_norm(L[c]);
+        if(!rot || rot.length>60) continue;
+        if(!/(valor|total|preco|orcamento)/.test(rot)) continue;
+        if(!/(total|final|geral|orcamento)/.test(rot)) continue;
+        if(/unitario|unit\b|peso|quant/.test(rot)) continue;
+        // o número está na mesma linha, à direita do rótulo
+        for(let k=c+1;k<L.length;k++){
+          const v=_n(L[k]);
+          if(v>0){ cands.push({v, comBdi:/com\s*bdi|c\/\s*bdi|com\s*b\.d\.i/.test(rot), semBdi:/sem\s*bdi|s\/\s*bdi/.test(rot), rot}); break; }
+        }
+      }
+    }
+  };
+  olhar(0, hi);                                   // cabeçalho da planilha
+  olhar(Math.max(hi+1, linhas.length-25), linhas.length);  // rodapé
+  if(!cands.length) return null;
+  const comBdi=cands.filter(c=>c.comBdi);
+  const neutros=cands.filter(c=>!c.comBdi && !c.semBdi);
+  const escolha=(comBdi[0] || neutros.sort((a,b)=>b.v-a.v)[0] || cands.sort((a,b)=>b.v-a.v)[0]);
+  return escolha ? {valor:escolha.v, rotulo:escolha.rot, comBdi:!!escolha.comBdi} : null;
+}
 function lerPlanilha(inp){
   const f = inp.files && inp.files[0]; if(!f) return;
   inp.value = "";
@@ -454,6 +490,7 @@ function lerPlanilha(inp){
       if(/descri|servic|discrimina/.test(t) && hi === 0) hi = i;
     }
     PLAN = { nomeArq: f.name, cab: linhas[hi].map(x=>String(x||"").trim()), corpo: linhas.slice(hi+1) };
+    PLAN.totalDeclarado = _acharTotalDeclarado(linhas, hi);
     mapear();
   };
   fr.readAsArrayBuffer(f);
@@ -494,14 +531,92 @@ const _COM_BDI = ["com bdi","c/ bdi","c/bdi","com b.d.i","incl bdi","c/ b.d.i","
 // de etapa costuma repetir o subtotal daquela etapa, então tudo entra duas vezes.
 // A sugestão de coluna PRECISA olhar exatamente as linhas que vão ser importadas,
 // senão ela indica uma coluna que "bate" e que depois entrega outro total.
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBTOTAL DE ETAPA — o erro que multiplicava a obra por 4 (2026-08-11)
+//
+// Planilha orçamentária é uma ÁRVORE, não uma lista:
+//     1        ADMINISTRAÇÃO LOCAL ......... 107.792,15   ← soma dos filhos
+//     1.1        Administração local ....... 107.792,15   ← o serviço de verdade
+//     2        PRÉDIO PADRÃO ............... 763.676,98   ← soma dos filhos
+//     2.1        CANTEIRO DE OBRAS .......... 47.960,84   ← soma dos filhos
+//     2.1.1        Placa de obra ............. 5.657,76   ← o serviço de verdade
+//
+// A regra antiga só reconhecia uma etapa quando a linha vinha VAZIA de
+// quantidade e de valor. Mas a maioria das planilhas — inclusive a que quebrou
+// isto — repete o subtotal na linha do título E ainda põe quantidade 1. Essas
+// linhas passavam como serviço e o pai era somado junto com os filhos, em cada
+// nível. Numa EAP de 5 níveis o mesmo dinheiro entra até 5 vezes: uma obra de
+// R$ 1,36 milhão virou R$ 6,4 milhões.
+//
+// O sinal que resolve não é o valor nem a quantidade — é a PRÓPRIA HIERARQUIA:
+// se existe qualquer item cujo código começa com "<este item>.", então este item
+// é um título e o dinheiro dele já está contado nos filhos. Isso é verdade em
+// qualquer planilha com numeração de EAP, independente de formatação, de coluna
+// preenchida ou de banco de preços.
+//
+// Na planilha que originou a correção, somar só as folhas devolveu
+// R$ 1.360.232,03 — exatamente o "Valor Final do Orçamento COM BDI" declarado
+// pela própria planilha, com R$ 0,00 de diferença.
+// ─────────────────────────────────────────────────────────────────────────────
+const _limparItem = v => String(v==null?"":v).trim().replace(/\s+/g,"").replace(/\.+$/,"");
+const _ehCodigoEAP = v => /^\d+(\.\d+)*$/.test(_limparItem(v));
+
+// Roda UMA vez por planilha e devolve os itens que são realmente títulos.
+// Fica em cache porque _tipoLinha é chamada centenas de vezes por prévia.
+//
+// A regra não é "tem filho" — é "tem filho COM DINHEIRO". A diferença importa:
+// existe planilha em que o detalhamento desce até um nível que não traz valor
+// nenhum (o serviço é descrito no neto, mas o preço fica no filho). Se
+// descartássemos todo item que tem filho, essas planilhas importariam zerada —
+// trocaríamos um erro por outro, na direção oposta.
+//
+// Dito de outro modo: **importamos sempre o nível mais profundo que carrega
+// valor**. Um pai só é descartado quando o dinheiro dele já está garantido
+// embaixo. Isso resolve os dois casos com uma regra só, sem exceção manual.
+function _indicePais(){
+  if(!PLAN) return new Set();
+  const m=_lerMap();
+  const chave = m.item+"|"+m.tot+"|"+m.qtd+"|"+m.pu+"|"+(PLAN.corpo?PLAN.corpo.length:0);
+  if(PLAN._paisChave===chave && PLAN._pais) return PLAN._pais;
+  const itens=[];
+  if(m.item>=0) PLAN.corpo.forEach(L=>{
+    const it=_limparItem(L[m.item]);
+    if(!_ehCodigoEAP(it)) return;
+    let v = m.tot>=0 ? _n(L[m.tot]) : 0;
+    if(!v) v = _n(m.qtd>=0?L[m.qtd]:0) * _n(m.pu>=0?L[m.pu]:0);
+    itens.push({it, v});
+  });
+  const existe=new Set(itens.map(x=>x.it));
+  // Quanto dinheiro existe ABAIXO de cada item. Subir a partir de cada filho é
+  // O(n × profundidade); varrer todos contra todos seria O(n²) e travaria numa
+  // planilha de 600 linhas como a que originou esta correção.
+  const abaixo=Object.create(null);
+  itens.forEach(({it,v})=>{
+    if(!(v>0)) return;
+    const partes=it.split(".");
+    for(let k=1;k<partes.length;k++){
+      const anc=partes.slice(0,k).join(".");
+      if(existe.has(anc)) abaixo[anc]=(abaixo[anc]||0)+v;
+    }
+  });
+  const pais=new Set(Object.keys(abaixo).filter(k=>abaixo[k]>0));
+  PLAN._pais=pais; PLAN._paisChave=chave;
+  return pais;
+}
+
 function _tipoLinha(L, m){
   const cel=i=>i>=0?L[i]:"";
   const desc=String(cel(m.desc)||"").trim();
   const qtd=_n(cel(m.qtd)), pu=_n(cel(m.pu));
   let tot=m.tot>=0?_n(cel(m.tot)):0; if(!tot) tot=qtd*pu;
-  const item=String(cel(m.item)||"").trim();
-  const temItem=/^\d+(\.\d+)*$/.test(item);
+  const item=_limparItem(cel(m.item));
+  const temItem=_ehCodigoEAP(item);
   if(!desc) return {tipo:"vazia"};
+  // ── ETAPA POR HIERARQUIA: tem filhos, logo é título — mesmo trazendo
+  //    quantidade e subtotal preenchidos. Guardamos o subtotal declarado para
+  //    poder CONFERIR depois se a soma dos filhos bate com ele.
+  if(temItem && _indicePais().has(item))
+    return {tipo:"etapa", desc, item, subtotal:tot};
   // ── CONTINUAÇÃO: descrição que quebrou em várias linhas no Excel ──
   // Sem código de item, sem quantidade e sem valor. Tratar isso como "etapa"
   // (o que o código fazia) apagava a etapa verdadeira E descartava o serviço
@@ -517,11 +632,37 @@ function _classificarLinhas(){
   const m=_lerMap(); const serv=[], etapas=[], cont=[];
   PLAN.corpo.forEach(L=>{
     const r=_tipoLinha(L,m);
-    if(r.tipo==="servico") serv.push({L,qtd:r.qtd,pu:r.pu});
-    else if(r.tipo==="etapa") etapas.push({L});
+    if(r.tipo==="servico") serv.push({L,qtd:r.qtd,pu:r.pu,item:r.item,tot:r.tot});
+    else if(r.tipo==="etapa") etapas.push({L,item:r.item,desc:r.desc,subtotal:r.subtotal||0});
     else if(r.tipo==="continua") cont.push({L});
   });
   return {serv, etapas, cont, m};
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVA ARITMÉTICA DA HIERARQUIA
+// Não basta ignorar as linhas de título: é preciso PROVAR que fizemos certo.
+// Se a etapa declarou um subtotal, a soma dos serviços abaixo dela tem de
+// reproduzir esse número. Quando reproduz, temos a confirmação de que o que foi
+// descartado era mesmo repetição — e não serviço de verdade jogado fora.
+// Quando não reproduz, o usuário precisa saber ANTES de importar.
+// ─────────────────────────────────────────────────────────────────────────────
+function _conferirHierarquia(){
+  const {serv, etapas}=_classificarLinhas();
+  const comSub=etapas.filter(e=>e.item && e.subtotal>0);
+  if(!comSub.length) return null;
+  let conferem=0, divergem=0, piorDif=0, exemplo=null;
+  comSub.forEach(e=>{
+    const pref=e.item+".";
+    const somaFilhos=serv.reduce((t,x)=> t + ((x.item && x.item.indexOf(pref)===0) ? (x.tot||0) : 0), 0);
+    if(somaFilhos<=0) return;
+    const dif=Math.abs(somaFilhos-e.subtotal)/e.subtotal;
+    if(dif<=0.01) conferem++;
+    else { divergem++; if(dif>piorDif){ piorDif=dif; exemplo={item:e.item,desc:e.desc,declarado:e.subtotal,somado:somaFilhos}; } }
+  });
+  const testadas=conferem+divergem;
+  if(!testadas) return null;
+  return {testadas, conferem, divergem, taxa:conferem/testadas, piorDif, exemplo,
+          descartado: comSub.reduce((t,e)=>t+e.subtotal,0)};
 }
 // Para cada coluna numérica: soma nas linhas de SERVIÇO, soma nas de ETAPA e
 // quanto ela é coerente com quantidade × preço unitário (isso separa uma coluna
@@ -569,8 +710,8 @@ function mapear(){
       <div><label>Valor total</label><select id="mTot"><option value="-1">— calcular —</option>${opt("tot",p.tot)}</select></div>
     </div>
     <div class="row" style="grid-template-columns:1fr auto;align-items:end;gap:10px;margin:12px 0 4px">
-      <div><label>💰 Total da obra conforme a SUA planilha <span style="font-weight:400;color:var(--muted)">— confere se pegamos a coluna certa</span></label>
-        <input id="mEsperado" placeholder="Ex.: 1.284.377,52" oninput="previa()"></div>
+      <div><label>💰 Total da obra conforme a SUA planilha <span style="font-weight:400;color:var(--muted)">${PLAN.totalDeclarado?"— lido da própria planilha, confira":"— confere se pegamos a coluna certa"}</span></label>
+        <input id="mEsperado" placeholder="Ex.: 1.284.377,52" oninput="previa()" value="${PLAN.totalDeclarado?nf(PLAN.totalDeclarado.valor):""}"></div>
       <button class="btn btn-out" onclick="acharColuna()">Qual coluna dá esse total?</button>
     </div>
     <div id="bdiMsg"></div>
@@ -649,11 +790,24 @@ function previa(){
   const m=_lerMap();
   const {cont}=_classificarLinhas();
   const mesmaCol = (m.pu>=0 && m.pu===m.tot);
+  const H=_conferirHierarquia();
+  // O usuário precisa VER que linhas foram descartadas e por quê. Descartar em
+  // silêncio é como somar em silêncio: nos dois casos ele só descobre depois.
+  let notaH="";
+  if(H){
+    if(H.taxa>=0.9) notaH=`<br>✓ <b>${H.testadas} linha(s) de subtotal de etapa</b> foram reconhecidas como título e não entraram na soma
+      — a soma dos serviços reproduz o subtotal declarado em ${Math.round(H.taxa*100)}% delas.
+      <span style="color:var(--muted)">Sem isso o total sairia inflado em ${money(H.descartado)}.</span>`;
+    else notaH=`<br><b style="color:#b45309">⚠ ${H.divergem} de ${H.testadas} etapas não fecham</b> com a soma dos serviços abaixo delas.`+
+      (H.exemplo?` Ex.: <b>${esc(H.exemplo.item)} ${esc(String(H.exemplo.desc).slice(0,40))}</b> declara ${money(H.exemplo.declarado)} mas os serviços somam ${money(H.exemplo.somado)}.`:"")+
+      ` Confira a coluna de <b>Valor total</b> antes de importar.`;
+  }
   msg("mapMsg",`<b>${its.length} serviço(s)</b> em <b>${fases.length} etapa(s)</b> · total lido: <b>${money(total)}</b>`+
     (semValor?` · <b style="color:#b45309">${semValor} sem valor</b> (entram, mas não pesam no avanço financeiro)`:"")+
     (cont.length?` · ${cont.length} linha(s) de descrição emendadas ao serviço acima`:"")+
-    (mesmaCol?`<br><b style="color:#b45309">⚠ Preço unitário e Valor total apontam para a MESMA coluna</b> — uma das duas está errada.`:""),
-    (semValor||mesmaCol)?"info":"ok");
+    (mesmaCol?`<br><b style="color:#b45309">⚠ Preço unitário e Valor total apontam para a MESMA coluna</b> — uma das duas está errada.`:"")+
+    notaH,
+    (semValor||mesmaCol||(H&&H.taxa<0.9))?"info":"ok");
   conferirTotal(total);
 }
 // Compara o que foi lido com o total que o usuário conhece da planilha dele.
@@ -669,6 +823,26 @@ function conferirTotal(lido){
   const fator=esp/lido;
   const bdiImplicito=(fator-1)*100;
   const faltaBdi = fator>1.01 && fator<1.60;   // faixa de BDI de obra civil
+  // ── LIDO MAIOR QUE O DECLARADO: quase sempre é subtotal contado duas vezes ──
+  // Ler a mais é um erro de natureza diferente de ler a menos, e merece um
+  // diagnóstico próprio. Mandar o usuário "conferir a coluna" aqui não ajuda:
+  // a coluna está certa, o que sobra é linha de título entrando como serviço.
+  if(lido > esp*1.02){
+    const vezes = lido/esp;
+    msg("bdiMsg",
+      `⚠ <b>O total lido está MAIOR que o da sua planilha.</b> Lido ${money(lido)} × planilha ${money(esp)}
+       — <b>${nf(vezes)}× o valor real</b>.<br>
+       Isso quase sempre significa que <b>linhas de subtotal de etapa entraram como serviço</b>, fazendo o mesmo
+       dinheiro ser contado em cada nível da EAP.
+       <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">
+         <button class="btn btn-out" style="padding:5px 11px;font-size:12.5px" onclick="acharColuna()">Ver as somas por coluna</button>
+       </div>
+       <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+         Se a sua planilha não usa numeração de item (1, 1.1, 1.1.1), o sistema não consegue enxergar a árvore
+         — confira se a coluna <b>Item</b> está mapeada corretamente acima.</div>`,
+      "err");
+    return;
+  }
   msg("bdiMsg",
     `⚠ <b>Não bate.</b> Lido ${money(lido)} × informado ${money(esp)} — diferença de <b>${nf(Math.abs(dif))}%</b>.`+
     (faltaBdi
@@ -751,10 +925,16 @@ async function importarPlan(){
   const esp=_n((document.getElementById("mEsperado")||{}).value);
   // trava final: se o usuário informou o total e ele não bate, não deixa passar calado
   if(esp && Math.abs(total-esp)/esp > 0.005){
+    const inflado = total > esp*1.02;
     if(!confirm(`ATENÇÃO — o total não bate com a sua planilha.\n\n`+
       `Lido: R$ ${nf(total)}\nSua planilha: R$ ${nf(esp)}\nDiferença: ${nf(Math.abs(total-esp)/esp*100)}%\n\n`+
-      `Isso costuma ser coluna sem BDI. Importar assim deixa a obra mais barata do que ela é, `+
-      `e o avanço financeiro sairá errado.\n\nOK = importar mesmo assim · Cancelar = corrigir a coluna`)) return;
+      (inflado
+        ? `O valor lido está ${nf(total/esp)}x MAIOR que o da sua planilha. Isso costuma ser linha de subtotal `+
+          `de etapa entrando como serviço — o mesmo dinheiro contado em cada nível.\n`+
+          `Importar assim infla a obra e o avanço financeiro sairá errado.`
+        : `Isso costuma ser coluna sem BDI. Importar assim deixa a obra mais barata do que ela é, `+
+          `e o avanço financeiro sairá errado.`)+
+      `\n\nOK = importar mesmo assim · Cancelar = corrigir a coluna`)) return;
   }
   const nome=prompt("Nome da obra:", PLAN.nomeArq.replace(/\.(xlsx?|csv)$/i,"")) || "";
   if(!nome.trim()) return;
