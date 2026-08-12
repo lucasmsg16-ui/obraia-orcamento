@@ -334,10 +334,14 @@ const nf0=v=>(Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:2});
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const msg=(el,txt,tipo)=>{const e=document.getElementById(el); if(!e)return; e.innerHTML=txt?`<div class="msg ${tipo||"info"}">${txt}</div>`:"";};
 
-// ── sessão ──
+// ── sessão + licença ──
+// Estar logado nao e o mesmo que ter acesso: se a licenca venceu, manda pro
+// dashboard, que sabe explicar o motivo (expirado x nunca comprou) e barra.
 (async()=>{
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ location.href="login.html"; return; }
+  const {data:liberado,error:licErr}=await sb.rpc("minha_licenca_ativa");
+  if(!licErr && liberado!==true){ location.href="dashboard.html"; return; }
   USER=session.user;
   document.getElementById("uEmail").textContent=USER.email;
   await carregarLista();

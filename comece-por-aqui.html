@@ -9,7 +9,7 @@
 <style>
 :root{
   --navy:#002B40; --blue:#1792C0; --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
-  --text:#2c3e50; --muted:#7f8c8d; --shadow: 0 2px 12px rgba(26,60,94,.10);
+  --text:#2c3e50; --muted:#7f8c8d; --shadow: 0 2px 12px rgba(26,60,94,.10); --red:#e74c3c; --green:#27ae60;
 }
 *{box-sizing:border-box}
 body{ margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
@@ -24,12 +24,14 @@ header a.back{ margin-left:auto; color:#fff; font-size:13px; text-decoration:non
 header a.back:hover{ opacity:1; text-decoration:underline; }
 main{ max-width:760px; margin:0 auto; padding:48px 24px; text-align:center; }
 h1{ font-size:24px; color:var(--navy); margin:0 0 10px; }
-p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; }
+p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wrap; }
 .player{
-  background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
+  background:#000; border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow);
   aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; flex-direction:column;
-  gap:12px; color:var(--muted);
+  gap:12px; color:var(--muted); overflow:hidden;
 }
+.player.vazio{ background:var(--card); }
+.player video{ width:100%; height:100%; }
 .player .play{
   width:64px; height:64px; border-radius:50%; background:var(--blue); color:#fff;
   display:flex; align-items:center; justify-content:center; font-size:26px;
@@ -40,6 +42,30 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; }
   display:inline-block; background:var(--navy); color:#fff; padding:12px 26px; border-radius:8px;
   font-weight:700; text-decoration:none; font-size:14.5px;
 }
+
+/* Painel de administração — só renderiza se o usuário logado for o admin. */
+.admin{
+  text-align:left; margin-top:36px; background:var(--card); border:1px solid var(--border);
+  border-radius:14px; box-shadow:var(--shadow); padding:24px 26px;
+}
+.admin h2{ font-size:15px; margin:0 0 4px; color:var(--navy); }
+.admin .tag{ font-size:11.5px; color:var(--muted); margin:0 0 18px; }
+.admin label{ display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:var(--text); }
+.admin input[type=text], .admin textarea{
+  width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px;
+  font-size:14px; font-family:inherit; outline:0;
+}
+.admin textarea{ resize:vertical; min-height:70px; }
+.admin input[type=file]{ font-size:13px; margin-top:2px; }
+.admin .btn{
+  margin-top:18px; padding:11px 22px; border:0; border-radius:8px; font-size:14px;
+  font-weight:700; cursor:pointer; background:var(--blue); color:#fff; font-family:inherit;
+}
+.admin .btn:disabled{ opacity:.6; cursor:not-allowed; }
+.admin .msg{ font-size:13px; margin-top:12px; display:none; padding:9px 12px; border-radius:8px; }
+.admin .msg.ok{ display:block; background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; }
+.admin .msg.err{ display:block; background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; }
+.admin .hint{ font-size:12px; color:var(--muted); margin-top:5px; }
 </style>
 </head>
 <body>
@@ -48,20 +74,114 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; }
   <a class="back" href="dashboard.html">← voltar</a>
 </header>
 <main>
-  <h1>Comece por aqui</h1>
-  <p class="sub">Um vídeo curto sobre como tirar o melhor proveito do ObraIA.</p>
-  <div class="player">
+  <h1 id="tituloConteudo">Boas-vindas</h1>
+  <p class="sub" id="descricaoConteudo">Um vídeo curto sobre como tirar o melhor proveito do ObraIA.</p>
+  <div class="player vazio" id="player">
     <div class="play">▶</div>
     <p>Vídeo em breve — esse espaço já está reservado.</p>
   </div>
   <div class="cta"><a href="index.html">Já quero usar o ObraIA</a></div>
+
+  <div class="admin" id="painelAdmin" style="display:none">
+    <h2>Editar vídeo de boas-vindas</h2>
+    <p class="tag">Só você vê este painel. Alterações aparecem para todos assim que salvar.</p>
+    <form id="formAdmin">
+      <label for="fTitulo">Título</label>
+      <input type="text" id="fTitulo" required>
+      <label for="fDescricao">Descrição</label>
+      <textarea id="fDescricao"></textarea>
+      <label for="fVideo">Arquivo de vídeo (mp4, webm ou mov — até 300MB)</label>
+      <input type="file" id="fVideo" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
+      <div class="hint">Deixe em branco para manter o vídeo atual.</div>
+      <button type="submit" class="btn" id="btnSalvar">Salvar</button>
+      <div class="msg" id="msgAdmin"></div>
+    </form>
+  </div>
 </main>
 
 <script>
+const ADMIN_ID = "cb35fabc-f999-43af-980e-28c440adaaa1"; // lucasmsg16@gmail.com
 const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb_publishable_a93QzqdJJ0uSooob6JSwAg_ETcbQ0KF");
+
+let conteudoAtual = null;
+
+function renderPlayer(c){
+  const player = document.getElementById("player");
+  document.getElementById("tituloConteudo").textContent = c.titulo || "Boas-vindas";
+  document.getElementById("descricaoConteudo").textContent = c.descricao || "";
+  if(c.video_url){
+    player.classList.remove("vazio");
+    player.innerHTML = '<video src="' + c.video_url + '" controls preload="metadata"></video>';
+  } else {
+    player.classList.add("vazio");
+    player.innerHTML = '<div class="play">▶</div><p>Vídeo em breve — esse espaço já está reservado.</p>';
+  }
+}
+
+async function carregarConteudo(){
+  const { data, error } = await sb.from("conteudo_boas_vindas").select("*").eq("id", 1).maybeSingle();
+  if(error){ console.warn("Nao consegui carregar o conteudo de boas-vindas:", error.message); return; }
+  conteudoAtual = data;
+  if(data) renderPlayer(data);
+}
+
+function montarPainelAdmin(){
+  document.getElementById("painelAdmin").style.display = "block";
+  document.getElementById("fTitulo").value = conteudoAtual ? conteudoAtual.titulo : "Boas-vindas";
+  document.getElementById("fDescricao").value = conteudoAtual ? (conteudoAtual.descricao || "") : "";
+
+  document.getElementById("formAdmin").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btnSalvar");
+    const msg = document.getElementById("msgAdmin");
+    const arquivo = document.getElementById("fVideo").files[0];
+    btn.disabled = true; btn.textContent = "Salvando...";
+    msg.className = "msg"; msg.textContent = "";
+    try{
+      let video_url = conteudoAtual ? conteudoAtual.video_url : null;
+      let video_path = conteudoAtual ? conteudoAtual.video_path : null;
+
+      if(arquivo){
+        const ext = arquivo.name.split(".").pop();
+        const path = "boas-vindas-" + Date.now() + "." + ext;
+        const { error: upErr } = await sb.storage.from("boas-vindas").upload(path, arquivo, { upsert: true });
+        if(upErr) throw upErr;
+        const antigoPath = video_path;
+        video_path = path;
+        video_url = sb.storage.from("boas-vindas").getPublicUrl(path).data.publicUrl;
+        // Limpa o arquivo antigo pra nao acumular armazenamento a toa.
+        if(antigoPath) sb.storage.from("boas-vindas").remove([antigoPath]).catch(() => {});
+      }
+
+      const { data: userData } = await sb.auth.getUser();
+      const { data: salvo, error: saveErr } = await sb.from("conteudo_boas_vindas").update({
+        titulo: document.getElementById("fTitulo").value.trim() || "Boas-vindas",
+        descricao: document.getElementById("fDescricao").value.trim(),
+        video_url, video_path,
+        atualizado_em: new Date().toISOString(),
+        atualizado_por: userData.user.id
+      }).eq("id", 1).select().single();
+      if(saveErr) throw saveErr;
+
+      conteudoAtual = salvo;
+      renderPlayer(salvo);
+      document.getElementById("fVideo").value = "";
+      msg.className = "msg ok"; msg.textContent = "Salvo!";
+    }catch(err){
+      msg.className = "msg err"; msg.textContent = "Nao consegui salvar (" + (err.message || "erro") + ").";
+    }finally{
+      btn.disabled = false; btn.textContent = "Salvar";
+    }
+  });
+}
+
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
-  if(!session){ window.location.href = "login.html"; }
+  if(!session){ window.location.href = "login.html"; return; }
+
+  await carregarConteudo();
+
+  if(session.user.id === ADMIN_ID) montarPainelAdmin();
 })();
 </script>
 </body>

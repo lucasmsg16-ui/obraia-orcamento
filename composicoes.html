@@ -94,6 +94,8 @@ const setMsg=(t,k)=>{document.getElementById("msg").innerHTML=t?`<div class="msg
 (async()=>{
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ location.href="login.html"; return; }
+  const {data:liberado,error:licErr}=await sb.rpc("minha_licenca_ativa");
+  if(!licErr && liberado!==true){ location.href="dashboard.html"; return; }
   USER=session.user;
   document.getElementById("uEmail").textContent=USER.email;
   document.getElementById("uEmail2").textContent=USER.email;

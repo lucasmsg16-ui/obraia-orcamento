@@ -185,7 +185,12 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
     return;
   }
   if(liberado === true){ await mostrarChave(); return; }
-  bloquear(session.user.email);
+
+  // Descobre a causa especifica do bloqueio pra nao chamar de "nunca comprou"
+  // quem comprou e so teve o acesso vencido — sao problemas diferentes e
+  // pedem CTAs diferentes (renovar x conferir o e-mail do checkout).
+  const { data: cliente } = await sb.from("clientes").select("validade, status, ativo").maybeSingle();
+  bloquear(session.user.email, cliente);
 })();
 
 // A chave fica sempre a mao: o e-mail de boas-vindas se perde, a conta nao.
@@ -219,18 +224,38 @@ async function mostrarChave(){
 // Sem licenca: explicamos o porque e damos a saida. A causa mais comum nao e
 // golpe — e ter comprado com um e-mail e entrado com outro. Por isso mostramos
 // qual e-mail esta logado.
-function bloquear(email){
-  const msgZap = encodeURIComponent(
-    "Ola! Comprei o ObraIA mas nao consigo acessar. Entrei com o e-mail " + email + " e apareceu que nao ha compra ativa."
-  );
+function bloquear(email, cliente){
+  const hoje = new Date(Date.now() - (new Date().getTimezoneOffset()*60000)).toISOString().slice(0,10);
+  let titulo, corpo, dica, msgZapTxt;
+
+  if(cliente && cliente.validade && cliente.validade < hoje){
+    const dataFmt = new Date(cliente.validade + "T12:00:00").toLocaleDateString("pt-BR");
+    titulo = "Seu acesso expirou";
+    corpo = 'Sua licença venceu em <strong>' + dataFmt + '</strong>. Renove para continuar usando o ObraIA.';
+    dica = 'Se você já renovou ou pagou de novo, pode levar alguns minutos até liberar. ' +
+           'Se preferir, fale com o suporte que a gente confirma na hora.';
+    msgZapTxt = "Ola! Meu acesso ao ObraIA expirou em " + dataFmt + " e quero renovar. Meu e-mail e " + email + ".";
+  } else if(cliente && (cliente.status === 'cancelado' || cliente.status === 'reembolsado' || cliente.ativo === false)){
+    titulo = "Sua assinatura não está mais ativa";
+    corpo = 'Não há assinatura ativa ligada a <strong>' + email + '</strong> no momento.';
+    dica = 'Se isso não faz sentido pra você — por exemplo, se não pediu cancelamento nem reembolso — fale com o suporte.';
+    msgZapTxt = "Ola! Minha assinatura do ObraIA aparece como inativa e eu nao pedi cancelamento. Meu e-mail e " + email + ".";
+  } else {
+    titulo = "Não encontramos uma compra para este e-mail";
+    corpo = 'Você entrou como <strong>' + email + '</strong>, e não há assinatura ativa ligada a ele.';
+    dica = 'Se você já comprou, o mais provável é ter usado outro e-mail no checkout. ' +
+           'Saia e entre com o e-mail da compra — o acesso está nele. Se comprou agora há pouco, ' +
+           'pode levar alguns minutos até liberar. Se nada disso resolver, fale com o suporte — ' +
+           'é a via mais rápida quando algo não bate.';
+    msgZapTxt = "Ola! Comprei o ObraIA mas nao consigo acessar. Entrei com o e-mail " + email + " e apareceu que nao ha compra ativa.";
+  }
+
+  const msgZap = encodeURIComponent(msgZapTxt);
   document.querySelector("main").innerHTML =
     '<div class="bloqueio"><div class="ico">&#128274;</div>' +
-    '<h1>Nao encontramos uma compra para este e-mail</h1>' +
-    '<p>Voce entrou como <strong>' + email + '</strong>, e nao ha assinatura ativa ligada a ele.</p>' +
-    '<p class="dica">Se voce ja comprou, o mais provavel e ter usado outro e-mail no checkout. ' +
-    'Saia e entre com o e-mail da compra — o acesso esta nele. Se comprou agora ha pouco, ' +
-    'pode levar alguns minutos ate liberar. Se nada disso resolver, fale com o suporte — ' +
-    'e a via mais rapida quando algo nao bate.</p>' +
+    '<h1>' + titulo + '</h1>' +
+    '<p>' + corpo + '</p>' +
+    '<p class="dica">' + dica + '</p>' +
     '<div class="acoes">' +
     '<a class="btn-s" href="https://wa.me/5581997977068?text=' + msgZap + '" target="_blank" rel="noopener">&#128241; Falar com o suporte</a>' +
     '<a class="btn-p" href="diagnostico.html">Ver os planos</a>' +
