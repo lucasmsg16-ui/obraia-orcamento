@@ -267,7 +267,17 @@ async function moverAula(id, dir){
     btn.style.display = "block";
     btn.addEventListener("click", abrirFormNovaAula);
   }
+
+  // Chegando de um link "aulas.html?abrir=<id>" (ex: dos quadros da tela de
+  // boas-vindas), já abre a aula certa em vez de deixar a pessoa procurar.
+  const abrirId = new URLSearchParams(location.search).get("abrir");
+  if(abrirId) ABERTA = abrirId;
+
   await carregarAulas();
+  if(abrirId){
+    const el = document.getElementById("card-"+abrirId);
+    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  }
 })();
 </script>
 </body>

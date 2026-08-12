@@ -37,11 +37,28 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
   display:flex; align-items:center; justify-content:center; font-size:26px;
 }
 .player p{ font-size:13.5px; margin:0; }
-.cta{ margin-top:30px; }
-.cta a{
-  display:inline-block; background:var(--navy); color:#fff; padding:12px 26px; border-radius:8px;
-  font-weight:700; text-decoration:none; font-size:14.5px;
+
+/* Quadros de "qual aula assistir" — mesma linguagem visual dos cards do
+   dashboard, só que compactos, porque aqui é navegação, não a home. */
+.aulas-sec{ margin-top:36px; text-align:left; }
+.aulas-sec h2{ font-size:15px; color:var(--navy); margin:0 0 12px; }
+.aulas-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+.aula-tile{
+  background:var(--card); border:1px solid var(--border); border-radius:11px; box-shadow:var(--shadow);
+  padding:14px 15px; text-decoration:none; color:var(--text); display:flex; flex-direction:column; gap:6px;
+  transition:.15s;
 }
+.aula-tile:hover{ border-color:var(--blue); transform:translateY(-1px); }
+.aula-tile .num{
+  width:26px; height:26px; border-radius:50%; background:#eaf6fb; color:var(--blue);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+}
+.aula-tile .tit{ font-size:13.5px; font-weight:700; color:var(--navy); line-height:1.3; }
+.aula-tile .desc{ font-size:11.5px; color:var(--muted); line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.aulas-vazio{ font-size:13px; color:var(--muted); }
+.usar-obraia{ margin-top:26px; text-align:center; }
+.usar-obraia a{ color:var(--muted); font-size:13px; text-decoration:underline; }
 
 /* Painel de administração — só renderiza se o usuário logado for o admin. */
 .admin{
@@ -80,7 +97,11 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
     <div class="play">▶</div>
     <p>Vídeo em breve — esse espaço já está reservado.</p>
   </div>
-  <div class="cta"><a href="index.html">Já quero usar o ObraIA</a></div>
+  <div class="aulas-sec">
+    <h2>Qual aula você quer assistir agora?</h2>
+    <div class="aulas-grid" id="aulasGrid"><div class="aulas-vazio">Carregando…</div></div>
+  </div>
+  <div class="usar-obraia"><a href="index.html">Já quero usar o ObraIA →</a></div>
 
   <div class="admin" id="painelAdmin" style="display:none">
     <h2>Editar vídeo de boas-vindas</h2>
@@ -139,6 +160,24 @@ async function carregarConteudo(){
   if(data) renderPlayer(data);
 }
 
+// Quadros pra escolher a próxima aula sem sair desta página de boas-vindas —
+// clicar leva pra aulas.html já abrindo direto na aula escolhida.
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+async function carregarOutrasAulas(){
+  const host = document.getElementById("aulasGrid");
+  const { data, error } = await sb.from("aulas").select("id,titulo,descricao").eq("ativo", true).order("ordem", {ascending:true});
+  if(error || !data || !data.length){
+    host.innerHTML = '<div class="aulas-vazio">Nenhuma aula publicada ainda — volte em breve.</div>';
+    return;
+  }
+  host.innerHTML = data.map((a, idx) => `
+    <a class="aula-tile" href="aulas.html?abrir=${a.id}">
+      <div class="num">${idx+1}</div>
+      <div class="tit">${esc(a.titulo)}</div>
+      ${a.descricao ? `<div class="desc">${esc(a.descricao)}</div>` : ""}
+    </a>`).join("");
+}
+
 function montarPainelAdmin(){
   document.getElementById("painelAdmin").style.display = "block";
   document.getElementById("fTitulo").value = conteudoAtual ? conteudoAtual.titulo : "Boas-vindas";
@@ -189,6 +228,7 @@ function montarPainelAdmin(){
   if(!session){ window.location.href = "login.html"; return; }
 
   await carregarConteudo();
+  await carregarOutrasAulas();
 
   if(session.user.id === ADMIN_ID) montarPainelAdmin();
 })();
