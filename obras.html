@@ -54,6 +54,13 @@ label{font-size:12.5px;font-weight:600;display:block;margin-bottom:4px}
 .bar{height:8px;background:#e8eef4;border-radius:20px;overflow:hidden;min-width:110px}
 .bar > i{display:block;height:100%;background:var(--blue);border-radius:20px;transition:width .35s}
 .bar.done > i{background:var(--green)}
+/* Barra da Previsão: sólido = já executado · hachurado = o que a meta deste
+   mês está considerando a mais. É a mesma convenção de planta técnica — área
+   hachurada é "o que está em pauta", não "o que já existe". */
+.bar-prev{height:7px;background:#e8eef4;border-radius:20px;overflow:hidden;min-width:78px;margin-top:5px;display:flex}
+.bar-prev .exec{display:block;height:100%;background:var(--blue)}
+.bar-prev .plan{display:block;height:100%;background-color:var(--amber);
+  background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.85) 0 3px, transparent 3px 6px)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:var(--navy);color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:8px 9px;text-align:left;position:sticky;top:0;z-index:2}
 td{border-bottom:1px solid #eef2f7;padding:7px 9px;vertical-align:middle;overflow-wrap:anywhere}
@@ -1366,6 +1373,12 @@ async function alternarTipo(id){
 // impondo a conta de cabeça ao excluir essas unidades. Só cai no percentual
 // quem realmente não tem quantidade contratada (0 ou vazio).
 function _temQtd(i){ return (Number(i.quantidade)||0) > 0; }
+// Reconhece "Administração Local" pela etapa ou pela descrição, tolerando
+// acento/maiúscula — é assim que a planilha do orçamento chama essa linha.
+function _ehAdm(i){
+  const alvo=/administra[cç][aã]o\s+local/i;
+  return alvo.test(i.fase||"") || alvo.test(i.descricao||"");
+}
 
 // aceita "1.234,56", "1234.56", "1234,56" e "1234"
 function _numBR(v){
@@ -2169,12 +2182,25 @@ function previsao(){
   const salvo=_planoMes(mes), sug=_metaSugerida(mes);
   const metaDe=id => salvo[id]!==undefined ? salvo[id] : (sug[id]||0);
 
-  let vBase=0,vMeta=0,vReal=0;
   const linhas=ITENS.map(i=>{
     const v=Number(i.valor)||0, b=base[i.id]||0, mt=Math.max(b,metaDe(i.id)), rl=real[i.id]||0;
-    vBase+=v*b/100; vMeta+=v*mt/100; vReal+=v*rl/100;
-    return {...i, b, mt, rl, v, mine:salvo[i.id]!==undefined};
+    return {...i, b, mt, rl, v, mine:salvo[i.id]!==undefined, travada:false};
   });
+  // Administração Local não é um serviço que se planeja item a item — é
+  // despesa proporcional ao ritmo do RESTO da obra. Deixar o usuário digitar
+  // qualquer meta nela permite "adiantar" a administração sem a obra ter
+  // avançado de fato, o que não é avanço real, é medição fantasiosa.
+  // Por isso a meta dela é travada = média ponderada da meta de tudo mais.
+  linhas.forEach(l=>{
+    if(!_ehAdm(l)) return;
+    const resto=linhas.filter(x=>!_ehAdm(x));
+    const vRestoTotal=resto.reduce((s,x)=>s+x.v,0);
+    const vRestoMeta=resto.reduce((s,x)=>s+x.v*x.mt/100,0);
+    l.mt=Math.max(l.b, vRestoTotal>0 ? vRestoMeta/vRestoTotal*100 : l.b);
+    l.mine=false; l.travada=true;
+  });
+  let vBase=0,vMeta=0,vReal=0;
+  linhas.forEach(l=>{ vBase+=l.v*l.b/100; vMeta+=l.v*l.mt/100; vReal+=l.v*l.rl/100; });
   const aProduzir=vMeta-vBase, produzido=vReal-vBase;
   // meses disponíveis: do mês corrente até o fim do cronograma
   const opts=_mesesGrade().filter(m=>m.chave>=hojeC || m.chave>=_compHoje()).map(m=>
@@ -2254,7 +2280,10 @@ function previsao(){
       </tbody></table></div>
     <div style="font-size:11.5px;color:var(--muted);margin-top:10px">
       A meta já vem preenchida pelo cronograma — mexa só no que for diferente. Nada aqui altera a medição:
-      quando o mês chegar, você lança o avanço real na aba <b>Serviços</b> e volta aqui para comparar.
+      quando o mês chegar, você lança o avanço real na aba <b>Serviços</b> e volta aqui para comparar.<br>
+      Na barrinha de cada serviço: <span style="display:inline-block;width:14px;height:7px;background:var(--blue);border-radius:3px;vertical-align:middle"></span> já executado ·
+      <span style="display:inline-block;width:14px;height:7px;background:var(--amber);background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.85) 0 2px,transparent 2px 4px);border-radius:3px;vertical-align:middle"></span> entrando na meta deste mês.
+      Administração Local não tem campo pra digitar — ela segue sozinha a média do avanço do resto da obra, pra não virar medição desligada da realidade.
     </div>`;
 }
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2320,16 +2349,31 @@ function _desembolso(mesFoco){
 // "150m²", não "62%". Serviço sem quantitativo (verba/taxa) continua em %,
 // que é a única unidade que ele tem. Os dois campos gravam a MESMA coisa —
 // cronograma.plano guarda percentual — só a entrada muda.
+// A barra mostra, na mesma escala 0–100%, o que já é fato (sólido) e o que a
+// meta deste mês está pedindo a mais (hachurado) — é o "hachurar o que está
+// sendo considerado" que faltava: dá pra ver de relance quanto do serviço
+// entra na conta deste mês sem precisar comparar os dois números de cabeça.
+function _barraPrev(l){
+  const b=Math.max(0,Math.min(100,l.b)), mt=Math.max(b,Math.min(100,l.mt));
+  return `<div class="bar-prev" title="${nf(b)}% já executado · ${nf(mt-b)}% entrando na meta de ${_compRotulo(PREV_MES)}">
+    <i class="exec" style="width:${b}%"></i><i class="plan" style="width:${Math.max(0,mt-b)}%"></i></div>`;
+}
 function _celMeta(l){
+  const barra=_barraPrev(l);
+  if(l.travada){
+    const valTxt=_temQtd(l) ? _nfQ(l.quantidade*l.mt/100,l.quantidade)+" "+esc(l.unidade||"") : nf(l.mt)+"%";
+    return `<div style="font-weight:700;color:var(--navy)">${valTxt}</div>
+      <span class="chip z" title="Administração Local não é planejada item a item: segue automaticamente a média ponderada do avanço do resto da obra">acompanha a obra</span>${barra}`;
+  }
   if(!_temQtd(l)){
     return `<input class="meta-in" type="number" min="${Math.ceil(l.b)}" max="100" step="1" value="${Math.round(l.mt)}"
-      onchange="prevMeta('${l.id}',this.value)" style="width:64px"> %`;
+      onchange="prevMeta('${l.id}',this.value)" style="width:64px"> %${barra}`;
   }
   const q=Number(l.quantidade)||0, un=esc(l.unidade||"");
   const qtdMeta=q*l.mt/100;
   return `<input class="meta-in" type="text" inputmode="decimal" value="${_nfQ(qtdMeta,q)}"
       onchange="prevMetaQtd('${l.id}',this.value)" style="width:84px"> ${un}
-      <span style="font-size:11px;color:var(--muted);white-space:nowrap"> (${Math.round(l.mt)}%)</span>`;
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap"> (${Math.round(l.mt)}%)</span>${barra}`;
 }
 async function prevMetaQtd(id,v){
   const it=ITENS.find(x=>x.id===id); if(!it) return;
