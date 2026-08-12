@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aulas — Método NAVE · ObraIA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#002B40; --blue:#1792C0; --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
+  --text:#2c3e50; --muted:#7f8c8d; --shadow: 0 2px 12px rgba(26,60,94,.10); --red:#e74c3c; --green:#27ae60;
+}
+*{box-sizing:border-box}
+body{ margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+header{
+  background:linear-gradient(135deg, var(--navy) 0%, #1792C0 100%);
+  color:#fff; padding:0 24px; height:60px; display:flex; align-items:center; gap:16px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+header .logo{ font-size:20px; font-weight:700; letter-spacing:-.5px; }
+header .logo span{ color:#4db8e8; }
+header a.back{ margin-left:auto; color:#fff; font-size:13px; text-decoration:none; opacity:.85; }
+header a.back:hover{ opacity:1; text-decoration:underline; }
+main{ max-width:760px; margin:0 auto; padding:40px 24px 60px; }
+h1{ font-size:24px; color:var(--navy); margin:0 0 6px; }
+p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
+
+.card{
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  box-shadow:var(--shadow); margin-bottom:16px; overflow:hidden;
+}
+.card .head{ display:flex; align-items:center; gap:14px; padding:18px 20px; cursor:pointer; }
+.card .head .num{
+  width:34px; height:34px; border-radius:50%; background:#eaf6fb; color:var(--blue);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0;
+}
+.card .head .info{ flex:1; min-width:0; }
+.card .head h2{ font-size:15.5px; margin:0; color:var(--navy); }
+.card .head p{ font-size:12.5px; color:var(--muted); margin:3px 0 0; line-height:1.4; }
+.card .head .chev{ color:var(--muted); font-size:13px; flex-shrink:0; transition:transform .15s; }
+.card.aberto .head .chev{ transform:rotate(180deg); }
+.card .player{ display:none; background:#000; aspect-ratio:16/9; }
+.card.aberto .player{ display:block; }
+.card .player iframe{ width:100%; height:100%; border:0; display:block; }
+.card .player.vazio{ display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; background:#1a2733; }
+.card .admin-row{ display:flex; gap:10px; padding:0 20px 16px; }
+.card .admin-row button{
+  background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px;
+  padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit;
+}
+.card .admin-row button:hover{ border-color:var(--blue); color:var(--blue); }
+.card .admin-row button.del:hover{ border-color:var(--red); color:var(--red); }
+.card.oculta{ opacity:.55 }
+.card.oculta .head .info h2::after{ content:" (oculta)"; font-weight:400; color:var(--muted); font-size:12px; }
+
+.vazio-lista{ text-align:center; padding:50px 20px; color:var(--muted); background:var(--card);
+  border:1px dashed var(--border); border-radius:14px; }
+
+.painel-admin{
+  background:var(--card); border:1px solid var(--border); border-radius:14px;
+  box-shadow:var(--shadow); padding:22px 20px; margin-bottom:22px;
+}
+.painel-admin h3{ font-size:14px; margin:0 0 4px; color:var(--navy); }
+.painel-admin .tag{ font-size:11.5px; color:var(--muted); margin:0 0 16px; }
+.painel-admin label{ display:block; font-size:12.5px; font-weight:600; margin:12px 0 5px; }
+.painel-admin input[type=text], .painel-admin textarea{
+  width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px;
+  font-size:13.5px; font-family:inherit; outline:0;
+}
+.painel-admin textarea{ resize:vertical; min-height:60px; }
+.painel-admin .row{ display:flex; gap:10px; margin-top:16px; align-items:center; }
+.painel-admin .btn{
+  padding:9px 18px; border:0; border-radius:8px; font-size:13.5px; font-weight:700;
+  cursor:pointer; background:var(--blue); color:#fff; font-family:inherit;
+}
+.painel-admin .btn:disabled{ opacity:.6; cursor:not-allowed; }
+.painel-admin .btn-out{ background:none; border:1px solid var(--border); color:var(--muted); }
+.painel-admin .msg{ font-size:12.5px; margin-top:10px; display:none; padding:8px 10px; border-radius:7px; }
+.painel-admin .msg.ok{ display:block; background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; }
+.painel-admin .msg.err{ display:block; background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; }
+.painel-admin label.check{ display:flex; align-items:center; gap:7px; font-weight:600; }
+.painel-admin label.check input{ width:auto; }
+
+.btn-add{
+  display:block; width:100%; text-align:center; padding:13px; margin-bottom:22px;
+  background:#eaf6fb; border:1.5px dashed var(--blue); color:var(--blue); border-radius:11px;
+  font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
+}
+.btn-add:hover{ background:#dcf0f9; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Obra<span>IA</span></div>
+  <a class="back" href="dashboard.html">← voltar</a>
+</header>
+<main>
+  <h1>Aulas — Método NAVE</h1>
+  <p class="sub">A trilha em vídeo que ensina o engenheiro a comandar a IA — do primeiro prompt ao fluxo que roda sozinho.</p>
+
+  <button class="btn-add" id="btnNovaAula" style="display:none" type="button">+ Adicionar aula</button>
+  <div id="formNovaAula"></div>
+  <div id="lista"><div class="vazio-lista">Carregando…</div></div>
+</main>
+
+<script>
+const ADMIN_ID = "cb35fabc-f999-43af-980e-28c440adaaa1"; // lucasmsg16@gmail.com
+const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb_publishable_a93QzqdJJ0uSooob6JSwAg_ETcbQ0KF");
+let SOU_ADMIN = false;
+let AULAS = [];
+let ABERTA = null;
+
+function extrairYoutubeId(url){
+  if(!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+async function carregarAulas(){
+  let q = sb.from("aulas").select("*").order("ordem", {ascending:true});
+  if(!SOU_ADMIN) q = q.eq("ativo", true);
+  const { data, error } = await q;
+  if(error){ document.getElementById("lista").innerHTML = '<div class="vazio-lista">Não consegui carregar as aulas.</div>'; return; }
+  AULAS = data || [];
+  renderLista();
+}
+
+function renderLista(){
+  const host = document.getElementById("lista");
+  if(!AULAS.length){
+    host.innerHTML = '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>';
+    return;
+  }
+  host.innerHTML = AULAS.map((a, idx) => {
+    const ytId = extrairYoutubeId(a.video_url);
+    const aberto = ABERTA === a.id;
+    const player = ytId
+      ? `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+      : `<div class="player vazio" style="display:flex">Vídeo ainda não cadastrado nesta aula.</div>`;
+    const admin = SOU_ADMIN ? `
+      <div class="admin-row">
+        <button type="button" onclick="moverAula('${a.id}',-1)" ${idx===0?"disabled":""}>↑</button>
+        <button type="button" onclick="moverAula('${a.id}',1)" ${idx===AULAS.length-1?"disabled":""}>↓</button>
+        <button type="button" onclick="editarAula('${a.id}')">✎ Editar</button>
+        <button type="button" onclick="alternarAtiva('${a.id}')">${a.ativo?"Ocultar":"Reexibir"}</button>
+        <button type="button" class="del" onclick="excluirAula('${a.id}')">✕ Excluir</button>
+      </div>` : "";
+    return `<div class="card ${aberto?"aberto":""} ${!a.ativo?"oculta":""}" id="card-${a.id}">
+        <div class="head" onclick="toggleAula('${a.id}')">
+          <div class="num">${idx+1}</div>
+          <div class="info"><h2>${esc(a.titulo)}</h2><p>${esc(a.descricao||"")}</p></div>
+          <div class="chev">▾</div>
+        </div>
+        <div class="player">${player}</div>
+        ${admin}
+      </div>`;
+  }).join("");
+}
+
+function toggleAula(id){
+  ABERTA = ABERTA === id ? null : id;
+  renderLista();
+  if(ABERTA){
+    document.getElementById("card-"+id).scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+}
+
+// ── Painel de administração (só o admin vê) ─────────────────────────────
+function abrirFormNovaAula(){
+  renderForm(null);
+}
+function editarAula(id){
+  const a = AULAS.find(x=>x.id===id);
+  if(a) renderForm(a);
+}
+function renderForm(aula){
+  const host = document.getElementById("formNovaAula");
+  const editando = !!aula;
+  host.innerHTML = `
+    <div class="painel-admin">
+      <h3>${editando?"Editar aula":"Nova aula"}</h3>
+      <p class="tag">Só você vê este painel. Alterações aparecem pra todos assim que salvar.</p>
+      <form id="formAula">
+        <label for="fTit">Título</label>
+        <input type="text" id="fTit" required value="${editando?esc(aula.titulo):""}">
+        <label for="fDesc">Descrição</label>
+        <textarea id="fDesc">${editando?esc(aula.descricao||""):""}</textarea>
+        <label for="fLink">Link do vídeo (YouTube — suba como "não listado")</label>
+        <input type="text" id="fLink" placeholder="https://youtu.be/..." value="${editando?esc(aula.video_url||""):""}">
+        <div class="row">
+          <button type="submit" class="btn">${editando?"Salvar alterações":"Adicionar aula"}</button>
+          <button type="button" class="btn btn-out" onclick="document.getElementById('formNovaAula').innerHTML=''">Cancelar</button>
+        </div>
+        <div class="msg" id="msgAula"></div>
+      </form>
+    </div>`;
+  document.getElementById("formAula").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("msgAula");
+    const titulo = document.getElementById("fTit").value.trim();
+    const descricao = document.getElementById("fDesc").value.trim();
+    const link = document.getElementById("fLink").value.trim();
+    if(link && !extrairYoutubeId(link)){
+      msg.className="msg err"; msg.textContent="Não reconheci esse link como um vídeo do YouTube.";
+      return;
+    }
+    msg.className="msg"; msg.textContent="";
+    try{
+      const { data: userData } = await sb.auth.getUser();
+      if(editando){
+        const { error } = await sb.from("aulas").update({
+          titulo, descricao, video_url: link || null,
+          atualizado_em: new Date().toISOString(), atualizado_por: userData.user.id
+        }).eq("id", aula.id);
+        if(error) throw error;
+      } else {
+        const maxOrdem = AULAS.reduce((m,a)=>Math.max(m, a.ordem||0), 0);
+        const { error } = await sb.from("aulas").insert({
+          titulo, descricao, video_url: link || null, ordem: maxOrdem+1,
+          atualizado_por: userData.user.id
+        });
+        if(error) throw error;
+      }
+      document.getElementById("formNovaAula").innerHTML = "";
+      await carregarAulas();
+    }catch(err){
+      msg.className="msg err"; msg.textContent="Não consegui salvar ("+(err.message||"erro")+").";
+    }
+  });
+}
+async function excluirAula(id){
+  const a = AULAS.find(x=>x.id===id); if(!a) return;
+  if(!confirm('Excluir a aula "'+a.titulo+'"? Essa ação não pode ser desfeita.')) return;
+  const { error } = await sb.from("aulas").delete().eq("id", id);
+  if(error){ alert("Não consegui excluir: "+error.message); return; }
+  await carregarAulas();
+}
+async function alternarAtiva(id){
+  const a = AULAS.find(x=>x.id===id); if(!a) return;
+  const { error } = await sb.from("aulas").update({ativo: !a.ativo}).eq("id", id);
+  if(error){ alert("Não consegui atualizar: "+error.message); return; }
+  await carregarAulas();
+}
+async function moverAula(id, dir){
+  const idx = AULAS.findIndex(x=>x.id===id);
+  const alvo = idx + dir;
+  if(alvo < 0 || alvo >= AULAS.length) return;
+  const a = AULAS[idx], b = AULAS[alvo];
+  const [oa, ob] = [a.ordem, b.ordem];
+  const { error: e1 } = await sb.from("aulas").update({ordem: ob}).eq("id", a.id);
+  const { error: e2 } = await sb.from("aulas").update({ordem: oa}).eq("id", b.id);
+  if(e1 || e2){ alert("Não consegui reordenar."); }
+  await carregarAulas();
+}
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ window.location.href = "login.html"; return; }
+  const { data: liberado, error: licErr } = await sb.rpc("minha_licenca_ativa");
+  if(!licErr && liberado !== true){ window.location.href = "dashboard.html"; return; }
+
+  SOU_ADMIN = session.user.id === ADMIN_ID;
+  if(SOU_ADMIN){
+    const btn = document.getElementById("btnNovaAula");
+    btn.style.display = "block";
+    btn.addEventListener("click", abrirFormNovaAula);
+  }
+  await carregarAulas();
+})();
+</script>
+</body>
+</html>
