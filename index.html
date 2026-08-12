@@ -61,6 +61,8 @@
 
 <!-- jsonrepair: corrige JSON malformado gerado por IA (~50KB, necessário no boot) -->
 <script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.min.js"></script>
+<!-- Supabase: só usado para "Minhas composições" — lê a sessão já aberta em login.html (mesma origem). Não é obrigatório para o resto do app. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- PDF.js (~1MB) e SheetJS (~500KB) são carregados sob demanda para não bloquear o TTI -->
 
 <style>
@@ -543,6 +545,7 @@ body.nav-collapsed .nav-item{ position:relative; }
     <button class="nav-item" data-view="hist" onclick="showTool('hist')"><span class="ic">👷</span><span class="lb">Histograma</span></button>
     <button class="nav-item" data-view="insumos" onclick="showTool('insumos')"><span class="ic">📦</span><span class="lb">Insumos / Materiais</span></button>
     <button class="nav-item" data-view="sinapi" onclick="showTool('sinapi')"><span class="ic">🔍</span><span class="lb">Consultar SINAPI</span></button>
+    <button class="nav-item" data-view="minhas" onclick="showTool('minhas')"><span class="ic">🧩</span><span class="lb">Minhas composições</span></button>
   </nav>
   <div class="sn-rodape" title="ObraIA é desenvolvido pela Mar Aberto Engenharia">
     <img src="logo-branco.png?v=2" alt="Mar Aberto Engenharia">
@@ -1020,6 +1023,27 @@ body.nav-collapsed .nav-item{ position:relative; }
   </div>
 </div>
 
+<!-- ─── Painel: Minhas composições ──────────────────────────── -->
+<div class="screen" id="screen-minhas">
+  <div class="card">
+    <div class="card-title"><span class="icon">🧩</span> Minhas composições</div>
+    <p class="muted" style="margin-bottom:12px">Pesquise nas composições de preço que <b>você</b> cadastrou em
+      <a href="composicoes.html" target="_blank" rel="noopener">Minhas composições</a> e insira direto na planilha.
+      🔒 São só suas — a restrição é aplicada pelo banco de dados: nenhum outro usuário do ObraIA vê ou usa as suas.</p>
+    <div id="minhasLoginAlert" class="alert alert-error" style="display:none">
+      Faça login no ObraIA para ver suas composições próprias aqui. <a href="login.html" target="_blank" rel="noopener">Entrar</a>
+    </div>
+    <div id="minhasVazioAlert" class="alert alert-error" style="display:none">
+      Você ainda não tem composições próprias. <a href="composicoes.html" target="_blank" rel="noopener">Cadastre a primeira</a>.
+    </div>
+    <div class="sinapi-search" id="minhasSearchBox" style="display:none">
+      <span style="font-size:18px">🔍</span>
+      <input type="text" id="minhasQuery" placeholder="Digite um código ou uma palavra…" oninput="minhasConsultaInput()" autocomplete="off">
+    </div>
+    <div id="minhasResults" style="margin-top:16px"></div>
+  </div>
+</div>
+
 <!-- ─── Painel: Insumos / Lista de Materiais ──────────────── -->
 <div class="screen" id="screen-insumos">
   <div class="card">
@@ -1181,8 +1205,48 @@ const APP = {
   sinapiDBState: null, // which state is currently loaded
   descricoesDB: undefined, // codigo -> descricao (catalogo SINAPI compartilhado p/ busca textual)
   propriosDB: undefined,   // catalogo de composicoes proprias (itens fora da SINAPI)
-  refineToken: null        // token HMAC emitido pelo servidor após análise paga (válido 15 min, memória apenas)
+  refineToken: null,       // token HMAC emitido pelo servidor após análise paga (válido 15 min, memória apenas)
+  minhasComposicoesDB: undefined, // composições PRÓPRIAS DO USUÁRIO logado (Supabase, RLS por dono=auth.uid()), undefined = ainda não tentou carregar
+  minhasComposicoesUser: null     // e-mail do usuário logado (Supabase Auth), se houver sessão nesta origem
 };
+
+// ═══════════════════════════════════════════════════════════════
+// MINHAS COMPOSIÇÕES — banco privado do usuário (tabela `composicoes` no Supabase)
+// ═══════════════════════════════════════════════════════════════
+// Reaproveita a MESMA sessão do Supabase Auth aberta em login.html/composicoes.html
+// (mesma origem app.marabertoeng.com.br → mesmo localStorage). Não pede senha aqui.
+// Isolamento entre usuários é garantido por RLS no banco (dono = auth.uid()), não
+// por filtro na tela — mesmo que este código tenha um bug, o Postgres não devolve
+// linha de outro usuário. Se não houver sessão, a aba fica vazia (não quebra o resto do app).
+let _sbMinhas = null;
+function _getSbMinhas(){
+  if (_sbMinhas) return _sbMinhas;
+  if (typeof supabase === "undefined") return null;
+  try {
+    _sbMinhas = supabase.createClient(
+      "https://xcfqqpjljtnbamisqqvq.supabase.co",
+      "sb_publishable_a93QzqdJJ0uSooob6JSwAg_ETcbQ0KF"
+    );
+  } catch(e) { _sbMinhas = null; }
+  return _sbMinhas;
+}
+async function carregarMinhasComposicoes(){
+  if (APP.minhasComposicoesDB !== undefined) return; // já tentou (sucesso ou vazio)
+  const sb = _getSbMinhas();
+  if (!sb) { APP.minhasComposicoesDB = []; return; }
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { APP.minhasComposicoesDB = []; APP.minhasComposicoesUser = null; return; }
+    APP.minhasComposicoesUser = session.user.email || "";
+    // RLS restringe automaticamente ao dono; o .eq abaixo é só filtro de estado (ativas), não de segurança.
+    const { data, error } = await sb.from("composicoes").select("*").eq("ativo", true).order("codigo");
+    if (error) { console.warn("Não consegui carregar 'minhas composições':", error.message); APP.minhasComposicoesDB = []; return; }
+    APP.minhasComposicoesDB = data || [];
+  } catch(e) {
+    console.warn("Falha ao consultar composições próprias:", e.message);
+    APP.minhasComposicoesDB = [];
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -3170,7 +3234,8 @@ function incluirServico() {
   panel.className = "card";
   panel.style.cssText = "margin-bottom:12px;border:1.5px solid var(--blue);background:#f0f9ff";
   panel.innerHTML = `
-    <div style="font-weight:700;margin-bottom:10px">➕ Incluir serviço na planilha</div>
+    <div style="font-weight:700;margin-bottom:4px">➕ Incluir serviço na planilha</div>
+    <div class="muted" style="font-size:12px;margin-bottom:10px">Já tem o preço salvo? Busque em <a href="#" onclick="document.getElementById('inlineAddPanel').remove();showTool('minhas');return false;"><b>Minhas composições</b></a> e insira direto, sem digitar tudo de novo.</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
       <label style="font-size:12px">Tipo<br><select id="addTipo" style="${inp}">
         <option value="proprio">Composição própria (preço manual)</option>
@@ -7215,6 +7280,7 @@ function showTool(name){
   if(name==='hist') buildHistograma();
   if(name==='insumos') buildInsumos();
   if(name==='sinapi'){ loadDescricoes(); setTimeout(()=>{const i=document.getElementById('sinapiQuery'); if(i) i.focus();},80); }
+  if(name==='minhas'){ abrirMinhasComposicoes(); }
   window.scrollTo(0,0);
 }
 
@@ -7718,6 +7784,80 @@ async function _execSinapiConsulta(){
       <thead><tr><th>Código</th><th>Descrição SINAPI</th><th style="text-align:right">Preço unit. (${estado})</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   MINHAS COMPOSIÇÕES — busca no banco privado do usuário
+   (tabela `composicoes`, RLS dono=auth.uid() — ver carregarMinhasComposicoes)
+════════════════════════════════════════════════════ */
+async function abrirMinhasComposicoes(){
+  const loginAl = document.getElementById('minhasLoginAlert');
+  const vazioAl = document.getElementById('minhasVazioAlert');
+  const box = document.getElementById('minhasSearchBox');
+  const resultsEl = document.getElementById('minhasResults');
+  if(!loginAl||!vazioAl||!box||!resultsEl) return;
+  loginAl.style.display='none'; vazioAl.style.display='none'; box.style.display='none'; resultsEl.innerHTML='<p class="muted">Carregando…</p>';
+  await carregarMinhasComposicoes();
+  if(!APP.minhasComposicoesUser){
+    loginAl.style.display=''; resultsEl.innerHTML='';
+    return;
+  }
+  if(!APP.minhasComposicoesDB || !APP.minhasComposicoesDB.length){
+    vazioAl.style.display=''; resultsEl.innerHTML='';
+    return;
+  }
+  box.style.display='';
+  resultsEl.innerHTML=`<p class="muted">${APP.minhasComposicoesDB.length} composição(ões) da sua conta (${APP.minhasComposicoesUser}). Digite um código ou uma palavra para buscar.</p>`;
+  setTimeout(()=>{const i=document.getElementById('minhasQuery'); if(i) i.focus();},80);
+}
+let _minhasTimer=null;
+function minhasConsultaInput(){
+  clearTimeout(_minhasTimer);
+  _minhasTimer=setTimeout(()=>_execMinhasConsulta(),200);
+}
+function _execMinhasConsulta(){
+  const input=document.getElementById('minhasQuery');
+  const resultsEl=document.getElementById('minhasResults');
+  if(!input||!resultsEl) return;
+  const q=input.value.trim().toLowerCase();
+  const todas=APP.minhasComposicoesDB||[];
+  const lista=!q ? todas : todas.filter(c=>String(c.codigo).toLowerCase().includes(q)||String(c.descricao).toLowerCase().includes(q));
+  const fmt=v=>'R$ '+(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!lista.length){
+    resultsEl.innerHTML=`<p class="muted">Nenhuma composição sua encontrada${q?' para "<b>'+q+'</b>"':''}.</p>`;
+    return;
+  }
+  const rows=lista.map(c=>`<tr>
+      <td style="font-weight:700;color:var(--primary)">${c.codigo}</td>
+      <td style="max-width:400px;word-break:break-word">${c.descricao}${c.observacao?`<br><span style="font-size:11px;color:var(--muted)">${c.observacao}</span>`:''}</td>
+      <td>${c.unidade}</td>
+      <td style="text-align:right;white-space:nowrap">${fmt(c.preco)}</td>
+      <td style="text-align:right"><button class="btn btn-outline" style="padding:5px 11px;font-size:12px" onclick="inserirMinhaComposicao('${c.id}')">+ Inserir</button></td>
+    </tr>`).join('');
+  resultsEl.innerHTML=`<p class="muted" style="margin-bottom:8px">${lista.length} resultado${lista.length!==1?'s':''}${q?' para "<b>'+q+'</b>"':''}</p>
+    <div style="overflow-x:auto">
+    <table class="budget-table">
+      <thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th style="text-align:right">Preço unit.</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+function inserirMinhaComposicao(id){
+  const r = APP.analysisResult;
+  if(!r || !r.quantitativos){ alert('Gere o orçamento primeiro (etapa Upload → Levantamento → Orçamento) antes de inserir um serviço.'); return; }
+  const c=(APP.minhasComposicoesDB||[]).find(x=>String(x.id)===String(id));
+  if(!c) return;
+  const nextId=(r.quantitativos||[]).reduce((m,x)=>Math.max(m,x._id==null?-1:x._id),-1)+1;
+  const qtdStr=prompt(`Quantidade de "${c.descricao}" (${c.unidade}):`,'1');
+  if(qtdStr==null) return;
+  const qtd=parseFloat(String(qtdStr).replace(',','.'))||0;
+  r.quantitativos.push({
+    descricao: c.descricao, unidade: c.unidade, quantidade: qtd,
+    categoria: '99. SERVIÇOS ADICIONAIS',
+    _precoManual: Number(c.preco)||0, preco_unitario: Number(c.preco)||0,
+    _minhaComposicaoCodigo: c.codigo, _id: nextId
+  });
+  if(typeof recalcBudget==='function') recalcBudget();
+  alert(`"${c.descricao}" inserido no orçamento. Ajuste a categoria/quantidade na planilha se precisar.`);
 }
 
 /* ═══════════════════════════════════════════════════
