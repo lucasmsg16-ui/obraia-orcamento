@@ -1597,9 +1597,12 @@ function _calcCrono(){
   const cfg=_cronoCfg();
   const total=fs.reduce((s,f)=>s+f.valor,0);
   const nomes=fs.map(f=>f.nome);
-  const dur={};
-  fs.forEach(f=>{ dur[f.nome]= cfg.dur[f.nome]>0 ? cfg.dur[f.nome]
-    : Math.max(1, Math.round(cfg.prazo*(total>0?f.valor/total:1/fs.length))); });
+  const dur={}, durSug={}, durManual={};
+  fs.forEach(f=>{
+    durSug[f.nome]=Math.max(1, Math.round(cfg.prazo*(total>0?f.valor/total:1/fs.length)));
+    durManual[f.nome]=cfg.dur[f.nome]>0;
+    dur[f.nome]= durManual[f.nome] ? cfg.dur[f.nome] : durSug[f.nome];
+  });
   const preds={}, succ={};
   nomes.forEach(n=>{ preds[n]=(cfg.links[n]||[]).filter(v=>nomes.includes(v.p)); succ[n]=[]; });
   nomes.forEach(n=>preds[n].forEach(v=>succ[v.p].push({n,...v})));
@@ -1629,7 +1632,8 @@ function _calcCrono(){
       else c=LS[s.n]-lag;
       if(c<lf) lf=c; });
     LF[n]=lf; LS[n]=lf-dur[n]; });
-  const ativ=fs.map(f=>({...f, dur:dur[f.nome], ini:ES[f.nome], fim:EF[f.nome],
+  const ativ=fs.map(f=>({...f, dur:dur[f.nome], sug:durSug[f.nome], manual:durManual[f.nome],
+    ini:ES[f.nome], fim:EF[f.nome],
     folga:Math.round(LS[f.nome]-ES[f.nome]),
     critica:Math.round(LS[f.nome]-ES[f.nome])<=0,
     pct: f.valor>0? f.exec/f.valor*100 : 0,
@@ -1760,10 +1764,14 @@ function cronograma(){
     ${d.ciclo?`<div class="msg err">⚠ Há dependência circular entre etapas — o caminho crítico não é confiável até corrigir.</div>`:""}
     <div class="alertas">${al}</div>
     <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:16px 0 14px">
+      <label style="margin:0">Início da obra
+        <input type="date" value="${esc(OBRA.data_inicio||"")}" style="margin-left:6px" onchange="salvarDataInicio(this.value)"></label>
       <label style="margin:0">Prazo total (dias)
         <input type="number" min="1" value="${d.cfg.prazo}" style="width:92px;margin-left:6px" onchange="salvarPrazo(this.value)"></label>
-      <span style="font-size:12.5px;color:var(--muted)">Conclusão: <b style="color:var(--navy)">${fmt(dia(d.fim))}</b> · ${Math.round(d.fim)} dias</span>
-      <button class="btn btn-out" style="padding:5px 12px;font-size:12.5px;margin-left:auto" onclick="resetCrono()">↺ Rede sugerida</button>
+      <label style="margin:0">Término (meta)
+        <input type="date" value="${new Date(d0.getTime()+d.cfg.prazo*86400000).toISOString().slice(0,10)}" style="margin-left:6px" onchange="salvarDataTermino(this.value)"></label>
+      <span style="font-size:12.5px;color:var(--muted)">Conclusão calculada pela rede: <b style="color:var(--navy)">${fmt(dia(d.fim))}</b> · ${Math.round(d.fim)} dias</span>
+      <button class="btn btn-out" style="padding:5px 12px;font-size:12.5px;margin-left:auto" onclick="resetCrono()">↺ Rede sugerida (zera tudo)</button>
     </div>
     <div style="overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff">${gantt}</div>
     <div class="leg" style="margin-top:9px">
@@ -1785,7 +1793,9 @@ function cronograma(){
         <td><b>${esc(a.nome)}</b><div style="font-size:11px;color:var(--muted)">${a.itens} serviço(s) · ${nf(a.pct)}% executado</div></td>
         <td><span class="chip" style="background:${st.cor}1f;color:${st.cor}">${st.lbl}</span></td>
         <td class="num">${money(a.valor)}</td>
-        <td class="num"><span style="cursor:pointer;color:var(--blue);font-weight:600" onclick="editarDur('${esc(a.nome).replace(/'/g,"\\'")}')">${a.dur}d ✎</span></td>
+        <td class="num"><span style="cursor:pointer;color:var(--blue);font-weight:600" onclick="editarDur('${esc(a.nome).replace(/'/g,"\\'")}')">${a.dur}d ✎</span>${a.manual?`
+          <span style="cursor:pointer;color:var(--muted);font-size:11px;margin-left:4px" title="Voltar para a duração sugerida (${a.sug}d)"
+            onclick="voltarSugestao('${esc(a.nome).replace(/'/g,"\\'")}')">↺ sug. ${a.sug}d</span>`:""}</td>
         <td class="num">${fmt(dia(a.ini))}</td><td class="num">${fmt(dia(a.fim))}</td>
         <td style="font-size:11.5px">${a.preds.length? a.preds.map(v=>
             `<span class="pred-chip" title="${TIPOS_V[v.tipo].nome} — ${TIPOS_V[v.tipo].desc}. Clique para editar."
@@ -1800,6 +1810,15 @@ function cronograma(){
       <span class="lag-badge par">TT</span> término→término ·
       <span class="lag-badge">IT</span> início→término. Clique num vínculo para mudar o tipo e o atraso.
     </div>`;
+}
+// Reverte SÓ esta etapa pro valor sugerido, sem mexer nas outras — antes só
+// existia o botão "Rede sugerida" que zerava TODAS as durações e vínculos
+// editados, o que fazia ninguém usar (perder o resto do trabalho custava caro
+// demais). Agora dá pra desfazer uma etapa por vez.
+function voltarSugestao(fase){
+  const cfg=_cronoCfg();
+  delete cfg.dur[fase];
+  gravarCrono(cfg);
 }
 function editarDur(fase){
   const d=_calcCrono(); const a=d.ativ.find(x=>x.nome===fase); if(!a) return;
@@ -1856,6 +1875,26 @@ async function salvarPrazo(v){
   const merged=await _mesclarCrono(m=>{ m.prazo=n; });
   if(!merged) return;
   if(await _persistirCrono(merged,{prazo_dias:n})){ OBRA.prazo_dias=n; pintarKPIs(); cronograma(); }
+}
+// Data-marco de início: move o dia zero de toda a obra (cronograma, curva S,
+// previsão) para uma data escolhida por você — não fica mais preso ao dia em
+// que a obra foi cadastrada no sistema.
+async function salvarDataInicio(v){
+  if(!v) return;
+  const {error}=await sb.from("obras").update({data_inicio:v}).eq("id",OBRA.id);
+  if(error){ msg("itensMsg","Não consegui salvar a data de início: "+esc(error.message),"err"); return; }
+  OBRA.data_inicio=v; pintarKPIs(); cronograma();
+}
+// Data-marco de término: é só outra forma de editar o mesmo "prazo total em
+// dias" — escolher a data faz a conta dos dias sozinho, em vez de você ter
+// que calcular quantos dias faltam de cabeça.
+async function salvarDataTermino(v){
+  if(!v) return;
+  const d0=OBRA.data_inicio? new Date(OBRA.data_inicio+"T00:00:00") : new Date();
+  const alvo=new Date(v+"T00:00:00");
+  const dias=Math.round((alvo-d0)/86400000);
+  if(dias<1){ alert("A data de término precisa ser depois da data de início."); cronograma(); return; }
+  await salvarPrazo(dias);
 }
 async function resetCrono(){
   if(!confirm("Voltar à rede sugerida? Suas durações e vínculos editados serão perdidos.\n\n(As metas de previsão que você lançou são preservadas.)")) return;
@@ -2149,6 +2188,13 @@ function previsao(){
   const capac = E&&E.ritmoReal>0 ? E.ritmoReal : null;
   const viavel = capac!=null ? aProduzir/capac : null;
 
+  // ── IMPACTO NO PRAZO: se a meta deste mês se confirmar, o que isso faz com
+  // a entrega? Reaproveita a mesma régua do EVM (_diaDoValor): descobre em
+  // que dia da REDE ORIGINAL aquele volume acumulado (vMeta) apareceria, e
+  // compara com o dia de calendário do fim do mês planejado. Se a rede só
+  // chegaria lá mais tarde, é atraso; se chegaria antes, é adiantamento.
+  const impactoDias = (!passou && d.total>0) ? Math.round(_diaDaObra(fimMes) - _diaDoValor(d, vMeta)) : null;
+
   host.innerHTML=`
     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
       <label style="margin:0;font-weight:700;color:var(--navy)">Planejar
@@ -2173,10 +2219,19 @@ function previsao(){
       :(viavel!=null?`<div class="kpi ${viavel<=1.1?"ok":viavel<=1.5?"warn":"bad"}">
         <div class="l">Contra o seu ritmo</div><div class="v">${viavel.toFixed(1)}×</div>
         <div class="s">seu ritmo médio é ${money(capac)}/mês</div></div>`:"")}
+      ${impactoDias!=null?`<div class="kpi ${Math.abs(impactoDias)<=2?"ok":impactoDias>0?(impactoDias<=15?"warn":"bad"):"ok"}">
+        <div class="l">Se cumprir essa meta</div>
+        <div class="v">${Math.abs(impactoDias)<=2?"no prazo":(impactoDias>0?"+":"−")+Math.abs(impactoDias)}<span style="font-size:13px;color:var(--muted)">${Math.abs(impactoDias)>2?" dias":""}</span></div>
+        <div class="s">${impactoDias>2?"atraso frente ao cronograma original":impactoDias<-2?"adianta a entrega":"no ritmo do cronograma original"}</div></div>`:""}
     </div>
     ${!passou&&viavel!=null&&viavel>1.5?`<div class="alertas"><div class="al a"><span class="ic">⚠</span><div>
       Esta meta é <b>${viavel.toFixed(1)}× o ritmo que a obra vem tendo</b> (${money(capac)}/mês).
       Planejar acima da capacidade real só adia a conversa difícil — ou entra reforço, ou a meta precisa ser outra.</div></div></div>`:""}
+    ${impactoDias!=null&&Math.abs(impactoDias)>2?`<div class="alertas"><div class="al ${impactoDias>15?"r":"a"}"><span class="ic">${impactoDias>0?"⏰":"🚀"}</span><div>
+      ${impactoDias>0
+        ?`Se você executar exatamente essa meta em <b>${_compRotulo(mes)}</b>, é como entregar <b>${impactoDias} dia(s) depois</b> do que o cronograma original previa para esse volume de obra.`
+        :`Se você executar exatamente essa meta em <b>${_compRotulo(mes)}</b>, é como entregar <b>${Math.abs(impactoDias)} dia(s) antes</b> do que o cronograma original previa — um avanço real no prazo.`}
+      </div></div></div>`:""}
     ${_desembolso(mes)}
     <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Meta por serviço — ${_compRotulo(mes)}</h3>
     <div style="overflow:auto;max-height:56vh"><table>
@@ -2190,9 +2245,8 @@ function previsao(){
           <td><b>${esc(l.descricao)}</b>${l.mine?' <span class="chip man" title="meta ajustada por você">manual</span>':""}
             <div style="font-size:11px;color:var(--muted)">${esc(l.codigo||"—")}</div></td>
           <td class="num">${money(l.v)}</td>
-          <td class="num" style="color:var(--muted)">${nf(l.b)}%</td>
-          <td><input class="meta-in" type="number" min="${Math.ceil(l.b)}" max="100" step="1" value="${Math.round(l.mt)}"
-                onchange="prevMeta('${l.id}',this.value)"> %</td>
+          <td class="num" style="color:var(--muted)">${_temQtd(l)?_nfQ(l.quantidade*l.b/100,l.quantidade)+" "+esc(l.unidade||""):nf(l.b)+"%"}</td>
+          <td>${_celMeta(l)}</td>
           <td class="num">${prod>0?money(prod):"—"}</td>
           ${passou?`<td class="num"><b>${nf(l.rl)}%</b><div style="font-size:11px;color:var(--muted)">${feito>0?money(feito):"—"}</div></td>
             <td class="num">${dif?`<span class="dlt ${dif>0?"up":"dn"}">${dif>0?"+":""}${nf(dif)} p.p.</span>`:'<span class="dlt eq">na meta</span>'}</td>`:""}
@@ -2261,6 +2315,29 @@ function _desembolso(mesFoco){
       <span class="chip z">cronograma</span> mês ainda sem plano seu — usa a distribuição do cronograma ·
       <span class="chip p">plano</span> mês em que você definiu metas na tabela abaixo.
     </div>`;
+}
+// Meta em quantidade física, não só percentual: quem planeja drywall pensa
+// "150m²", não "62%". Serviço sem quantitativo (verba/taxa) continua em %,
+// que é a única unidade que ele tem. Os dois campos gravam a MESMA coisa —
+// cronograma.plano guarda percentual — só a entrada muda.
+function _celMeta(l){
+  if(!_temQtd(l)){
+    return `<input class="meta-in" type="number" min="${Math.ceil(l.b)}" max="100" step="1" value="${Math.round(l.mt)}"
+      onchange="prevMeta('${l.id}',this.value)" style="width:64px"> %`;
+  }
+  const q=Number(l.quantidade)||0, un=esc(l.unidade||"");
+  const qtdMeta=q*l.mt/100;
+  return `<input class="meta-in" type="text" inputmode="decimal" value="${_nfQ(qtdMeta,q)}"
+      onchange="prevMetaQtd('${l.id}',this.value)" style="width:84px"> ${un}
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap"> (${Math.round(l.mt)}%)</span>`;
+}
+async function prevMetaQtd(id,v){
+  const it=ITENS.find(x=>x.id===id); if(!it) return;
+  const q=Number(it.quantidade)||0;
+  const n=_numBR(v);
+  if(!isFinite(n)||n<0){ previsao(); return; }
+  const pct = q>0 ? Math.min(100, n/q*100) : 0;
+  await prevMeta(id, pct);
 }
 async function prevMeta(id,v){
   const n=Math.max(0,Math.min(100,parseFloat(String(v).replace(",","."))||0));

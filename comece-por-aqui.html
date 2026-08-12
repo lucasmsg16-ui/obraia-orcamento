@@ -31,7 +31,7 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
   gap:12px; color:var(--muted); overflow:hidden;
 }
 .player.vazio{ background:var(--card); }
-.player video{ width:100%; height:100%; }
+.player video, .player iframe{ width:100%; height:100%; border:0; }
 .player .play{
   width:64px; height:64px; border-radius:50%; background:var(--blue); color:#fff;
   display:flex; align-items:center; justify-content:center; font-size:26px;
@@ -90,9 +90,9 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
       <input type="text" id="fTitulo" required>
       <label for="fDescricao">Descrição</label>
       <textarea id="fDescricao"></textarea>
-      <label for="fVideo">Arquivo de vídeo (mp4, webm ou mov — até 300MB)</label>
-      <input type="file" id="fVideo" accept="video/mp4,video/webm,video/quicktime,video/x-matroska">
-      <div class="hint">Deixe em branco para manter o vídeo atual.</div>
+      <label for="fVideo">Link do vídeo (YouTube — suba como "não listado")</label>
+      <input type="url" id="fVideo" placeholder="https://youtu.be/...">
+      <div class="hint">Cole o link do vídeo "não listado" no YouTube. Deixe em branco para manter o vídeo atual.</div>
       <button type="submit" class="btn" id="btnSalvar">Salvar</button>
       <div class="msg" id="msgAdmin"></div>
     </form>
@@ -105,13 +105,27 @@ const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb
 
 let conteudoAtual = null;
 
+// Aceita qualquer formato comum de link do YouTube (youtu.be, watch?v=,
+// embed/, shorts/) e extrai só o ID de 11 caracteres pro embed.
+function extrairYoutubeId(url){
+  if(!url) return null;
+  const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 function renderPlayer(c){
   const player = document.getElementById("player");
   document.getElementById("tituloConteudo").textContent = c.titulo || "Boas-vindas";
   document.getElementById("descricaoConteudo").textContent = c.descricao || "";
-  if(c.video_url){
+  const ytId = extrairYoutubeId(c.video_url);
+  if(ytId){
     player.classList.remove("vazio");
-    player.innerHTML = '<video src="' + c.video_url + '" controls preload="metadata"></video>';
+    // youtube-nocookie.com + modestbranding/rel=0: player fica discreto e
+    // sem sugestao de outros videos ao terminar. Continua tudo embutido na
+    // pagina — o aluno nao sai do ObraIA em nenhum momento.
+    player.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + ytId +
+      '?modestbranding=1&rel=0" title="' + (c.titulo || "Boas-vindas").replace(/"/g,"&quot;") +
+      '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
   } else {
     player.classList.add("vazio");
     player.innerHTML = '<div class="play">▶</div><p>Vídeo em breve — esse espaço já está reservado.</p>';
@@ -129,35 +143,30 @@ function montarPainelAdmin(){
   document.getElementById("painelAdmin").style.display = "block";
   document.getElementById("fTitulo").value = conteudoAtual ? conteudoAtual.titulo : "Boas-vindas";
   document.getElementById("fDescricao").value = conteudoAtual ? (conteudoAtual.descricao || "") : "";
+  document.getElementById("fVideo").value = conteudoAtual ? (conteudoAtual.video_url || "") : "";
 
   document.getElementById("formAdmin").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("btnSalvar");
     const msg = document.getElementById("msgAdmin");
-    const arquivo = document.getElementById("fVideo").files[0];
-    btn.disabled = true; btn.textContent = "Salvando...";
+    const linkDigitado = document.getElementById("fVideo").value.trim();
     msg.className = "msg"; msg.textContent = "";
-    try{
-      let video_url = conteudoAtual ? conteudoAtual.video_url : null;
-      let video_path = conteudoAtual ? conteudoAtual.video_path : null;
 
-      if(arquivo){
-        const ext = arquivo.name.split(".").pop();
-        const path = "boas-vindas-" + Date.now() + "." + ext;
-        const { error: upErr } = await sb.storage.from("boas-vindas").upload(path, arquivo, { upsert: true });
-        if(upErr) throw upErr;
-        const antigoPath = video_path;
-        video_path = path;
-        video_url = sb.storage.from("boas-vindas").getPublicUrl(path).data.publicUrl;
-        // Limpa o arquivo antigo pra nao acumular armazenamento a toa.
-        if(antigoPath) sb.storage.from("boas-vindas").remove([antigoPath]).catch(() => {});
-      }
+    if(linkDigitado && !extrairYoutubeId(linkDigitado)){
+      msg.className = "msg err";
+      msg.textContent = "Nao reconheci esse link como um video do YouTube. Copie o link direto da barra de endereco ou do botao Compartilhar.";
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = "Salvando...";
+    try{
+      const video_url = linkDigitado || (conteudoAtual ? conteudoAtual.video_url : null);
 
       const { data: userData } = await sb.auth.getUser();
       const { data: salvo, error: saveErr } = await sb.from("conteudo_boas_vindas").update({
         titulo: document.getElementById("fTitulo").value.trim() || "Boas-vindas",
         descricao: document.getElementById("fDescricao").value.trim(),
-        video_url, video_path,
+        video_url, video_path: null,
         atualizado_em: new Date().toISOString(),
         atualizado_por: userData.user.id
       }).eq("id", 1).select().single();
@@ -165,7 +174,7 @@ function montarPainelAdmin(){
 
       conteudoAtual = salvo;
       renderPlayer(salvo);
-      document.getElementById("fVideo").value = "";
+      document.getElementById("fVideo").value = salvo.video_url || "";
       msg.className = "msg ok"; msg.textContent = "Salvo!";
     }catch(err){
       msg.className = "msg err"; msg.textContent = "Nao consegui salvar (" + (err.message || "erro") + ").";
