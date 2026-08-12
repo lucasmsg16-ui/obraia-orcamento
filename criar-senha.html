@@ -187,7 +187,20 @@ function telaExpirado(){
 
   // Se o e-mail já veio no formato "clique para confirmar" (ver telaConfirmar
   // acima), o link de uso único fica aqui, intocado, até a pessoa clicar.
-  const confUrl = query.get("confirmation_url");
+  //
+  // IMPORTANTE: não usamos query.get("confirmation_url") aqui. O link real do
+  // Supabase (o valor de {{ .ConfirmationURL }} no template do e-mail) já vem
+  // com os PRÓPRIOS parâmetros — token, type, redirect_to — separados por "&"
+  // sem nenhum tipo de escape. Como o template do e-mail cola esse link cru
+  // dentro do nosso "?confirmation_url=...", o "&" do meio corta o valor no
+  // URLSearchParams: a pessoa clica em "Confirmar e continuar" com uma URL
+  // faltando "type=invite"/"redirect_to", o Supabase rejeita e ela cai numa
+  // tela de erro sem contexto — o "lugar perdido" que alguns relataram.
+  // Por isso pegamos tudo que vem depois de "confirmation_url=" até o fim da
+  // query string, sem interpretar o resto como parâmetros nossos.
+  const CONF_KEY = "confirmation_url=";
+  const confIdx = location.search.indexOf(CONF_KEY);
+  const confUrl = confIdx !== -1 ? location.search.slice(confIdx + CONF_KEY.length) : null;
   if(confUrl){
     telaConfirmar(confUrl);
     return;
