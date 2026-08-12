@@ -41,7 +41,13 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
 /* Quadros de "qual aula assistir" — mesma linguagem visual dos cards do
    dashboard, só que compactos, porque aqui é navegação, não a home. */
 .aulas-sec{ margin-top:36px; text-align:left; }
-.aulas-sec h2{ font-size:15px; color:var(--navy); margin:0 0 12px; }
+.aulas-sec h2{ font-size:15px; color:var(--navy); margin:0 0 16px; }
+.modulo-bloco{ margin-bottom:22px; }
+.modulo-bloco:last-child{ margin-bottom:0; }
+.modulo-linha{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.modulo-linha h3{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;
+  margin:0; white-space:nowrap; font-weight:700; }
+.modulo-linha .linha{ flex:1; height:1px; background:var(--border); }
 .aulas-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
 .aula-tile{
   background:var(--card); border:1px solid var(--border); border-radius:11px; box-shadow:var(--shadow);
@@ -99,7 +105,7 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
   </div>
   <div class="aulas-sec">
     <h2>Qual aula você quer assistir agora?</h2>
-    <div class="aulas-grid" id="aulasGrid"><div class="aulas-vazio">Carregando…</div></div>
+    <div id="aulasGrid"><div class="aulas-vazio">Carregando…</div></div>
   </div>
   <div class="usar-obraia"><a href="index.html">Já quero usar o ObraIA →</a></div>
 
@@ -161,21 +167,45 @@ async function carregarConteudo(){
 }
 
 // Quadros pra escolher a próxima aula sem sair desta página de boas-vindas —
-// clicar leva pra aulas.html já abrindo direto na aula escolhida.
+// clicar leva pra aulas.html já abrindo direto na aula escolhida. Agrupados
+// por módulo, na mesma ordem/estrutura que a página de aulas usa.
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-async function carregarOutrasAulas(){
-  const host = document.getElementById("aulasGrid");
-  const { data, error } = await sb.from("aulas").select("id,titulo,descricao").eq("ativo", true).order("ordem", {ascending:true});
-  if(error || !data || !data.length){
-    host.innerHTML = '<div class="aulas-vazio">Nenhuma aula publicada ainda — volte em breve.</div>';
-    return;
-  }
-  host.innerHTML = data.map((a, idx) => `
-    <a class="aula-tile" href="aulas.html?abrir=${a.id}">
+function tileAulaHtml(a, idx){
+  return `<a class="aula-tile" href="aulas.html?abrir=${a.id}">
       <div class="num">${idx+1}</div>
       <div class="tit">${esc(a.titulo)}</div>
       ${a.descricao ? `<div class="desc">${esc(a.descricao)}</div>` : ""}
-    </a>`).join("");
+    </a>`;
+}
+async function carregarOutrasAulas(){
+  const host = document.getElementById("aulasGrid");
+  const [rm, ra] = await Promise.all([
+    sb.from("modulos").select("id,titulo").eq("ativo", true).order("ordem", {ascending:true}),
+    sb.from("aulas").select("id,titulo,descricao,modulo_id").eq("ativo", true).order("ordem", {ascending:true})
+  ]);
+  const aulas = ra.data || [];
+  if(ra.error || !aulas.length){
+    host.innerHTML = '<div class="aulas-vazio">Nenhuma aula publicada ainda — volte em breve.</div>';
+    return;
+  }
+  const modulos = rm.data || [];
+  let html = "";
+  modulos.forEach(mod => {
+    const doModulo = aulas.filter(a => a.modulo_id === mod.id);
+    if(!doModulo.length) return;
+    html += `<div class="modulo-bloco">
+      <div class="modulo-linha"><h3>${esc(mod.titulo)}</h3><div class="linha"></div></div>
+      <div class="aulas-grid">${doModulo.map(tileAulaHtml).join("")}</div>
+    </div>`;
+  });
+  const semModulo = aulas.filter(a => !a.modulo_id || !modulos.some(m=>m.id===a.modulo_id));
+  if(semModulo.length){
+    html += `<div class="modulo-bloco">
+      <div class="modulo-linha"><h3>Outras aulas</h3><div class="linha"></div></div>
+      <div class="aulas-grid">${semModulo.map(tileAulaHtml).join("")}</div>
+    </div>`;
+  }
+  host.innerHTML = html || '<div class="aulas-vazio">Nenhuma aula publicada ainda — volte em breve.</div>';
 }
 
 function montarPainelAdmin(){
