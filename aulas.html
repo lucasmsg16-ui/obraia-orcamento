@@ -26,25 +26,36 @@ main{ max-width:760px; margin:0 auto; padding:40px 24px 60px; }
 h1{ font-size:24px; color:var(--navy); margin:0 0 6px; }
 p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 
+.modulo{ margin-bottom:30px; }
+.modulo-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.modulo-head h2{ font-size:15px; color:var(--navy); margin:0; }
+.modulo-head .linha{ flex:1; height:1px; background:var(--border); }
+.modulo-head .add-mini{
+  background:none; border:1px dashed var(--border); color:var(--blue); border-radius:7px;
+  padding:4px 10px; font-size:11.5px; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.modulo-head .add-mini:hover{ background:#eaf6fb; }
+.modulo-vazio{ font-size:12.5px; color:var(--muted); padding:12px 4px; }
+
 .card{
   background:var(--card); border:1px solid var(--border); border-radius:14px;
-  box-shadow:var(--shadow); margin-bottom:16px; overflow:hidden;
+  box-shadow:var(--shadow); margin-bottom:12px; overflow:hidden;
 }
-.card .head{ display:flex; align-items:center; gap:14px; padding:18px 20px; cursor:pointer; }
+.card .head{ display:flex; align-items:center; gap:14px; padding:16px 18px; cursor:pointer; }
 .card .head .num{
-  width:34px; height:34px; border-radius:50%; background:#eaf6fb; color:var(--blue);
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0;
+  width:32px; height:32px; border-radius:50%; background:#eaf6fb; color:var(--blue);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;
 }
 .card .head .info{ flex:1; min-width:0; }
-.card .head h2{ font-size:15.5px; margin:0; color:var(--navy); }
-.card .head p{ font-size:12.5px; color:var(--muted); margin:3px 0 0; line-height:1.4; }
+.card .head h3{ font-size:14.5px; margin:0; color:var(--navy); font-weight:700; }
+.card .head p{ font-size:12px; color:var(--muted); margin:3px 0 0; line-height:1.4; }
 .card .head .chev{ color:var(--muted); font-size:13px; flex-shrink:0; transition:transform .15s; }
 .card.aberto .head .chev{ transform:rotate(180deg); }
 .card .player{ display:none; background:#000; aspect-ratio:16/9; }
 .card.aberto .player{ display:block; }
 .card .player iframe{ width:100%; height:100%; border:0; display:block; }
 .card .player.vazio{ display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; background:#1a2733; }
-.card .admin-row{ display:flex; gap:10px; padding:0 20px 16px; }
+.card .admin-row{ display:flex; gap:10px; padding:0 18px 14px; flex-wrap:wrap; }
 .card .admin-row button{
   background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px;
   padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit;
@@ -52,7 +63,7 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 .card .admin-row button:hover{ border-color:var(--blue); color:var(--blue); }
 .card .admin-row button.del:hover{ border-color:var(--red); color:var(--red); }
 .card.oculta{ opacity:.55 }
-.card.oculta .head .info h2::after{ content:" (oculta)"; font-weight:400; color:var(--muted); font-size:12px; }
+.card.oculta .head .info h3::after{ content:" (oculta)"; font-weight:400; color:var(--muted); font-size:12px; }
 
 .vazio-lista{ text-align:center; padding:50px 20px; color:var(--muted); background:var(--card);
   border:1px dashed var(--border); border-radius:14px; }
@@ -64,9 +75,9 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 .painel-admin h3{ font-size:14px; margin:0 0 4px; color:var(--navy); }
 .painel-admin .tag{ font-size:11.5px; color:var(--muted); margin:0 0 16px; }
 .painel-admin label{ display:block; font-size:12.5px; font-weight:600; margin:12px 0 5px; }
-.painel-admin input[type=text], .painel-admin textarea{
+.painel-admin input[type=text], .painel-admin textarea, .painel-admin select{
   width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px;
-  font-size:13.5px; font-family:inherit; outline:0;
+  font-size:13.5px; font-family:inherit; outline:0; background:#fff;
 }
 .painel-admin textarea{ resize:vertical; min-height:60px; }
 .painel-admin .row{ display:flex; gap:10px; margin-top:16px; align-items:center; }
@@ -79,15 +90,14 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 .painel-admin .msg{ font-size:12.5px; margin-top:10px; display:none; padding:8px 10px; border-radius:7px; }
 .painel-admin .msg.ok{ display:block; background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; }
 .painel-admin .msg.err{ display:block; background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; }
-.painel-admin label.check{ display:flex; align-items:center; gap:7px; font-weight:600; }
-.painel-admin label.check input{ width:auto; }
 
-.btn-add{
-  display:block; width:100%; text-align:center; padding:13px; margin-bottom:22px;
-  background:#eaf6fb; border:1.5px dashed var(--blue); color:var(--blue); border-radius:11px;
-  font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
+.topo-admin{ display:none; gap:10px; margin-bottom:22px; }
+.topo-admin button{
+  flex:1; text-align:center; padding:13px; background:#eaf6fb; border:1.5px dashed var(--blue);
+  color:var(--blue); border-radius:11px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
 }
-.btn-add:hover{ background:#dcf0f9; }
+.topo-admin button:hover{ background:#dcf0f9; }
+.topo-admin button.sec{ flex:none; padding:13px 18px; background:#fff; border-color:var(--border); color:var(--muted); }
 </style>
 </head>
 <body>
@@ -99,7 +109,10 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
   <h1>Aulas — Método NAVE</h1>
   <p class="sub">A trilha em vídeo que ensina o engenheiro a comandar a IA — do primeiro prompt ao fluxo que roda sozinho.</p>
 
-  <button class="btn-add" id="btnNovaAula" style="display:none" type="button">+ Adicionar aula</button>
+  <div class="topo-admin" id="topoAdmin">
+    <button type="button" id="btnNovaAula">+ Adicionar aula</button>
+    <button type="button" class="sec" id="btnNovoModulo">+ Novo módulo</button>
+  </div>
   <div id="formNovaAula"></div>
   <div id="lista"><div class="vazio-lista">Carregando…</div></div>
 </main>
@@ -108,6 +121,7 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 const ADMIN_ID = "cb35fabc-f999-43af-980e-28c440adaaa1"; // lucasmsg16@gmail.com
 const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb_publishable_a93QzqdJJ0uSooob6JSwAg_ETcbQ0KF");
 let SOU_ADMIN = false;
+let MODULOS = [];
 let AULAS = [];
 let ABERTA = null;
 
@@ -118,45 +132,72 @@ function extrairYoutubeId(url){
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
-async function carregarAulas(){
-  let q = sb.from("aulas").select("*").order("ordem", {ascending:true});
-  if(!SOU_ADMIN) q = q.eq("ativo", true);
-  const { data, error } = await q;
-  if(error){ document.getElementById("lista").innerHTML = '<div class="vazio-lista">Não consegui carregar as aulas.</div>'; return; }
-  AULAS = data || [];
+async function carregarTudo(){
+  let qm = sb.from("modulos").select("*").order("ordem", {ascending:true});
+  if(!SOU_ADMIN) qm = qm.eq("ativo", true);
+  let qa = sb.from("aulas").select("*").order("ordem", {ascending:true});
+  if(!SOU_ADMIN) qa = qa.eq("ativo", true);
+  const [rm, ra] = await Promise.all([qm, qa]);
+  if(rm.error || ra.error){
+    document.getElementById("lista").innerHTML = '<div class="vazio-lista">Não consegui carregar as aulas.</div>';
+    return;
+  }
+  MODULOS = rm.data || [];
+  AULAS = ra.data || [];
   renderLista();
 }
 
+// Cada módulo vira uma seção; aulas sem módulo (nenhuma hoje, mas por
+// segurança contra dado antigo) caem no final, sem título de seção.
 function renderLista(){
   const host = document.getElementById("lista");
-  if(!AULAS.length){
+  if(!MODULOS.length && !AULAS.length){
     host.innerHTML = '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>';
     return;
   }
-  host.innerHTML = AULAS.map((a, idx) => {
-    const ytId = extrairYoutubeId(a.video_url);
-    const aberto = ABERTA === a.id;
-    const player = ytId
-      ? `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-      : `<div class="player vazio" style="display:flex">Vídeo ainda não cadastrado nesta aula.</div>`;
-    const admin = SOU_ADMIN ? `
-      <div class="admin-row">
-        <button type="button" onclick="moverAula('${a.id}',-1)" ${idx===0?"disabled":""}>↑</button>
-        <button type="button" onclick="moverAula('${a.id}',1)" ${idx===AULAS.length-1?"disabled":""}>↓</button>
-        <button type="button" onclick="editarAula('${a.id}')">✎ Editar</button>
-        <button type="button" onclick="alternarAtiva('${a.id}')">${a.ativo?"Ocultar":"Reexibir"}</button>
-        <button type="button" class="del" onclick="excluirAula('${a.id}')">✕ Excluir</button>
-      </div>` : "";
-    return `<div class="card ${aberto?"aberto":""} ${!a.ativo?"oculta":""}" id="card-${a.id}">
-        <div class="head" onclick="toggleAula('${a.id}')">
-          <div class="num">${idx+1}</div>
-          <div class="info"><h2>${esc(a.titulo)}</h2><p>${esc(a.descricao||"")}</p></div>
-          <div class="chev">▾</div>
-        </div>
-        <div class="player">${player}</div>
-        ${admin}
-      </div>`;
-  }).join("");
+  let html = "";
+  MODULOS.forEach(mod => {
+    const aulasDoModulo = AULAS.filter(a => a.modulo_id === mod.id);
+    if(!aulasDoModulo.length && !SOU_ADMIN) return;
+    html += `<div class="modulo">
+      <div class="modulo-head"><h2>${esc(mod.titulo)}</h2><div class="linha"></div>
+        ${SOU_ADMIN?`<button type="button" class="add-mini" onclick="abrirFormNovaAula('${mod.id}')">+ aula</button>`:""}
+      </div>
+      ${aulasDoModulo.length ? aulasDoModulo.map((a,idx) => cardAula(a, idx, aulasDoModulo.length)).join("")
+        : `<div class="modulo-vazio">Nenhuma aula neste módulo ainda.</div>`}
+    </div>`;
+  });
+  const semModulo = AULAS.filter(a => !a.modulo_id || !MODULOS.some(m=>m.id===a.modulo_id));
+  if(semModulo.length){
+    html += `<div class="modulo"><div class="modulo-head"><h2>Sem módulo</h2><div class="linha"></div></div>
+      ${semModulo.map((a,idx) => cardAula(a, idx, semModulo.length)).join("")}</div>`;
+  }
+  host.innerHTML = html || '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>';
+}
+
+function cardAula(a, idx, totalNoGrupo){
+  const ytId = extrairYoutubeId(a.video_url);
+  const aberto = ABERTA === a.id;
+  const player = ytId
+    ? `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+    : `<div class="player vazio" style="display:flex">Vídeo ainda não cadastrado nesta aula.</div>`;
+  const admin = SOU_ADMIN ? `
+    <div class="admin-row">
+      <button type="button" onclick="moverAula('${a.id}',-1)" ${idx===0?"disabled":""}>↑</button>
+      <button type="button" onclick="moverAula('${a.id}',1)" ${idx===totalNoGrupo-1?"disabled":""}>↓</button>
+      <button type="button" onclick="editarAula('${a.id}')">✎ Editar</button>
+      <button type="button" onclick="alternarAtiva('${a.id}')">${a.ativo?"Ocultar":"Reexibir"}</button>
+      <button type="button" class="del" onclick="excluirAula('${a.id}')">✕ Excluir</button>
+    </div>` : "";
+  return `<div class="card ${aberto?"aberto":""} ${!a.ativo?"oculta":""}" id="card-${a.id}">
+      <div class="head" onclick="toggleAula('${a.id}')">
+        <div class="num">${idx+1}</div>
+        <div class="info"><h3>${esc(a.titulo)}</h3><p>${esc(a.descricao||"")}</p></div>
+        <div class="chev">▾</div>
+      </div>
+      <div class="player">${player}</div>
+      ${admin}
+    </div>`;
 }
 
 function toggleAula(id){
@@ -168,21 +209,26 @@ function toggleAula(id){
 }
 
 // ── Painel de administração (só o admin vê) ─────────────────────────────
-function abrirFormNovaAula(){
-  renderForm(null);
+function abrirFormNovaAula(moduloIdPreSelecionado){
+  renderForm(null, moduloIdPreSelecionado || (MODULOS[0] && MODULOS[0].id));
 }
 function editarAula(id){
   const a = AULAS.find(x=>x.id===id);
   if(a) renderForm(a);
 }
-function renderForm(aula){
+function renderForm(aula, moduloPre){
   const host = document.getElementById("formNovaAula");
   const editando = !!aula;
+  const moduloAtual = editando ? aula.modulo_id : moduloPre;
+  const opcoesModulo = MODULOS.map(m =>
+    `<option value="${m.id}" ${m.id===moduloAtual?"selected":""}>${esc(m.titulo)}</option>`).join("");
   host.innerHTML = `
     <div class="painel-admin">
       <h3>${editando?"Editar aula":"Nova aula"}</h3>
       <p class="tag">Só você vê este painel. Alterações aparecem pra todos assim que salvar.</p>
       <form id="formAula">
+        <label for="fModulo">Módulo</label>
+        <select id="fModulo">${opcoesModulo || '<option value="">Nenhum módulo criado ainda</option>'}</select>
         <label for="fTit">Título</label>
         <input type="text" id="fTit" required value="${editando?esc(aula.titulo):""}">
         <label for="fDesc">Descrição</label>
@@ -196,12 +242,14 @@ function renderForm(aula){
         <div class="msg" id="msgAula"></div>
       </form>
     </div>`;
+  host.scrollIntoView({behavior:"smooth", block:"start"});
   document.getElementById("formAula").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = document.getElementById("msgAula");
     const titulo = document.getElementById("fTit").value.trim();
     const descricao = document.getElementById("fDesc").value.trim();
     const link = document.getElementById("fLink").value.trim();
+    const modulo_id = document.getElementById("fModulo").value || null;
     if(link && !extrairYoutubeId(link)){
       msg.className="msg err"; msg.textContent="Não reconheci esse link como um vídeo do YouTube.";
       return;
@@ -211,48 +259,61 @@ function renderForm(aula){
       const { data: userData } = await sb.auth.getUser();
       if(editando){
         const { error } = await sb.from("aulas").update({
-          titulo, descricao, video_url: link || null,
+          titulo, descricao, video_url: link || null, modulo_id,
           atualizado_em: new Date().toISOString(), atualizado_por: userData.user.id
         }).eq("id", aula.id);
         if(error) throw error;
       } else {
-        const maxOrdem = AULAS.reduce((m,a)=>Math.max(m, a.ordem||0), 0);
+        const doGrupo = AULAS.filter(a=>a.modulo_id===modulo_id);
+        const maxOrdem = doGrupo.reduce((m,a)=>Math.max(m, a.ordem||0), 0);
         const { error } = await sb.from("aulas").insert({
-          titulo, descricao, video_url: link || null, ordem: maxOrdem+1,
+          titulo, descricao, video_url: link || null, modulo_id, ordem: maxOrdem+1,
           atualizado_por: userData.user.id
         });
         if(error) throw error;
       }
       document.getElementById("formNovaAula").innerHTML = "";
-      await carregarAulas();
+      await carregarTudo();
     }catch(err){
       msg.className="msg err"; msg.textContent="Não consegui salvar ("+(err.message||"erro")+").";
     }
   });
+}
+async function criarModulo(){
+  const titulo = prompt('Nome do novo módulo (ex: "Módulo 4 - Avançado"):');
+  if(!titulo || !titulo.trim()) return;
+  const maxOrdem = MODULOS.reduce((m,x)=>Math.max(m, x.ordem||0), 0);
+  const { error } = await sb.from("modulos").insert({ titulo: titulo.trim(), ordem: maxOrdem+1 });
+  if(error){ alert("Não consegui criar o módulo: "+error.message); return; }
+  await carregarTudo();
 }
 async function excluirAula(id){
   const a = AULAS.find(x=>x.id===id); if(!a) return;
   if(!confirm('Excluir a aula "'+a.titulo+'"? Essa ação não pode ser desfeita.')) return;
   const { error } = await sb.from("aulas").delete().eq("id", id);
   if(error){ alert("Não consegui excluir: "+error.message); return; }
-  await carregarAulas();
+  await carregarTudo();
 }
 async function alternarAtiva(id){
   const a = AULAS.find(x=>x.id===id); if(!a) return;
   const { error } = await sb.from("aulas").update({ativo: !a.ativo}).eq("id", id);
   if(error){ alert("Não consegui atualizar: "+error.message); return; }
-  await carregarAulas();
+  await carregarTudo();
 }
+// Reordena só dentro do mesmo módulo — trocar a ordem de uma aula não deve
+// misturar módulos diferentes.
 async function moverAula(id, dir){
-  const idx = AULAS.findIndex(x=>x.id===id);
-  const alvo = idx + dir;
-  if(alvo < 0 || alvo >= AULAS.length) return;
-  const a = AULAS[idx], b = AULAS[alvo];
+  const a = AULAS.find(x=>x.id===id); if(!a) return;
+  const doGrupo = AULAS.filter(x=>x.modulo_id===a.modulo_id).sort((x,y)=>(x.ordem||0)-(y.ordem||0));
+  const idx = doGrupo.findIndex(x=>x.id===id);
+  const alvoIdx = idx + dir;
+  if(alvoIdx < 0 || alvoIdx >= doGrupo.length) return;
+  const b = doGrupo[alvoIdx];
   const [oa, ob] = [a.ordem, b.ordem];
   const { error: e1 } = await sb.from("aulas").update({ordem: ob}).eq("id", a.id);
   const { error: e2 } = await sb.from("aulas").update({ordem: oa}).eq("id", b.id);
   if(e1 || e2){ alert("Não consegui reordenar."); }
-  await carregarAulas();
+  await carregarTudo();
 }
 
 (async () => {
@@ -263,9 +324,9 @@ async function moverAula(id, dir){
 
   SOU_ADMIN = session.user.id === ADMIN_ID;
   if(SOU_ADMIN){
-    const btn = document.getElementById("btnNovaAula");
-    btn.style.display = "block";
-    btn.addEventListener("click", abrirFormNovaAula);
+    document.getElementById("topoAdmin").style.display = "flex";
+    document.getElementById("btnNovaAula").addEventListener("click", () => abrirFormNovaAula());
+    document.getElementById("btnNovoModulo").addEventListener("click", criarModulo);
   }
 
   // Chegando de um link "aulas.html?abrir=<id>" (ex: dos quadros da tela de
@@ -273,7 +334,7 @@ async function moverAula(id, dir){
   const abrirId = new URLSearchParams(location.search).get("abrir");
   if(abrirId) ABERTA = abrirId;
 
-  await carregarAulas();
+  await carregarTudo();
   if(abrirId){
     const el = document.getElementById("card-"+abrirId);
     if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
