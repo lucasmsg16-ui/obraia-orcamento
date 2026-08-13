@@ -323,6 +323,19 @@ async function moverAula(id, dir){
   if(!licErr && liberado !== true){ window.location.href = "dashboard.html"; return; }
 
   SOU_ADMIN = session.user.id === ADMIN_ID;
+
+  // Trilha ainda em produção: fechada para todo mundo, menos o admin (que
+  // continua cadastrando aula/módulo aqui por trás enquanto não lança).
+  if(!SOU_ADMIN){
+    document.querySelector("main").innerHTML = `
+      <div class="vazio-lista" style="padding:70px 24px">
+        <div style="font-size:38px;margin-bottom:12px">🎓</div>
+        <h2 style="color:var(--navy);font-size:19px;margin:0 0 8px">Aulas — Método NAVE</h2>
+        <p style="margin:0">Em breve. A trilha em vídeo está em produção e já vem incluída no seu plano — sem custo extra quando lançar.</p>
+      </div>`;
+    return;
+  }
+
   if(SOU_ADMIN){
     document.getElementById("topoAdmin").style.display = "flex";
     document.getElementById("btnNovaAula").addEventListener("click", () => abrirFormNovaAula());

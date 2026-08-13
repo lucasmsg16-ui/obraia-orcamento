@@ -177,8 +177,14 @@ function tileAulaHtml(a, idx){
       ${a.descricao ? `<div class="desc">${esc(a.descricao)}</div>` : ""}
     </a>`;
 }
-async function carregarOutrasAulas(){
+async function carregarOutrasAulas(souAdmin){
   const host = document.getElementById("aulasGrid");
+  // Trilha ainda em produção: fechada para todo mundo, menos o admin (que
+  // continua vendo os quadros aqui pra conferir como vai ficar quando lançar).
+  if(!souAdmin){
+    host.innerHTML = '<div class="aulas-vazio">Em breve — a trilha em vídeo está em produção e já vem incluída no seu plano.</div>';
+    return;
+  }
   const [rm, ra] = await Promise.all([
     sb.from("modulos").select("id,titulo").eq("ativo", true).order("ordem", {ascending:true}),
     sb.from("aulas").select("id,titulo,descricao,modulo_id").eq("ativo", true).order("ordem", {ascending:true})
@@ -257,10 +263,11 @@ function montarPainelAdmin(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ window.location.href = "login.html"; return; }
 
+  const souAdmin = session.user.id === ADMIN_ID;
   await carregarConteudo();
-  await carregarOutrasAulas();
+  await carregarOutrasAulas(souAdmin);
 
-  if(session.user.id === ADMIN_ID) montarPainelAdmin();
+  if(souAdmin) montarPainelAdmin();
 })();
 </script>
 </body>
