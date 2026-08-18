@@ -99,6 +99,79 @@ td.num{text-align:right;white-space:nowrap}
 .via p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.5;flex:1}
 .via .btn{align-self:flex-start}
 @media(max-width:720px){ th{position:static} .kpi .v{font-size:20px} }
+/* ═══════════════════════════════════════════════════════════════════════════
+   CELULAR — quem atualiza avanço de obra faz isso do canteiro, em pé, com uma
+   mão. Três coisas resolvem a maior parte do sofrimento em telas pequenas:
+   1) alvo de toque grande (44px é o mínimo do Apple/Google Human Interface);
+   2) texto de input ≥16px (abaixo disso o Safari iOS dá zoom sozinho ao focar
+      o campo — e a pessoa perde a posição da tela toda vez que toca em algo);
+   3) a tabela de serviços — 7 colunas — não cabe em 360px. Vira uma lista de
+      cartões, um serviço por cartão, com o rótulo da coluna ao lado do valor
+      (atributo data-label, escrito em pintarItens()/_celsExec()).
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media(max-width:760px){
+  header{padding:0 14px;height:54px;gap:8px}
+  header .logo{font-size:17px}
+  header .right{gap:8px}
+  header .right #uEmail{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  main{padding:16px 12px 56px}
+  h1{font-size:20px}
+  .sub{font-size:13px}
+
+  /* alvo de toque confortável em qualquer botão da tela */
+  .btn,header button,.comp button,.trilha button,.tabs button{min-height:44px}
+  .btn{padding:11px 16px}
+  .lixo{width:44px;height:44px;font-size:17px}
+
+  /* campo de texto/número ≥16px trava o auto-zoom do iOS ao focar */
+  input,select,textarea,.ex-in,.qtd-in,.pct-in,.meta-in{font-size:16px}
+  input,select,textarea{padding:11px 12px}
+
+  /* abas rolam na horizontal em vez de quebrar linha — como app nativo, e a
+     aba ativa nunca "some" empurrada para baixo do conteúdo */
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{flex:none;white-space:nowrap;padding:11px 14px}
+
+  /* lista de obras: cartão inteiro é a área de toque, com folga de verdade */
+  .obra-card{padding:16px 14px;gap:12px;flex-wrap:wrap}
+  .obra-card .nm{font-size:15.5px}
+
+  .kpis{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kpi{padding:12px 13px}
+
+  /* filtros da aba Serviços: um por linha em vez de quatro apertados lado a
+     lado — no dedo, largura conta mais que economizar altura */
+  #filtro,#fFase,#fSit,#fTipo{max-width:100%;flex:1 1 100%}
+
+  /* modais viram folha inferior (bottom sheet): mais natural no polegar do
+     que uma caixa centralizada pequena, e usa a tela toda em pé */
+  .modal{padding:0;align-items:flex-end}
+  .modal>div{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh}
+
+  /* ── TABELA DE SERVIÇOS → LISTA DE CARTÕES ────────────────────────────── */
+  #tbItens,#tbItens tbody,#tbItens tr,#tbItens td{display:block;width:auto}
+  #tbItens thead{display:none}
+  #tbItens tr.grupo,#tbItens tr.fase{margin:16px 0 6px}
+  #tbItens tr.grupo:first-child{margin-top:0}
+  #tbItens tr:not(.grupo):not(.fase){
+    background:#fff;border:1px solid var(--border);border-radius:12px;
+    box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px
+  }
+  #tbItens tr:not(.grupo):not(.fase) td{
+    border-bottom:1px solid #f1f5f9;padding:11px 14px
+  }
+  #tbItens tr:not(.grupo):not(.fase) td:last-child{border-bottom:0}
+  #tbItens tr:not(.grupo):not(.fase) td:first-child{
+    background:#f8fafc;font-size:14.5px;line-height:1.4
+  }
+  #tbItens td[data-label]::before{
+    content:attr(data-label);display:block;font-size:10px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px
+  }
+  #tbItens .ex-in{max-width:150px}
+  #tbItens .av{justify-content:flex-start}
+}
 .gx text{dominant-baseline:middle}
 .av{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .av .u{font-size:11.5px;color:var(--muted);font-weight:600}
@@ -1231,11 +1304,11 @@ function pintarItens(){
     html+=`<tr>
       <td><b>${esc(i.descricao)}</b>${i.manual?' <span class="chip man">manual</span>':""} ${chipTipo}
         <div style="font-size:11.5px;color:var(--muted)">${esc(i.codigo||"—")}</div>${quem}</td>
-      <td class="num">${nf(i.quantidade)}<div style="font-size:11px;color:var(--muted)">${esc(i.unidade||"")}</div></td>
-      <td class="num">${money(i.valor)}</td>
+      <td class="num" data-label="Qtd. do contrato">${nf(i.quantidade)}<div style="font-size:11px;color:var(--muted)">${esc(i.unidade||"")}</div></td>
+      <td class="num" data-label="Valor">${money(i.valor)}</td>
       ${_celsExec(i,p,dl,fut)}
-      <td class="num">${money(i.valor_executado)}</td>
-      <td><span class="chip ${s}">${lbl}</span></td>
+      <td class="num" data-label="R$ executado">${money(i.valor_executado)}</td>
+      <td data-label="Situação"><span class="chip ${s}">${lbl}</span></td>
     </tr>`;
   });
   document.getElementById("tbItens").innerHTML=html;
@@ -1424,13 +1497,13 @@ function _celsExec(i,p,dl,fut){
     : `<div class="nomes vazio">sem lançamento no mês</div>`;
 
   if(!_temQtd(i)){   // sem quantidade contratada: só resta o percentual
-    return `<td class="c-av">
+    return `<td class="c-av" data-label="Avanço no período">
         <div class="av"><span class="mais">+</span>
           <input class="ex-in" type="text" inputmode="decimal" placeholder="0" value="" ${trava}
             onchange="lancarDelta('${i.id}',this.value,this,'pct')"
             title="Quanto avançou neste período, em pontos percentuais"><span class="u">%</span></div>
         ${jaNoMes}</td>
-      <td class="c-ac">
+      <td class="c-ac" data-label="Executado acumulado">
         <div class="av">
           <input class="ex-in forte" type="text" inputmode="decimal" value="${nf(p)}" ${trava}
             onchange="lancarPct('${i.id}',this.value,this)"
@@ -1439,14 +1512,14 @@ function _celsExec(i,p,dl,fut){
   }
 
   const feito=q*p/100, falta=Math.max(0,q-feito);
-  return `<td class="c-av">
+  return `<td class="c-av" data-label="Avanço no período">
       <div class="av"><span class="mais">+</span>
         <input class="ex-in" type="text" inputmode="decimal" placeholder="0" value="" ${trava}
           onchange="lancarDelta('${i.id}',this.value,this,'qtd')"
           title="Quanto avançou neste período, na unidade da planilha">
         <span class="u">${un}</span></div>
       ${jaNoMes}</td>
-    <td class="c-ac">
+    <td class="c-ac" data-label="Executado acumulado">
       <div class="av">
         <input class="ex-in forte" type="text" inputmode="decimal" value="${_nfQ(feito,q)}" ${trava}
           onchange="lancarQtd('${i.id}',this.value,this)"

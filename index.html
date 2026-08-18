@@ -5034,9 +5034,25 @@ function _pintarNuvem(estado){
 }
 
 let _syncNuvemTm = null;
+let _syncNuvemEmVoo = false;   // trava contra corrida: 2ª sincronia não pode partir antes da 1ª voltar com o nuvemId
+let _syncNuvemPendenteDeNovo = false;
 function _agendarSincroniaNuvem(){ clearTimeout(_syncNuvemTm); _syncNuvemTm = setTimeout(_sincronizarNuvemAgora, 900); }
 
 async function _sincronizarNuvemAgora(){
+  // Se já existe uma sincronia em voo, não dispara outra em cima — ela ainda não
+  // trouxe o nuvemId de volta, então uma segunda chamada agora criaria outra
+  // linha nova no servidor (mesma causa raiz da duplicação corrigida no índice
+  // local). Só marca que precisa rodar de novo assim que a atual terminar.
+  if(_syncNuvemEmVoo){ _syncNuvemPendenteDeNovo = true; return; }
+  _syncNuvemEmVoo = true;
+  try{ await _sincronizarNuvemPassoUnico(); }
+  finally{
+    _syncNuvemEmVoo = false;
+    if(_syncNuvemPendenteDeNovo){ _syncNuvemPendenteDeNovo = false; _sincronizarNuvemAgora(); }
+  }
+}
+
+async function _sincronizarNuvemPassoUnico(){
   const d = _dadosParaSalvar(); if(!d) return;
   const idxAntes = lerIndice();
   const metaAntes = idxAntes.find(x => x.id === d.id);
@@ -5239,8 +5255,20 @@ function salvarSessao(silencioso){
     }
 
     // Atualiza o índice
-    let idx = lerIndice().filter(x => x && x.id !== d.id);
-    idx.unshift({ id:d.id, nome:d.projeto, quando:d.quando,
+    // BUG CORRIGIDO (v2026.08.17): este unshift recriava o registro do zero a
+    // CADA autosave (a cada alteração, a cada 1,2s de debounce) e não copiava o
+    // "nuvemId" que a sincronia anterior tinha gravado — então toda vez que o
+    // usuário editava algo, o índice "esquecia" que aquele projeto já tinha um
+    // registro na nuvem. A sincronia seguinte lia nuvemId=null e criava OUTRO
+    // registro novo lá (em vez de atualizar o mesmo). Resultado real medido: um
+    // único levantamento virou 20 linhas duplicadas na tabela `projetos` (o teto
+    // do servidor) em poucas horas de uso, todas com o mesmo nome. Agora o
+    // registro antigo é preservado (...antiga) e só os campos que mudaram são
+    // sobrescritos — nuvemId sobrevive entre autosaves.
+    const idxAtualAntes = lerIndice();
+    const antiga = idxAtualAntes.find(x => x && x.id === d.id) || {};
+    let idx = idxAtualAntes.filter(x => x && x.id !== d.id);
+    idx.unshift({ ...antiga, id:d.id, nome:d.projeto, quando:d.quando,
                   itens:(d.resultado.quantitativos||[]).length,
                   ambientes:(d.resultado.ambientes||[]).length,
                   validado:d.validado });
