@@ -142,7 +142,7 @@ td.num{text-align:right;white-space:nowrap}
 
   /* filtros da aba Serviços: um por linha em vez de quatro apertados lado a
      lado — no dedo, largura conta mais que economizar altura */
-  #filtro,#fFase,#fSit,#fTipo{max-width:100%;flex:1 1 100%}
+  #filtro,#fFase,#fSit,#fTipo,#prevBusca{max-width:100%;flex:1 1 100%}
 
   /* modais viram folha inferior (bottom sheet): mais natural no polegar do
      que uma caixa centralizada pequena, e usa a tela toda em pé */
@@ -2260,6 +2260,23 @@ function _alertaRitmo(E){
 // Depois que o mês passa, a mesma tela vira prestação de contas: meta x realizado.
 // ═════════════════════════════════════════════════════════════════════════════
 let PREV_MES=null;
+let PREV_FILTRO="";
+// Busca na tabela "Meta por serviço": reaproveita o mesmo re-render completo
+// de previsao() (como já faz o seletor de mês), então guarda e devolve o foco
+// e a posição do cursor no input — sem isso, cada letra digitada faria o
+// campo perder o foco e o usuário só conseguiria digitar um caractere por vez.
+function prevBuscar(v){
+  PREV_FILTRO=v;
+  const el=document.getElementById("prevBusca");
+  const pos=el?el.selectionStart:null;
+  previsao();
+  const el2=document.getElementById("prevBusca");
+  if(el2){ el2.focus(); if(pos!=null) el2.setSelectionRange(pos,pos); }
+}
+function _matchBuscaPrev(l,q){
+  q=(q||"").toLowerCase().trim(); if(!q) return true;
+  return String(l.descricao||"").toLowerCase().includes(q) || String(l.codigo||"").toLowerCase().includes(q);
+}
 function _proxMes(){ const d=new Date(); d.setMonth(d.getMonth()+1);
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function _plano(){ const c=(OBRA.cronograma&&OBRA.cronograma.plano)||{}; return c; }
@@ -2371,12 +2388,18 @@ function previsao(){
         :`Se você executar exatamente essa meta em <b>${_compRotulo(mes)}</b>, é como entregar <b>${Math.abs(impactoDias)} dia(s) antes</b> do que o cronograma original previa — um avanço real no prazo.`}
       </div></div></div>`:""}
     ${_desembolso(mes)}
-    <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Meta por serviço — ${_compRotulo(mes)}</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0 8px">
+      <h3 style="font-size:14px;color:var(--navy);margin:0">Meta por serviço — ${_compRotulo(mes)}</h3>
+      <input id="prevBusca" placeholder="Filtrar serviço…" style="max-width:260px" value="${esc(PREV_FILTRO)}" oninput="prevBuscar(this.value)">
+    </div>
     <div style="overflow:auto;max-height:56vh"><table id="tabPrevServ">
       <thead><tr><th>Serviço</th><th class="num">Valor</th>
         <th class="num">Início do mês</th><th style="width:130px">Meta no fim do mês</th>
         <th class="num">A produzir</th>${passou?'<th class="num">Realizado</th><th class="num">Diferença</th>':""}</tr></thead>
-      <tbody id="tbPrevServ">${(()=>{let h="",f=null; linhas.forEach(l=>{
+      <tbody id="tbPrevServ">${(()=>{
+        const vista=linhas.filter(l=>_matchBuscaPrev(l,PREV_FILTRO));
+        if(!vista.length) return `<tr><td colspan="${passou?7:5}" class="vazio">Nenhum serviço com esse filtro.</td></tr>`;
+        let h="",f=null; vista.forEach(l=>{
         if(l.fase&&l.fase!==f){ f=l.fase; h+=`<tr class="fase"><td colspan="${passou?7:5}">${esc(l.fase)}</td></tr>`; }
         const prod=l.v*(l.mt-l.b)/100, feito=l.v*(l.rl-l.b)/100, dif=l.rl-l.mt;
         h+=`<tr${l.mt<=l.b?' style="opacity:.5"':""}>
