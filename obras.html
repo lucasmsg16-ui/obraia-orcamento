@@ -149,28 +149,49 @@ td.num{text-align:right;white-space:nowrap}
   .modal{padding:0;align-items:flex-end}
   .modal>div{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh}
 
-  /* ── TABELA DE SERVIÇOS → LISTA DE CARTÕES ────────────────────────────── */
-  #tbItens,#tbItens tbody,#tbItens tr,#tbItens td{display:block;width:auto}
-  #tbItens thead{display:none}
-  #tbItens tr.grupo,#tbItens tr.fase{margin:16px 0 6px}
-  #tbItens tr.grupo:first-child{margin-top:0}
-  #tbItens tr:not(.grupo):not(.fase){
+  /* ── TABELAS DE ENTRADA (Serviços e Previsão) → LISTA DE CARTÕES ─────────
+     São as duas telas em que o usuário DIGITA algo no celular — avanço real
+     e meta planejada. Cada linha vira um cartão; cada célula ganha o rótulo
+     da coluna acima do valor (atributo data-label, escrito em pintarItens(),
+     _celsExec() e previsao()). Os seletores usam o ID da <table> (não do
+     <tbody>) porque thead e tbody são IRMÃOS — um seletor "#tbItens thead"
+     nunca bateria em nada, o cabeçalho ficaria visível por engano. */
+  #tabServicos thead,#tabPrevServ thead{display:none}
+  #tabServicos,#tabServicos tbody,#tabServicos tr,#tabServicos td,
+  #tabPrevServ,#tabPrevServ tbody,#tabPrevServ tr,#tabPrevServ td{display:block;width:auto}
+  #tabServicos tr.grupo,#tabServicos tr.fase,#tabPrevServ tr.fase{margin:16px 0 6px}
+  #tabServicos tr.grupo:first-child,#tabPrevServ tr.fase:first-child{margin-top:0}
+  #tabServicos tr:not(.grupo):not(.fase),#tabPrevServ tr:not(.fase){
     background:#fff;border:1px solid var(--border);border-radius:12px;
     box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px
   }
-  #tbItens tr:not(.grupo):not(.fase) td{
+  #tabServicos tr:not(.grupo):not(.fase) td,#tabPrevServ tr:not(.fase) td{
     border-bottom:1px solid #f1f5f9;padding:11px 14px
   }
-  #tbItens tr:not(.grupo):not(.fase) td:last-child{border-bottom:0}
-  #tbItens tr:not(.grupo):not(.fase) td:first-child{
+  #tabServicos tr:not(.grupo):not(.fase) td:last-child,#tabPrevServ tr:not(.fase) td:last-child{border-bottom:0}
+  #tabServicos tr:not(.grupo):not(.fase) td:first-child,#tabPrevServ tr:not(.fase) td:first-child{
     background:#f8fafc;font-size:14.5px;line-height:1.4
   }
-  #tbItens td[data-label]::before{
+  #tabServicos td[data-label]::before,#tabPrevServ td[data-label]::before{
     content:attr(data-label);display:block;font-size:10px;font-weight:800;
     text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:6px
   }
-  #tbItens .ex-in{max-width:150px}
-  #tbItens .av{justify-content:flex-start}
+  #tabServicos .ex-in{max-width:150px}
+  #tabServicos .av{justify-content:flex-start}
+  #tabPrevServ .meta-in{width:100%;max-width:150px}
+  #tabPrevServ .bar-prev{max-width:220px}
+
+  /* ── TODAS AS OUTRAS TABELAS (Desembolso, Mês a mês, Histórico, Curva S) ──
+     Sem isso, a regra base `width:100%` do <table> força a tabela a caber no
+     celular espremendo cada coluna — e como td tem overflow-wrap:anywhere, o
+     texto quebra LETRA A LETRA ("Ago/sto/de/202/6"). A correção é deixar a
+     tabela crescer pelo conteúdo (sem quebrar palavra) e rolar de lado dentro
+     do wrapper com overflow:auto que essas tabelas já têm — é assim que toda
+     tabela de app mobile decente resolve muitas colunas em tela estreita. */
+  .card table:not(#tabServicos):not(#tabPrevServ){width:max-content;min-width:100%}
+  .card table:not(#tabServicos):not(#tabPrevServ) th,
+  .card table:not(#tabServicos):not(#tabPrevServ) td{white-space:nowrap;overflow-wrap:normal}
+  .card table:not(#tabServicos):not(#tabPrevServ) td:first-child{white-space:normal;min-width:150px}
 }
 .gx text{dominant-baseline:middle}
 .av{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -379,7 +400,7 @@ tr.fase td::before{content:"";position:absolute;left:11px;top:50%;width:5px;heig
         </div>
         <div id="itensMsg"></div>
         <div style="overflow:auto;max-height:62vh">
-          <table>
+          <table id="tabServicos">
             <thead><tr>
               <th class="th-serv">Serviço</th>
               <th class="num th-qtd">Qtd do<br>contrato</th>
@@ -2333,22 +2354,22 @@ function previsao(){
       </div></div></div>`:""}
     ${_desembolso(mes)}
     <h3 style="font-size:14px;color:var(--navy);margin:22px 0 8px">Meta por serviço — ${_compRotulo(mes)}</h3>
-    <div style="overflow:auto;max-height:56vh"><table>
+    <div style="overflow:auto;max-height:56vh"><table id="tabPrevServ">
       <thead><tr><th>Serviço</th><th class="num">Valor</th>
         <th class="num">Início do mês</th><th style="width:130px">Meta no fim do mês</th>
         <th class="num">A produzir</th>${passou?'<th class="num">Realizado</th><th class="num">Diferença</th>':""}</tr></thead>
-      <tbody>${(()=>{let h="",f=null; linhas.forEach(l=>{
+      <tbody id="tbPrevServ">${(()=>{let h="",f=null; linhas.forEach(l=>{
         if(l.fase&&l.fase!==f){ f=l.fase; h+=`<tr class="fase"><td colspan="${passou?7:5}">${esc(l.fase)}</td></tr>`; }
         const prod=l.v*(l.mt-l.b)/100, feito=l.v*(l.rl-l.b)/100, dif=l.rl-l.mt;
         h+=`<tr${l.mt<=l.b?' style="opacity:.5"':""}>
           <td><b>${esc(l.descricao)}</b>${l.mine?' <span class="chip man" title="meta ajustada por você">manual</span>':""}
             <div style="font-size:11px;color:var(--muted)">${esc(l.codigo||"—")}</div></td>
-          <td class="num">${money(l.v)}</td>
-          <td class="num" style="color:var(--muted)">${_temQtd(l)?_nfQ(l.quantidade*l.b/100,l.quantidade)+" "+esc(l.unidade||""):nf(l.b)+"%"}</td>
-          <td>${_celMeta(l)}</td>
-          <td class="num">${prod>0?money(prod):"—"}</td>
-          ${passou?`<td class="num"><b>${nf(l.rl)}%</b><div style="font-size:11px;color:var(--muted)">${feito>0?money(feito):"—"}</div></td>
-            <td class="num">${dif?`<span class="dlt ${dif>0?"up":"dn"}">${dif>0?"+":""}${nf(dif)} p.p.</span>`:'<span class="dlt eq">na meta</span>'}</td>`:""}
+          <td class="num" data-label="Valor">${money(l.v)}</td>
+          <td class="num" data-label="Início do mês" style="color:var(--muted)">${_temQtd(l)?_nfQ(l.quantidade*l.b/100,l.quantidade)+" "+esc(l.unidade||""):nf(l.b)+"%"}</td>
+          <td data-label="Meta no fim do mês">${_celMeta(l)}</td>
+          <td class="num" data-label="A produzir">${prod>0?money(prod):"—"}</td>
+          ${passou?`<td class="num" data-label="Realizado"><b>${nf(l.rl)}%</b><div style="font-size:11px;color:var(--muted)">${feito>0?money(feito):"—"}</div></td>
+            <td class="num" data-label="Diferença">${dif?`<span class="dlt ${dif>0?"up":"dn"}">${dif>0?"+":""}${nf(dif)} p.p.</span>`:'<span class="dlt eq">na meta</span>'}</td>`:""}
         </tr>`;}); return h;})()}
       </tbody></table></div>
     <div style="font-size:11.5px;color:var(--muted);margin-top:10px">
