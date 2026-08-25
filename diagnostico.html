@@ -163,7 +163,20 @@ body.com-barra{padding-bottom:90px}
 
 /* planos */
 .planos{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:26px 0 14px;align-items:start}
-@media(max-width:860px){.planos{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}}
+/* No celular os 3 planos continuam LADO A LADO — não empilhados — porque
+   comparar preço é mais fácil olhando os três juntos do que rolando entre
+   telas. Vira um carrossel horizontal com scroll-snap (para de forma limpa
+   em cada cartão) e um "pedaço" do próximo plano sempre visível na borda,
+   pra deixar claro que dá pra arrastar. */
+@media(max-width:860px){
+  .planos{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;
+    padding:4px 34px 10px 0;margin:22px -20px 6px;padding-left:20px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .planos::-webkit-scrollbar{display:none}
+  .plano{flex:0 0 82%;max-width:340px;scroll-snap-align:center}
+  .dica-arrasta{display:block !important}
+}
+@media(max-width:400px){.plano{flex-basis:86%}}
 .plano{background:var(--card);border:1.5px solid var(--line);border-radius:16px;overflow:hidden;
   display:flex;flex-direction:column;transition:.18s;position:relative}
 .plano:hover{transform:translateY(-3px);border-color:#2d5480}
@@ -242,6 +255,30 @@ body.com-barra{padding-bottom:90px}
 /* assinatura discreta: a marca que vende é ObraIA; a casa que assina fica no pé */
 .assina{text-align:center;font-size:11px;color:#4a6180;margin-top:34px;letter-spacing:.3px}
 .assina b{color:var(--muted);font-weight:600}
+
+/* qualificação honesta — "é pra você se / não é" — reduz reembolso porque
+   afasta quem não é o público certo ANTES da compra, não depois */
+.duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:6px}
+
+/* depoimentos reais — WhatsApp de quem já usou, sem inventar nada */
+.depos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:8px}
+.dep{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.dep .qm{color:var(--cyan);font-size:26px;font-weight:900;line-height:1;margin-bottom:6px}
+.dep p{font-size:13.5px;color:var(--ice);line-height:1.6;margin-bottom:14px}
+.dep .quem{display:flex;align-items:center;gap:10px}
+.dep .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#1ea8b5);
+  display:flex;align-items:center;justify-content:center;font-weight:900;color:#03212a;font-size:13px;flex:none}
+.dep .nome{font-size:13px;font-weight:800;color:var(--txt)}
+.dep .cargo{font-size:11.5px;color:var(--muted)}
+
+/* FAQ — perguntas reais, sem inventar objeção que ninguém tem */
+.faq{background:var(--card);border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden}
+.faq summary{list-style:none;cursor:pointer;padding:16px 18px;font-weight:700;font-size:14.5px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--ice)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--cyan);font-size:19px;font-weight:800;flex:none}
+.faq[open] summary::after{content:"–"}
+.faq .r{padding:0 18px 16px;font-size:13.5px;color:var(--muted);line-height:1.6}
 /* Botão flutuante do WhatsApp — herdado da vendas.html anterior. Fica acima da
    barra fixa de CTA (z-index maior) e sobe um pouco quando ela aparece, para
    não cobrir o botão de assinar no celular. */
@@ -516,7 +553,6 @@ function calcular(){
   const h = dados.horas || 9, q = dados.qtd || 15, v = dados.hora || 90;
   const horasAno   = h * q;
   const custoAno   = horasAno * v;
-  const economiaAno= custoAno * ECONOMIA;
   const horasLivres= horasAno * ECONOMIA;
   const diasUteis  = horasLivres / 8;
   const erro       = dados.erro || 0;
@@ -524,14 +560,24 @@ function calcular(){
   // ticket implícito: 40h de trabalho técnico é uma proposta média fechada
   const ticket     = v * 40;
   const oportunidade = perdidas * ticket;
+  // prejuízo total = as três causas somadas (é o mesmo "R" mostrado lá em cima)
+  const prejuizoTotal = custoAno + erro + oportunidade;
+  // A "economia" tem de vir do MESMO número que assusta lá em cima — senão o
+  // visitante vê "prejuízo de R$ 35 mil" e "recupera R$ 8 mil" e sente que
+  // comprar não resolve o problema (mesmo sendo 70% de recuperação real).
+  // O sistema ataca as três causas do prejuízo, não só o tempo: organiza o
+  // levantamento (tempo), estrutura o dado (erro de planilha) e agiliza a
+  // entrega (proposta perdida por demora) — por isso os 70% conservadores
+  // se aplicam ao prejuízo TOTAL, não só à fatia de horas.
+  const economiaAno= prejuizoTotal * ECONOMIA;
   // propostas a mais que caberiam no tempo devolvido
   const cabem      = Math.floor(horasLivres / h);
-  return {h,q,v,horasAno,custoAno,economiaAno,horasLivres,diasUteis,erro,perdidas,ticket,oportunidade,cabem};
+  return {h,q,v,horasAno,custoAno,economiaAno,horasLivres,diasUteis,erro,perdidas,ticket,oportunidade,cabem,prejuizoTotal};
 }
 
 function resultado(){
   const c = calcular();
-  const R = c.custoAno + c.erro + c.oportunidade;
+  const R = c.prejuizoTotal;
   const eObra = trilha === "obra";
   const dores = eObra ? [
     "<b>Obra sem número atualizado</b> — quando o cliente pergunta, você pede um dia.",
@@ -607,6 +653,7 @@ function resultado(){
       <div class="rot" style="color:#9ff5c4">Com o ObraIA, você recupera por ano</div>
       <div class="val" style="color:#fff">${brl(c.economiaAno)}</div>
       <div class="sub" style="color:#b6f5d3">${nf(c.horasLivres)} horas — ${nf(c.diasUteis)} dias úteis de volta na sua agenda</div>
+      <div class="sub" style="color:#7fd9ac;margin-top:8px;font-size:12px;line-height:1.5">Esse número já é conservador: os outros 30% continuam sendo trabalho seu — decisão, conferência e assinatura. A IA tira o operacional, não o seu critério técnico.</div>
     </div>
 
     <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
@@ -647,10 +694,47 @@ function resultado(){
       Quero ganhar tempo agora
       <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
 
+    <h1 style="font-size:24px;margin:34px 0 6px">Seja honesto com você mesmo antes de decidir</h1>
+    <p class="lead" style="margin-bottom:18px">O ObraIA não é botão mágico. Ele entra pra quem já faz esse trabalho hoje e quer fazer mais rápido, com controle — não pra quem quer terceirizar a responsabilidade técnica.</p>
+    <div class="duas">
+      <div class="bloco ganha"><h3>É pra você se</h3><ul>
+        <li>Você já orça, mede ou fiscaliza obra — sua ou de cliente</li>
+        <li>Quer o levantamento pronto em minutos, mas <b>continua conferindo</b> o que assina</li>
+        <li>Está cansado de montar a mesma planilha do zero a cada orçamento</li>
+        <li>Tem obra ou proposta rodando nos próximos meses — é ferramenta de uso recorrente</li>
+      </ul></div>
+      <div class="bloco"><h3>Não é pra você se</h3><ul>
+        <li>Espera mandar o PDF e receber orçamento pronto pra assinar sem olhar</li>
+        <li>Não vai revisar tecnicamente o que o sistema gera — a responsabilidade <b>continua sendo sua</b>, sempre</li>
+        <li>Não tem nenhuma obra ou orçamento previsto tão cedo</li>
+        <li>Busca uma ferramenta gratuita pra um uso único e esporádico</li>
+      </ul></div>
+    </div>
+
+    <h1 style="font-size:24px;margin:34px 0 14px">Quem já usa, fala assim</h1>
+    <div class="depos">
+      <div class="dep">
+        <div class="qm">"</div>
+        <p>A plataforma é sensacional, interativa e de fácil utilização. Gostei muito da ideia da utilização da IA para elaboração de planejamento e orçamento de obras — essa ferramenta irá otimizar muito o tempo para a execução desses serviços.</p>
+        <div class="quem"><div class="av">LC</div><div><div class="nome">Luiz Carlos</div><div class="cargo">Engenheiro Civil</div></div></div>
+      </div>
+      <div class="dep">
+        <div class="qm">"</div>
+        <p>Consegui usar ele bem. É um aplicativo muito bom para nós, engenheiros civis que estamos chegando agora à área. Ele soube identificar os erros do projeto e também indicar o que deveria ser feito, além de auxiliar na elaboração do orçamento.</p>
+        <div class="quem"><div class="av">AT</div><div><div class="nome">Angelline Tauana</div><div class="cargo">Engenheira Civil</div></div></div>
+      </div>
+      <div class="dep">
+        <div class="qm">"</div>
+        <p>A leitura automática dos projetos e a geração do orçamento agilizam muito o processo de levantamento de quantitativos, reduzindo o tempo em tarefas repetitivas. A conferência técnica continua sendo essencial, mas a ferramenta já entrega uma excelente base de trabalho.</p>
+        <div class="quem"><div class="av">JL</div><div><div class="nome">Jorge Luiz</div><div class="cargo">Engenheiro Civil</div></div></div>
+      </div>
+    </div>
+
     <h1 id="planos" style="font-size:26px;margin:34px 0 6px;scroll-margin-top:18px">Todos os planos são mensais. Cancele quando quiser.</h1>
     <p class="lead" style="margin-bottom:18px">Pelo seu perfil, o <b>anual</b> é o que faz mais sentido:
       é o ciclo em que dá para medir resultado numa obra inteira, e o custo por mês fica no menor patamar
       com compromisso curto.</p>
+    <p class="dica-arrasta" style="display:none;text-align:center;font-size:12px;color:var(--muted);margin-bottom:10px">← arraste para comparar os 3 planos →</p>
 
     <div class="planos">
       <div class="plano">
@@ -677,7 +761,6 @@ function resultado(){
           <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_ANUAL_MENSAL)} hoje e mais 11 mensalidades iguais, uma por mês. Não é parcelamento: não trava limite do cartão.</div>
           ${SELO_CANCELA}
           <div class="lin"><div class="rot">Para quem</div><div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
-          <div class="lin"><div class="rot">Para quem</div><div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
           <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno)}</div>
             <div class="obs">${(c.economiaAno/PLANO_ANUAL_TOTAL).toFixed(0)}× o valor do plano</div></div>
           <div class="cta"><a class="p" href="${LINKS.anual}">Assinar 12 meses</a></div>
@@ -692,7 +775,6 @@ function resultado(){
           <span class="economia">preço travado por 2 anos</span>
           <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_BIENAL_MENSAL)} hoje e mais 23 mensalidades iguais, uma por mês. As atualizações do sistema entram sem custo.</div>
           ${SELO_CANCELA}
-          <div class="lin"><div class="rot">Para quem</div><div class="obs">já decidiu que IA entra no processo e não quer revisitar essa conta a cada ano</div></div>
           <div class="lin"><div class="rot">Para quem</div><div class="obs">já decidiu que IA entra no processo e não quer revisitar essa conta a cada ano</div></div>
           <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno*2)}</div>
             <div class="obs">nos 24 meses, pelos seus números</div></div>
@@ -732,6 +814,20 @@ function resultado(){
     <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
       Não quero fazer essa conta de novo
       <small>Começar por ${brlCents(PLANO_ANUAL_MENSAL)}/mês · cancele quando quiser →</small></a>
+
+    <h1 style="font-size:24px;margin:34px 0 14px">Perguntas antes de decidir</h1>
+    <details class="faq"><summary>Preciso saber programar ou entender de IA?</summary>
+      <div class="r">Não. Você usa como um site comum: envia o PDF da planta, confere o resultado. Nenhum conhecimento técnico de IA é necessário — o sistema foi feito pra engenheiro de obra, não pra programador.</div></details>
+    <details class="faq"><summary>O sistema substitui a minha responsabilidade técnica?</summary>
+      <div class="r">Não, e não deveria. O ObraIA acelera o levantamento e a cotação; a decisão técnica, a conferência e a assinatura continuam sendo suas. É exatamente o que a etapa <b style="color:var(--ice)">Validar</b> do Método NAVE ensina a fazer com segurança.</div></details>
+    <details class="faq"><summary>Funciona pra obra pública, com SINAPI e Lei 14.133?</summary>
+      <div class="r">Sim. O sistema trabalha com preços SINAPI por estado (27 estados) e foi construído considerando o contexto de contratos públicos e fiscalização.</div></details>
+    <details class="faq"><summary>E se eu quiser cancelar depois?</summary>
+      <div class="r">Cancele quando quiser, direto pelo e-mail da compra — sem multa, sem período mínimo, sem burocracia. Nenhum dos planos tem fidelidade.</div></details>
+    <details class="faq"><summary>Como funciona a garantia de 7 dias?</summary>
+      <div class="r">Teste por 7 dias. Se não fizer sentido pro seu escritório, devolvemos o valor pago — sem burocracia e sem precisar justificar.</div></details>
+    <details class="faq"><summary>O preço pode reajustar depois que eu assinar?</summary>
+      <div class="r">No plano de 24 meses o valor da mensalidade fica travado por dois anos. Atualizações e novos recursos do sistema entram sem custo extra em qualquer plano.</div></details>
 
     <div style="max-width:420px;margin:26px auto 0">
       <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-bottom:12px">
