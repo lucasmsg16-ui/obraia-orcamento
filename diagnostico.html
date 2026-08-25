@@ -3,918 +3,268 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quanto a sua rotina está te custando? — Diagnóstico ObraIA</title>
-<meta name="description" content="8 perguntas. No fim, o número que ninguém te mostra: quanto tempo, quanto dinheiro e quantos contratos a sua rotina atual está consumindo por ano.">
-<meta name="robots" content="noindex">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Quanto a sua rotina está te custando?">
-<meta property="og:description" content="Responda 8 perguntas e veja em reais o que o seu processo atual consome por ano.">
-<meta property="og:image" content="https://app.marabertoeng.com.br/logo-azul.png">
-<meta property="og:url" content="https://app.marabertoeng.com.br/diagnostico.html">
+<title>Diagnóstico NAVE — Em que etapa da travessia da IA você está? | Mar Aberto Engenharia</title>
+<meta name="description" content="Diagnóstico gratuito para engenheiros: em 3 minutos descubra em qual etapa da travessia da IA você está — Navegar, Automatizar, Validar ou Escalar — e receba um plano prático para avançar.">
 <link rel="canonical" href="https://app.marabertoeng.com.br/diagnostico.html">
-<!-- META PIXEL — troque SEU_PIXEL_ID pelo ID do seu Pixel (Gerenciador de Eventos do Meta Business) -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', 'SEU_PIXEL_ID');
-fbq('track', 'PageView');
-</script>
-<!-- FIM META PIXEL -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Diagnóstico NAVE — Em que etapa da travessia da IA você está?">
+<meta property="og:description" content="8 perguntas, 3 minutos. Descubra o que está travando o seu tempo e receba um plano prático para usar IA em orçamento, obra e contrato.">
+<meta property="og:url" content="https://app.marabertoeng.com.br/diagnostico.html">
+<meta property="og:image" content="https://app.marabertoeng.com.br/logo-azul.png">
+<meta name="twitter:card" content="summary_large_image">
 <style>
-/* ══════════════════════════════════════════════════════════════════════════
-   DIAGNÓSTICO → CHECKOUT · versão de validação
-   Herda a linguagem visual do Diagnóstico NAVE e as dores da vendas.html.
-   ──────────────────────────────────────────────────────────────────────────
-   ESTRUTURA (por que está nesta ordem)
-   1. Abertura        — dor nomeada antes de qualquer pergunta
-   2. Bifurcação      — "você toca obra?" separa dois nichos com dores distintas
-   3. Trilha          — 6 perguntas do nicho; cada opção É uma dor e também um dado
-   4. Ganchos         — entre perguntas, a frase que faz doer (vem da vendas.html)
-   5. Revelação       — o custo anual em reais, com os números DELE
-   6. Planos          — três opções, anual recomendado
-   ══════════════════════════════════════════════════════════════════════════ */
-:root{
-  --deep:#050d1a; --navy:#0a1830; --card:#0f2138; --line:#1d3a5c;
-  --cyan:#37d5c3; --ice:#bfe6ff; --amber:#f5b93f; --txt:#eaf3fc; --muted:#8fa9c6;
-  --red:#ff6b6b; --green:#4ade80;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:radial-gradient(1200px 800px at 50% -10%, #10294a 0%, var(--deep) 60%);
-  color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.5;
-  display:flex;flex-direction:column;align-items:center;min-height:100vh}
-.stage{width:100%;max-width:660px;padding:26px 20px 70px;flex:1}
-.stage.wide{max-width:1080px}
-.brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:24px}
-.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
-.brand span{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);font-weight:700}
-.screen{display:none;animation:rise .45s ease}
-.screen.on{display:block}
-@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  :root{
+    --deep:#050d1a; --navy:#0a1830; --card:#0f2138; --line:#1d3a5c;
+    --cyan:#37d5c3; --ice:#bfe6ff; --amber:#f5b93f; --txt:#eaf3fc; --muted:#8fa9c6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:radial-gradient(1200px 800px at 50% -10%, #10294a 0%, var(--deep) 60%);
+    color:var(--txt);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.5;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  .stage{width:100%;max-width:640px;padding:28px 20px 60px;flex:1;display:flex;flex-direction:column}
+  .brand{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:26px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+  .brand span{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .screen{display:none;animation:rise .45s ease}
+  .screen.on{display:block}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
-h1{font-size:31px;font-weight:800;line-height:1.18;text-align:center;margin-bottom:14px;letter-spacing:-.5px}
-h1 em{color:var(--cyan);font-style:normal}
-h1 .dano{color:var(--red);font-style:normal}
-.lead{color:var(--muted);text-align:center;font-size:15.5px;max-width:540px;margin:0 auto 26px}
-.lead b{color:var(--ice)}
-.btn{display:block;width:100%;background:linear-gradient(135deg,var(--cyan),#1ea8b5);color:#03212a;
-  border:none;border-radius:14px;padding:17px;font-size:16.5px;font-weight:800;cursor:pointer;
-  font-family:inherit;transition:.15s;box-shadow:0 8px 30px rgba(55,213,195,.25);text-decoration:none;text-align:center}
-.btn:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(55,213,195,.35)}
-.btn.ghost{background:none;color:var(--muted);box-shadow:none;font-weight:600;font-size:13.5px;padding:10px}
-.meta{display:flex;justify-content:center;gap:22px;margin-top:18px;color:var(--muted);font-size:12.5px;flex-wrap:wrap}
-.meta b{color:var(--ice)}
+  /* rota N-A-V-E */
+  .route{display:flex;align-items:center;gap:0;margin:0 auto 30px;max-width:420px}
+  .port{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}
+  .port .b{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--muted);
+    background:var(--navy);transition:.4s}
+  .port small{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+  .port.lit .b{border-color:var(--cyan);color:#05242b;background:var(--cyan);box-shadow:0 0 16px rgba(55,213,195,.5)}
+  .lane{flex:1;height:2px;background:var(--line);position:relative;overflow:hidden}
+  .lane i{position:absolute;inset:0;background:var(--cyan);transform:scaleX(0);transform-origin:left;transition:.6s}
+  .lane.lit i{transform:scaleX(1)}
 
-/* barra de progresso */
-.prog{height:4px;background:var(--line);border-radius:20px;margin:0 auto 22px;max-width:420px;overflow:hidden}
-.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),#1ea8b5);
-  border-radius:20px;transition:width .45s ease;width:0}
+  h1{font-size:30px;font-weight:800;line-height:1.2;text-align:center;margin-bottom:14px}
+  h1 em{color:var(--cyan);font-style:normal}
+  .lead{color:var(--muted);text-align:center;font-size:15.5px;max-width:520px;margin:0 auto 26px}
+  .btn{display:block;width:100%;background:linear-gradient(135deg,var(--cyan),#1ea8b5);color:#03212a;
+    border:none;border-radius:14px;padding:17px;font-size:16.5px;font-weight:800;cursor:pointer;
+    font-family:inherit;transition:.15s;box-shadow:0 8px 30px rgba(55,213,195,.25)}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(55,213,195,.35)}
+  .btn.ghost{background:none;color:var(--muted);box-shadow:none;font-weight:600;font-size:13.5px;padding:10px}
+  .meta{display:flex;justify-content:center;gap:22px;margin-top:18px;color:var(--muted);font-size:12.5px}
+  .meta b{color:var(--ice)}
 
-.qnum{color:var(--cyan);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;text-align:center}
-.qtext{font-size:21px;font-weight:800;text-align:center;margin-bottom:8px;line-height:1.3}
-.qsub{font-size:13.5px;color:var(--muted);text-align:center;margin-bottom:22px;max-width:480px;margin-left:auto;margin-right:auto}
-.opt{display:block;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);
-  border-radius:14px;padding:15px 17px;margin-bottom:11px;cursor:pointer;color:var(--txt);
-  font-size:14.5px;font-family:inherit;transition:.15s;line-height:1.4}
-.opt:hover{border-color:var(--cyan);background:#12283f;transform:translateX(3px)}
-.opt b{display:inline-flex;width:23px;height:23px;border-radius:7px;background:var(--line);color:var(--ice);
-  align-items:center;justify-content:center;font-size:11.5px;margin-right:11px;flex:none;vertical-align:-3px}
-.opt:hover b{background:var(--cyan);color:#03212a}
+  .qnum{color:var(--cyan);font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;text-align:center}
+  .qtext{font-size:21px;font-weight:800;text-align:center;margin-bottom:24px;line-height:1.3}
+  .opt{display:block;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);
+    border-radius:14px;padding:15px 17px;margin-bottom:11px;cursor:pointer;color:var(--txt);
+    font-size:14.5px;font-family:inherit;transition:.15s;line-height:1.4}
+  .opt:hover{border-color:var(--cyan);background:#12294a;transform:translateX(4px)}
+  .opt b{color:var(--cyan);margin-right:8px}
 
-/* gancho emocional entre perguntas */
-.gancho{background:linear-gradient(135deg,rgba(245,185,63,.09),rgba(245,185,63,.02));
-  border-left:3px solid var(--amber);border-radius:0 12px 12px 0;padding:15px 18px;margin:0 0 20px;
-  font-size:14.5px;color:#ffe9bd;animation:rise .4s ease}
-.gancho b{color:var(--amber)}
+  .form-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px}
+  .form-card h2{font-size:21px;font-weight:800;margin-bottom:6px;text-align:center}
+  .form-card p{color:var(--muted);font-size:13.5px;text-align:center;margin-bottom:20px}
+  label{display:block;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 6px}
+  input{width:100%;background:var(--navy);border:1.5px solid var(--line);border-radius:11px;padding:13px 15px;
+    color:var(--txt);font-size:15px;font-family:inherit;outline:none;transition:.15s}
+  input:focus{border-color:var(--cyan)}
+  .priv{font-size:11.5px;color:var(--muted);text-align:center;margin-top:12px}
 
-/* resultado */
-.hero-num{background:linear-gradient(160deg,#2f0e14,#190a0e);border:2px solid var(--red);
-  border-radius:20px;padding:38px 26px 30px;text-align:center;margin-bottom:18px;
-  box-shadow:0 22px 64px rgba(255,107,107,.22)}
-.hero-num .rot{font-size:14px;letter-spacing:2.4px;text-transform:uppercase;color:#ffb3b3;font-weight:800}
-/* O número é o argumento inteiro da página — ele tem de dominar a tela.
-   clamp() cresce com a largura em vez de saltar num breakpoint, então o valor
-   fica grande no notebook e continua legível no celular sem estourar a caixa.
-   font-variant-numeric:tabular-nums impede o número de "dançar" de largura. */
-.hero-num .val{font-size:clamp(46px,12.5vw,86px);font-weight:900;color:#fff;line-height:1;
-  margin:10px 0 2px;letter-spacing:-2.5px;font-variant-numeric:tabular-nums;
-  text-shadow:0 6px 34px rgba(255,107,107,.42)}
-.hero-num .porano{font-size:15px;font-weight:900;letter-spacing:5px;text-transform:uppercase;
-  color:#ff9d9d;margin-bottom:10px}
-.hero-num .sub{font-size:15.5px;color:#ffc9c9;max-width:440px;margin:0 auto}
-/* A quebra por mês e por dia existe porque "R$ 139.500 por ano" é uma abstração:
-   ninguém sente um ano. O mesmo número dividido por mês é a conta que a pessoa
-   compara com o próprio boleto — e não inventa dado nenhum, é o mesmo valor. */
-.hero-num .quebra{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:20px;
-  padding-top:18px;border-top:1px solid rgba(255,107,107,.28)}
-.hero-num .quebra span{background:rgba(255,107,107,.13);border:1px solid rgba(255,107,107,.32);
-  border-radius:30px;padding:7px 16px;font-size:13.5px;color:#ffd4d4}
-.hero-num .quebra b{color:#fff;font-size:16px;font-weight:900}
-@media(max-width:520px){.hero-num{padding:28px 18px 24px}.hero-num .rot{font-size:12px;letter-spacing:1.6px}
-  .hero-num .porano{font-size:13px;letter-spacing:3.5px}.hero-num .sub{font-size:14px}}
-
-/* ── Chamadas para a ação, repetidas ao longo da página ──
-   Uma só, lá no fim, obriga a pessoa a rolar de volta no momento em que ela
-   decidiu — e é exatamente aí que ela desiste. Cada bloco que gera decisão
-   ganha o seu próprio botão, logo abaixo. */
-.cta-grande{display:block;width:100%;max-width:540px;margin:22px auto;padding:18px 22px;
-  background:linear-gradient(135deg,var(--green),#22c55e);color:#04241a;border:0;border-radius:15px;
-  font-size:17.5px;font-weight:900;cursor:pointer;font-family:inherit;text-align:center;
-  text-decoration:none;box-shadow:0 14px 34px rgba(74,222,128,.30);transition:.16s;line-height:1.25}
-.cta-grande:hover{transform:translateY(-2px);box-shadow:0 18px 44px rgba(74,222,128,.42)}
-.cta-grande small{display:block;font-weight:700;font-size:12.5px;opacity:.78;margin-top:4px}
-.cta-grande.vermelho{background:linear-gradient(135deg,#ff7a7a,#e14b4b);color:#2a0000;
-  box-shadow:0 14px 34px rgba(255,107,107,.30)}
-.cta-grande.vermelho:hover{box-shadow:0 18px 44px rgba(255,107,107,.42)}
-/* Barra fixa: acompanha a leitura e some quando os planos entram na tela, para
-   não cobrir justamente os botões de assinar. */
-.cta-fixo{position:fixed;left:0;right:0;bottom:0;z-index:70;padding:10px 14px;
-  background:rgba(5,13,26,.94);border-top:1px solid var(--line);
-  transform:translateY(130%);transition:transform .3s ease}
-.cta-fixo.on{transform:none}
-.cta-fixo .cta-grande{margin:0 auto;padding:14px 20px;font-size:16px}
-body.com-barra{padding-bottom:90px}
-@media(prefers-reduced-motion:reduce){.cta-fixo{transition:none}}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
-.mini{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:16px}
-.mini .r{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);font-weight:800}
-.mini .v{font-size:24px;font-weight:800;color:var(--ice);margin-top:4px;line-height:1.1}
-.mini .s{font-size:12px;color:var(--muted);margin-top:3px}
-.mini.bad .v{color:var(--red)} .mini.good .v{color:var(--green)}
-
-.bloco{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:22px;margin-bottom:18px}
-.bloco h3{font-size:17px;color:var(--ice);margin-bottom:12px;font-weight:800}
-.bloco ul{list-style:none}
-.bloco li{padding:9px 0 9px 27px;position:relative;font-size:14.5px;border-bottom:1px solid rgba(29,58,92,.5)}
-.bloco li:last-child{border-bottom:0}
-.bloco li::before{content:"✕";position:absolute;left:0;color:var(--red);font-weight:800}
-.bloco.ganha li::before{content:"✓";color:var(--green)}
-.bloco li b{color:var(--ice)}
-
-.conta{background:rgba(0,0,0,.25);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;
-  font-size:12.5px;color:var(--muted);margin-bottom:20px;line-height:1.6}
-.conta b{color:var(--ice)}
-
-/* planos */
-.planos{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:26px 0 14px;align-items:start}
-/* No celular os 3 planos continuam LADO A LADO — não empilhados — porque
-   comparar preço é mais fácil olhando os três juntos do que rolando entre
-   telas. Vira um carrossel horizontal com scroll-snap (para de forma limpa
-   em cada cartão) e um "pedaço" do próximo plano sempre visível na borda,
-   pra deixar claro que dá pra arrastar. */
-@media(max-width:860px){
-  .planos{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;
-    padding:4px 34px 10px 0;margin:22px -20px 6px;padding-left:20px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .planos::-webkit-scrollbar{display:none}
-  .plano{flex:0 0 82%;max-width:340px;scroll-snap-align:center}
-  .dica-arrasta{display:block !important}
-}
-@media(max-width:400px){.plano{flex-basis:86%}}
-.plano{background:var(--card);border:1.5px solid var(--line);border-radius:16px;overflow:hidden;
-  display:flex;flex-direction:column;transition:.18s;position:relative}
-.plano:hover{transform:translateY(-3px);border-color:#2d5480}
-.plano.rec{border-color:var(--cyan);box-shadow:0 14px 44px rgba(55,213,195,.2)}
-.plano .topo{padding:20px 18px;background:linear-gradient(135deg,#16324f,#0d2138)}
-.plano.rec .topo{background:linear-gradient(135deg,#0e6b63,#127a86)}
-.plano .selo{position:absolute;top:12px;right:12px;background:var(--cyan);color:#03212a;
-  font-size:10px;font-weight:900;letter-spacing:1px;padding:4px 9px;border-radius:20px;text-transform:uppercase}
-.plano .nome{font-size:19px;font-weight:900;color:#fff;letter-spacing:-.3px}
-.plano .per{font-size:12px;color:rgba(255,255,255,.72);margin-top:2px}
-.plano .corpo{padding:18px;display:flex;flex-direction:column;flex:1}
-.plano .lin{border-bottom:1px solid rgba(29,58,92,.6);padding:11px 0}
-.plano .lin:last-of-type{border-bottom:0}
-.plano .rot{font-size:11px;color:var(--muted);font-weight:700}
-.plano .val{font-size:22px;font-weight:900;color:var(--ice);margin-top:2px;letter-spacing:-.5px}
-.plano .val small{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
-.plano .obs{font-size:12px;color:var(--muted);margin-top:2px}
-.plano .cta{margin-top:auto;padding-top:16px}
-.plano .cta a{display:block;text-align:center;border-radius:11px;padding:13px;font-weight:800;
-  font-size:14.5px;text-decoration:none;transition:.15s}
-.plano .cta a.p{background:linear-gradient(135deg,var(--cyan),#1ea8b5);color:#03212a}
-.plano .cta a.s{background:transparent;color:var(--ice);border:1.5px solid var(--line)}
-.plano .cta a:hover{transform:translateY(-1px)}
-
-/* ═══ PREÇO RECORRENTE EM DESTAQUE ═══════════════════════════════════════
-   A objeção do engenheiro não é "é caro", é "quanto sai do meu bolso ESTE
-   mês". Por isso o número grande é a MENSALIDADE, não o total do contrato.
-   O total aparece depois, pequeno, como informação — nunca como manchete. */
-.plano .preco{display:flex;align-items:flex-start;gap:2px;margin:2px 0 4px;line-height:1}
-.plano .preco .cifra{font-size:15px;font-weight:800;color:var(--muted);margin-top:8px}
-.plano .preco .num{font-size:48px;font-weight:900;color:#fff;letter-spacing:-2.5px}
-.plano.rec .preco .num{color:var(--cyan)}
-.plano .preco .cent{font-size:21px;font-weight:900;color:#fff;margin-top:5px;letter-spacing:-.5px}
-.plano.rec .preco .cent{color:var(--cyan)}
-.plano .preco .mes{font-size:14px;font-weight:800;color:var(--muted);margin-top:24px;margin-left:3px}
-.plano .pordia{font-size:12.5px;font-weight:800;color:var(--green);margin-bottom:9px}
-.plano .comorec{font-size:12px;color:var(--muted);line-height:1.5;background:rgba(13,33,56,.55);
-  border-left:2px solid #2d5480;border-radius:0 7px 7px 0;padding:8px 10px;margin-bottom:9px}
-.plano .comorec b{color:var(--ice);font-weight:800}
-/* Selo de cancelamento: some do caminho do olho quando não é preciso, mas
-   está sempre lá — é a trava mental que destrava a assinatura. */
-.selo-cancela{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;
-  color:#b6f5d3;background:rgba(74,222,128,.10);border:1px solid rgba(74,222,128,.28);
-  border-radius:8px;padding:7px 10px;margin-bottom:10px}
-.selo-cancela span{font-size:13px;line-height:1}
-/* Barra de segurança abaixo dos planos: as três objeções finais, juntas. */
-.barra-seg{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px 0 4px}
-.barra-seg div{font-size:12.5px;font-weight:700;color:var(--muted);background:rgba(22,50,79,.5);
-  border:1px solid var(--line);border-radius:20px;padding:8px 14px}
-.barra-seg b{color:#b6f5d3}
-@media(max-width:520px){.plano .preco .num{font-size:42px}}
-.economia{display:inline-block;font-size:11px;font-weight:800;color:#03212a;background:var(--cyan);
-  border-radius:20px;padding:2px 9px;margin-top:6px}
-
-.nave{background:linear-gradient(135deg,rgba(55,213,195,.08),rgba(55,213,195,.02));
-  border:1px solid rgba(55,213,195,.3);border-radius:15px;padding:22px;margin:22px 0}
-.nave h3{color:var(--cyan);font-size:16.5px;margin-bottom:8px;font-weight:800}
-.nave p{font-size:14px;color:var(--ice);margin-bottom:10px}
-.nave .rota{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.nave .et{background:rgba(55,213,195,.12);border:1px solid rgba(55,213,195,.35);border-radius:9px;
-  padding:8px 12px;font-size:12px;flex:1;min-width:110px}
-.nave .et b{color:var(--cyan);display:block;font-size:13px;margin-bottom:2px}
-
-.campo{margin-bottom:13px}
-.campo label{display:block;font-size:12.5px;font-weight:700;color:var(--ice);margin-bottom:5px}
-.campo input{width:100%;background:var(--card);border:1.5px solid var(--line);border-radius:11px;
-  padding:13px 14px;color:var(--txt);font-size:15px;font-family:inherit;outline:0}
-.campo input:focus{border-color:var(--cyan)}
-.rodape{text-align:center;font-size:12px;color:var(--muted);margin-top:26px;line-height:1.7}
-.garantia{display:flex;gap:13px;align-items:center;background:rgba(74,222,128,.07);
-  border:1px solid rgba(74,222,128,.3);border-radius:12px;padding:14px 16px;margin:16px 0}
-.garantia .s7{width:44px;height:44px;border-radius:50%;background:var(--green);color:#04230f;flex:none;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:15px;line-height:1}
-.garantia .s7 small{font-size:8px;font-weight:800}
-.garantia p{font-size:13px;color:#c9f7d9}
-/* assinatura discreta: a marca que vende é ObraIA; a casa que assina fica no pé */
-.assina{text-align:center;font-size:11px;color:#4a6180;margin-top:34px;letter-spacing:.3px}
-.assina b{color:var(--muted);font-weight:600}
-
-/* qualificação honesta — "é pra você se / não é" — reduz reembolso porque
-   afasta quem não é o público certo ANTES da compra, não depois */
-.duas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:6px}
-
-/* depoimentos reais — WhatsApp de quem já usou, sem inventar nada */
-.depos{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:8px}
-.dep{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-.dep .qm{color:var(--cyan);font-size:26px;font-weight:900;line-height:1;margin-bottom:6px}
-.dep p{font-size:13.5px;color:var(--ice);line-height:1.6;margin-bottom:14px}
-.dep .quem{display:flex;align-items:center;gap:10px}
-.dep .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#1ea8b5);
-  display:flex;align-items:center;justify-content:center;font-weight:900;color:#03212a;font-size:13px;flex:none}
-.dep .nome{font-size:13px;font-weight:800;color:var(--txt)}
-.dep .cargo{font-size:11.5px;color:var(--muted)}
-
-/* FAQ — perguntas reais, sem inventar objeção que ninguém tem */
-.faq{background:var(--card);border:1px solid var(--line);border-radius:13px;margin-bottom:10px;overflow:hidden}
-.faq summary{list-style:none;cursor:pointer;padding:16px 18px;font-weight:700;font-size:14.5px;
-  display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--ice)}
-.faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:"+";color:var(--cyan);font-size:19px;font-weight:800;flex:none}
-.faq[open] summary::after{content:"–"}
-.faq .r{padding:0 18px 16px;font-size:13.5px;color:var(--muted);line-height:1.6}
-/* Botão flutuante do WhatsApp — herdado da vendas.html anterior. Fica acima da
-   barra fixa de CTA (z-index maior) e sobe um pouco quando ela aparece, para
-   não cobrir o botão de assinar no celular. */
-.whatsfloat{position:fixed;bottom:22px;right:22px;z-index:999;background:#25d366;color:#fff;font-weight:700;
-  font-size:14px;padding:13px 20px;border-radius:50px;box-shadow:0 8px 24px rgba(37,211,102,.45);
-  display:flex;align-items:center;gap:9px;text-decoration:none;transition:.2s}
-.whatsfloat:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(37,211,102,.55)}
-body.com-barra .whatsfloat{bottom:96px}
-@media(max-width:520px){.whatsfloat{font-size:13px;padding:11px 16px;bottom:16px;right:16px}
-  body.com-barra .whatsfloat{bottom:88px}}
+  .res-badge{width:92px;height:92px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;
+    justify-content:center;font-size:40px;font-weight:900;color:#03212a;
+    background:linear-gradient(135deg,var(--cyan),#1ea8b5);box-shadow:0 0 40px rgba(55,213,195,.45)}
+  .res-eyebrow{text-align:center;color:var(--muted);font-size:12px;letter-spacing:2.5px;text-transform:uppercase;font-weight:700;margin-bottom:6px}
+  .res-title{text-align:center;font-size:27px;font-weight:800;margin-bottom:14px}
+  .res-title span{color:var(--cyan)}
+  .res-desc{color:var(--muted);font-size:15px;text-align:center;max-width:520px;margin:0 auto 22px}
+  .res-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px}
+  .res-box h3{font-size:14px;color:var(--cyan);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:10px}
+  .res-box ul{padding-left:18px;display:flex;flex-direction:column;gap:8px}
+  .res-box li{font-size:14px;color:var(--muted)}
+  .res-box li strong{color:var(--txt)}
+  .waves{position:fixed;bottom:0;left:0;right:0;height:70px;pointer-events:none;opacity:.5;z-index:-1}
+  .waves svg{width:200%;height:100%;animation:drift 14s linear infinite}
+  @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 </style>
 </head>
 <body>
-<div class="stage" id="palco">
+<div class="stage">
+  <div class="brand"><div class="dot"></div><span>Diagnóstico NAVE · Mar Aberto Engenharia</span></div>
 
-<div class="brand"><span class="dot"></span><span>ObraIA</span></div>
+  <div class="route" id="route">
+    <div class="port" data-p="0"><div class="b">N</div><small>Navegar</small></div>
+    <div class="lane" data-l="0"><i></i></div>
+    <div class="port" data-p="1"><div class="b">A</div><small>Automatizar</small></div>
+    <div class="lane" data-l="1"><i></i></div>
+    <div class="port" data-p="2"><div class="b">V</div><small>Validar</small></div>
+    <div class="lane" data-l="2"><i></i></div>
+    <div class="port" data-p="3"><div class="b">E</div><small>Escalar</small></div>
+  </div>
 
-<!-- ═══ 1 · ABERTURA ═══════════════════════════════════════════════════ -->
-<section class="screen on" id="s-inicio">
-  <h1>O engenheiro não perde dinheiro por falta de trabalho.<br>Perde por <em>trabalho que não deveria estar fazendo</em>.</h1>
-  <p class="lead">Oito perguntas. No fim, você vê <b>em reais</b> quanto a sua rotina atual consome por ano —
-    calculado com os <b>seus</b> números, não com média de mercado.</p>
-  <button class="btn" onclick="iniciar()">Quanto estou perdendo →</button>
-  <div class="meta"><span>⏱ <b>3 minutos</b></span><span>🔒 <b>Sem cadastro</b> para ver o resultado</span></div>
-  <p class="rodape">Se o número não te incomodar, você fecha a aba e não perdeu nada.<br>
-    Se incomodar, pelo menos você vai saber o tamanho dele.</p>
-</section>
+  <!-- INTRO -->
+  <div class="screen on" id="s-intro">
+    <h1>Engenheiro, em que etapa da <em>travessia da IA</em> você está?</h1>
+    <p class="lead">8 perguntas. 3 minutos. No final, você descobre o que está travando o seu tempo — e recebe um plano prático para avançar de etapa usando IA em orçamento, obra e contrato.</p>
+    <button class="btn" onclick="start()">Iniciar minha travessia →</button>
+    <div class="meta"><span>⏱ <b>3 min</b></span><span>📍 <b>Resultado imediato</b></span><span>🔒 <b>Gratuito</b></span></div>
+  </div>
 
-<!-- ═══ 2 · PERGUNTAS ══════════════════════════════════════════════════ -->
-<section class="screen" id="s-quiz">
-  <div class="prog"><i id="progbar"></i></div>
-  <div id="ganchoHost"></div>
-  <div class="qnum" id="qnum"></div>
-  <div class="qtext" id="qtext"></div>
-  <div class="qsub" id="qsub"></div>
-  <div id="opts"></div>
-  <button class="btn ghost" onclick="voltar()" id="btnVoltar">← voltar</button>
-</section>
+  <!-- PERGUNTAS -->
+  <div class="screen" id="s-quiz">
+    <div class="qnum" id="qnum"></div>
+    <div class="qtext" id="qtext"></div>
+    <div id="opts"></div>
+  </div>
 
-<!-- ═══ 3 · RESULTADO ══════════════════════════════════════════════════ -->
-<section class="screen" id="s-result"></section>
+  <!-- CAPTURA -->
+  <div class="screen" id="s-form">
+    <div class="form-card">
+      <h2>⚓ Seu diagnóstico está pronto.</h2>
+      <p>Diga para onde enviar o resultado completo + o plano da sua próxima etapa.</p>
+      <label>Nome</label><input id="f-nome" placeholder="Seu nome" autocomplete="name">
+      <label>E-mail</label><input id="f-email" type="email" placeholder="voce@email.com" autocomplete="email">
+      <label>WhatsApp</label><input id="f-zap" type="tel" placeholder="(81) 9 9999-9999" autocomplete="tel">
+      <div style="margin-top:20px"><button class="btn" onclick="verResultado()">Ver meu resultado agora →</button></div>
+      <p class="priv">Seus dados ficam comigo. Nada de spam — só a travessia.</p>
+    </div>
+  </div>
 
-<div class="assina">desenvolvido por <b>Mar Aberto Engenharia</b></div>
+  <!-- RESULTADO -->
+  <div class="screen" id="s-result">
+    <div class="res-badge" id="r-badge">N</div>
+    <div class="res-eyebrow">Seu estágio na travessia</div>
+    <div class="res-title" id="r-title"></div>
+    <p class="res-desc" id="r-desc"></p>
+    <div class="res-box"><h3>O que está te custando hoje</h3><ul id="r-custo"></ul></div>
+    <div class="res-box"><h3>Seus próximos 3 passos</h3><ul id="r-passos"></ul></div>
+    <button class="btn" id="r-cta" onclick="irWhats()">Quero avançar de etapa — falar com o Lucas →</button>
+    <button class="btn ghost" onclick="location.href='https://app.marabertoeng.com.br/planos.html'">Conhecer o ObraIA</button>
+  </div>
 </div>
 
+<div class="waves"><svg viewBox="0 0 1200 60" preserveAspectRatio="none"><path d="M0,30 C100,10 200,50 300,30 C400,10 500,50 600,30 C700,10 800,50 900,30 C1000,10 1100,50 1200,30 L1200,60 L0,60 Z" fill="#0d2a4a"/></svg></div>
+
 <script>
-// ═════════════════════════════════════════════════════════════════════════
-// MOTOR — cada opção carrega uma DOR e, junto, o número que alimenta a conta.
-// Perguntar "quantas horas você gasta?" com caixinha numérica é frio e ninguém
-// responde direito. Perguntar escolhendo entre frases que descrevem a rotina
-// dele faz doer E entrega o dado. É o mesmo clique.
-// ═════════════════════════════════════════════════════════════════════════
+// ===== CONFIG: cole aqui a URL do seu webhook (Sheets/Make/n8n) para salvar leads =====
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyFUSg5jhwO-R9mhkiD5cPfr8GWCtsmL6LBN6828RonC0H0ARqqgE0l8D_lQ9f9f6RT/exec";
-const LINKS = {
-  semestral: "https://pay.kiwify.com.br/yQTJYvM",
-  anual: "https://pay.kiwify.com.br/gyVpDvd",
-  bienal: "https://pay.kiwify.com.br/ZjyjU8t"
+const WHATS = "5581997977068";
+
+const QS = [
+ {d:0,q:"Como estão guardadas as informações das suas obras hoje?",o:[
+  "Espalhadas: WhatsApp, e-mail, papel e memória.",
+  "Pastas básicas no computador, sem padrão.",
+  "Organizadas por obra, com padrão que eu sigo.",
+  "Estruturadas para a IA usar: modelos, dados e documentos padronizados."]},
+ {d:0,q:"Quando você pede algo à IA, como costuma pedir?",o:[
+  "Não uso IA no trabalho ainda.",
+  "Pergunta solta, do jeito que vem na cabeça.",
+  "Explico o contexto e anexo o que tenho.",
+  "Tenho prompts e fluxos prontos que reutilizo."]},
+ {d:1,q:"Quantas horas por semana você gasta em tarefas repetitivas (planilha, relatório, medição)?",o:[
+  "Mais de 20 horas. É quase o trabalho todo.",
+  "Entre 10 e 20 horas.",
+  "Entre 5 e 10 horas.",
+  "Menos de 5 — a maioria já roda automatizada."]},
+ {d:1,q:"Você já automatizou algum fluxo do seu trabalho com IA?",o:[
+  "Nunca tentei.",
+  "Tentei, mas não saiu do improviso.",
+  "Tenho pelo menos um fluxo rodando (ex.: orçamento, relatório).",
+  "Vários fluxos rodam com IA no meu dia a dia."]},
+ {d:2,q:"Usar resultado de IA em documento oficial (orçamento, laudo, medição) te causa o quê?",o:[
+  "Medo — prefiro nem usar.",
+  "Uso, mas com receio de estar errado.",
+  "Uso e confiro antes de assinar.",
+  "Uso com protocolo de validação definido. Assino tranquilo."]},
+ {d:2,q:"Como você confere o que a IA gera?",o:[
+  "Não confiro — confio no resultado.",
+  "Leio por cima, no olho.",
+  "Confiro os pontos críticos (quantidades, códigos, premissas).",
+  "Checklist: amostragem, ordem de grandeza e cruzamento com o projeto."]},
+ {d:3,q:"Quando você ganha tempo, esse tempo vira o quê?",o:[
+  "Não ganho tempo — vivo apagando incêndio.",
+  "Mais tarefa operacional na mesma hora.",
+  "Um pouco de gestão e organização.",
+  "Prospecção, precificação e crescimento do negócio."]},
+ {d:3,q:"Como você precifica seus serviços hoje?",o:[
+  "Aceito o que o cliente oferece.",
+  "Por hora ou m², sem muito critério.",
+  "Tabela própria, com margem definida.",
+  "Por valor entregue — e a IA aumentou minha margem."]}
+];
+
+const PROFILES = {
+ N:{b:"N",t:'Você está na etapa <span>NAVEGAR</span>',
+  d:"Seu maior gargalo não é a IA — é a informação desorganizada. Hoje, mesmo a melhor IA do mundo te devolveria respostas genéricas, porque falta contexto estruturado. A boa notícia: essa é a etapa mais rápida de destravar.",
+  c:["<strong>Horas perdidas procurando</strong> arquivo, número e conversa espalhada.","Respostas genéricas da IA que <strong>não servem para nada técnico</strong>.","Retrabalho porque cada obra começa <strong>do zero, sem padrão</strong>."],
+  p:["<strong>Padronize uma obra piloto:</strong> pastas, modelos e dados num formato único.","<strong>Monte sua biblioteca de contexto:</strong> planilhas, memoriais e normas que você mais usa, prontos para anexar à IA.","<strong>Reescreva seus 3 pedidos mais comuns à IA</strong> incluindo contexto completo — e compare o resultado."]},
+ A:{b:"A",t:'Você está na etapa <span>AUTOMATIZAR</span>',
+  d:"Você já organiza bem a informação — mas ainda executa na mão o que poderia rodar sozinho. Você usa IA como assistente pontual, quando ela poderia ser sua equipe. O próximo salto é transformar tarefa repetida em fluxo.",
+  c:["<strong>10-20h/semana em tarefas</strong> que já podem rodar com IA.","Entregas mais lentas que a concorrência que já automatizou.","Seu conhecimento técnico preso em <strong>trabalho braçal</strong>."],
+  p:["<strong>Escolha UMA tarefa</strong> que se repete toda semana (orçamento, diário, relatório) e monte o fluxo dela com IA.","<strong>Suba a escada:</strong> prompt reutilizável → skill → agente. Um degrau por vez.","<strong>Teste um sistema pronto</strong> (como o ObraIA para orçamento SINAPI) e compare o tempo com o seu processo atual."]},
+ V:{b:"V",t:'Você está na etapa <span>VALIDAR</span>',
+  d:"Você já automatiza — mas ou confia demais, ou confia de menos. Falta um protocolo de validação que te deixe assinar com segurança o que a IA produz. É exatamente essa etapa que separa velocidade de imprudência.",
+  c:["<strong>Risco técnico real:</strong> erro de IA assinado é responsabilidade sua (ART é sua).","Ou medo que te faz <strong>desperdiçar a velocidade</strong> que você já conquistou.","Insegurança na frente de cliente e fiscalização."],
+  p:["<strong>Crie seu checklist de validação</strong> por tipo de entrega: quantitativos, códigos, premissas, normas.","<strong>Use amostragem e ordem de grandeza:</strong> conferência de minutos, segurança de anos.","<strong>Documente as conferências</strong> — vira seu diferencial diante de cliente e órgão público."]},
+ E:{b:"E",t:'Você está na etapa <span>ESCALAR</span>',
+  d:"Tecnicamente, você domina o jogo: organiza, automatiza e valida. Seu gargalo agora é de negócio — transformar o tempo que a IA devolve em clientes, margem e crescimento. É a etapa onde engenheiro vira comandante.",
+  c:["Tempo liberado sendo <strong>engolido por mais operacional</strong>.","Preço que <strong>não reflete seu novo nível</strong> de entrega.","Crescimento dependendo só de indicação."],
+  p:["<strong>Reprecifique:</strong> entrega mais rápida e validada vale MAIS, não menos. Cobre por valor.","<strong>Bloqueie na agenda o tempo liberado</strong> para prospecção e gestão — senão o operacional engole.","<strong>Monte sua rotina comercial assistida por IA:</strong> propostas, follow-up e apresentações."]},
+ C:{b:"⚓",t:'Você já navega como <span>COMANDANTE</span>',
+  d:"Poucos engenheiros estão onde você está: informação organizada, fluxos rodando, validação com protocolo e visão de negócio. Seu próximo nível é profundidade e escala — sistemas próprios, equipe e posicionamento premium.",
+  c:["O risco agora é <strong>acomodar</strong> enquanto a fronteira avança.","Conhecimento valioso <strong>não sistematizado</strong> vira dependência de você.","Margem para crescer mais rápido do que está crescendo."],
+  p:["<strong>Transforme seus fluxos em sistema</strong> documentado que funcione sem você.","<strong>Posicione-se como referência:</strong> compartilhe seus resultados — autoridade atrai contrato.","<strong>Vamos conversar:</strong> seu perfil é o de quem colabora, testa e constrói na fronteira."]}
 };
-// Preços das assinaturas recorrentes (cobrança mensal automática via Kiwify,
-// não parcelamento tradicional — por isso não trava o limite do cartão).
-const PLANO_SEMESTRAL_MENSAL = 42.90, PLANO_SEMESTRAL_MESES = 6;
-const PLANO_ANUAL_MENSAL = 37.90, PLANO_ANUAL_MESES = 12;
-const PLANO_SEMESTRAL_TOTAL = PLANO_SEMESTRAL_MENSAL * PLANO_SEMESTRAL_MESES;
-const PLANO_ANUAL_TOTAL = PLANO_ANUAL_MENSAL * PLANO_ANUAL_MESES;
-const PLANO_BIENAL_MENSAL = 30.00, PLANO_BIENAL_MESES = 24;
-const PLANO_BIENAL_TOTAL = PLANO_BIENAL_MENSAL * PLANO_BIENAL_MESES;
-const brlCents = v => "R$ " + v.toFixed(2).replace(".", ",");
-// Preço partido em pedaços para o número grande ficar grande de verdade e os
-// centavos ficarem pequenos — é o truque tipográfico que faz R$ 37,90 parecer
-// o que ele é (baixo) em vez de parecer uma etiqueta de contrato.
-const precoHTML = v => {
-  const [i, c] = v.toFixed(2).split(".");
-  return `<div class="preco"><span class="cifra">R$</span><span class="num">${i}</span>` +
-         `<span class="cent">,${c}</span><span class="mes">/mês</span></div>`;
-};
-// Ancoragem por dia: o cérebro compara R$ 1,26/dia com um café, não com um
-// software. É a mesma conta, numa unidade que já tem referência na cabeça.
-const porDia = v => "R$ " + (v/30).toFixed(2).replace(".", ",") + " por dia";
-const SELO_CANCELA = '<div class="selo-cancela"><span>&#10003;</span> Cancele quando quiser</div>';
 
-// ── bifurcação ──
-const Q0 = {
-  q: "Você toca obra hoje — executa, fiscaliza ou administra canteiro?",
-  sub: "A resposta muda todas as perguntas seguintes. Não existe caminho certo aqui.",
-  o: [
-    { t: "<b>Sim.</b> Tenho obra andando agora — minha ou de cliente.", v: "obra" },
-    { t: "<b>Não.</b> Trabalho com projeto, orçamento, laudo ou consultoria.", v: "projeto" }
-  ]
-};
-
-// ── ganchos: a frase que aparece ANTES da pergunta, cutucando o que ele acabou de admitir
-const GANCHOS = {
-  obra: [
-    null,
-    "Obra que ninguém sabe medir <b>não é obra sob controle</b> — é obra com sorte.",
-    "O desvio de R$ 20 mil <b>começou como um desvio de R$ 2 mil</b> que ninguém viu.",
-    "Todo serviço esquecido na planilha <b>vira aditivo que o cliente não aprova</b> — ou prejuízo que sai do seu bolso.",
-    "Enquanto você mede planta no braço, <b>alguém já mandou a proposta</b> para o mesmo cliente.",
-    "A sua hora tem preço. <b>O problema é no que ela está sendo gasta.</b>"
-  ],
-  projeto: [
-    null,
-    "Proposta que demora <b>não perde por preço</b>. Perde por chegar depois.",
-    "Errar quantitativo em projeto <b>é errar na frente de quem te contratou</b> — e isso não se desfaz.",
-    "O cliente não vê o seu esforço. <b>Vê o prazo que você deu e não cumpriu.</b>",
-    "Todo orçamento que você refaz de graça <b>saiu do seu lucro</b>, não do dele.",
-    "A sua hora tem preço. <b>O problema é no que ela está sendo gasta.</b>"
-  ]
-};
-
-// ── TRILHA DE QUEM TOCA OBRA ──
-const TRILHA = {
-obra: [
- { q: "Quantas obras você acompanha ao mesmo tempo — e sabe o avanço real de cada uma agora?",
-   sub: "Não o avanço de quando você visitou. O de agora.",
-   o:[
-    {t:"Uma só, e mesmo assim preciso ligar para saber como está.", n:{obras:1,cego:1}},
-    {t:"Duas ou três. Sei de cabeça, mais ou menos.",               n:{obras:3,cego:1}},
-    {t:"Quatro ou mais. Confesso que perco o fio de algumas.",      n:{obras:5,cego:1}},
-    {t:"Acompanho todas em tempo real, com dado atualizado.",       n:{obras:3,cego:0}}]},
-
- { q: "O cliente liga e pergunta: “quanto já foi executado?”. O que acontece?",
-   sub: "Seja honesto — a resposta aqui é a que mais dói.",
-   o:[
-    {t:"Peço um dia. Preciso juntar informação de todo mundo.",     n:{resposta:2,cego:1}},
-    {t:"Dou um número aproximado e depois confirmo.",               n:{resposta:1,cego:1}},
-    {t:"Abro a planilha e respondo em alguns minutos.",             n:{resposta:0.5,cego:0}},
-    {t:"Respondo na hora, com número que eu assino.",               n:{resposta:0,cego:0}}]},
-
- { q: "Já fechou preço e descobriu depois que faltou serviço na planilha?",
-   sub: "Aquele que virou conversa difícil — ou saiu do seu bolso.",
-   o:[
-    {t:"Já, e o prejuízo passou de R$ 20 mil.",                     n:{erro:25000}},
-    {t:"Já, algo entre R$ 5 mil e R$ 20 mil.",                      n:{erro:12000}},
-    {t:"Já, mas foi pouco — abaixo de R$ 5 mil.",                   n:{erro:3000}},
-    {t:"Nunca aconteceu comigo.",                                    n:{erro:0}}]},
-
- { q: "Quantas horas você gastou no último orçamento, do PDF até a planilha pronta?",
-   sub: "Conte tudo: medir planta, procurar preço, montar EAP, conferir.",
-   o:[
-    {t:"Mais de 24 horas. Foram dias.",                             n:{horas:28}},
-    {t:"Entre 12 e 24 horas.",                                       n:{horas:18}},
-    {t:"Entre 6 e 12 horas.",                                        n:{horas:9}},
-    {t:"Menos de 6 horas.",                                          n:{horas:5}}]},
-
- { q: "Quantos orçamentos ou medições você monta por ano?",
-   sub: "Some tudo: propostas novas, medições mensais, aditivos, revisões.",
-   o:[
-    {t:"Mais de 40. É o que consome a maior parte do meu tempo.",    n:{qtd:48}},
-    {t:"Entre 20 e 40.",                                             n:{qtd:30}},
-    {t:"Entre 10 e 20.",                                             n:{qtd:15}},
-    {t:"Menos de 10.",                                               n:{qtd:7}}]},
-
- { q: "Quanto vale uma hora do seu trabalho técnico?",
-   sub: "Se nunca calculou: pegue o que você fatura por mês e divida por 160.",
-   o:[
-    {t:"Acima de R$ 200 — cobro por valor entregue.",                n:{hora:250}},
-    {t:"Entre R$ 120 e R$ 200.",                                     n:{hora:160}},
-    {t:"Entre R$ 60 e R$ 120.",                                      n:{hora:90}},
-    {t:"Abaixo de R$ 60 — ou nunca parei para calcular.",            n:{hora:55}}]}
-],
-
-// ── TRILHA DE QUEM PROJETA / ORÇA / CONSULTA ──
-projeto: [
- { q: "Do pedido do cliente até você entregar a proposta, quanto tempo passa?",
-   sub: "Da mensagem “me manda um orçamento” até o PDF na mão dele.",
-   o:[
-    {t:"Mais de uma semana. Depende de eu conseguir uma brecha.",   n:{prazo:8,cego:1}},
-    {t:"De 3 a 7 dias.",                                            n:{prazo:5,cego:1}},
-    {t:"De 1 a 2 dias.",                                            n:{prazo:1.5,cego:0}},
-    {t:"No mesmo dia.",                                              n:{prazo:0.5,cego:0}}]},
-
- { q: "Você já perdeu trabalho porque demorou para responder?",
-   sub: "Aquele cliente que sumiu — e depois você soube que fechou com outro.",
-   o:[
-    {t:"Já perdi vários. É o meu maior vazamento.",                 n:{perdidas:6}},
-    {t:"Já aconteceu algumas vezes.",                                n:{perdidas:3}},
-    {t:"Uma vez ou outra.",                                          n:{perdidas:1}},
-    {t:"Nunca — sou rápido o bastante.",                             n:{perdidas:0}}]},
-
- { q: "Erro de quantitativo que voltou para você depois de entregue: já aconteceu?",
-   sub: "Aquele que você teve que refazer, explicar — ou bancar.",
-   o:[
-    {t:"Já, e custou caro: acima de R$ 20 mil entre retrabalho e credibilidade.", n:{erro:25000}},
-    {t:"Já, algo entre R$ 5 mil e R$ 20 mil.",                       n:{erro:12000}},
-    {t:"Já, mas resolvi rápido — abaixo de R$ 5 mil.",               n:{erro:3000}},
-    {t:"Nunca voltou nada.",                                          n:{erro:0}}]},
-
- { q: "Quantas horas você gasta em cada orçamento, do PDF até a planilha pronta?",
-   sub: "Medir planta, procurar preço, montar EAP, formatar, conferir.",
-   o:[
-    {t:"Mais de 24 horas. Consome dias.",                            n:{horas:28}},
-    {t:"Entre 12 e 24 horas.",                                        n:{horas:18}},
-    {t:"Entre 6 e 12 horas.",                                         n:{horas:9}},
-    {t:"Menos de 6 horas.",                                           n:{horas:5}}]},
-
- { q: "Quantas propostas ou orçamentos você faz por ano?",
-   sub: "Incluindo os que não fecharam — esses custaram igual.",
-   o:[
-    {t:"Mais de 40.",                                                 n:{qtd:48}},
-    {t:"Entre 20 e 40.",                                              n:{qtd:30}},
-    {t:"Entre 10 e 20.",                                              n:{qtd:15}},
-    {t:"Menos de 10.",                                                n:{qtd:7}}]},
-
- { q: "Quanto vale uma hora do seu trabalho técnico?",
-   sub: "Se nunca calculou: pegue o que você fatura por mês e divida por 160.",
-   o:[
-    {t:"Acima de R$ 200 — cobro por valor entregue.",                 n:{hora:250}},
-    {t:"Entre R$ 120 e R$ 200.",                                      n:{hora:160}},
-    {t:"Entre R$ 60 e R$ 120.",                                       n:{hora:90}},
-    {t:"Abaixo de R$ 60 — ou nunca parei para calcular.",             n:{hora:55}}]}
-]};
-
-// ── estado ──
-let trilha = null, qi = -1, dados = {}, respostas = [];
+let qi = 0, scores = [0,0,0,0], answers = [];
 const $ = id => document.getElementById(id);
-const brl = v => "R$ " + Math.round(v).toLocaleString("pt-BR");
-const nf  = v => (Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:1});
-function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on')); $(id).classList.add('on'); window.scrollTo(0,0); }
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');window.scrollTo(0,0)}
 
-function iniciar(){ trilha=null; qi=-1; dados={}; respostas=[]; show('s-quiz'); render(); }
-
+function start(){qi=0;scores=[0,0,0,0];answers=[];show('s-quiz');render()}
 function render(){
-  const total = 1 + 6;
-  const passo = qi + 1;
-  $('progbar').style.width = (passo/total*100) + "%";
-  $('btnVoltar').style.display = qi >= 0 ? "" : "none";
-
-  if(qi < 0){   // bifurcação
-    $('ganchoHost').innerHTML = "";
-    $('qnum').textContent = "Pergunta 1 de 7";
-    $('qtext').textContent = Q0.q;
-    $('qsub').textContent  = Q0.sub;
-    $('opts').innerHTML = Q0.o.map((o,i)=>
-      `<button class="opt" onclick="escolherTrilha('${o.v}')"><b>${'AB'[i]}</b>${o.t}</button>`).join('');
-    return;
-  }
-  const Q = TRILHA[trilha][qi];
-  const g = GANCHOS[trilha][qi];
-  $('ganchoHost').innerHTML = g ? `<div class="gancho">${g}</div>` : "";
-  $('qnum').textContent = `Pergunta ${qi+2} de 7`;
-  $('qtext').textContent = Q.q;
-  $('qsub').textContent  = Q.sub || "";
-  $('opts').innerHTML = Q.o.map((o,i)=>
-    `<button class="opt" onclick="responder(${i})"><b>${'ABCD'[i]}</b>${o.t}</button>`).join('');
+  const Q=QS[qi];
+  $('qnum').textContent=`Pergunta ${qi+1} de ${QS.length}`;
+  $('qtext').textContent=Q.q;
+  $('opts').innerHTML=Q.o.map((o,i)=>`<button class="opt" onclick="pick(${i})"><b>${'ABCD'[i]}</b>${o}</button>`).join('');
+  // acende a rota conforme progresso
+  const prog=qi/QS.length*4;
+  document.querySelectorAll('.port').forEach((p,i)=>p.classList.toggle('lit',i<=prog));
+  document.querySelectorAll('.lane').forEach((l,i)=>l.classList.toggle('lit',i<prog-0.01));
 }
-function escolherTrilha(v){ trilha=v; qi=0; respostas.push(v); render(); }
-function responder(i){
-  const Q = TRILHA[trilha][qi];
-  Object.assign(dados, Q.o[i].n);
-  respostas.push('ABCD'[i]);
+function pick(i){
+  const Q=QS[qi];scores[Q.d]+=i;answers.push('ABCD'[i]);
   qi++;
-  if(qi < TRILHA[trilha].length) render();
-  else resultado();
-}
-function voltar(){
-  respostas.pop();
-  qi--; if(qi < -1) qi = -1;
-  if(qi < 0) trilha = null;
-  render();
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// A CONTA — conservadora de propósito.
-// Prometer 90% de economia e entregar 60% gera reembolso e destrói reputação.
-// 70% é o que o sistema faz de fato no levantamento e na cotação; o resto do
-// trabalho (decisão técnica, conferência, assinatura) continua sendo do
-// engenheiro — e continua levando o tempo dele.
-// ═════════════════════════════════════════════════════════════════════════
-const ECONOMIA = 0.70;
-function calcular(){
-  const h = dados.horas || 9, q = dados.qtd || 15, v = dados.hora || 90;
-  const horasAno   = h * q;
-  const custoAno   = horasAno * v;
-  const horasLivres= horasAno * ECONOMIA;
-  const diasUteis  = horasLivres / 8;
-  const erro       = dados.erro || 0;
-  const perdidas   = dados.perdidas || 0;
-  // ticket implícito: 40h de trabalho técnico é uma proposta média fechada
-  const ticket     = v * 40;
-  const oportunidade = perdidas * ticket;
-  // prejuízo total = as três causas somadas (é o mesmo "R" mostrado lá em cima)
-  const prejuizoTotal = custoAno + erro + oportunidade;
-  // A "economia" tem de vir do MESMO número que assusta lá em cima — senão o
-  // visitante vê "prejuízo de R$ 35 mil" e "recupera R$ 8 mil" e sente que
-  // comprar não resolve o problema (mesmo sendo 70% de recuperação real).
-  // O sistema ataca as três causas do prejuízo, não só o tempo: organiza o
-  // levantamento (tempo), estrutura o dado (erro de planilha) e agiliza a
-  // entrega (proposta perdida por demora) — por isso os 70% conservadores
-  // se aplicam ao prejuízo TOTAL, não só à fatia de horas.
-  const economiaAno= prejuizoTotal * ECONOMIA;
-  // propostas a mais que caberiam no tempo devolvido
-  const cabem      = Math.floor(horasLivres / h);
-  return {h,q,v,horasAno,custoAno,economiaAno,horasLivres,diasUteis,erro,perdidas,ticket,oportunidade,cabem,prejuizoTotal};
-}
-
-function resultado(){
-  const c = calcular();
-  const R = c.prejuizoTotal;
-  const eObra = trilha === "obra";
-  const dores = eObra ? [
-    "<b>Obra sem número atualizado</b> — quando o cliente pergunta, você pede um dia.",
-    "<b>Desvio que só aparece grande</b> — quando dava para ver em R$ 2 mil, ninguém estava olhando.",
-    "<b>Serviço esquecido na planilha</b> vira aditivo negado ou prejuízo seu.",
-    "<b>Medição refeita toda vez do zero</b>, sem histórico que se defenda em fiscalização.",
-    "<b>Você é o gargalo</b>: nada anda sem você abrir a planilha."
-  ] : [
-    "<b>Proposta que chega depois</b> — o cliente já decidiu com quem respondeu primeiro.",
-    "<b>Quantitativo que volta</b> depois de entregue, na frente de quem te contratou.",
-    "<b>Preço garimpado item por item</b>, e desatualizado no mês seguinte.",
-    "<b>Orçamento refeito de graça</b> porque mudou uma premissa do projeto.",
-    "<b>Sua capacidade travada</b> no número de horas que você aguenta por semana."
-  ];
-  const ganhos = eObra ? [
-    "A planta em PDF vira <b>planilha pronta</b> — sem medir nada no braço.",
-    "Avanço físico e financeiro <b>na mesma tela</b>, com a equipe atualizando de campo.",
-    "Você vê o desvio <b>quando ele é de R$ 2 mil</b>, não de R$ 20 mil.",
-    "Cronograma que mostra <b>qual atraso adia a entrega</b> e qual não adia.",
-    "Histórico de medição <b>que aguenta fiscalização</b> — quem informou o quê, e quando."
-  ] : [
-    "Proposta na mesa do cliente <b>no mesmo dia</b> em que ele pediu.",
-    "Preço sempre atualizado, <b>de qualquer estado</b>, sem procurar tabela.",
-    "Cada número com <b>a origem à mostra</b> — você confere em minutos, não em horas.",
-    "Planilha final que <b>aguenta pergunta de cliente e de auditoria</b>.",
-    "Capacidade multiplicada: <b>as mesmas horas rendem mais propostas</b>."
-  ];
-
-  $('s-result').innerHTML = `
-    <div class="hero-num">
-      <div class="rot">Continuar como está vai te custar</div>
-      <div class="val">${brl(R)}</div>
-      <div class="porano">por ano</div>
-      <div class="sub">${eObra ? "em tempo técnico, erro de planilha e obra sem controle"
-                               : "em tempo técnico, retrabalho e trabalho que foi para outro"}</div>
-      <div class="quebra">
-        <span><b>${brl(R/12)}</b> por mês</span>
-        <span>≈ <b>${brl(R/22/12)}</b> por dia útil</span>
-      </div>
-    </div>
-
-    <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
-      Quero parar de perder isso
-      <small>Ver como recuperar esse valor →</small></a>
-
-    <div class="cards">
-      <div class="mini bad"><div class="r">Horas por ano</div><div class="v">${nf(c.horasAno)} h</div>
-        <div class="s">${c.q} × ${c.h}h — só orçando</div></div>
-      <div class="mini bad"><div class="r">Isso em dinheiro</div><div class="v">${brl(c.custoAno)}</div>
-        <div class="s">à sua hora de ${brl(c.v)}</div></div>
-      ${c.erro>0?`<div class="mini bad"><div class="r">Erro que você bancou</div><div class="v">${brl(c.erro)}</div>
-        <div class="s">e pode repetir</div></div>`:""}
-      ${c.oportunidade>0?`<div class="mini bad"><div class="r">Trabalho que foi para outro</div><div class="v">${brl(c.oportunidade)}</div>
-        <div class="s">${c.perdidas} proposta(s) perdida(s) por demora</div></div>`:""}
-    </div>
-
-    <div class="conta">
-      <b>De onde vem esse número:</b> ${c.q} orçamentos por ano × ${c.h} horas cada = <b>${nf(c.horasAno)} horas</b>,
-      a ${brl(c.v)} a hora que você mesmo indicou.
-      ${c.erro>0?`Somei o prejuízo de <b>${brl(c.erro)}</b> que você já teve com erro de planilha.`:""}
-      ${c.oportunidade>0?`E ${c.perdidas} trabalho(s) perdido(s) por demora, a um ticket de ${brl(c.ticket)} cada.`:""}
-      Sem inventar nada: são as suas respostas multiplicadas.
-    </div>
-
-    <h1 style="font-size:24px;margin:30px 0 12px">O que está te custando isso</h1>
-    <div class="bloco"><ul>${dores.map(d=>`<li>${d}</li>`).join("")}</ul></div>
-
-    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero ganhar tempo
-      <small>Ver quanto dá para recuperar →</small></a>
-
-    <div class="hero-num" style="background:linear-gradient(160deg,#052c22,#03201a);border-color:var(--green);box-shadow:0 18px 50px rgba(74,222,128,.14)">
-      <div class="rot" style="color:#9ff5c4">Com o ObraIA, você recupera por ano</div>
-      <div class="val" style="color:#fff">${brl(c.economiaAno)}</div>
-      <div class="sub" style="color:#b6f5d3">${nf(c.horasLivres)} horas — ${nf(c.diasUteis)} dias úteis de volta na sua agenda</div>
-      <div class="sub" style="color:#7fd9ac;margin-top:8px;font-size:12px;line-height:1.5">Esse número já é conservador: os outros 30% continuam sendo trabalho seu — decisão, conferência e assinatura. A IA tira o operacional, não o seu critério técnico.</div>
-    </div>
-
-    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero economizar ${brl(c.economiaAno)} por ano
-      <small>Planos a partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
-
-    <div class="cards">
-      <div class="mini good"><div class="r">Cabem no tempo devolvido</div><div class="v">+${c.cabem}</div>
-        <div class="s">orçamentos por ano, sem virar noite</div></div>
-      <div class="mini good"><div class="r">Retorno sobre o plano anual</div><div class="v">${(c.economiaAno/PLANO_ANUAL_TOTAL).toFixed(0)}×</div>
-        <div class="s">se paga em ${Math.max(1,Math.round(365*PLANO_ANUAL_TOTAL/Math.max(1,c.economiaAno)))} dias</div></div>
-      <div class="mini good"><div class="r">Plano anual recorrente</div><div class="v">${brlCents(PLANO_ANUAL_MENSAL)}</div>
-        <div class="s">por mês — cobrança automática, sem travar o cartão</div></div>
-    </div>
-
-    <h1 style="font-size:24px;margin:30px 0 12px">O que muda na sua semana</h1>
-    <div class="bloco ganha"><ul>${ganhos.map(d=>`<li>${d}</li>`).join("")}</ul></div>
-
-    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero essa semana de volta
-      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
-
-    <div class="nave">
-      <h3>E isso é só o primeiro degrau</h3>
-      <p>O ObraIA nasceu do <b>Método NAVE</b> — a travessia que leva o engenheiro de leigo em IA
-        a quem comanda a IA. A ferramenta resolve o seu orçamento e a sua obra hoje. A plataforma
-        que está sendo construída em cima dela vai te ensinar a aplicar o método no resto do seu trabalho.</p>
-      <p style="color:var(--muted);font-size:13px">Quem entra agora acompanha essa construção de dentro — e com o preço de agora.</p>
-      <div class="rota">
-        <div class="et"><b>N · Navegar</b>Organizar a informação que a IA precisa</div>
-        <div class="et"><b>A · Automatizar</b>Transformar tarefa repetida em fluxo</div>
-        <div class="et"><b>V · Validar</b>Assinar com segurança o que a IA produz</div>
-        <div class="et"><b>E · Escalar</b>Virar tempo em margem e contrato</div>
-      </div>
-    </div>
-
-    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero ganhar tempo agora
-      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)} por mês · cancele quando quiser →</small></a>
-
-    <h1 style="font-size:24px;margin:34px 0 6px">Seja honesto com você mesmo antes de decidir</h1>
-    <p class="lead" style="margin-bottom:18px">O ObraIA não é botão mágico. Ele entra pra quem já faz esse trabalho hoje e quer fazer mais rápido, com controle — não pra quem quer terceirizar a responsabilidade técnica.</p>
-    <div class="duas">
-      <div class="bloco ganha"><h3>É pra você se</h3><ul>
-        <li>Você já orça, mede ou fiscaliza obra — sua ou de cliente</li>
-        <li>Quer o levantamento pronto em minutos, mas <b>continua conferindo</b> o que assina</li>
-        <li>Está cansado de montar a mesma planilha do zero a cada orçamento</li>
-        <li>Tem obra ou proposta rodando nos próximos meses — é ferramenta de uso recorrente</li>
-      </ul></div>
-      <div class="bloco"><h3>Não é pra você se</h3><ul>
-        <li>Espera mandar o PDF e receber orçamento pronto pra assinar sem olhar</li>
-        <li>Não vai revisar tecnicamente o que o sistema gera — a responsabilidade <b>continua sendo sua</b>, sempre</li>
-        <li>Não tem nenhuma obra ou orçamento previsto tão cedo</li>
-        <li>Busca uma ferramenta gratuita pra um uso único e esporádico</li>
-      </ul></div>
-    </div>
-
-    <h1 style="font-size:24px;margin:34px 0 14px">Quem já usa, fala assim</h1>
-    <div class="depos">
-      <div class="dep">
-        <div class="qm">"</div>
-        <p>A plataforma é sensacional, interativa e de fácil utilização. Gostei muito da ideia da utilização da IA para elaboração de planejamento e orçamento de obras — essa ferramenta irá otimizar muito o tempo para a execução desses serviços.</p>
-        <div class="quem"><div class="av">LC</div><div><div class="nome">Luiz Carlos</div><div class="cargo">Engenheiro Civil</div></div></div>
-      </div>
-      <div class="dep">
-        <div class="qm">"</div>
-        <p>Consegui usar ele bem. É um aplicativo muito bom para nós, engenheiros civis que estamos chegando agora à área. Ele soube identificar os erros do projeto e também indicar o que deveria ser feito, além de auxiliar na elaboração do orçamento.</p>
-        <div class="quem"><div class="av">AT</div><div><div class="nome">Angelline Tauana</div><div class="cargo">Engenheira Civil</div></div></div>
-      </div>
-      <div class="dep">
-        <div class="qm">"</div>
-        <p>A leitura automática dos projetos e a geração do orçamento agilizam muito o processo de levantamento de quantitativos, reduzindo o tempo em tarefas repetitivas. A conferência técnica continua sendo essencial, mas a ferramenta já entrega uma excelente base de trabalho.</p>
-        <div class="quem"><div class="av">JL</div><div><div class="nome">Jorge Luiz</div><div class="cargo">Engenheiro Civil</div></div></div>
-      </div>
-    </div>
-
-    <h1 id="planos" style="font-size:26px;margin:34px 0 6px;scroll-margin-top:18px">Todos os planos são mensais. Cancele quando quiser.</h1>
-    <p class="lead" style="margin-bottom:18px">Pelo seu perfil, o <b>anual</b> é o que faz mais sentido:
-      é o ciclo em que dá para medir resultado numa obra inteira, e o custo por mês fica no menor patamar
-      com compromisso curto.</p>
-    <p class="dica-arrasta" style="display:none;text-align:center;font-size:12px;color:var(--muted);margin-bottom:10px">← arraste para comparar os 3 planos →</p>
-
-    <div class="planos">
-      <div class="plano">
-        <div class="topo"><div class="nome">Semestral</div><div class="per">assinatura mensal · 6 meses</div></div>
-        <div class="corpo">
-          ${precoHTML(PLANO_SEMESTRAL_MENSAL)}
-          <div class="pordia">${porDia(PLANO_SEMESTRAL_MENSAL)}</div>
-          <div class="comorec"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_SEMESTRAL_MENSAL)} hoje e mais 5 mensalidades iguais, uma por mês. Não é parcelamento: não trava limite do cartão.</div>
-          ${SELO_CANCELA}
-          <div class="lin"><div class="rot">Para quem</div><div class="obs">quer testar o sistema numa obra ou num ciclo de propostas antes de se comprometer</div></div>
-          <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno/2)}</div>
-            <div class="obs">no período, pelos seus números</div></div>
-          <div class="cta"><a class="s" href="${LINKS.semestral}">Assinar 6 meses</a></div>
-        </div>
-      </div>
-
-      <div class="plano rec">
-        <div class="selo">Recomendado</div>
-        <div class="topo"><div class="nome">Anual</div><div class="per">assinatura mensal · 12 meses</div></div>
-        <div class="corpo">
-          ${precoHTML(PLANO_ANUAL_MENSAL)}
-          <div class="pordia">${porDia(PLANO_ANUAL_MENSAL)}</div>
-          <span class="economia">12% mais barato por mês que o semestral</span>
-          <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_ANUAL_MENSAL)} hoje e mais 11 mensalidades iguais, uma por mês. Não é parcelamento: não trava limite do cartão.</div>
-          ${SELO_CANCELA}
-          <div class="lin"><div class="rot">Para quem</div><div class="obs">toca obra ou orça o ano todo e quer o ciclo completo — do primeiro orçamento à entrega</div></div>
-          <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno)}</div>
-            <div class="obs">${(c.economiaAno/PLANO_ANUAL_TOTAL).toFixed(0)}× o valor do plano</div></div>
-          <div class="cta"><a class="p" href="${LINKS.anual}">Assinar 12 meses</a></div>
-        </div>
-      </div>
-
-      <div class="plano">
-        <div class="topo"><div class="nome">2 anos</div><div class="per">assinatura mensal · 24 meses</div></div>
-        <div class="corpo">
-          ${precoHTML(PLANO_BIENAL_MENSAL)}
-          <div class="pordia">${porDia(PLANO_BIENAL_MENSAL)} — o menor valor por mês</div>
-          <span class="economia">preço travado por 2 anos</span>
-          <div class="comorec" style="margin-top:9px"><b>Cobrança mensal automática.</b> ${brlCents(PLANO_BIENAL_MENSAL)} hoje e mais 23 mensalidades iguais, uma por mês. As atualizações do sistema entram sem custo.</div>
-          ${SELO_CANCELA}
-          <div class="lin"><div class="rot">Para quem</div><div class="obs">já decidiu que IA entra no processo e não quer revisitar essa conta a cada ano</div></div>
-          <div class="lin"><div class="rot">Retorno estimado</div><div class="val" style="color:var(--green)">${brl(c.economiaAno*2)}</div>
-            <div class="obs">nos 24 meses, pelos seus números</div></div>
-          <div class="cta"><a class="s" href="${LINKS.bienal}">Assinar 24 meses</a></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="barra-seg">
-      <div>&#10003; <b>Cancele quando quiser</b></div>
-      <div>&#10003; <b>7 dias</b> de garantia</div>
-      <div>&#10003; Sem multa, sem fidelidade</div>
-      <div>&#10003; Pagamento seguro Kiwify</div>
-    </div>
-
-    <div class="garantia">
-      <div class="s7">7<small>DIAS</small></div>
-      <p>Teste por 7 dias. Se não fizer sentido para o seu escritório, devolvemos o seu investimento — sem burocracia.<br>
-         <b style="color:#eafff3">E depois disso você segue livre:</b> cancele quando quiser, em um clique, direto pelo
-         e-mail da compra. Não tem multa nem período mínimo — se parar de fazer sentido, você para de pagar.</p>
-    </div>
-
-    <a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero economizar — sem risco por 7 dias
-      <small>7 dias de garantia · cancele quando quiser →</small></a>
-
-    <div class="bloco" style="margin-top:20px">
-      <h3 style="color:var(--ice)">Antes de fechar a aba</h3>
-      <p style="font-size:14.5px;color:var(--muted);line-height:1.7">
-        O número lá em cima — <b style="color:var(--red)">${brl(R)}</b> — não é o que você deixa de ganhar.
-        É o que você <b style="color:var(--ice)">já está pagando</b>, todo ano, sem emitir nota.
-        Ele não aparece no extrato porque sai em forma de madrugada, de fim de semana e de contrato que foi para outro.<br><br>
-        A pergunta que sobra é só uma: <b style="color:var(--ice)">daqui a doze meses, você quer estar fazendo a mesma conta?</b>
-      </p>
-    </div>
-
-    <a class="cta-grande vermelho" href="#planos" onclick="irParaPlanos(event)">
-      Não quero fazer essa conta de novo
-      <small>Começar por ${brlCents(PLANO_ANUAL_MENSAL)}/mês · cancele quando quiser →</small></a>
-
-    <h1 style="font-size:24px;margin:34px 0 14px">Perguntas antes de decidir</h1>
-    <details class="faq"><summary>Preciso saber programar ou entender de IA?</summary>
-      <div class="r">Não. Você usa como um site comum: envia o PDF da planta, confere o resultado. Nenhum conhecimento técnico de IA é necessário — o sistema foi feito pra engenheiro de obra, não pra programador.</div></details>
-    <details class="faq"><summary>O sistema substitui a minha responsabilidade técnica?</summary>
-      <div class="r">Não, e não deveria. O ObraIA acelera o levantamento e a cotação; a decisão técnica, a conferência e a assinatura continuam sendo suas. É exatamente o que a etapa <b style="color:var(--ice)">Validar</b> do Método NAVE ensina a fazer com segurança.</div></details>
-    <details class="faq"><summary>Funciona pra obra pública, com SINAPI e Lei 14.133?</summary>
-      <div class="r">Sim. O sistema trabalha com preços SINAPI por estado (27 estados) e foi construído considerando o contexto de contratos públicos e fiscalização.</div></details>
-    <details class="faq"><summary>E se eu quiser cancelar depois?</summary>
-      <div class="r">Cancele quando quiser, direto pelo e-mail da compra — sem multa, sem período mínimo, sem burocracia. Nenhum dos planos tem fidelidade.</div></details>
-    <details class="faq"><summary>Como funciona a garantia de 7 dias?</summary>
-      <div class="r">Teste por 7 dias. Se não fizer sentido pro seu escritório, devolvemos o valor pago — sem burocracia e sem precisar justificar.</div></details>
-    <details class="faq"><summary>O preço pode reajustar depois que eu assinar?</summary>
-      <div class="r">No plano de 24 meses o valor da mensalidade fica travado por dois anos. Atualizações e novos recursos do sistema entram sem custo extra em qualquer plano.</div></details>
-
-    <div style="max-width:420px;margin:26px auto 0">
-      <p style="text-align:center;font-size:13.5px;color:var(--muted);margin-bottom:12px">
-        Receber diagnóstico por e-mail</p>
-      <div class="campo"><label>Seu nome</label><input id="f-nome" placeholder="Como devo te chamar"></div>
-      <div class="campo"><label>Seu melhor e-mail</label><input id="f-email" type="email" placeholder="voce@email.com"></div>
-      <div class="campo"><label>WhatsApp <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input id="f-zap" placeholder="(00) 00000-0000"></div>
-      <button class="btn" onclick="enviarLead()" id="btnLead">Receber meu diagnóstico</button>
-      <div id="leadMsg" style="text-align:center;font-size:13px;margin-top:10px;color:var(--green)"></div>
-    </div>
-
-    <p class="rodape">Cálculo feito com as suas respostas, redução de 70% no tempo de levantamento e cotação.
-      O sistema não substitui a sua decisão técnica — a assinatura continua sendo sua.</p>`;
-  show('s-result');
-  _ligarBarraFixa(c);
-  window._diag = { trilha, dados, respostas: respostas.join(""), custoAno: Math.round(c.custoAno), total: Math.round(R) };
-}
-
-function enviarLead(){
-  const nome=$('f-nome').value.trim(), email=$('f-email').value.trim(), zap=$('f-zap').value.trim();
-  if(!nome||!email){ $('leadMsg').style.color="var(--amber)"; $('leadMsg').textContent="Preencha nome e e-mail."; return; }
-  const payload = Object.assign({ nome, email, whatsapp: zap, data: new Date().toISOString(),
-    origem: "diagnostico" }, window._diag || {});
-  if(WEBHOOK_URL){ try{ fetch(WEBHOOK_URL,{method:"POST",mode:"no-cors",
-    headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}); }catch(e){} }
-  $('btnLead').style.display="none";
-  $('leadMsg').style.color="var(--green)";
-  $('leadMsg').textContent="✓ Enviado. Confira sua caixa de entrada (e o spam, por garantia).";
-}
-
-// ═════════════════════════════════════════════════════════════════════════
-// CHAMADAS PARA A AÇÃO
-// ═════════════════════════════════════════════════════════════════════════
-
-// Leva aos planos e acende o bloco por um instante. O piscar não é enfeite:
-// depois de uma rolagem longa a pessoa chega e não sabe onde olhar. O realce
-// diz "é aqui" sem precisar de seta nem de texto.
-function irParaPlanos(ev){
-  if(ev) ev.preventDefault();
-  const alvo = $('planos');
-  if(!alvo) return;
-  alvo.scrollIntoView({behavior:"smooth", block:"start"});
-  const cx = document.querySelector(".planos");
-  if(!cx) return;
-  cx.style.transition = "box-shadow .5s ease";
-  cx.style.boxShadow  = "0 0 0 3px rgba(74,222,128,.55)";
-  cx.style.borderRadius = "16px";
-  setTimeout(()=>{ cx.style.boxShadow = "none"; }, 1400);
-}
-
-// Barra fixa no rodapé. Ela só nasce depois do resultado — antes disso não há
-// nada decidido para empurrar — e se esconde sozinha quando os planos entram
-// na tela, senão cobriria justamente os botões de assinar.
-function _ligarBarraFixa(c){
-  if(document.getElementById("ctaFixo")) return;
-  const bar = document.createElement("div");
-  bar.id = "ctaFixo"; bar.className = "cta-fixo";
-  bar.innerHTML = `<a class="cta-grande" href="#planos" onclick="irParaPlanos(event)">
-      Quero economizar ${brl(c.economiaAno)} por ano
-      <small>A partir de ${brlCents(PLANO_BIENAL_MENSAL)}/m\u00eas \u00b7 cancele quando quiser</small></a>`;
-  document.body.appendChild(bar);
-  document.body.classList.add("com-barra");
-
-  const planos = document.querySelector(".planos");
-  const mostrar = v => bar.classList.toggle("on", v);
-
-  // IntersectionObserver quando existe; quem não tem cai no evento de rolagem.
-  // O fallback importa: sem ele a barra ficaria acesa por cima dos planos em
-  // navegador antigo — pior do que não ter barra nenhuma.
-  if(planos && "IntersectionObserver" in window){
-    new IntersectionObserver(es => mostrar(!es[0].isIntersecting),
-      {rootMargin:"-10% 0px -20% 0px"}).observe(planos);
-  }else{
-    const chk = () => {
-      if(!planos){ mostrar(true); return; }
-      const r = planos.getBoundingClientRect();
-      mostrar(r.top > window.innerHeight * 0.9 || r.bottom < 0);
-    };
-    window.addEventListener("scroll", chk, {passive:true});
-    chk();
+  if(qi<QS.length){render()}else{
+    document.querySelectorAll('.port').forEach(p=>p.classList.add('lit'));
+    document.querySelectorAll('.lane').forEach(l=>l.classList.add('lit'));
+    show('s-form');
   }
-  setTimeout(()=>mostrar(true), 900);   // aparece deslizando, sem susto
+}
+function stageKey(){
+  // cada dimensão vale 0-6; primeira dimensão fraca (<4) define a etapa
+  const keys=['N','A','V','E'];
+  for(let i=0;i<4;i++){if(scores[i]<4)return keys[i]}
+  return 'C';
+}
+function verResultado(){
+  const nome=$('f-nome').value.trim(),email=$('f-email').value.trim(),zap=$('f-zap').value.trim();
+  if(!nome||!email){alert('Preencha nome e e-mail para receber o resultado.');return}
+  const st=stageKey();
+  const payload={nome,email,whatsapp:zap,estagio:st,respostas:answers.join(''),scores:scores.join('-'),data:new Date().toISOString(),origem:'diagnostico-nave'};
+  if(WEBHOOK_URL){try{fetch(WEBHOOK_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})}catch(e){}}
+  const P=PROFILES[st];
+  $('r-badge').textContent=P.b;
+  $('r-title').innerHTML=P.t;
+  $('r-desc').textContent=P.d;
+  $('r-custo').innerHTML=P.c.map(x=>`<li>${x}</li>`).join('');
+  $('r-passos').innerHTML=P.p.map(x=>`<li>${x}</li>`).join('');
+  window._lead=payload;
+  show('s-result');
+}
+function irWhats(){
+  const l=window._lead||{};
+  const msg=encodeURIComponent(`Olá Lucas! Fiz o Diagnóstico NAVE e meu estágio é "${l.estagio||'?'}" (respostas: ${l.respostas||''}). Meu nome é ${l.nome||''} e quero avançar de etapa.`);
+  window.open(`https://wa.me/${WHATS}?text=${msg}`,'_blank');
 }
 </script>
-<a class="whatsfloat" href="https://wa.me/5581997977068" target="_blank" rel="noopener">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.525 5.845L.057 23.5l5.816-1.452A11.956 11.956 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.88 0-3.638-.49-5.167-1.348l-.37-.218-3.449.861.876-3.363-.24-.386A9.961 9.961 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
-  Falar no WhatsApp
-</a>
 </body>
 </html>
