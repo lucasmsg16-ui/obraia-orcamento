@@ -3,7 +3,7 @@
  * Recebe cada cadastro do lista-espera.html e grava uma linha na planilha.
  * Preso à planilha em que este script for criado (Extensões ▸ Apps Script).
  *
- * Campos enviados pela página: nome, email, whatsapp, data, origem
+ * Campos enviados pela página: nome, email, whatsapp, faixa_preco, data, origem
  */
 
 function doPost(e) {
@@ -15,8 +15,8 @@ function doPost(e) {
 
     // Cria o cabeçalho na primeira execução
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(['Data', 'Nome', 'E-mail', 'WhatsApp', 'Origem']);
-      sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+      sheet.appendRow(['Data', 'Nome', 'E-mail', 'WhatsApp', 'Faixa de preço', 'Origem']);
+      sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
       sheet.setFrozenRows(1);
     }
 
@@ -39,6 +39,7 @@ function doPost(e) {
       d.nome || '',
       d.email || '',
       d.whatsapp || '',
+      d.faixa_preco || '',
       d.origem || 'lista-espera-engenheiro-dominante-ia'
     ]);
 

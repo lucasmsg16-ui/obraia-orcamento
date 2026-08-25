@@ -34,6 +34,13 @@
     padding:12px 14px;color:var(--txt);font-size:14.5px;font-family:inherit;outline:none;transition:.15s}
   .campo input:focus{border-color:var(--cyan)}
 
+  .faixas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .faixa{border:1.5px solid var(--line);background:#fbfcfd;border-radius:11px;padding:11px 10px;
+    text-align:center;font-size:13px;font-weight:700;color:var(--txt);cursor:pointer;
+    font-family:inherit;transition:.15s}
+  .faixa:hover{border-color:var(--cyan)}
+  .faixa.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
   .btn{display:block;width:100%;background:var(--navy);color:#fff;border:none;border-radius:12px;
     padding:15px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:6px;transition:.15s}
   .btn:hover{background:var(--navy2)}
@@ -65,6 +72,15 @@
     <div class="campo"><label>Seu nome</label><input id="f-nome" placeholder="Como devo te chamar"></div>
     <div class="campo"><label>Seu melhor e-mail</label><input id="f-email" type="email" placeholder="voce@email.com"></div>
     <div class="campo"><label>WhatsApp <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input id="f-zap" placeholder="(00) 00000-0000"></div>
+    <div class="campo">
+      <label>Quanto você pagaria para dominar a IA nas suas obras e projetos?</label>
+      <div class="faixas" id="faixas">
+        <button type="button" class="faixa" data-v="ate 497" onclick="marcarFaixa(this)">até R$ 497</button>
+        <button type="button" class="faixa" data-v="497 a 697" onclick="marcarFaixa(this)">R$ 497 a R$ 697</button>
+        <button type="button" class="faixa" data-v="697 a 897" onclick="marcarFaixa(this)">R$ 697 a R$ 897</button>
+        <button type="button" class="faixa" data-v="mais de 897" onclick="marcarFaixa(this)">mais de R$ 897</button>
+      </div>
+    </div>
     <button class="btn" id="btnEnviar" onclick="enviar()">Entrar na lista de espera</button>
     <div id="msg"></div>
     <p class="priv">Sem spam. Só aviso quando as vagas abrirem de verdade.</p>
@@ -84,6 +100,13 @@
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbz9QKer9c0pVVKVLAU6JBFGu66ssQL4cpMOf-KI5-xqHXMqP2-vH5VN_3xVLK32w4L3/exec";
 
 const $ = id => document.getElementById(id);
+let faixaEscolhida = "";
+
+function marcarFaixa(el){
+  document.querySelectorAll('.faixa').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  faixaEscolhida = el.dataset.v;
+}
 
 function validaEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
@@ -103,12 +126,17 @@ function enviar(){
     msg.textContent = "Confere o e-mail — parece que está incompleto.";
     return;
   }
+  if(!faixaEscolhida){
+    msg.style.color = "var(--amber)";
+    msg.textContent = "Escolhe uma faixa de valor ali em cima — me ajuda a montar o curso certo.";
+    return;
+  }
 
   $('btnEnviar').disabled = true;
   $('btnEnviar').textContent = "Enviando…";
 
   const payload = {
-    nome, email, whatsapp: zap,
+    nome, email, whatsapp: zap, faixa_preco: faixaEscolhida,
     data: new Date().toISOString(),
     origem: "lista-espera-engenheiro-dominante-ia"
   };
