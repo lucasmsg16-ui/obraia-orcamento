@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lucas sousa · engenheiro civil</title>
+<meta name="description" content="ObraIA, Diagnóstico NAVE, lista de espera do Engenheiro Dominante da IA e contato direto.">
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --line:#e4e9f0;
+    --navy:#0a1830; --navy2:#123156; --sand:#f0e6cf; --sandtxt:#5a4a2a;
+    --cyan:#0e8f83; --txt:#0a1830; --muted:#5b6b82;
+    --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);font-family:var(--font);line-height:1.55;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  .page{width:100%;max-width:480px;padding:42px 20px 50px}
+
+  .avatar{width:88px;height:88px;border-radius:50%;margin:0 auto 16px;
+    background:linear-gradient(135deg,var(--cyan),var(--navy2));
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;font-weight:800;color:#fff}
+  .eyebrow{text-align:center;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;
+    color:var(--muted);font-weight:700;margin-bottom:8px}
+  h1{text-align:center;font-size:32px;font-weight:800;margin-bottom:12px;color:var(--navy);letter-spacing:-.5px}
+  .tagline{text-align:center;color:var(--muted);font-size:14.5px;max-width:380px;margin:0 auto 22px}
+
+  .socials{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:30px}
+  .socials a{background:#fff;border:1.5px solid var(--line);color:var(--navy);
+    font-size:11.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    padding:9px 16px;border-radius:999px;text-decoration:none;transition:.15s}
+  .socials a.on{background:var(--navy);border-color:var(--navy);color:#fff}
+  .socials a:hover{border-color:var(--navy)}
+
+  section{margin-bottom:26px}
+  .lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+    font-weight:700;margin-bottom:10px}
+
+  /* card de destaque — o diagnóstico, primeira coisa que explica quem eu sou */
+  .hi{background:var(--navy);border-radius:18px;padding:24px 22px;color:#fff}
+  .hi .lbl{color:#8fd8cf;margin-bottom:10px}
+  .hi h2{font-size:19px;font-weight:800;margin-bottom:8px;line-height:1.3}
+  .hi p{font-size:13.5px;color:#c3d2e6;margin-bottom:16px;line-height:1.55}
+  .hi a{display:inline-block;font-size:13px;font-weight:700;color:#fff;text-decoration:none;
+    background:rgba(255,255,255,.14);padding:10px 18px;border-radius:999px;transition:.15s}
+  .hi a:hover{background:rgba(255,255,255,.24)}
+
+  /* duas colunas — ObraIA (sistema) e WhatsApp (contato direto) */
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .colcard{border-radius:16px;padding:18px 16px;display:flex;flex-direction:column;min-height:170px}
+  .colcard.dark{background:var(--navy2);color:#fff}
+  .colcard.dark .lbl{color:#9fc3e0}
+  .colcard.dark p{color:#c3d2e6}
+  .colcard.sand{background:var(--sand);color:var(--navy)}
+  .colcard.sand .lbl{color:var(--sandtxt)}
+  .colcard.sand p{color:#6b5c3c}
+  .colcard h3{font-size:16px;font-weight:800;margin-bottom:6px;line-height:1.25}
+  .colcard p{font-size:12px;line-height:1.5;margin-bottom:14px;flex:1}
+  .colcard .go{font-size:12.5px;font-weight:800;text-decoration:none;color:inherit;cursor:pointer}
+
+  /* sobre mim — o contexto por escrito, sem link nenhum */
+  .about h2{font-size:19px;font-weight:800;color:var(--navy);line-height:1.4;margin-bottom:10px}
+  .about h2 b{color:var(--cyan)}
+  .about p{font-size:13.5px;color:var(--muted);line-height:1.65}
+
+  /* card branco de material — mesmo padrão: título + explicação + ação */
+  .mat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+  .mat .lbl{color:var(--cyan)}
+  .mat h3{font-size:16.5px;font-weight:800;color:var(--navy);margin-bottom:6px}
+  .mat p{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px}
+  .mat a{font-size:13px;font-weight:800;color:var(--navy);text-decoration:none}
+  .mat a:hover{color:var(--cyan)}
+
+  footer{text-align:center;padding-top:6px}
+  footer .ft{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  footer .row{display:flex;justify-content:center;gap:18px;margin-bottom:18px}
+  footer .row a{font-size:12px;font-weight:700;color:var(--navy);text-decoration:none}
+  footer .row a:hover{color:var(--cyan)}
+  footer .cp{font-size:11px;color:#a4b1c2}
+
+  @media(max-width:360px){.cols{gap:8px} .colcard{padding:14px 12px;min-height:150px}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="avatar">LS</div>
+  <div class="eyebrow">Engenheiro Civil</div>
+  <h1>lucas sousa</h1>
+  <p class="tagline">engenharia civil com 12 anos de obra. mostro o processo de gerenciar R$ 123 milhões em contratos usando IA no dia a dia, sem pressa e sem discurso vazio.</p>
+
+  <div class="socials">
+    <a class="on" href="https://instagram.com/eng.lucasmendess" target="_blank" rel="noopener">Instagram</a>
+    <a href="https://tiktok.com/@eng.lucasmendess" target="_blank" rel="noopener">TikTok</a>
+    <a href="https://youtube.com/@eng.lucasmendess" target="_blank" rel="noopener">YouTube</a>
+  </div>
+
+  <!-- destaque: explica quem eu sou antes de vender qualquer coisa -->
+  <section class="hi">
+    <div class="lbl">Grátis · 3 minutos</div>
+    <h2>Descubra seu estágio com a IA</h2>
+    <p>Um diagnóstico rápido pra entender se você ainda está no operacional afogado em planilha, ou já no caminho de comandar a IA na sua rotina de obra. Resultado na hora.</p>
+    <a href="https://app.marabertoeng.com.br/diagnostico.html" target="_blank" rel="noopener">fazer o diagnóstico →</a>
+  </section>
+
+  <!-- duas colunas: o sistema que eu uso, e a conversa direta comigo -->
+  <section class="cols">
+    <a class="colcard dark" href="https://app.marabertoeng.com.br/diagnostico.html" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="lbl">Sistema</div>
+      <h3>Conheça o ObraIA</h3>
+      <p>O que eu mesmo uso pra orçar, planejar e acompanhar as obras da minha carteira com IA — do PDF ao pacote completo da obra, pra você iniciar e terminar bem.</p>
+      <span class="go">ver como funciona →</span>
+    </a>
+
+    <a class="colcard sand" href="https://wa.me/5581997977068" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="lbl">Fala comigo</div>
+      <h3>Tirar uma dúvida</h3>
+      <p>Sobre o ObraIA, sobre a trilha, ou só quer trocar uma ideia sobre gestão de obra com IA. Eu mesmo respondo.</p>
+      <span class="go">chamar no whatsapp →</span>
+    </a>
+  </section>
+
+  <!-- sobre mim: o contexto por escrito, sem venda nenhuma aqui -->
+  <section class="about">
+    <div class="lbl">Sobre mim</div>
+    <h2>12 anos de obra, e a IA virou <b>parte da rotina</b> — não modismo.</h2>
+    <p>Hoje gerencio R$ 123 milhões em contratos de obra. Comecei a usar a IA pra parar de perder tempo com planilha e decidir mais rápido. Aqui eu mostro esse processo de verdade: o que funciona, onde a IA erra, e como eu confiro tudo antes de assinar. Sem prompt mágico.</p>
+  </section>
+
+  <!-- trilha em produção: card no mesmo padrão dos outros -->
+  <section class="mat">
+    <div class="lbl">Curso · em produção</div>
+    <h3>Engenheiro Dominante da IA</h3>
+    <p>Não é mais um curso solto de prompt. É o método que muda a forma como você aprende a trabalhar: aplicar IA em cada etapa da engenharia — do jeito que eu uso na minha própria carteira de obras, sem perder o critério técnico. Entre na lista de espera e seja avisado assim que abrir.</p>
+    <a href="https://wa.me/5581997977068?text=Quero%20entrar%20na%20lista%20de%20espera%20do%20Engenheiro%20Dominante%20da%20IA" target="_blank" rel="noopener">entrar na lista de espera →</a>
+  </section>
+
+  <footer>
+    <div class="ft">me chama, eu respondo</div>
+    <div class="row">
+      <a href="https://wa.me/5581997977068" target="_blank" rel="noopener">WhatsApp</a>
+      <a href="https://instagram.com/eng.lucasmendess" target="_blank" rel="noopener">Direct</a>
+    </div>
+    <div class="cp">© 2026 Lucas Sousa · Mar Aberto Engenharia</div>
+  </footer>
+</div>
+</body>
+</html>
