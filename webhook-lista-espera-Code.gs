@@ -1,7 +1,8 @@
 /**
  * Webhook da Lista de Espera — Engenheiro Dominante da IA → Google Sheets
- * Recebe cada cadastro do lista-espera.html e grava uma linha na planilha.
- * Preso à planilha em que este script for criado (Extensões ▸ Apps Script).
+ * Recebe cada cadastro do lista-espera.html e grava uma linha na planilha
+ * "Lista de Espera — Engenheiro Dominante da IA" (a mesma planilha em que
+ * este script já está instalado — já é a que recebe os leads reais hoje).
  *
  * Campos enviados pela página: nome, email, whatsapp, faixa_preco, data, origem
  */
@@ -18,6 +19,17 @@ function doPost(e) {
       sheet.appendRow(['Data', 'Nome', 'E-mail', 'WhatsApp', 'Faixa de preço', 'Origem']);
       sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
       sheet.setFrozenRows(1);
+    } else {
+      // Planilha já tinha cabeçalho antigo (sem a coluna "Faixa de preço",
+      // de quando a página ainda não tinha essa pergunta). Corrige uma vez,
+      // inserindo a coluna nova antes de "Origem", sem apagar nada.
+      var cabecalho = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      if (cabecalho.indexOf('Faixa de preço') === -1) {
+        var colOrigem = cabecalho.indexOf('Origem') + 1; // 1-based; 0 se não achar
+        var posInsercao = colOrigem > 0 ? colOrigem : cabecalho.length + 1;
+        sheet.insertColumnBefore(posInsercao);
+        sheet.getRange(1, posInsercao).setValue('Faixa de preço').setFontWeight('bold');
+      }
     }
 
     // A página envia JSON (via no-cors vira text/plain) — tenta JSON, cai para parâmetros

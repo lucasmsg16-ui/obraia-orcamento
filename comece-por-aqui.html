@@ -179,12 +179,13 @@ function tileAulaHtml(a, idx){
 }
 async function carregarOutrasAulas(souAdmin){
   const host = document.getElementById("aulasGrid");
-  // Trilha ainda em produção: fechada para todo mundo, menos o admin (que
-  // continua vendo os quadros aqui pra conferir como vai ficar quando lançar).
-  if(!souAdmin){
-    host.innerHTML = '<div class="aulas-vazio">Em breve — a trilha em vídeo está em produção e já vem incluída no seu plano.</div>';
-    return;
-  }
+  // Todo usuário autenticado pode VER a lista de módulos e aulas — a
+  // permissão de escrita (criar/editar aula, subir vídeo) continua travada
+  // só pro admin, tanto aqui no front (painelAdmin só monta se souAdmin)
+  // quanto no banco (RLS: aulas_admin_escreve/modulos_admin_escreve exigem
+  // auth.uid() = ADMIN_ID). Se não houver nenhuma aula publicada ainda,
+  // mostra o aviso de "em breve" — mas isso é sobre o CONTEÚDO, não sobre
+  // quem está logado.
   const [rm, ra] = await Promise.all([
     sb.from("modulos").select("id,titulo").eq("ativo", true).order("ordem", {ascending:true}),
     sb.from("aulas").select("id,titulo,descricao,modulo_id").eq("ativo", true).order("ordem", {ascending:true})

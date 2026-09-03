@@ -2,7 +2,17 @@
 
 **Tempo:** ~8 minutos, uma vez só.
 **Resultado:** cada pessoa que preenche `lista-espera.html` cai automaticamente
-numa planilha nova do Google, sem você precisar fazer nada.
+na planilha **Lista de Espera — Engenheiro Dominante da IA** — a mesma que
+você já criou e que já tem 3 cadastros reais nela hoje.
+
+> Atualizado: conferi direto no seu Google Drive e o webhook já escreve
+> nessa planilha corretamente — não é preciso criar nem trocar de planilha.
+> A única mudança pendente é a coluna "Faixa de preço": o script agora
+> corrige o cabeçalho sozinho na primeira execução depois da atualização,
+> sem apagar os 3 cadastros que já estão lá. Só falta você republicar a
+> versão nova do script (Parte 6) — isso eu não consigo fazer sozinho,
+> porque o acesso ao seu Drive só me deixa ler/mover arquivos, não editar
+> ou implantar código do Apps Script.
 
 ---
 
@@ -96,6 +106,35 @@ E-mail, WhatsApp e Origem preenchidos.
 > Não apareceu nada? Espere uns 10 segundos e recarregue de novo — às vezes
 > o Google demora um pouco na primeira gravação. Se continuar vazio, confira
 > se a URL na Parte 4 foi colada certinha, sem espaço sobrando.
+
+---
+
+## PARTE 6 — Atualizar o script (2 min)
+
+Isso é o que você precisa fazer **agora**. Só salvar o código novo (Ctrl+S)
+não é suficiente — o link publicado (`/exec`) continua servindo a versão
+antiga até você fizer isto:
+
+1. Abra a planilha **Lista de Espera — Engenheiro Dominante da IA** (a que
+   já tem os 3 cadastros) e vá em **Extensões → Apps Script**
+2. Apague todo o conteúdo do arquivo do script (**Ctrl + A**, **Delete**)
+3. Abra **`webhook-lista-espera-Code.gs`** de novo (mesma pasta de sempre,
+   dentro de `obraia-orcamento`) — o conteúdo mudou, então copie tudo de
+   novo: **Ctrl + A**, **Ctrl + C**
+4. Volte ao editor do Apps Script, cole (**Ctrl + V**) e salve (**Ctrl + S**)
+5. **Implantar → Gerenciar implantações**
+6. Clique no ícone de **lápis (editar)** na implantação que já existe
+7. Em **Versão**, escolha **Nova versão** → **Implantar**
+
+**Como saber que deu certo:** a caixa mostra a mesma **URL do app da Web**
+de antes — ela não muda, só a versão por trás dela é atualizada. Não
+precisa trocar nada em `lista-espera.html`.
+
+8. Teste: abra `lista-espera.html`, preencha um cadastro de teste escolhendo
+   uma faixa de valor, e confira na planilha se veio uma coluna nova
+   **Faixa de preço** (inserida automaticamente antes de "Origem") com a
+   linha de teste preenchida — e que os 3 cadastros antigos continuam lá,
+   só com essa coluna em branco.
 
 ---
 
