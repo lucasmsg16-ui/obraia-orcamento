@@ -324,18 +324,14 @@ async function moverAula(id, dir){
 
   SOU_ADMIN = session.user.id === ADMIN_ID;
 
-  // Trilha ainda em produção: fechada para todo mundo, menos o admin (que
-  // continua cadastrando aula/módulo aqui por trás enquanto não lança).
-  if(!SOU_ADMIN){
-    document.querySelector("main").innerHTML = `
-      <div class="vazio-lista" style="padding:70px 24px">
-        <div style="font-size:38px;margin-bottom:12px">🎓</div>
-        <h2 style="color:var(--navy);font-size:19px;margin:0 0 8px">Aulas — Método NAVE</h2>
-        <p style="margin:0">Em breve. A trilha em vídeo está em produção e já vem incluída no seu plano — sem custo extra quando lançar.</p>
-      </div>`;
-    return;
-  }
-
+  // A trilha já tem aulas publicadas — todo usuário autenticado com licença
+  // ativa vê a lista real e assiste. Isso bloqueava geral antes (só o admin
+  // via), o que fazia o vídeo "não aparecer" pra quem clicava num link de
+  // aula vindo da tela de boas-vindas (aulas.html?abrir=...): a página
+  // inteira virava um card de "Em breve", descartando o vídeo escolhido.
+  // Escrita (criar/editar/excluir aula, reordenar) continua só pro admin,
+  // tanto aqui no front (topoAdmin/admin-row só rendem se SOU_ADMIN) quanto
+  // no banco (RLS aulas_admin_escreve/modulos_admin_escreve).
   if(SOU_ADMIN){
     document.getElementById("topoAdmin").style.display = "flex";
     document.getElementById("btnNovaAula").addEventListener("click", () => abrirFormNovaAula());
