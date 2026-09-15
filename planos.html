@@ -151,6 +151,9 @@ section{padding:70px 0}
 .mock-abc .trilho i{display:block;height:100%;border-radius:8px}
 .mock-abc .pct{width:38px;text-align:right;font-size:11px;font-weight:800;color:var(--navy);flex:none}
 
+.mock-video .corpo{padding:0;background:linear-gradient(160deg,#eef3f9,#e4ecf5)}
+.mock-video video{width:100%;max-height:420px;display:block;object-fit:contain}
+
 /* ═══ DEPOIMENTOS ═══ */
 .depos-tit{text-align:center;max-width:560px;margin:0 auto 30px}
 .depos-tit .lbl{font-size:11.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--blue);font-weight:800;margin-bottom:10px}
@@ -381,19 +384,12 @@ section{padding:70px 0}
         </ul>
       </div>
       <div class="col-mock">
-        <!-- TROCAR POR CAPTURA REAL do painel de monitoramento -->
-        <div class="mock mock-dash">
+        <div class="mock mock-video">
           <div class="barra"><i></i><i></i><i></i></div>
           <div class="corpo">
-            <div class="linha-cards">
-              <div class="mc good"><div class="r">Físico</div><div class="v">62%</div><div class="barra-prog"><i style="width:62%"></i></div></div>
-              <div class="mc"><div class="r">Financeiro</div><div class="v">58%</div><div class="barra-prog"><i style="width:58%"></i></div></div>
-              <div class="mc"><div class="r">Prazo</div><div class="v">SPI 0,97</div><div class="barra-prog"><i style="width:70%"></i></div></div>
-            </div>
-            <svg viewBox="0 0 300 80" preserveAspectRatio="none">
-              <polyline points="0,70 40,60 80,52 120,40 160,34 200,24 240,18 300,10" fill="none" stroke="#dce3ea" stroke-width="2"/>
-              <polyline points="0,72 40,64 80,50 120,44 160,30 200,28 240,22 280,16" fill="none" stroke="#1792C0" stroke-width="2.5"/>
-            </svg>
+            <video autoplay muted loop playsinline>
+              <source src="obraia-02.mp4.mp4" type="video/mp4">
+            </video>
           </div>
         </div>
       </div>
@@ -412,15 +408,12 @@ section{padding:70px 0}
         </ul>
       </div>
       <div class="col-mock">
-        <!-- TROCAR POR CAPTURA REAL da curva ABC -->
-        <div class="mock mock-abc">
+        <div class="mock mock-video">
           <div class="barra"><i></i><i></i><i></i></div>
           <div class="corpo">
-            <div class="item"><div class="rot">Estrutura</div><div class="trilho"><i style="width:78%;background:#1792C0"></i></div><div class="pct">38%</div></div>
-            <div class="item"><div class="rot">Alvenaria</div><div class="trilho"><i style="width:56%;background:#5ba3d9"></i></div><div class="pct">24%</div></div>
-            <div class="item"><div class="rot">Instalações</div><div class="trilho"><i style="width:40%;background:#1e8a63"></i></div><div class="pct">18%</div></div>
-            <div class="item"><div class="rot">Acabamento</div><div class="trilho"><i style="width:32%;background:#c97a1f"></i></div><div class="pct">14%</div></div>
-            <div class="item"><div class="rot">Outros</div><div class="trilho"><i style="width:14%;background:#9db3c4"></i></div><div class="pct">6%</div></div>
+            <video autoplay muted loop playsinline>
+              <source src="obraia-03.mp4.mp4" type="video/mp4">
+            </video>
           </div>
         </div>
       </div>
@@ -577,8 +570,9 @@ section{padding:70px 0}
 <script>
 // Alguns navegadores não disparam o autoplay só pelo atributo — força o play() assim que carrega.
 window.addEventListener('DOMContentLoaded', function(){
-  var v = document.querySelector('.vitrine video');
-  if(v){ v.play().catch(function(){}); }
+  document.querySelectorAll('.vitrine video, .mock-video video').forEach(function(v){
+    v.play().catch(function(){});
+  });
 });
 
 function irParaPlanos(ev){
