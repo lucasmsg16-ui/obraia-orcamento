@@ -575,6 +575,12 @@ section{padding:70px 0}
 </div>
 
 <script>
+// Alguns navegadores não disparam o autoplay só pelo atributo — força o play() assim que carrega.
+window.addEventListener('DOMContentLoaded', function(){
+  var v = document.querySelector('.vitrine video');
+  if(v){ v.play().catch(function(){}); }
+});
+
 function irParaPlanos(ev){
   if(ev) ev.preventDefault();
   const alvo = document.getElementById('planos');
