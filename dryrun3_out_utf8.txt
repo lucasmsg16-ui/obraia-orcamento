@@ -1,0 +1,97 @@
+
+[AC] códigos: 10159 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[AL] códigos: 10049 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[AM] códigos: 10170 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[AP] códigos: 10100 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[BA] códigos: 10418 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[CE] códigos: 10125 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[DF] códigos: 10050 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[ES] códigos: 10248 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[GO] códigos: 10154 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[MA] códigos: 10207 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[MG] códigos: 10397 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[MS] códigos: 10241 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[MT] códigos: 10202 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[PA] códigos: 10275 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[PB] códigos: 10022 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[PE] códigos: 10228 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[PI] códigos: 10178 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[PR] códigos: 10285 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[RJ] códigos: 10193 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[RN] códigos: 10062 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[RO] códigos: 10337 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[RR] códigos: 10100 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[RS] códigos: 10400 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[SC] códigos: 10390 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[SE] códigos: 10021 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[SP] códigos: 10547 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[TO] códigos: 10209 novo total | 0 novos | 0 sumiram | 0 com variação de preço > 30%
+
+[composicoes_itens.json] 10527 composições | 0 novas | 0 sumiram
+
+[insumos_desc.json] 4723 insumos no total (+724 em relação ao que já existia)
+
+Referência encontrada nos arquivos: 08/2026
+
+*** ATENÇÃO: 15166 linha(s) suspeita(s) não reconhecida(s) (pareciam linha de dado mas o parser não entendeu o formato — NÃO foram aplicadas) ***
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 250 L. AF_07/2026
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 250 L. AF_07/2026
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 250 L. AF_07/2026
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 250 L. AF_07/2026
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 250 L. AF_07/2026
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE ATÉ 1,5 M, COM SOLO ARGILO-ARENOSO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE DE 1,5 A 3,0 M, COM SOLO ARGILO-ARENOSO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE ATÉ 1,5 M, COM AREIA PARA ATERRO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE DE 1,5 A 3,0 M, COM AREIA PARA ATERRO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE DE 3,0 A 6,0 M, COM AREIA PARA ATERRO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 111 HP), LARGURA ATÉ 2,5 M, PROFUNDIDADE DE 3,0 A 6,0 M, COM SOLO ARGILO-ARENOSO. AF_08/2023
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 89022 BOMBA SUBMERSÍVEL ELÉTRICA TRIFÁSICA, POTÊNCIA 2,96 HP, Ø ROTOR 144 MM SEMI-ABERTO, BOCAL DE SAÍDA CHI 0,50 100 0,
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 23000 KG, CARGA ÚTIL MÁXIMA 15935 KG, DISTÂNCIA ENTRE EIXOS 4,80 M, POTÊNCIA 230 CV, INCLUSIVE
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 23000 KG, CARGA ÚTIL MÁXIMA 15935 KG, DISTÂNCIA ENTRE EIXOS 4,80 M, POTÊNCIA 230 CV, INCLUSIVE
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 5170 MM - INCLUI CARROCERIA FIXA ABERTA DE MADEIRA - CHI DIURNO. AF_06/2015
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 5170 MM - INCLUI CARROCERIA FIXA ABERTA DE MADEIRA - CHP DIURNO. AF_06/2015
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 95265 COMPACTADOR DE SOLOS DE PERCUSÃO (SOQUETE) COM MOTOR A GASOLINA, POTÊNCIA 3 CV - CHI DIURNO. CHI 0,76 100 0,76 100
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 90973 COMPRESSOR DE AR REBOCAVEL, VAZÃO 250 PCM, PRESSAO DE TRABALHO 102 PSI, MOTOR A DIESEL POTÊNCIA CHI 8,93 100 8,93 
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 91001 COMPRESSOR DE AR REBOCAVEL, VAZÃO 400 PCM, PRESSAO DE TRABALHO 102 PSI, MOTOR A DIESEL POTÊNCIA CHI 10,59 100 10,5
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 110 CV - CHI DIURNO. AF_06/2015 % %
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 110 CV - CHP DIURNO. AF_06/2015
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 5954 COMPRESSOR DE AR REBOCÁVEL, VAZÃO 189 PCM, PRESSÃO EFETIVA DE TRABALHO 102 PSI, MOTOR DIESEL, CHI 6,67 100 6,67 100
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 90982 COMPRESSOR DE AR REBOCÁVEL, VAZÃO 748 PCM, PRESSÃO EFETIVA DE TRABALHO 102 PSI, MOTOR DIESEL, CHI 22,69 100 22,69 
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 90965 COMPRESSOR DE AR REBOCÁVEL, VAZÃO 89 PCM, PRESSÃO EFETIVA DE TRABALHO 102 PSI, MOTOR DIESEL, CHI 8,90 100 8,90 100
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 95283 DESEMPENADEIRA DE CONCRETO, PESO DE 78 KG, 4 PÁS, MOTOR A GASOLINA, POTÊNCIA 5,5 HP - CHI DIURNO. CHI 0,86 100 0,8
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 92044 DISTRIBUIDOR DE AGREGADOS REBOCAVEL, CAPACIDADE 1,9 M³, LARGURA DE TRABALHO 3,66 M - CHI DIURNO. CHI 9,10 100 9,10
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 92043 DISTRIBUIDOR DE AGREGADOS REBOCAVEL, CAPACIDADE 1,9 M³, LARGURA DE TRABALHO 3,66 M - CHP DIURNO. CHP 15,39 100 15,
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 93416 GERADOR PORTÁTIL MONOFÁSICO, POTÊNCIA 5500 VA, MOTOR A GASOLINA, POTÊNCIA DO MOTOR 13 CV - CHI CHI 0,35 100 0,35 1
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 5689 GRADE DE DISCO CONTROLE REMOTO REBOCÁVEL, COM 24 DISCOS 24 X 6 MM COM PNEUS PARA TRANSPORTE - CHP 6,69 100 6,69 100
+  SINAPI_Custo_Ref_Composicoes_AC_202608.txt: 5690 GRADE DE DISCO CONTROLE REMOTO REBOCÁVEL, COM 24 DISCOS 24" X 6 MM COM PNEUS PARA TRANSPORTE - CHI 4,33 100 4,33 10
+  ... e mais 15136
+
+Revise essas linhas antes de confiar 100% no resultado.
+
+(Dry-run — nada foi gravado. Rode de novo com --apply quando estiver satisfeito com o resumo acima.)

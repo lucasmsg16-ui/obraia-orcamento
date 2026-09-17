@@ -17,8 +17,15 @@ que o app realmente consome, em data/:
                              fonte: qualquer um dos relatorios de Custo (descricao/unidade
                              sao as mesmas em todo o Brasil, so o preco muda por estado)
 
-NAO mexe em: proprios.json (composicoes proprias do usuario) nem insumos_desc.json
-(isso vem de um relatorio diferente, "Precos de Insumos", que ainda nao foi enviado).
+  - insumos_desc.json       {"codigo": ["descricao do insumo", "unidade"]}
+                             fonte: SINAPI_Preco_Ref_Insumos_<UF>_*.txt (por estado, mas
+                             descricao/unidade sao as mesmas em todo o Brasil; NAO gravamos
+                             preco de insumo aqui porque o app nunca le esse campo).
+                             Formato mais fragil (colunas separadas pela extracao do PDF):
+                             qualquer pagina onde a contagem de codigos e unidades nao bater
+                             e descartada inteira, nunca "adivinhada".
+
+NAO mexe em: proprios.json (composicoes proprias do usuario).
 
 MODO DE USO (sempre nessa ordem):
 
@@ -201,6 +208,104 @@ def parse_analitico(path):
 
 
 # ---------------------------------------------------------------------------
+# Parser do relatorio de PRECOS DE INSUMOS (por estado)
+#
+# Formato MUITO mais fragil que os dois anteriores: a extracao do PDF quebrou
+# a tabela em blocos por COLUNA, nao por linha. Cada "pagina" traz, nessa
+# ordem: um bloco com todos os "codigo descricao" da pagina, depois o
+# cabecalho "Unid." seguido de todas as unidades da pagina (na MESMA ordem
+# dos codigos), depois "Origem" (ignorado, nao precisamos) e "Precos (R$)"
+# (ignorado, o app nunca le preco de insumos deste arquivo).
+#
+# Por isso so aceitamos os dados de uma pagina se a quantidade de codigos
+# bater exatamente com a quantidade de unidades daquela pagina. Se nao
+# bater, a pagina inteira e descartada e aparece nas "suspeitas" - nunca
+# tentamos adivinhar o alinhamento.
+# ---------------------------------------------------------------------------
+
+PAGE_START_RE = re.compile(r'^P[áa]gina:\s*\d+\s*/\s*\d+$')
+CODE_DESC_INSUMO_RE = re.compile(r'^(\d{6})\s+(.+)$')
+FAMILIA_RE = re.compile(r'^\d{6}$')
+COEF_INSUMO_RE = re.compile(r'^\d+,\d+$')
+UNIT_TOKEN_RE = re.compile(r'^[A-ZÇÃÕ0-9]{1,8}$')
+STRAY_LABELS = {
+    'Insumo', 'Representativo', 'Representado', 'Código', 'Coeficiente',
+    'Descrição do Insumo', 'Família', 'Unid.', 'Origem', 'de Preço',
+}
+
+
+def parse_insumos_precos(path):
+    """Retorna (descricoes, unidades, suspeitas) para o relatorio de Precos de Insumos.
+    NAO le preco (o app nao usa preco deste arquivo, so descricao + unidade)."""
+    descricoes = {}
+    unidades = {}
+    suspeitas = []
+
+    mode = 'CODES'  # 'CODES' | 'UNITS' | 'SKIP'
+    last_code = None
+    pagina_codigos = []
+    pagina_unidades = []
+
+    def fechar_pagina():
+        if not pagina_codigos and not pagina_unidades:
+            return
+        if len(pagina_codigos) == len(pagina_unidades):
+            for c, u in zip(pagina_codigos, pagina_unidades):
+                unidades[c] = u
+        else:
+            suspeitas.append(
+                f'{Path(path).name}: página com {len(pagina_codigos)} código(s) mas '
+                f'{len(pagina_unidades)} unidade(s) — página inteira descartada'
+            )
+
+    for raw in ler_linhas(path):
+        line = raw.strip()
+        if not line:
+            continue
+
+        if PAGE_START_RE.match(line):
+            fechar_pagina()
+            pagina_codigos, pagina_unidades = [], []
+            mode = 'CODES'
+            last_code = None
+            continue
+
+        if line == 'Unid.':
+            mode = 'UNITS'
+            last_code = None
+            continue
+        if line == 'Origem':
+            mode = 'SKIP'
+            continue
+        if line in STRAY_LABELS:
+            continue
+
+        if mode == 'CODES':
+            m = CODE_DESC_INSUMO_RE.match(line)
+            if m:
+                codigo, desc = m.groups()
+                descricoes[codigo] = desc.strip()
+                pagina_codigos.append(codigo)
+                last_code = codigo
+                continue
+            if FAMILIA_RE.match(line) or COEF_INSUMO_RE.match(line):
+                continue  # código de família / coeficiente — ruído esperado, ignora
+            if last_code is not None:
+                descricoes[last_code] = (descricoes[last_code] + ' ' + line).strip()
+            continue
+
+        if mode == 'UNITS':
+            if UNIT_TOKEN_RE.match(line):
+                pagina_unidades.append(line)
+            continue
+
+        # mode == 'SKIP': ignora até a próxima página (Origem / Preços)
+
+    fechar_pagina()
+    return descricoes, unidades, suspeitas
+
+
+# ---------------------------------------------------------------------------
 # Orquestracao
 # ---------------------------------------------------------------------------
 
@@ -323,6 +428,36 @@ def main():
             print(f'  -> gravado {alvo.name} ({len(itens)} composições)')
     else:
         print('AVISO: nenhum arquivo SINAPI_Analitico_Ref_Composicoes_*.txt encontrado em', raw_dir)
+
+    # --- 2.5) insumos_desc.json (relatorio de precos de insumos, por estado) ---
+    # So descricao + unidade (o app nunca le preco deste arquivo). Formato mais
+    # fragil (colunas separadas) - qualquer pagina com contagem desencontrada
+    # e descartada inteira e cai nas "suspeitas", nunca e adivinhada.
+    insumos_files = sorted(raw_dir.glob('SINAPI_Preco_Ref_Insumos_*.txt'))
+    if insumos_files:
+        insumos_desc_acumulado = carregar_json(data_dir / 'insumos_desc.json')
+        total_desc_antes = len(insumos_desc_acumulado)
+        for f in insumos_files:
+            desc_i, unid_i, suspeitas_i = parse_insumos_precos(f)
+            todas_suspeitas += suspeitas_i
+            for codigo, desc in desc_i.items():
+                unidade = unid_i.get(codigo)
+                if unidade:
+                    insumos_desc_acumulado[codigo] = [desc, unidade]
+                elif codigo not in insumos_desc_acumulado:
+                    # sem unidade confiável (pagina descartada) e ainda nao temos
+                    # esse codigo de outra fonte -> nao inventa unidade, pula
+                    continue
+        novos_insumos = len(insumos_desc_acumulado) - total_desc_antes
+        print(f'\n[insumos_desc.json] {len(insumos_desc_acumulado)} insumos no total '
+              f'({novos_insumos:+d} em relação ao que já existia)')
+        if args.apply:
+            backup(data_dir / 'insumos_desc.json', backup_dir)
+            salvar_json(data_dir / 'insumos_desc.json', insumos_desc_acumulado)
+            print(f'  -> gravado insumos_desc.json ({len(insumos_desc_acumulado)} códigos)')
+    else:
+        print('AVISO: nenhum arquivo SINAPI_Preco_Ref_Insumos_*.txt encontrado em', raw_dir,
+              '(insumos_desc.json não será tocado)')
 
     # --- 3) descricoes.json / unidades.json (acumulado de todos os arquivos lidos) ---
     if args.apply:

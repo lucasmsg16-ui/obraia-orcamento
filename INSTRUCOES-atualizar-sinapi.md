@@ -50,28 +50,39 @@ em scripts/atualizar_sinapi.py.
    estado, quantos sumiram, quantas variações de preço > 30%, e a lista de
    "linhas suspeitas" no final).
 
-3. Antes de aplicar, confira estes dois casos conhecidos no resultado do
-   dry-run (eu já validei manualmente que é isso que tem que dar):
+3. Antes de aplicar, confira estes casos conhecidos no resultado do dry-run
+   (eu já validei manualmente que é isso que tem que dar):
    - Composição 104658 (piso podotátil) no estado CE deve dar preço
      [172.77, 170.07]
    - Composição 104658 em composicoes_itens.json deve conter exatamente:
      I 34353 (8.62), I 34357 (0.24), I 36178 (6.4375), C 88309 (0.639),
      C 88316 (1.279)
-   Se esses dois casos não baterem, PARE e me avise antes de aplicar
+   - Insumo 000001 (ACETILENO - RECARGA DE GAS PARA CILINDRO) em
+     insumos_desc.json deve ter unidade "KG"
+   - Insumo 000002 (OXIGENIO - RECARGA DE GAS PARA CILINDRO) em
+     insumos_desc.json deve ter unidade "M3"
+   Se algum desses casos não bater, PARE e me avise antes de aplicar
    qualquer coisa — tem algo errado no parsing.
 
-4. Se bateu e o resumo geral parece razoável (sem quantidade absurda de
+4. O relatório de insumos (SINAPI_Preco_Ref_Insumos_*.txt) tem um formato
+   bem mais frágil que os outros dois — o script já lida com isso descartando
+   (e reportando em "suspeitas") qualquer página onde a contagem não fechar,
+   em vez de adivinhar. É normal aparecer bem mais "suspeitas" vindas desses
+   arquivos do que dos outros dois relatórios — isso é o script sendo
+   conservador, não um sinal de erro generalizado. Só me avise se a proporção
+   parecer absurda (tipo mais da metade das páginas descartadas).
+
+5. Se bateu e o resumo geral parece razoável (sem quantidade absurda de
    "linhas suspeitas" nem estados com metade dos códigos sumindo), rode
    com --apply:
    python scripts/atualizar_sinapi.py --raw-dir sinapi-raw --data-dir data --apply
 
-5. O script já faz backup automático de tudo que sobrescreve, numa pasta
+6. O script já faz backup automático de tudo que sobrescreve, numa pasta
    data/_backup_<data>. Não apague essa pasta.
 
-6. NÃO mexa em data/proprios.json nem data/insumos_desc.json — o script já
-   não toca neles, mantenha assim.
+7. NÃO mexa em data/proprios.json — o script já não toca nele, mantenha assim.
 
-7. Não faça commit nem push sozinho — eu confiro os arquivos primeiro e
+8. Não faça commit nem push sozinho — eu confiro os arquivos primeiro e
    publico manualmente pelo GitHub Desktop.
 ```
 
@@ -91,5 +102,7 @@ estiver dentro de `sinapi-raw/` são atualizados. RN, RO, RR, SC, SE, SP e TO
 continuam com o preço antigo até você mandar os arquivos deles e rodar o
 script de novo (pode rodar quantas vezes quiser, sempre com backup).
 
-Já a `composicoes_itens.json`, `descricoes.json` e `unidades.json` são
-nacionais — são atualizadas de uma vez só com os arquivos que você já tem.
+Já a `composicoes_itens.json`, `descricoes.json`, `unidades.json` e
+`insumos_desc.json` são as mesmas em todo o Brasil — são atualizadas de uma
+vez só com os arquivos que você já tem, mesmo que falte algum estado no
+relatório de Custo.
