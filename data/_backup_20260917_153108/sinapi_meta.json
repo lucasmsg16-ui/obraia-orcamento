@@ -1,0 +1,8 @@
+{
+  "_leia": "Manifesto da base de precos. ATUALIZE ESTE ARQUIVO SEMPRE que trocar os sinapi_XX.json. A referencia mostrada na tela, no Excel entregue e no rodape do PDF assinado vem DAQUI. Se este arquivo faltar ou estiver invalido, o sistema mostra 'referencia nao confirmada' em vez de inventar uma data.",
+  "referencia": "05/2026",
+  "referencia_extenso": "Maio de 2026",
+  "atualizado_em": "2026-05-20",
+  "fonte": "Caixa Economica Federal / IBGE - SINAPI",
+  "observacao": "Precos por estado, colunas [sem desoneracao, com desoneracao]. Composicoes e insumos na mesma referencia."
+}

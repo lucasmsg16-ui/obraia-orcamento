@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inscrição — Aula ao vivo e gratuita · 13/10</title>
+<meta name="description" content="Inscreva-se na aula ao vivo e gratuita do dia 13/10 sobre IA aplicada à engenharia. Vagas limitadas.">
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --bg:#f4f6f9; --card:#ffffff; --line:#e4e9f0;
+    --navy:#0a1830; --navy2:#123156; --cyan:#0e8f83; --green:#1e8a63;
+    --txt:#0a1830; --muted:#5b6b82; --amber:#a1650f;
+    --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);font-family:var(--font);line-height:1.55;
+    display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  .page{width:100%;max-width:460px;padding:48px 20px 60px}
+
+  .back{display:inline-block;font-size:13px;color:var(--muted);text-decoration:none;margin-bottom:22px}
+  .back:hover{color:var(--navy)}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--cyan);font-weight:700;margin-bottom:10px}
+  .eyebrow .bolinha{width:6px;height:6px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 3px rgba(30,138,99,.18)}
+  h1{font-size:27px;font-weight:800;color:var(--navy);line-height:1.28;margin-bottom:10px}
+  .lead{color:var(--muted);font-size:14.5px;line-height:1.6;margin-bottom:10px}
+  .lead b{color:var(--txt)}
+
+  .data-box{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);
+    border-radius:14px;padding:14px 16px;margin-bottom:22px}
+  .data-box .num{background:var(--navy);color:#fff;border-radius:10px;padding:8px 12px;text-align:center;
+    font-weight:800;line-height:1.1}
+  .data-box .num b{display:block;font-size:19px}
+  .data-box .num span{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;opacity:.85}
+  .data-box .txt b{display:block;font-size:13.5px;color:var(--txt)}
+  .data-box .txt span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px 22px}
+  .campo{margin-bottom:14px}
+  .campo label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  .campo label .req{color:var(--amber)}
+  .campo input{width:100%;background:#fbfcfd;border:1.5px solid var(--line);border-radius:11px;
+    padding:12px 14px;color:var(--txt);font-size:14.5px;font-family:inherit;outline:none;transition:.15s}
+  .campo input:focus{border-color:var(--cyan)}
+
+  .grupo-tit{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  .op{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .op.c3{grid-template-columns:1fr 1fr 1fr}
+  .op button{border:1.5px solid var(--line);background:#fbfcfd;border-radius:11px;padding:11px 8px;
+    text-align:center;font-size:12.5px;font-weight:700;color:var(--txt);cursor:pointer;
+    font-family:inherit;transition:.15s;line-height:1.25}
+  .op button:hover{border-color:var(--cyan)}
+  .op button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+
+  .btn{display:block;width:100%;background:var(--navy);color:#fff;border:none;border-radius:12px;
+    padding:15px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:8px;transition:.15s}
+  .btn:hover{background:var(--navy2)}
+  .btn:disabled{opacity:.6;cursor:default}
+
+  #msg{text-align:center;font-size:13px;margin-top:12px;min-height:16px}
+
+  .priv{font-size:11.5px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.5}
+
+  .ok{display:none;text-align:center;padding:20px 4px}
+  .ok .check{width:52px;height:52px;border-radius:50%;background:#e7f5ee;color:var(--green);
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;margin:0 auto 14px}
+  .ok h2{font-size:18px;font-weight:800;color:var(--navy);margin-bottom:8px}
+  .ok p{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .ok a{display:inline-block;margin-top:16px;font-size:13px;font-weight:700;color:var(--navy);text-decoration:none}
+  .ok a:hover{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="link.html">← voltar</a>
+
+  <div class="eyebrow"><span class="bolinha"></span> Aula ao vivo · gratuita · vagas limitadas</div>
+  <h1>Como usar IA pra ganhar tempo e dinheiro na engenharia</h1>
+  <p class="lead">Uma aula ao vivo, direto comigo, mostrando na prática como aplicar IA em orçamento, levantamento e gestão de obra. <b>Sem custo.</b></p>
+
+  <div class="data-box">
+    <div class="num"><b>13</b><span>OUT</span></div>
+    <div class="txt"><b>Terça-feira, 13 de outubro</b><span>Ao vivo · o link de acesso chega por e-mail e WhatsApp perto da data</span></div>
+  </div>
+
+  <div class="card" id="formCard">
+    <div class="campo"><label>Seu nome <span class="req">*</span></label><input id="f-nome" placeholder="Como devo te chamar"></div>
+    <div class="campo"><label>WhatsApp <span class="req">*</span></label><input id="f-zap" placeholder="(00) 00000-0000"></div>
+    <div class="campo"><label>Seu melhor e-mail <span class="req">*</span></label><input id="f-email" type="email" placeholder="voce@email.com"></div>
+
+    <div class="campo">
+      <div class="grupo-tit">Você atua como:</div>
+      <div class="op" id="atuacao">
+        <button type="button" data-v="Engenheiro(a) Civil" onclick="marcar(this,'atuacao')">Engenheiro(a) Civil</button>
+        <button type="button" data-v="Arquiteto(a)" onclick="marcar(this,'atuacao')">Arquiteto(a)</button>
+        <button type="button" data-v="Técnico(a)" onclick="marcar(this,'atuacao')">Técnico(a)</button>
+        <button type="button" data-v="Gestor(a) de obra" onclick="marcar(this,'atuacao')">Gestor(a) de obra</button>
+        <button type="button" data-v="Estudante" onclick="marcar(this,'atuacao')">Estudante</button>
+        <button type="button" data-v="Outro" onclick="marcar(this,'atuacao')">Outro</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <div class="grupo-tit">Hoje, você usa IA no seu trabalho:</div>
+      <div class="op c3" id="usoia">
+        <button type="button" data-v="Nunca usei" onclick="marcar(this,'usoia')">Nunca usei</button>
+        <button type="button" data-v="De vez em quando" onclick="marcar(this,'usoia')">Às vezes</button>
+        <button type="button" data-v="Uso todo dia" onclick="marcar(this,'usoia')">Todo dia</button>
+      </div>
+    </div>
+
+    <div class="campo">
+      <div class="grupo-tit">Como você ficou sabendo dessa aula:</div>
+      <div class="op" id="origemlead">
+        <button type="button" data-v="Instagram" onclick="marcar(this,'origemlead')">Instagram</button>
+        <button type="button" data-v="YouTube" onclick="marcar(this,'origemlead')">YouTube</button>
+        <button type="button" data-v="Indicação" onclick="marcar(this,'origemlead')">Indicação</button>
+        <button type="button" data-v="Outro" onclick="marcar(this,'origemlead')">Outro</button>
+      </div>
+    </div>
+
+    <button class="btn" id="btnEnviar" onclick="enviar()">Garantir minha vaga</button>
+    <div id="msg"></div>
+    <p class="priv">Sem spam. Só aviso sobre esta aula e o acesso a ela.</p>
+  </div>
+
+  <div class="ok" id="okCard">
+    <div class="check">✓</div>
+    <h2>Vaga garantida!</h2>
+    <p>Você vai receber o link de acesso à aula ao vivo por e-mail e WhatsApp perto do dia 13/10. Fica de olho.</p>
+    <a href="link.html">← voltar pra página inicial</a>
+  </div>
+
+</div>
+
+<script>
+// ===== Cole aqui a URL do webhook (Apps Script) desta aula ao vivo =====
+const WEBHOOK_URL = "COLE_AQUI_A_URL_DO_WEBHOOK";
+
+const $ = id => document.getElementById(id);
+const escolhas = { atuacao: "", usoia: "", origemlead: "" };
+
+function marcar(el, grupo){
+  el.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  escolhas[grupo] = el.dataset.v;
+}
+
+function validaEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function validaZap(v){ return v.replace(/\D/g,'').length >= 10; }
+
+function enviar(){
+  const nome = $('f-nome').value.trim();
+  const zap = $('f-zap').value.trim();
+  const email = $('f-email').value.trim();
+  const msg = $('msg');
+
+  if(!nome || !zap || !email){
+    msg.style.color = "var(--amber)";
+    msg.textContent = "Preencha nome, WhatsApp e e-mail — são obrigatórios.";
+    return;
+  }
+  if(!validaEmail(email)){
+    msg.style.color = "var(--amber)";
+    msg.textContent = "Confere o e-mail — parece que está incompleto.";
+    return;
+  }
+  if(!validaZap(zap)){
+    msg.style.color = "var(--amber)";
+    msg.textContent = "Confere o WhatsApp — falta algum número.";
+    return;
+  }
+
+  $('btnEnviar').disabled = true;
+  $('btnEnviar').textContent = "Enviando…";
+
+  const payload = {
+    nome, whatsapp: zap, email,
+    atuacao: escolhas.atuacao,
+    uso_ia: escolhas.usoia,
+    como_conheceu: escolhas.origemlead,
+    data: new Date().toISOString(),
+    origem: "aula-ao-vivo-13-10"
+  };
+
+  if(WEBHOOK_URL && WEBHOOK_URL.indexOf("COLE_AQUI") === -1){
+    fetch(WEBHOOK_URL, {
+      method: "POST", mode: "no-cors",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
+  }
+
+  $('formCard').style.display = "none";
+  $('okCard').style.display = "block";
+}
+</script>
+</body>
+</html>
