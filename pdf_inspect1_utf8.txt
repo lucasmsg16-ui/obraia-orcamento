@@ -1,0 +1,43 @@
+total paginas: 179
+page size: 841.89 595.28
+total words: 675
+{'text': 'SINAPI', 'x0': 130.06, 'x1': 179.94799999999998, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 49.88799999999998, 'direction': 'ltr'}
+{'text': '-', 'x0': 184.108, 'x1': 191.02, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 6.912000000000006, 'direction': 'ltr'}
+{'text': 'Sistema', 'x0': 195.18, 'x1': 253.116, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 57.93600000000001, 'direction': 'ltr'}
+{'text': 'Nacional', 'x0': 257.276, 'x1': 323.564, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 66.28800000000001, 'direction': 'ltr'}
+{'text': 'de', 'x0': 327.72400000000005, 'x1': 346.588, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 18.863999999999976, 'direction': 'ltr'}
+{'text': 'Pesquisa', 'x0': 350.74800000000005, 'x1': 415.164, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 64.41599999999994, 'direction': 'ltr'}
+{'text': 'de', 'x0': 419.324, 'x1': 438.188, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 18.863999999999976, 'direction': 'ltr'}
+{'text': 'Custos', 'x0': 442.348, 'x1': 492.53999999999996, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 50.19199999999995, 'direction': 'ltr'}
+{'text': 'e', 'x0': 496.7, 'x1': 505.61199999999997, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 8.911999999999978, 'direction': 'ltr'}
+{'text': '�ndices', 'x0': 509.772, 'x1': 560.4599999999999, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 50.68799999999993, 'direction': 'ltr'}
+{'text': 'da', 'x0': 564.62, 'x1': 584.412, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 19.79200000000003, 'direction': 'ltr'}
+{'text': 'Constru��o', 'x0': 588.572, 'x1': 674.7640000000001, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 86.19200000000012, 'direction': 'ltr'}
+{'text': 'Civil', 'x0': 678.924, 'x1': 711.8360000000001, 'top': 29.029999999999973, 'doctop': 624.31, 'bottom': 45.02999999999997, 'upright': True, 'height': 16.0, 'width': 32.91200000000015, 'direction': 'ltr'}
+{'text': 'P�gina:', 'x0': 737.99, 'x1': 773.1, 'top': 29.350000000000023, 'doctop': 624.63, 'bottom': 39.35000000000002, 'upright': True, 'height': 10.0, 'width': 35.110000000000014, 'direction': 'ltr'}
+{'text': '2', 'x0': 775.7, 'x1': 782.3000000000001, 'top': 29.350000000000023, 'doctop': 624.63, 'bottom': 39.35000000000002, 'upright': True, 'height': 10.0, 'width': 6.600000000000023, 'direction': 'ltr'}
+{'text': '/', 'x0': 784.9, 'x1': 789.02, 'top': 29.350000000000023, 'doctop': 624.63, 'bottom': 39.35000000000002, 'upright': True, 'height': 10.0, 'width': 4.1200000000000045, 'direction': 'ltr'}
+{'text': '179', 'x0': 791.62, 'x1': 811.4200000000001, 'top': 29.350000000000023, 'doctop': 624.63, 'bottom': 39.35000000000002, 'upright': True, 'height': 10.0, 'width': 19.800000000000068, 'direction': 'ltr'}
+{'text': 'RELAT�RIO', 'x0': 31.18, 'x1': 86.39999999999999, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 55.21999999999999, 'direction': 'ltr'}
+{'text': 'DE', 'x0': 89.0, 'x1': 101.52, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 12.519999999999996, 'direction': 'ltr'}
+{'text': 'PRE�OS', 'x0': 104.12, 'x1': 142.93, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 38.81, 'direction': 'ltr'}
+{'text': 'DE', 'x0': 145.53, 'x1': 158.05, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 12.52000000000001, 'direction': 'ltr'}
+{'text': 'INSUMOS', 'x0': 160.65, 'x1': 206.33000000000004, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 45.680000000000035, 'direction': 'ltr'}
+{'text': '|', 'x0': 257.95, 'x1': 260.67, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 2.7200000000000273, 'direction': 'ltr'}
+{'text': 'Encargos', 'x0': 263.27, 'x1': 305.28, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 42.00999999999999, 'direction': 'ltr'}
+{'text': 'sociais', 'x0': 307.88, 'x1': 338.01, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 30.129999999999995, 'direction': 'ltr'}
+{'text': 'SEM', 'x0': 340.61, 'x1': 360.10999999999996, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 19.499999999999943, 'direction': 'ltr'}
+{'text': 'desonera��o:', 'x0': 362.71, 'x1': 425.01, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 62.30000000000001, 'direction': 'ltr'}
+{'text': 'Horista:', 'x0': 442.2, 'x1': 478.37, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 36.170000000000016, 'direction': 'ltr'}
+{'text': '112,61%', 'x0': 484.04, 'x1': 530.47, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 46.43000000000001, 'direction': 'ltr'}
+{'text': 'Mensalista:', 'x0': 540.74, 'x1': 593.03, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 52.289999999999964, 'direction': 'ltr'}
+{'text': '69,03%', 'x0': 598.7, 'x1': 638.5300000000001, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 39.83000000000004, 'direction': 'ltr'}
+{'text': '|', 'x0': 654.8, 'x1': 657.52, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 2.7200000000000273, 'direction': 'ltr'}
+{'text': 'M�s', 'x0': 660.12, 'x1': 678.77, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 18.649999999999977, 'direction': 'ltr'}
+{'text': 'de', 'x0': 681.37, 'x1': 693.16, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 11.789999999999964, 'direction': 'ltr'}
+{'text': 'Refer�ncia:', 'x0': 695.76, 'x1': 747.77, 'top': 49.18999999999994, 'doctop': 644.4699999999999, 'bottom': 59.18999999999994, 'upright': True, 'height': 10.0, 'width': 52.00999999999999, 'direction': 'ltr'}
+{'text': '08/2026', 'x0': 766.36, 'x1': 810.71, 'top': 49.860000000000014, 'doctop': 645.14, 'bottom': 59.860000000000014, 'upright': True, 'height': 10.0, 'width': 44.35000000000002, 'direction': 'ltr'}
+{'text': 'Localidade:', 'x0': 31.18, 'x1': 84.88, 'top': 62.610000000000014, 'doctop': 657.89, 'bottom': 72.61000000000001, 'upright': True, 'height': 10.0, 'width': 53.699999999999996, 'direction': 'ltr'}
+{'text': 'RIO', 'x0': 90.55, 'x1': 109.37, 'top': 62.610000000000014, 'doctop': 657.89, 'bottom': 72.61000000000001, 'upright': True, 'height': 10.0, 'width': 18.820000000000007, 'direction': 'ltr'}
+{'text': 'BRANCO', 'x0': 111.97, 'x1': 156.82, 'top': 62.610000000000014, 'doctop': 657.89, 'bottom': 72.61000000000001, 'upright': True, 'height': 10.0, 'width': 44.849999999999994, 'direction': 'ltr'}
+{'text': '-', 'x0': 159.42, 'x1': 163.98999999999998, 'top': 62.610000000000014, 'doctop': 657.89, 'bottom': 72.61000000000001, 'upright': True, 'height': 10.0, 'width': 4.569999999999993, 'direction': 'ltr'}
