@@ -1,4 +1,0 @@
-num tabelas encontradas: 1
----tabela--- 2 linhas
-['C�digo', 'Coeficiente', 'C�digo', 'Descri��o do Insumo', 'Unid.', 'Origem', 'Pre�os (R$)', None]
-['Fam�lia', None, 'Insumo', None, None, 'de Pre�o', 'SEM desonera��o', 'COM desonera��o']

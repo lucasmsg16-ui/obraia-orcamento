@@ -18,12 +18,16 @@ que o app realmente consome, em data/:
                              sao as mesmas em todo o Brasil, so o preco muda por estado)
 
   - insumos_desc.json       {"codigo": ["descricao do insumo", "unidade"]}
-                             fonte: SINAPI_Preco_Ref_Insumos_<UF>_*.txt (por estado, mas
+                             fonte: SINAPI_Preco_Ref_Insumos_<UF>_*.pdf (por estado, mas
                              descricao/unidade sao as mesmas em todo o Brasil; NAO gravamos
                              preco de insumo aqui porque o app nunca le esse campo).
-                             Formato mais fragil (colunas separadas pela extracao do PDF):
-                             qualquer pagina onde a contagem de codigos e unidades nao bater
-                             e descartada inteira, nunca "adivinhada".
+                             Le direto do PDF (nao do .txt) usando a POSICAO (coordenada X)
+                             de cada palavra na pagina, via a biblioteca pdfplumber. O .txt
+                             exportado desse relatorio embaralha a ordem do texto quando uma
+                             descricao e' longa (colunas saem fora de ordem), o que tornava
+                             o parser antigo (baseado em texto linear) nao confiavel; usando
+                             a posicao real de cada palavra no PDF isso deixa de ser um
+                             problema. Requer: pip install pdfplumber.
 
 NAO mexe em: proprios.json (composicoes proprias do usuario).
 
@@ -43,6 +47,8 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
+
+import pdfplumber
 
 # ---------------------------------------------------------------------------
 # Utilidades
@@ -208,101 +214,98 @@ def parse_analitico(path):
 
 
 # ---------------------------------------------------------------------------
-# Parser do relatorio de PRECOS DE INSUMOS (por estado)
+# Parser do relatorio de PRECOS DE INSUMOS (por estado) — le do PDF, nao do .txt
 #
-# Formato MUITO mais fragil que os dois anteriores: a extracao do PDF quebrou
-# a tabela em blocos por COLUNA, nao por linha. Cada "pagina" traz, nessa
-# ordem: um bloco com todos os "codigo descricao" da pagina, depois o
-# cabecalho "Unid." seguido de todas as unidades da pagina (na MESMA ordem
-# dos codigos), depois "Origem" (ignorado, nao precisamos) e "Precos (R$)"
-# (ignorado, o app nunca le preco de insumos deste arquivo).
+# O .txt exportado desse relatorio embaralha a ordem do texto quando uma
+# descricao e' longa (a extracao para .txt junta as colunas fora de ordem),
+# entao um parser baseado em texto linear nao consegue confiar no alinhamento
+# codigo<->unidade em boa parte das paginas. O PDF original nao tem esse
+# problema: cada palavra tem uma posicao (coordenada X, COLUNA) na pagina, e
+# essa posicao NAO muda pagina a pagina nem estado a estado (e' sempre o
+# mesmo modelo de relatorio). Entao agrupamos palavras por linha (mesma
+# coordenada Y) e usamos a coordenada X pra saber a qual coluna cada palavra
+# pertence — sem precisar adivinhar pelo formato do texto.
 #
-# Por isso so aceitamos os dados de uma pagina se a quantidade de codigos
-# bater exatamente com a quantidade de unidades daquela pagina. Se nao
-# bater, a pagina inteira e descartada e aparece nas "suspeitas" - nunca
-# tentamos adivinhar o alinhamento.
+# Colunas (coordenada X, em pontos, validado em varios estados e paginas):
+#   Codigo Familia:  0-85    (nao usamos, so serve pra confirmar que a linha
+#                              e' uma linha de dado, nao cabecalho/rodape)
+#   Coeficiente:     85-155  (nao usamos)
+#   Codigo Insumo:   155-198
+#   Descricao:       198-536
+#   Unidade:         536-580
+#   Origem / Precos: 580+    (nao usamos - o app nunca le preco de insumo
+#                              deste arquivo)
+#
+# Se uma linha nao tem um codigo de insumo valido (6 digitos) na coluna
+# certa, ela e' tratada como continuacao da descricao do codigo anterior
+# (linha de texto quebrado) ou ignorada (cabecalho/rodape). Nunca inventamos
+# unidade: se a coluna de unidade vier vazia pra um codigo, ele fica de fora
+# do resultado (nao grava com unidade errada nem chutada).
 # ---------------------------------------------------------------------------
 
-PAGE_START_RE = re.compile(r'^P[áa]gina:\s*\d+\s*/\s*\d+$')
-CODE_DESC_INSUMO_RE = re.compile(r'^(\d{6})\s+(.+)$')
 FAMILIA_RE = re.compile(r'^\d{6}$')
-COEF_INSUMO_RE = re.compile(r'^\d+,\d+$')
-UNIT_TOKEN_RE = re.compile(r'^[A-ZÇÃÕ0-9]{1,8}$')
-STRAY_LABELS = {
-    'Insumo', 'Representativo', 'Representado', 'Código', 'Coeficiente',
-    'Descrição do Insumo', 'Família', 'Unid.', 'Origem', 'de Preço',
-}
+COL_FAMILIA = (0, 85)
+COL_CODIGO = (155, 198)
+COL_DESC = (198, 536)
+COL_UNID = (536, 580)
 
 
-def parse_insumos_precos(path):
-    """Retorna (descricoes, unidades, suspeitas) para o relatorio de Precos de Insumos.
-    NAO le preco (o app nao usa preco deste arquivo, so descricao + unidade)."""
+def _agrupa_linhas_por_posicao(words, tolerancia=2.5):
+    """Agrupa palavras da pagina em linhas visuais, usando a coordenada Y
+    (topo do texto). Palavras da mesma linha impressa tem 'top' bem proximo."""
+    linhas = []
+    atual = []
+    top_atual = None
+    for w in sorted(words, key=lambda w: (w['top'], w['x0'])):
+        if top_atual is None or abs(w['top'] - top_atual) <= tolerancia:
+            atual.append(w)
+            top_atual = w['top'] if top_atual is None else top_atual
+        else:
+            linhas.append(atual)
+            atual = [w]
+            top_atual = w['top']
+    if atual:
+        linhas.append(atual)
+    return linhas
+
+
+def _texto_na_coluna(linha, coluna):
+    ini, fim = coluna
+    return ' '.join(w['text'] for w in linha if ini <= w['x0'] < fim)
+
+
+def parse_insumos_pdf(path):
+    """Retorna (descricoes, unidades, sem_unidade) lendo o PDF de Precos de
+    Insumos de um estado. NAO le preco (o app nao usa preco deste arquivo,
+    so descricao + unidade)."""
     descricoes = {}
     unidades = {}
-    suspeitas = []
+    sem_unidade = []
 
-    mode = 'CODES'  # 'CODES' | 'UNITS' | 'SKIP'
-    last_code = None
-    pagina_codigos = []
-    pagina_unidades = []
+    with pdfplumber.open(path) as pdf:
+        for pagina in pdf.pages:
+            linhas = _agrupa_linhas_por_posicao(pagina.extract_words())
+            last_codigo = None
+            for linha in linhas:
+                linha.sort(key=lambda w: w['x0'])
+                familia_txt = _texto_na_coluna(linha, COL_FAMILIA)
+                codigo_txt = _texto_na_coluna(linha, COL_CODIGO)
+                desc_txt = _texto_na_coluna(linha, COL_DESC)
+                unid_txt = _texto_na_coluna(linha, COL_UNID)
 
-    def fechar_pagina():
-        if not pagina_codigos and not pagina_unidades:
-            return
-        if len(pagina_codigos) == len(pagina_unidades):
-            for c, u in zip(pagina_codigos, pagina_unidades):
-                unidades[c] = u
-        else:
-            suspeitas.append(
-                f'{Path(path).name}: página com {len(pagina_codigos)} código(s) mas '
-                f'{len(pagina_unidades)} unidade(s) — página inteira descartada'
-            )
+                if FAMILIA_RE.match(familia_txt) and FAMILIA_RE.match(codigo_txt):
+                    descricoes[codigo_txt] = desc_txt
+                    if unid_txt:
+                        unidades[codigo_txt] = unid_txt
+                    else:
+                        sem_unidade.append(f'{Path(path).name}: código {codigo_txt} sem unidade identificada')
+                    last_codigo = codigo_txt
+                    continue
 
-    for raw in ler_linhas(path):
-        line = raw.strip()
-        if not line:
-            continue
+                if not familia_txt and not codigo_txt and desc_txt and last_codigo is not None:
+                    descricoes[last_codigo] = (descricoes[last_codigo] + ' ' + desc_txt).strip()
 
-        if PAGE_START_RE.match(line):
-            fechar_pagina()
-            pagina_codigos, pagina_unidades = [], []
-            mode = 'CODES'
-            last_code = None
-            continue
-
-        if line == 'Unid.':
-            mode = 'UNITS'
-            last_code = None
-            continue
-        if line == 'Origem':
-            mode = 'SKIP'
-            continue
-        if line in STRAY_LABELS:
-            continue
-
-        if mode == 'CODES':
-            m = CODE_DESC_INSUMO_RE.match(line)
-            if m:
-                codigo, desc = m.groups()
-                descricoes[codigo] = desc.strip()
-                pagina_codigos.append(codigo)
-                last_code = codigo
-                continue
-            if FAMILIA_RE.match(line) or COEF_INSUMO_RE.match(line):
-                continue  # código de família / coeficiente — ruído esperado, ignora
-            if last_code is not None:
-                descricoes[last_code] = (descricoes[last_code] + ' ' + line).strip()
-            continue
-
-        if mode == 'UNITS':
-            if UNIT_TOKEN_RE.match(line):
-                pagina_unidades.append(line)
-            continue
-
-        # mode == 'SKIP': ignora até a próxima página (Origem / Preços)
-
-    fechar_pagina()
-    return descricoes, unidades, suspeitas
+    return descricoes, unidades, sem_unidade
 
 
 # ---------------------------------------------------------------------------
@@ -430,22 +433,22 @@ def main():
         print('AVISO: nenhum arquivo SINAPI_Analitico_Ref_Composicoes_*.txt encontrado em', raw_dir)
 
     # --- 2.5) insumos_desc.json (relatorio de precos de insumos, por estado) ---
-    # So descricao + unidade (o app nunca le preco deste arquivo). Formato mais
-    # fragil (colunas separadas) - qualquer pagina com contagem desencontrada
-    # e descartada inteira e cai nas "suspeitas", nunca e adivinhada.
-    insumos_files = sorted(raw_dir.glob('SINAPI_Preco_Ref_Insumos_*.txt'))
+    # So descricao + unidade (o app nunca le preco deste arquivo). Le do PDF
+    # original (nao do .txt) usando a posicao de cada palavra na pagina -
+    # ver comentario em parse_insumos_pdf pra entender por que.
+    insumos_files = sorted(raw_dir.glob('SINAPI_Preco_Ref_Insumos_*.pdf'))
     if insumos_files:
         insumos_desc_acumulado = carregar_json(data_dir / 'insumos_desc.json')
         total_desc_antes = len(insumos_desc_acumulado)
         for f in insumos_files:
-            desc_i, unid_i, suspeitas_i = parse_insumos_precos(f)
-            todas_suspeitas += suspeitas_i
+            desc_i, unid_i, sem_unidade_i = parse_insumos_pdf(f)
+            todas_suspeitas += sem_unidade_i
             for codigo, desc in desc_i.items():
                 unidade = unid_i.get(codigo)
                 if unidade:
                     insumos_desc_acumulado[codigo] = [desc, unidade]
                 elif codigo not in insumos_desc_acumulado:
-                    # sem unidade confiável (pagina descartada) e ainda nao temos
+                    # sem unidade confiável nesta pagina e ainda nao temos
                     # esse codigo de outra fonte -> nao inventa unidade, pula
                     continue
         novos_insumos = len(insumos_desc_acumulado) - total_desc_antes
@@ -456,7 +459,7 @@ def main():
             salvar_json(data_dir / 'insumos_desc.json', insumos_desc_acumulado)
             print(f'  -> gravado insumos_desc.json ({len(insumos_desc_acumulado)} códigos)')
     else:
-        print('AVISO: nenhum arquivo SINAPI_Preco_Ref_Insumos_*.txt encontrado em', raw_dir,
+        print('AVISO: nenhum arquivo SINAPI_Preco_Ref_Insumos_*.pdf encontrado em', raw_dir,
               '(insumos_desc.json não será tocado)')
 
     # --- 3) descricoes.json / unidades.json (acumulado de todos os arquivos lidos) ---

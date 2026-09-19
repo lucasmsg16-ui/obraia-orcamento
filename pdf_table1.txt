@@ -1,4 +1,0 @@
-num tabelas encontradas: 1
----tabela--- 2 linhas
-['Código', 'Coeficiente', 'Código', 'Descrição do Insumo', 'Unid.', 'Origem', 'Preços (R$)', None]
-['Família', None, 'Insumo', None, None, 'de Preço', 'SEM desoneração', 'COM desoneração']
