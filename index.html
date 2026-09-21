@@ -709,6 +709,7 @@ body.nav-collapsed .nav-item{ position:relative; }
         <option value="estrutural">🧱 Estrutural — fôrma/armação (aço, concreto, fôrma)</option>
         <option value="eletrico">💡 Elétrico — instalações elétricas</option>
         <option value="hidrossanitario">🚿 Hidrossanitário — água / esgoto</option>
+        <option value="climatizacao">❄️ Climatização/Exaustão — dutos, exaustão mecânica, ar condicionado</option>
         <option value="infraestrutura">🛣️ Infraestrutura — drenagem, pavimentação, terraplenagem</option>
       </select>
       <div class="muted" style="font-size:12px;margin-top:6px">
@@ -1196,7 +1197,7 @@ const APP = {
   projectName: "",
   estado: "PE",
   desoneracao: false,  // false = sem, true = com
-  disciplina: "auto",  // auto (detecta por folha/multi) | arquitetonico | estrutural | eletrico | hidrossanitario
+  disciplina: "auto",  // auto (detecta por folha/multi) | arquitetonico | estrutural | eletrico | hidrossanitario | climatizacao | infraestrutura
   pageDisc: {},        // gid -> disciplina detectada/confirmada (modo multi-disciplina)
   pageTextCache: {},   // gid -> texto da camada (cache p/ classificação e análise)
   filtroDisc: "todas", // filtro ativo nas ferramentas: "todas" (geral) ou uma disciplina
@@ -1479,6 +1480,10 @@ const DISCIPLINAS = {
   estrutural:      { label:"Estrutural (fôrma/armação)",     nums:[3,4] },
   eletrico:        { label:"Elétrico",                       nums:[13] },
   hidrossanitario: { label:"Hidrossanitário (água/esgoto)",  nums:[12] },
+  // Climatização/exaustão mecânica: dutos, exaustores, dampers, coifas, grelhas,
+  // ar condicionado. Categoria própria (21) — NÃO é hidrossanitário mesmo quando
+  // o texto do projeto usa a palavra "ventilação" (ventilação mecânica ≠ ventilação sanitária).
+  climatizacao:    { label:"Climatização/Exaustão (dutos, exaustão mecânica)", nums:[21] },
   // Obra de infraestrutura: preliminares + terraplenagem/drenagem/pavimentação/
   // sinalização/OAC. NÃO inclui nenhuma categoria de edificação — é justamente o
   // que impede um projeto de drenagem receber revestimento cerâmico ou forro.
@@ -1488,8 +1493,9 @@ const DISCIPLINAS = {
   indefinida:      { label:"Não identificada",               nums:null, incerta:true }
 };
 // Categorias tipicamente de EDIFICAÇÃO — se aparecerem num levantamento de
-// infraestrutura, é sinal de leitura errada.
-const CATS_EDIFICACAO = [5,6,7,8,9,10,11,14];
+// infraestrutura, é sinal de leitura errada. Inclui climatização (21): é serviço
+// de edificação, nunca de infraestrutura viária/drenagem.
+const CATS_EDIFICACAO = [5,6,7,8,9,10,11,14,21];
 const CATS_INFRA      = [16,17,18,19,20];
 
 
@@ -1551,11 +1557,16 @@ const DISC_KEYWORDS = {
   estrutural:     [/ESTRUTURAL/,/F[OÔÓ]RMA/,/ARMA[ÇC][AÃ]O/,/ARMADURA/,/FERRAGEM/,/\bPILAR/,/\bVIGA/,/\bLAJE/,/SAPATA/,/FUNDA[ÇC][AÃ]O/,/CA-?50/,/CA-?60/,/CONCRETO ARMADO/,/RESUMO DE A[ÇC]O/,/ESTACA/,/BALDRAME/,/RADIER/,/ESTRIBO/],
   hidrossanitario:[/HIDROSSANIT/,/HIDR[AÁ]ULIC/,/SANIT[AÁ]RI/,/ESGOTO/,/[AÁ]GUA FRIA/,/[AÁ]GUA QUENTE/,/PLUVIAL/,/PRUMADA/,/TUBULA[ÇC]/,/RESERVAT[OÓ]RIO/,/CAIXA D.?[AÁ]GUA/,/\bRAMAL/,/VENTILA[ÇC]/,/REGISTRO DE GAVETA/,/\bRALO/],
   eletrico:       [/EL[EÉ]TRIC/,/UNIFILAR/,/QUADRO DE CARGAS/,/\bQDC\b|\bQDL\b|\bQGBT\b|\bQDF\b/,/TOMADA/,/INTERRUPTOR/,/LUMIN[AÁ]RIA/,/ELETRODUTO/,/DISJUNTOR/,/\bCIRCUITO/,/\bSPDA\b/,/ATERRAMENTO/,/\bDPS\b/,/PADR[AÃ]O DE ENTRADA/],
+  // Climatização/exaustão mecânica (dutos, exaustores, dampers, coifas, ar condicionado).
+  // Termos ESPECÍFICOS deste sistema — deliberadamente NÃO usa /VENTILA[ÇC]/ sozinho
+  // (essa palavra já pontua em hidrossanitário para "ventilação sanitária"/tubo de
+  // ventilação de esgoto); aqui exigimos termos que só aparecem em projeto de HVAC/exaustão.
+  climatizacao:   [/CLIMATIZA[ÇC][AÃ]O/,/EXAUST[AÃ]O/,/EXAUSTOR/,/\bDUTO\b/,/DUTOS/,/DAMPER/,/\bCOIFA/,/VENTILA[ÇC][AÃ]O MEC[AÂ]NICA/,/AR CONDICIONADO/,/\bVENTILADOR/,/GRELHA DE (INSUFLAMENTO|EXAUST)/,/TOMADA DE AR/,/CASA DE M[AÁ]QUINAS.*CLIMATIZA/,/\bHVAC\b/,/REPOSI[ÇC][AÃ]O DE AR/],
   arquitetonico:  [/ARQUITET/,/PLANTA BAIXA/,/\bCORTE\b/,/FACHADA/,/ELEVA[ÇC][AÃ]O/,/COBERTURA/,/\bLAYOUT/,/QUADRO DE [AÁ]REAS/,/ESQUADRIAS/,/PAGINA[ÇC][AÃ]O/]
 };
 function classificarTextoNome(hay){
   hay = String(hay||"").toUpperCase();
-  const score = {estrutural:0,hidrossanitario:0,eletrico:0,arquitetonico:0};
+  const score = {estrutural:0,hidrossanitario:0,eletrico:0,climatizacao:0,arquitetonico:0};
   for(const d in DISC_KEYWORDS) DISC_KEYWORDS[d].forEach(rx=>{ if(rx.test(hay)) score[d]++; });
   let best="", bv=0; for(const d in score){ if(score[d]>bv){ bv=score[d]; best=d; } }
   return bv>0 ? best : "";   // "" = indefinido
@@ -1607,7 +1618,7 @@ function quantitativosAtivos(){
 // Disciplinas presentes no levantamento (para montar o filtro)
 function disciplinasPresentes(){
   const r=APP.analysisResult; if(!r||!r.quantitativos) return [];
-  const ORDEM=["arquitetonico","estrutural","eletrico","hidrossanitario"];
+  const ORDEM=["arquitetonico","estrutural","eletrico","hidrossanitario","climatizacao"];
   return [...new Set(r.quantitativos.map(q=>q._disciplina||"arquitetonico"))]
     .sort((a,b)=>{const ia=ORDEM.indexOf(a),ib=ORDEM.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
 }
@@ -1622,7 +1633,7 @@ async function montarRevisaoDisc(){
   host.innerHTML='<span class="muted" style="font-size:12px">Classificando folhas…</span>';
   const all=[]; for(let g=1;g<=APP.pages.length;g++) all.push(g);
   await classificarPaginas(all);
-  const opts=["arquitetonico","estrutural","eletrico","hidrossanitario"];
+  const opts=["arquitetonico","estrutural","eletrico","hidrossanitario","climatizacao"];
   host.innerHTML = all.map(g=>{
     const ent=APP.pages[g-1];
     const lbl=ent?`${ent.fileName.replace(/\.pdf$/i,"").slice(0,24)} · p${ent.pageNum}`:`Folha ${g}`;
@@ -2763,13 +2774,19 @@ const ESPERADOS = {
     { nome:"Pavimentação (camadas)", re:/(pavimenta|base|sub.?base|imprimac|cbuq|bloquete|paralelepiped)/, motivo:"Seção-tipo do pavimento não identificada." },
     { nome:"Sinalização viária", re:/(sinalizac|faixa|tacha|placa)/, motivo:"Projeto de sinalização costuma ser prancha separada." },
   ],
+  climatizacao: [
+    { nome:"Dutos de climatização/exaustão", re:/(duto|chapa galvanizad)/, motivo:"Traçado de dutos não identificado — confira a lista de materiais da prancha." },
+    { nome:"Exaustores, ventiladores e coifas", re:/(exaustor|ventilador|coifa)/, motivo:"Equipamentos de exaustão não identificados na lista de materiais." },
+    { nome:"Dampers corta-fogo", re:/damper/, motivo:"Damper corta-fogo não identificado — confirme se o projeto exige (dutos que atravessam compartimentação)." },
+    { nome:"Grelhas e difusores", re:/(grelha|difusor|veneziana)/, motivo:"Pontos de insuflamento/exaustão não identificados na planta." },
+    { nome:"Isolamento térmico de duto", re:/isolamento/, motivo:"Especificação de isolamento não encontrada — confira o memorial descritivo." },
+  ],
 };
 // Escopos COMPLEMENTARES: não saem do levantamento automático porque dependem de
 // projeto próprio ou de decisão comercial da obra. São listados sempre — não como
 // desculpa, mas para o orçamentista bater o olho e decidir o que a obra dele tem.
 // Quem é experiente já sabe; quem está começando descobriria só na hora do aditivo.
 const FORA_DE_ESCOPO = [
-  ["Ar-condicionado, exaustão e climatização", "Depende de projeto de climatização (carga térmica, dutos) — inclua se a obra tiver."],
   ["Elevadores e plataformas", "Fornecimento especializado: some a proposta do fabricante ao orçamento."],
   ["SPDA e sistema de incêndio", "Têm projeto próprio (ART específica) e memorial de cálculo dedicado."],
   ["Mobiliário, marcenaria sob medida e decoração", "Fora da tabela SINAPI de construção civil — orce à parte se contratar."],
@@ -3222,7 +3239,7 @@ function precoServico(q){
 }
 
 // Incluir um serviço (código SINAPI OU composição própria) — painel inline acima da planilha
-const CATEGORIAS_ADD = ["1. SERVIÇOS PRELIMINARES","2. MOVIMENTO DE TERRA","3. FUNDAÇÕES","4. ESTRUTURA","5. ALVENARIA","6. COBERTURA","7. REVESTIMENTOS INTERNOS","8. REVESTIMENTOS EXTERNOS","9. PINTURA","10. ESQUADRIAS","11. PISOS","12. INSTALAÇÕES HIDROSSANITÁRIAS","13. INSTALAÇÕES ELÉTRICAS","14. IMPERMEABILIZAÇÃO","15. SERVIÇOS COMPLEMENTARES","99. SERVIÇOS ADICIONAIS"];
+const CATEGORIAS_ADD = ["1. SERVIÇOS PRELIMINARES","2. MOVIMENTO DE TERRA","3. FUNDAÇÕES","4. ESTRUTURA","5. ALVENARIA","6. COBERTURA","7. REVESTIMENTOS INTERNOS","8. REVESTIMENTOS EXTERNOS","9. PINTURA","10. ESQUADRIAS","11. PISOS","12. INSTALAÇÕES HIDROSSANITÁRIAS","13. INSTALAÇÕES ELÉTRICAS","14. IMPERMEABILIZAÇÃO","15. SERVIÇOS COMPLEMENTARES","21. CLIMATIZAÇÃO/EXAUSTÃO","99. SERVIÇOS ADICIONAIS"];
 function incluirServico() {
   const r = APP.analysisResult; if (!r) { alert("Gere o orçamento primeiro."); return; }
   const existente = document.getElementById("inlineAddPanel");
@@ -4356,7 +4373,7 @@ function buildEAP() {
   const tree = document.getElementById("eapTree");
   tree.innerHTML = "";
 
-  const ORDEM_DISC = ["arquitetonico", "estrutural", "eletrico", "hidrossanitario"];
+  const ORDEM_DISC = ["arquitetonico", "estrutural", "eletrico", "hidrossanitario", "climatizacao"];
   const discs = [...new Set((r.quantitativos || []).map(q => q._disciplina || "arquitetonico"))]
     .sort((a, b) => {
       const ia = ORDEM_DISC.indexOf(a), ib = ORDEM_DISC.indexOf(b);
