@@ -1888,10 +1888,16 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // ═══════════════════════════════════════════════════════════════
 // CONVERSION: PDF PAGE → JPEG BASE64
 // ═══════════════════════════════════════════════════════════════
+// MAX_PAGES_API agora É o tamanho do lote: analisarGrupo() divide cada disciplina em pedaços de
+// até MAX_PAGES_API páginas e faz UMA chamada à IA por pedaço (2026-09-27 — antes a constante
+// existia mas nunca era usada: o grupo inteiro ia numa única chamada, e grupos com mais de 3
+// folhas perdiam ampliação e resolução por causa do orçamento de payload). Cada lote nasce
+// pequeno o bastante para sempre manter ampliações e resolução máxima — projeto grande vira mais
+// lotes em sequência, não qualidade pior.
 const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
-const MAX_PAGES_TOTAL = 24;    // máximo total de páginas analisadas (em lotes)
+const MAX_PAGES_TOTAL = 60;    // máximo total de páginas analisadas (em lotes)
 const IMG_LONG_EDGE = 1568;    // borda longa máxima que a IA lê sem reescalonar (acima disso ela reduz e perde cota)
-const PAYLOAD_BUDGET = 3500000;      // orçamento de payload (requer edge function com MAX_PAYLOAD_BYTES ≥ 4,5MB)
+const PAYLOAD_BUDGET = 3500000;      // orçamento de payload POR LOTE (requer edge function com MAX_PAYLOAD_BYTES ≥ 4,5MB)
 const PAYLOAD_BUDGET_LEGACY = 440000; // fallback p/ backend antigo (limite 512KB)
 
 // Renderiza uma página (ou um RECORTE dela) como JPEG base64.
@@ -2214,60 +2220,116 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
   }
   if (texto.length > 60000) texto = texto.slice(0, 60000) + "\n[TEXTO TRUNCADO]";
 
-  // Modo legado: enquanto o backend antigo (limite 512KB) estiver no ar, payloads grandes
-  // derrubam a conexão ("Failed to fetch"). Após a 1ª falha, memoriza por 48h e já monta compacto.
-  const legacyTs = parseInt(localStorage.getItem("mar_payload_legacy") || "0", 10);
-  const modoLegado = legacyTs > 0 && (Date.now() - legacyTs) < 48 * 3600 * 1000;
-  const budget = modoLegado ? PAYLOAD_BUDGET_LEGACY : PAYLOAD_BUDGET;
+  // LOTES: cada chamada à IA carrega no máximo MAX_PAGES_API páginas — pequeno o bastante para
+  // sempre manter ampliações e resolução máxima (ver comentário no bloco de constantes). Projeto
+  // grande vira mais lotes em sequência, nunca imagem pior. Com ≤ MAX_PAGES_API páginas (o caso
+  // comum hoje) dá exatamente 1 lote, e o comportamento é idêntico ao de antes desta mudança.
+  const lotes = [];
+  for (let i = 0; i < imgPages.length; i += MAX_PAGES_API) lotes.push(imgPages.slice(i, i + MAX_PAGES_API));
+  if (!lotes.length) lotes.push([]);   // grupo só de texto (memorial): 1 "lote" sem imagem nenhuma
 
-  // Monta as imagens: vista completa de cada folha + ampliações (metades) quando o grupo é pequeno.
-  const usarAmpliacoes = !modoLegado && imgPages.length <= 3;
-  const imgs = [];
-  for (const p of imgPages) {
-    const ent = APP.pages[p - 1];
-    const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
-    imgs.push({ _gid: p, label: `Folha ${p} (${lbl}) — VISTA COMPLETA`, data: await pageToBase64(p) });
-    if (usarAmpliacoes) {
-      const halves = await pageHalvesBase64(p);
-      halves.forEach((h, i) => imgs.push({ _gid: p, _amp: true,
-        label: `Folha ${p} — AMPLIAÇÃO ${i + 1}/2 (recorte da MESMA folha acima, use apenas para ler cotas/textos pequenos — NÃO conte itens de novo)`,
-        data: h }));
-    }
-  }
-  // Orçamento de payload: derruba ampliações e recomprime até caber no limite do backend.
-  if (payloadBytes(imgs, texto) > budget) {
-    for (let i = imgs.length - 1; i >= 0 && payloadBytes(imgs, texto) > budget; i--) {
-      if (imgs[i]._amp) imgs.splice(i, 1);
-    }
-  }
-  if (payloadBytes(imgs, texto) > budget) {
-    for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1300, 0.55);
-  }
-  if (payloadBytes(imgs, texto) > budget) {
-    for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1050, 0.45);
-    while (payloadBytes(imgs, texto) > budget && texto.length > 4000) texto = texto.slice(0, Math.floor(texto.length / 2));
+  // Resumo compacto do que os lotes ANTERIORES desta MESMA disciplina já levantaram — para a IA
+  // não recontar ambiente/serviço já visto num lote anterior (chamadas separadas: ela não vê o
+  // que respondeu antes, do mesmo jeito que não vê o que respondeu numa análise diferente).
+  function resumoLotesAnteriores(resultados) {
+    if (!resultados.length) return "";
+    const ambs = [], servs = [];
+    resultados.forEach(r => {
+      (r && r.ambientes || []).forEach(a => ambs.push(`${a.nome || "?"}${a.folha ? " (folha " + a.folha + ")" : ""}`));
+      (r && r.quantitativos || []).forEach(q => servs.push(`${q.categoria || "?"}: ${String(q.descricao || "?").slice(0, 60)}`));
+    });
+    if (!ambs.length && !servs.length) return "";
+    return "\n\n══════ JÁ CONTABILIZADO EM LOTES ANTERIORES DESTA MESMA ANÁLISE (mesmo projeto, outras folhas já enviadas antes) ══════\n" +
+      "NÃO conte de novo nada da lista abaixo. As folhas que você vai ver agora são NOVAS — levante apenas o que ainda não está aqui.\n" +
+      (ambs.length ? "Ambientes já contados: " + ambs.join("; ") + "\n" : "") +
+      (servs.length ? "Serviços já lançados:\n- " + servs.join("\n- ") : "");
   }
 
-  let res;
-  try {
-    res = await chamarIA(imgs, apiKey, 1, 1, texto, disc, { onChunk, continuacao });
-  } catch (e) {
-    // Payload rejeitado (400 do backend) OU conexão derrubada pelo limite do backend antigo
-    // ("Failed to fetch"/"NetworkError"/"Load failed"): memoriza o modo legado e refaz compacto.
-    const msg = String(e && e.message || "");
-    if (/payload|muito grande|failed to fetch|networkerror|load failed|fetch failed/i.test(msg)) {
-      try { localStorage.setItem("mar_payload_legacy", String(Date.now())); } catch (_) {}
-      if (typeof feedResetGrupo === "function") feedResetGrupo();
-      if (typeof feedPush === "function") feedPush("📡 Conexão limitada — reenviando em modo compacto…");
-      const compact = [];
-      for (const p of imgPages) compact.push({ _gid: p, label: `Folha ${p} — VISTA COMPLETA`, data: await renderPageJpeg(p, 1200, 0.5) });
-      let txt2 = texto;
-      while (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY && txt2.length > 4000) txt2 = txt2.slice(0, Math.floor(txt2.length / 2));
-      if (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY) {
-        for (const im of compact) im.data = await renderPageJpeg(im._gid, 1000, 0.42);
+  // Roda UM lote: mesma lógica de montagem de imagem + orçamento de payload + fallback legado que
+  // existia para o grupo inteiro, agora aplicada a um pedaço pequeno por vez.
+  async function rodarLote(paginasDoLote, loteIdx, totalLotes, resultadosAnteriores) {
+    // Modo legado: enquanto o backend antigo (limite 512KB) estiver no ar, payloads grandes
+    // derrubam a conexão ("Failed to fetch"). Após a 1ª falha, memoriza por 48h e já monta compacto.
+    const legacyTs = parseInt(localStorage.getItem("mar_payload_legacy") || "0", 10);
+    const modoLegado = legacyTs > 0 && (Date.now() - legacyTs) < 48 * 3600 * 1000;
+    const budget = modoLegado ? PAYLOAD_BUDGET_LEGACY : PAYLOAD_BUDGET;
+    const usarAmpliacoes = !modoLegado;   // o lote já nasce com ≤ MAX_PAGES_API folhas: ampliação sempre ligada
+
+    const imgs = [];
+    for (const p of paginasDoLote) {
+      const ent = APP.pages[p - 1];
+      const lbl = ent ? `${ent.fileName} · pág ${ent.pageNum}` : `Folha ${p}`;
+      imgs.push({ _gid: p, label: `Folha ${p} (${lbl}) — VISTA COMPLETA`, data: await pageToBase64(p) });
+      if (usarAmpliacoes) {
+        const halves = await pageHalvesBase64(p);
+        halves.forEach((h, i) => imgs.push({ _gid: p, _amp: true,
+          label: `Folha ${p} — AMPLIAÇÃO ${i + 1}/2 (recorte da MESMA folha acima, use apenas para ler cotas/textos pequenos — NÃO conte itens de novo)`,
+          data: h }));
       }
-      res = await chamarIA(compact, apiKey, 1, 1, txt2, disc, { onChunk, continuacao });
-    } else throw e;
+    }
+    // texto completo do grupo (quadros, memorial) + o que os lotes anteriores já contaram
+    let textoLote = texto + resumoLotesAnteriores(resultadosAnteriores);
+    // Orçamento de payload: derruba ampliações e recomprime até caber no limite do backend.
+    if (payloadBytes(imgs, textoLote) > budget) {
+      for (let i = imgs.length - 1; i >= 0 && payloadBytes(imgs, textoLote) > budget; i--) {
+        if (imgs[i]._amp) imgs.splice(i, 1);
+      }
+    }
+    if (payloadBytes(imgs, textoLote) > budget) {
+      for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1300, 0.55);
+    }
+    if (payloadBytes(imgs, textoLote) > budget) {
+      for (const im of imgs) im.data = await renderPageJpeg(im._gid, 1050, 0.45);
+      while (payloadBytes(imgs, textoLote) > budget && textoLote.length > 4000) textoLote = textoLote.slice(0, Math.floor(textoLote.length / 2));
+    }
+
+    // continuacao:true em TODO lote — seguro mesmo no 1º de toda a análise: o servidor só reaproveita
+    // o crédito se existir um refine_token válido em APP.refineToken (ainda null antes da 1ª chamada
+    // bem-sucedida), então a 1ª chamada cobra normalmente e todas as seguintes (deste lote em diante,
+    // nesta disciplina E nas próximas) reaproveitam — é o MESMO mecanismo que já valia entre disciplinas.
+    try {
+      return await chamarIA(imgs, apiKey, loteIdx + 1, totalLotes, textoLote, disc, { onChunk, continuacao: true });
+    } catch (e) {
+      // Payload rejeitado (400 do backend) OU conexão derrubada pelo limite do backend antigo
+      // ("Failed to fetch"/"NetworkError"/"Load failed"): memoriza o modo legado e refaz compacto.
+      const msg = String(e && e.message || "");
+      if (/payload|muito grande|failed to fetch|networkerror|load failed|fetch failed/i.test(msg)) {
+        try { localStorage.setItem("mar_payload_legacy", String(Date.now())); } catch (_) {}
+        if (typeof feedPush === "function") feedPush("📡 Conexão limitada — reenviando em modo compacto…");
+        const compact = [];
+        for (const p of paginasDoLote) compact.push({ _gid: p, label: `Folha ${p} — VISTA COMPLETA`, data: await renderPageJpeg(p, 1200, 0.5) });
+        let txt2 = textoLote;
+        while (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY && txt2.length > 4000) txt2 = txt2.slice(0, Math.floor(txt2.length / 2));
+        if (payloadBytes(compact, txt2) > PAYLOAD_BUDGET_LEGACY) {
+          for (const im of compact) im.data = await renderPageJpeg(im._gid, 1000, 0.42);
+        }
+        return await chamarIA(compact, apiKey, loteIdx + 1, totalLotes, txt2, disc, { onChunk, continuacao: true });
+      }
+      throw e;
+    }
+  }
+
+  const resultadosLotes = [];
+  for (let li = 0; li < lotes.length; li++) {
+    if (lotes.length > 1) {
+      const lp = lotes[li];
+      try { feedPush(`📦 Lote ${li + 1}/${lotes.length} desta disciplina — folha(s) ${lp[0]}${lp.length > 1 ? "–" + lp[lp.length - 1] : ""}…`); } catch (_) {}
+      try { setStep("pstep2", false, `Lendo ${(DISCIPLINAS[disc] || {}).label || disc} — lote ${li + 1}/${lotes.length}…`); } catch (_) {}
+    }
+    const r = await rodarLote(lotes[li], li, lotes.length, resultadosLotes);
+    if (r) resultadosLotes.push(r);
+  }
+  if (!resultadosLotes.length) return null;
+
+  // Junta os lotes com a MESMA mescla já usada para juntar disciplinas diferentes
+  // (consolidarDisciplinas) — reaproveitada aqui para juntar lotes DENTRO da mesma disciplina.
+  // Com 1 lote só (o caso comum hoje, projeto com ≤ MAX_PAGES_API páginas na disciplina), pula a
+  // mescla e usa o resultado direto: comportamento idêntico ao de antes desta mudança.
+  const res = resultadosLotes.length === 1 ? resultadosLotes[0] : consolidarDisciplinas(resultadosLotes);
+  if (resultadosLotes.length > 1) {
+    const comDisc = resultadosLotes.find(r => r && r.disciplina_detectada);
+    res.disciplina_detectada = comDisc ? comDisc.disciplina_detectada : disc;
+    res._respostaCortada = resultadosLotes.some(r => r && r._respostaCortada);
   }
   if (!res || !res.quantitativos) return null;
   filtrarPorDisciplina(res, disc);
@@ -3302,7 +3364,11 @@ function _hvacSpecs(s) {
   const d = normalizaTxt(s).replace(/³/g, "3").replace(/²/g, "2");
   const out = { dims: [], cap: null, fr: [] };
   let m;
-  const reDim = /\b(\d{2,4})\s*[x×]\s*(\d{2,4})\b/g;
+  // (?!\d) em vez de \b no final: "165mm" (sem espaço antes da unidade) não tem fronteira de
+  // palavra entre "165" e "m" — os dois são caracteres de "palavra" — e o \b antigo não casava,
+  // fazendo a dimensão sumir da checagem de conflito (bug real: achado em teste com item real
+  // da IA, "1025×165mm" ficava sem dimensão e a trava de tamanho diferente não disparava).
+  const reDim = /\b(\d{2,4})\s*[x×]\s*(\d{2,4})(?!\d)/g;
   while ((m = reDim.exec(d))) out.dims.push([+m[1], +m[2]].sort((a, b) => a - b).join("x"));
   const num = t => parseFloat(String(t).replace(/\./g, ""));
   const mv = d.match(/(\d{1,3}(?:\.\d{3})+|\d+)\s*m3\s*\/\s*h/);
