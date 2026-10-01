@@ -1582,11 +1582,13 @@ const DISC_KEYWORDS = {
   climatizacao:   [/CLIMATIZA[ÇC][AÃ]O/,/EXAUST[AÃ]O/,/EXAUSTOR/,/\bDUTO\b/,/DUTOS/,/DAMPER/,/\bCOIFA/,/VENTILA[ÇC][AÃ]O MEC[AÂ]NICA/,/AR CONDICIONADO/,/\bVENTILADOR/,/GRELHA DE (INSUFLAMENTO|EXAUST)/,/TOMADA DE AR/,/CASA DE M[AÁ]QUINAS.*CLIMATIZA/,/\bHVAC\b/,/REPOSI[ÇC][AÃ]O DE AR/],
   arquitetonico:  [/ARQUITET/,/PLANTA BAIXA/,/\bCORTE\b/,/FACHADA/,/ELEVA[ÇC][AÃ]O/,/COBERTURA/,/\bLAYOUT/,/QUADRO DE [AÁ]REAS/,/ESQUADRIAS/,/PAGINA[ÇC][AÃ]O/]
 };
-// "_" vira espaço: em nome de arquivo como "HVAC_HOSPITAL…pdf" o \bHVAC\b não casava (o "_" conta
-// como letra para o \b), e o arquivo inteiro deixava de ser reconhecido como climatização.
+// "_" vira espaço SÓ nas regras de folha mista (_conta): em "HVAC_HOSPITAL…pdf" o \bHVAC\b não casava
+// (o "_" conta como letra para o \b). NÃO vale para a classificação geral (pontuarDisciplinas): o nome
+// do arquivo tem prioridade sobre o texto de TODAS as folhas, e "PROJETO_LAYOUT_EXECUTIVO.pdf" passaria
+// a jogar um caderno inteiro (estrutural, elétrico…) num grupo só de arquitetura.
 function _normDisc(hay){ return String(hay||"").toUpperCase().replace(/_/g," ").replace(/\s+/g," "); }
 function pontuarDisciplinas(hay){
-  hay = _normDisc(hay);   // o texto agora vem com quebras de linha reais
+  hay = String(hay||"").toUpperCase().replace(/\s+/g," ");   // o texto agora vem com quebras de linha reais
   const score = {estrutural:0,hidrossanitario:0,eletrico:0,climatizacao:0,arquitetonico:0};
   for(const d in DISC_KEYWORDS) DISC_KEYWORDS[d].forEach(rx=>{ if(rx.test(hay)) score[d]++; });
   return score;
@@ -1677,12 +1679,16 @@ async function classificarPaginas(pages, forcar){
   // 2ª passada: folhas mistas (precisa saber antes quais ARQUIVOS têm folhas de climatização).
   APP.pageDiscExtra = APP.pageDiscExtra || {};
   APP.pageDiscManual = APP.pageDiscManual || {};
+  // só as folhas desta classificação (na análise = as SELECIONADAS): folha de HVAC desmarcada pelo
+  // usuário não pode dar "contexto de climatização" a um quadro elétrico que ele quer orçar sozinho.
   const arqClim = new Set();
-  for (let g = 1; g <= APP.pages.length; g++) if (APP.pageDisc[g] === "climatizacao" && APP.pages[g-1]) arqClim.add(APP.pages[g-1].fileIdx);
+  for (const g of pages) if (APP.pageDisc[g] === "climatizacao" && APP.pages[g-1]) arqClim.add(APP.pages[g-1].fileIdx);
   for(const gid of pages){
     if (APP.pageDiscManual[gid]) continue;   // o usuário escolheu a disciplina desta folha: respeita
     const ent=APP.pages[gid-1]; if(!ent) continue;
-    const extra = disciplinaExtraDaFolha(APP.pageDisc[gid], await getPageText(gid), classificarTextoNome(ent.fileName||""), arqClim.has(ent.fileIdx));
+    const nomeArq = ent.fileName || "";
+    const porNome = (classificarTextoNome(nomeArq) === "climatizacao" || _conta(_HVAC_FORTE, nomeArq) >= 1) ? "climatizacao" : classificarTextoNome(nomeArq);
+    const extra = disciplinaExtraDaFolha(APP.pageDisc[gid], await getPageText(gid), porNome, arqClim.has(ent.fileIdx));
     if (extra) APP.pageDiscExtra[gid] = extra; else delete APP.pageDiscExtra[gid];
   }
   return APP.pageDisc;
@@ -2297,7 +2303,10 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
   // Folhas MISTAS deste grupo (lidas também em outra disciplina — ver disciplinaExtraDaFolha):
   // avisa a IA para levantar só a disciplina atual SEM escrever o alerta enganoso "os itens da outra
   // disciplina NÃO foram levantados" — eles são levantados, na leitura da outra disciplina.
-  {
+  // Só no modo "Detecção automática": é o único em que a outra disciplina vira um grupo e é lida de
+  // fato. Com disciplina fixa (o usuário escolheu, p.ex., só Climatização), pageDiscExtra pode ter
+  // sobrado de uma classificação anterior — e a nota mandaria a IA calar sobre itens que somem.
+  if (APP.disciplina === "auto") {
     const lab = d => ((DISCIPLINAS[d] || {}).label || d).toUpperCase();
     const mistas = grpPages.map(p => {
       const a = APP.pageDisc && APP.pageDisc[p], b = APP.pageDiscExtra && APP.pageDiscExtra[p];
