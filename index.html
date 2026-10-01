@@ -1425,8 +1425,22 @@ async function callAnthropic(payload, opts) {
       const reader = resp.body.getReader();
       const dec = new TextDecoder();
       let buf = "", texto = "", creditos = null, stopReason = null;
+      // fimNormal: o servidor só manda "mar_credits" (e a Anthropic só manda "message_stop") quando a
+      // geração TERMINA de verdade. Sem nenhum dos dois, o fluxo foi CORTADO no meio — caso real
+      // medido em 28/09/2026: o Supabase (plano gratuito) encerra a função aos 150 s, e um lote denso
+      // (projeto de VRF com 23 pranchas) passava disso. O texto chegava pela metade e virava
+      // "JSON incompleto". Agora a interrupção é sinalizada para o chamador dividir o lote e refazer.
+      let fimNormal = false, interrompida = false;
       while (true) {
-        const { done, value } = await reader.read();
+        let lido;
+        try { lido = await reader.read(); }
+        catch (eLeitura) {
+          // conexão caiu DEPOIS de já ter chegado texto: repetir a mesma chamada inteira só bateria
+          // no mesmo limite de tempo de novo — devolve o que chegou, marcado como interrompido.
+          if (texto) { interrompida = true; break; }
+          throw eLeitura;
+        }
+        const { done, value } = lido;
         if (done) break;
         buf += dec.decode(value, { stream: true });
         let nl;
@@ -1442,8 +1456,10 @@ async function callAnthropic(payload, opts) {
             if (opts && typeof opts.onChunk === "function") { try { opts.onChunk(texto); } catch (_) {} }
           }
           else if (ev.type === "message_delta" && ev.delta && ev.delta.stop_reason) stopReason = ev.delta.stop_reason;   // "max_tokens" = resposta cortada
+          else if (ev.type === "message_stop") fimNormal = true;
           else if (ev.type === "error") throw new Error((ev.error && ev.error.message) || "Erro da IA durante a geração.");
           else if (ev.type === "mar_credits") {
+            fimNormal = true;
             if (ev.creditos_restantes != null) creditos = ev.creditos_restantes;
             // Captura o refine_token emitido pelo servidor após análise paga.
             // Armazenado em memória (não em localStorage) — expira em 15 min no servidor.
@@ -1452,7 +1468,8 @@ async function callAnthropic(payload, opts) {
         }
       }
       if (creditos != null) { try { atualizarCreditosUI(creditos); } catch(_){} }
-      return { content: [{ type: "text", text: texto }], _creditos_restantes: creditos, _stop_reason: stopReason };
+      if (!fimNormal && texto) interrompida = true;
+      return { content: [{ type: "text", text: texto }], _creditos_restantes: creditos, _stop_reason: stopReason, _interrompida: interrompida };
 
     } catch(e) {
       // Erros de rede (fetch falhou) são retriáveis
@@ -1565,12 +1582,45 @@ const DISC_KEYWORDS = {
   climatizacao:   [/CLIMATIZA[ÇC][AÃ]O/,/EXAUST[AÃ]O/,/EXAUSTOR/,/\bDUTO\b/,/DUTOS/,/DAMPER/,/\bCOIFA/,/VENTILA[ÇC][AÃ]O MEC[AÂ]NICA/,/AR CONDICIONADO/,/\bVENTILADOR/,/GRELHA DE (INSUFLAMENTO|EXAUST)/,/TOMADA DE AR/,/CASA DE M[AÁ]QUINAS.*CLIMATIZA/,/\bHVAC\b/,/REPOSI[ÇC][AÃ]O DE AR/],
   arquitetonico:  [/ARQUITET/,/PLANTA BAIXA/,/\bCORTE\b/,/FACHADA/,/ELEVA[ÇC][AÃ]O/,/COBERTURA/,/\bLAYOUT/,/QUADRO DE [AÁ]REAS/,/ESQUADRIAS/,/PAGINA[ÇC][AÃ]O/]
 };
-function classificarTextoNome(hay){
-  hay = String(hay||"").toUpperCase().replace(/\s+/g," ");   // o texto agora vem com quebras de linha reais
+// "_" vira espaço: em nome de arquivo como "HVAC_HOSPITAL…pdf" o \bHVAC\b não casava (o "_" conta
+// como letra para o \b), e o arquivo inteiro deixava de ser reconhecido como climatização.
+function _normDisc(hay){ return String(hay||"").toUpperCase().replace(/_/g," ").replace(/\s+/g," "); }
+function pontuarDisciplinas(hay){
+  hay = _normDisc(hay);   // o texto agora vem com quebras de linha reais
   const score = {estrutural:0,hidrossanitario:0,eletrico:0,climatizacao:0,arquitetonico:0};
   for(const d in DISC_KEYWORDS) DISC_KEYWORDS[d].forEach(rx=>{ if(rx.test(hay)) score[d]++; });
+  return score;
+}
+function classificarTextoNome(hay){
+  const score = pontuarDisciplinas(hay);
   let best="", bv=0; for(const d in score){ if(score[d]>bv){ bv=score[d]; best=d; } }
   return bv>0 ? best : "";   // "" = indefinido
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// FOLHA MISTA ELÉTRICO × CLIMATIZAÇÃO (caso real, 22/09/2026 — Hospital Regional, prancha 05:
+// "Quadro Elétrico QFAC-1 e Detalhes Construtivos de HVAC"). Cada folha recebia UMA disciplina só;
+// essa caía em "elétrico" (disjuntor, circuito, DPS) e era lida só com a regra do elétrico, que
+// proíbe levantar outra disciplina: o quadro saía, o HVAC da folha ficava de fora ("NÃO foram
+// levantados… foco exclusivo em instalações elétricas"). Agora a folha mista é lida nas DUAS
+// disciplinas. Não há contagem dupla: a leitura elétrica só aceita a categoria 13 e a de
+// climatização só a 21 (filtrarPorDisciplina). Termos fortes = que só aparecem em sistema de
+// HVAC — "AR CONDICIONADO", "EXAUSTOR", "CONDENSADORA" ficaram de fora de propósito, porque
+// aparecem em todo projeto elétrico comum (tomada do ar, ponto do exaustor do banheiro).
+const _HVAC_FORTE = [/\bHVAC\b/,/CLIMATIZA[ÇC][AÃ]O/,/\bDUTOS?\b/,/DAMPER/,/\bCOIFA/,/FANCOIL|FANCOLETE/,
+  /\bUTA\b|TRATAMENTO DE AR/,/\bVRF\b|\bVRV\b/,/REPOSI[ÇC][AÃ]O DE AR/,/VENTILA[ÇC][AÃ]O MEC[AÂ]NICA/,
+  /\bQ\.?F\.?A\.?C\b|\bQAC\b|QUADRO (DE )?(FOR[ÇC]A )?(DO |DE |PARA )?AR.?CONDICIONADO/];
+const _PAINEL_ELETRICO = [/DISJUNTOR/,/UNIFILAR/,/QUADRO DE CARGAS/,/\bQDC\b|\bQDL\b|\bQGBT\b|\bQDF\b/,/\bCIRCUITO/,/\bDPS\b/];
+function _conta(rxs, hay){ hay = _normDisc(hay); return rxs.reduce((n, rx) => n + (rx.test(hay) ? 1 : 0), 0); }
+// Devolve a 2ª disciplina de uma folha mista, ou "" se a folha é de uma disciplina só.
+function disciplinaExtraDaFolha(primaria, txt, porNome, arquivoTemClimatizacao){
+  if (primaria === "eletrico") {
+    const forte = _conta(_HVAC_FORTE, txt);
+    if (forte >= 2 || (forte >= 1 && (arquivoTemClimatizacao || porNome === "climatizacao"))) return "climatizacao";
+  }
+  if (primaria === "climatizacao") {
+    if (_conta(_PAINEL_ELETRICO, txt) >= 2 && pontuarDisciplinas(txt).eletrico >= 3) return "eletrico";
+  }
+  return "";
 }
 async function getPageText(gid){
   if(APP.pageTextCache[gid]!=null) return APP.pageTextCache[gid];
@@ -1624,6 +1674,17 @@ async function classificarPaginas(pages, forcar){
     const porTexto=classificarTextoNome(txt);
     APP.pageDisc[gid]= porNome || porTexto || "arquitetonico";
   }
+  // 2ª passada: folhas mistas (precisa saber antes quais ARQUIVOS têm folhas de climatização).
+  APP.pageDiscExtra = APP.pageDiscExtra || {};
+  APP.pageDiscManual = APP.pageDiscManual || {};
+  const arqClim = new Set();
+  for (let g = 1; g <= APP.pages.length; g++) if (APP.pageDisc[g] === "climatizacao" && APP.pages[g-1]) arqClim.add(APP.pages[g-1].fileIdx);
+  for(const gid of pages){
+    if (APP.pageDiscManual[gid]) continue;   // o usuário escolheu a disciplina desta folha: respeita
+    const ent=APP.pages[gid-1]; if(!ent) continue;
+    const extra = disciplinaExtraDaFolha(APP.pageDisc[gid], await getPageText(gid), classificarTextoNome(ent.fileName||""), arqClim.has(ent.fileIdx));
+    if (extra) APP.pageDiscExtra[gid] = extra; else delete APP.pageDiscExtra[gid];
+  }
   return APP.pageDisc;
 }
 // Junta os resultados de cada disciplina SEM somar entre disciplinas (cada item mantém _disciplina).
@@ -1643,6 +1704,14 @@ function consolidarDisciplinas(parts){
     (r.alertas||[]).forEach(al=>{ out.alertas=out.alertas||[]; if(!out.alertas.includes(al)) out.alertas.push(al); });
     (r.quantitativos||[]).forEach(q=>out.quantitativos.push(q));
   });
+  // Antes o resultado com mais de uma disciplina saía com disciplina_detectada = null. Agora: a
+  // disciplina com mais itens (ex.: projeto de HVAC + quadro elétrico dele → "climatizacao") e a
+  // lista completa em disciplinas_detectadas. Só informativo — cada item mantém o próprio _disciplina.
+  const cont = {};
+  out.quantitativos.forEach(q => { const d = q._disciplina || q._grupoDisc; if (d) cont[d] = (cont[d] || 0) + 1; });
+  parts.forEach(r => { const d = r && (r._grupoDisc || r.disciplina_detectada); if (d && !(d in cont)) cont[d] = 0; });
+  const ordem = Object.keys(cont).sort((a, b) => cont[b] - cont[a]);
+  if (ordem.length) { out.disciplina_detectada = ordem[0]; out.disciplinas_detectadas = ordem; }
   return out;
 }
 // Quantitativos sob o filtro de disciplina ativo (ferramentas). "todas" = orçamento geral.
@@ -1676,9 +1745,12 @@ async function montarRevisaoDisc(){
     const lbl=ent?`${ent.fileName.replace(/\.pdf$/i,"").slice(0,24)} · p${ent.pageNum}`:`Folha ${g}`;
     const d=APP.pageDisc[g]||"arquitetonico";
     const sel=opts.map(o=>`<option value="${o}"${o===d?" selected":""}>${(DISCIPLINAS[o]||{}).label||o}</option>`).join("");
+    const x=APP.pageDiscExtra&&APP.pageDiscExtra[g];
+    const tagMista = (x && x!==d) ? `<span id="mista-${g}" class="banco-tag" style="background:#ecfeff;color:#0e7490;font-weight:600" title="Folha mista: será lida também como ${(DISCIPLINAS[x]||{}).label||x}, sem contar nada duas vezes (cada leitura só lança itens da própria disciplina). Mudar a disciplina ao lado desliga a leitura dupla.">+ ${(DISCIPLINAS[x]||{}).label||x}</span>` : "";
     return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border)">`
       + `<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${ent?ent.fileName+' — pág '+ent.pageNum:''}">${lbl}</span>`
-      + `<select onchange="APP.pageDisc[${g}]=this.value" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;min-width:230px">${sel}</select>`
+      + tagMista
+      + `<select onchange="APP.pageDisc[${g}]=this.value;(APP.pageDiscManual=APP.pageDiscManual||{})[${g}]=true;if(APP.pageDiscExtra)delete APP.pageDiscExtra[${g}];var t=document.getElementById('mista-${g}');if(t)t.remove();" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;min-width:230px">${sel}</select>`
       + `</div>`;
   }).join("");
 }
@@ -1786,7 +1858,7 @@ function removerArquivo(idx) {
   APP.pdfDocs.splice(idx, 1);
   APP.pages = [];
   APP.pdfDocs.forEach((f, fi) => { for (let p = 1; p <= f.doc.numPages; p++) APP.pages.push({ doc: f.doc, pageNum: p, fileName: f.name, fileIdx: fi }); });
-  APP.pageImages = {}; APP.selectedPages.clear(); APP.pageDisc = {}; APP.pageTextCache = {}; APP.paginasTexto = new Set();
+  APP.pageImages = {}; APP.selectedPages.clear(); APP.pageDisc = {}; APP.pageDiscExtra = {}; APP.pageDiscManual = {}; APP.pageTextCache = {}; APP.paginasTexto = new Set();
   if (!APP.pdfDocs.length) {
     document.getElementById("fileInfo").style.display = "none";
     document.getElementById("pageCard").style.display = "none";
@@ -1894,7 +1966,10 @@ document.getElementById("btnSelectAll").addEventListener("click", () => {
 // folhas perdiam ampliação e resolução por causa do orçamento de payload). Cada lote nasce
 // pequeno o bastante para sempre manter ampliações e resolução máxima — projeto grande vira mais
 // lotes em sequência, não qualidade pior.
-const MAX_PAGES_API = 6;       // páginas por lote enviado à IA
+// 28/09/2026: 6 → 3. O Supabase (plano gratuito) encerra a função aos 150 s; um lote de 6 pranchas
+// densas (VRF, 23 folhas) gerava resposta que não terminava a tempo. Com 3, cada chamada tem cerca de
+// metade do texto para escrever. Se ainda assim um lote for cortado, analisarGrupo() o divide sozinho.
+const MAX_PAGES_API = 3;       // páginas por lote enviado à IA
 const MAX_PAGES_TOTAL = 60;    // máximo total de páginas analisadas (em lotes)
 const IMG_LONG_EDGE = 1568;    // borda longa máxima que a IA lê sem reescalonar (acima disso ela reduz e perde cota)
 const PAYLOAD_BUDGET = 3500000;      // orçamento de payload POR LOTE (requer edge function com MAX_PAYLOAD_BYTES ≥ 4,5MB)
@@ -2219,6 +2294,21 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
     if (t) texto += `\n--- Folha ${p} (${lbl})${paginasTexto.has(p) ? " — DOCUMENTO DE TEXTO (memorial/especificação), sem imagem" : ""} ---\n${t}`;
   }
   if (texto.length > 60000) texto = texto.slice(0, 60000) + "\n[TEXTO TRUNCADO]";
+  // Folhas MISTAS deste grupo (lidas também em outra disciplina — ver disciplinaExtraDaFolha):
+  // avisa a IA para levantar só a disciplina atual SEM escrever o alerta enganoso "os itens da outra
+  // disciplina NÃO foram levantados" — eles são levantados, na leitura da outra disciplina.
+  {
+    const lab = d => ((DISCIPLINAS[d] || {}).label || d).toUpperCase();
+    const mistas = grpPages.map(p => {
+      const a = APP.pageDisc && APP.pageDisc[p], b = APP.pageDiscExtra && APP.pageDiscExtra[p];
+      if (!a || !b || a === b) return "";
+      const outra = (a === disc) ? b : (b === disc ? a : "");
+      return outra ? `Folha ${p}: também está sendo lida SEPARADAMENTE na disciplina ${lab(outra)}.` : "";
+    }).filter(Boolean);
+    if (mistas.length) texto += "\n\n══════ FOLHAS MISTAS ══════\n" + mistas.join("\n") +
+      `\nNessas folhas levante SOMENTE os itens da disciplina ${lab(disc)}. Os itens da outra disciplina NÃO estão sendo perdidos — ` +
+      "são levantados na outra leitura; por isso NÃO escreva alerta dizendo que eles ficaram de fora.";
+  }
 
   // LOTES: cada chamada à IA carrega no máximo MAX_PAGES_API páginas — pequeno o bastante para
   // sempre manter ampliações e resolução máxima (ver comentário no bloco de constantes). Projeto
@@ -2290,6 +2380,7 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
     try {
       return await chamarIA(imgs, apiKey, loteIdx + 1, totalLotes, textoLote, disc, { onChunk, continuacao: true });
     } catch (e) {
+      if (e && e.leituraIncompleta) throw e;   // resposta cortada: quem trata é o laço de lotes (divide e refaz)
       // Payload rejeitado (400 do backend) OU conexão derrubada pelo limite do backend antigo
       // ("Failed to fetch"/"NetworkError"/"Load failed"): memoriza o modo legado e refaz compacto.
       const msg = String(e && e.message || "");
@@ -2309,17 +2400,48 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
     }
   }
 
+  // FILA DE LOTES QUE SE SUBDIVIDE SOZINHA. Se um lote volta cortado (passou do tempo limite do
+  // servidor ou do tamanho máximo da resposta), ele é partido ao meio e as duas metades voltam para
+  // a frente da fila — até chegar a 1 folha por chamada. Antes, 1 lote cortado derrubava a análise
+  // INTEIRA com "JSON incompleto" (caso real: projeto de VRF com 23 pranchas, 28/09/2026). O resultado
+  // parcial de um lote cortado com mais de 1 folha é descartado (as metades releem essas folhas).
   const resultadosLotes = [];
-  for (let li = 0; li < lotes.length; li++) {
-    if (lotes.length > 1) {
-      const lp = lotes[li];
-      try { feedPush(`📦 Lote ${li + 1}/${lotes.length} desta disciplina — folha(s) ${lp[0]}${lp.length > 1 ? "–" + lp[lp.length - 1] : ""}…`); } catch (_) {}
-      try { setStep("pstep2", false, `Lendo ${(DISCIPLINAS[disc] || {}).label || disc} — lote ${li + 1}/${lotes.length}…`); } catch (_) {}
+  const folhasNaoLidas = [];
+  const fila = lotes.slice();
+  const multi = lotes.length > 1;
+  let nLote = 0, ultimoErro = null;
+  const faixa = lp => `${lp[0]}${lp.length > 1 ? "–" + lp[lp.length - 1] : ""}`;
+  while (fila.length) {
+    const lote = fila.shift();
+    nLote++;
+    if (multi || nLote > 1) {
+      try { feedPush(`📦 Lote ${nLote} desta disciplina — folha(s) ${faixa(lote)}${fila.length ? ` (${fila.length} na fila)` : ""}…`); } catch (_) {}
+      try { setStep("pstep2", false, `Lendo ${(DISCIPLINAS[disc] || {}).label || disc} — lote ${nLote}${fila.length ? ` (+${fila.length})` : ""}…`); } catch (_) {}
     }
-    const r = await rodarLote(lotes[li], li, lotes.length, resultadosLotes);
-    if (r) resultadosLotes.push(r);
+    let r = null, erroLote = null;
+    try { r = await rodarLote(lote, nLote - 1, nLote + fila.length, resultadosLotes); }
+    catch (e) { if (e && e.leituraIncompleta) erroLote = e; else throw e; }
+
+    const cortado = !!erroLote || !!(r && (r._respostaCortada || r._interrompida));
+    if (cortado && lote.length > 1) {
+      const meio = Math.ceil(lote.length / 2);
+      fila.unshift(lote.slice(0, meio), lote.slice(meio));
+      try { feedPush(`✂️ Folhas ${faixa(lote)} geraram resposta longa demais para o tempo limite — dividindo em ${meio} + ${lote.length - meio} folha(s) e relendo…`); } catch (_) {}
+      continue;
+    }
+    if (erroLote) {
+      // 1 folha só e mesmo assim não coube: registra e SEGUE com as outras (antes, abortava tudo).
+      ultimoErro = erroLote;
+      folhasNaoLidas.push(...lote);
+      try { feedPush(`⚠ Folha ${faixa(lote)} não pôde ser lida por completo — seguindo com as demais.`); } catch (_) {}
+      continue;
+    }
+    if (r) { r._folhasDoLote = lote.slice(); resultadosLotes.push(r); }
   }
-  if (!resultadosLotes.length) return null;
+  if (!resultadosLotes.length) {
+    if (ultimoErro) throw new Error(ultimoErro.message + " Mesmo lendo folha por folha, a resposta não coube no tempo limite do servidor. Tente enviar esta disciplina em partes menores, ou fale com o suporte.");
+    return null;
+  }
 
   // Junta os lotes com a MESMA mescla já usada para juntar disciplinas diferentes
   // (consolidarDisciplinas) — reaproveitada aqui para juntar lotes DENTRO da mesma disciplina.
@@ -2332,6 +2454,14 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
     res._respostaCortada = resultadosLotes.some(r => r && r._respostaCortada);
   }
   if (!res || !res.quantitativos) return null;
+  // Quais folhas ficaram com leitura parcial (1 folha que mesmo sozinha não coube) — o aviso diz exatamente onde conferir.
+  res._folhasCortadas = [];
+  resultadosLotes.forEach(r => { if (r && r._respostaCortada && r._folhasDoLote) res._folhasCortadas.push(...r._folhasDoLote); });
+  if (folhasNaoLidas.length) {
+    res.alertas = Array.isArray(res.alertas) ? res.alertas : [];
+    res.alertas.push(`⚠ Folha(s) ${folhasNaoLidas.join(", ")} NÃO foram lidas: mesmo sozinhas, a resposta passou do tempo limite do servidor. ` +
+      "Os serviços dessas folhas NÃO estão neste levantamento — confira manualmente ou envie essas folhas numa análise separada.");
+  }
   filtrarPorDisciplina(res, disc);
   // Itens EXISTENTES / A MANTER (retrofit, reforma) NÃO entram no orçamento como serviço novo: o campo
   // "intervencao" era pedido à IA mas ignorado aqui, então uma coifa "existente" era orçada como nova.
@@ -2352,7 +2482,8 @@ async function analisarGrupo(grpPages, disc, apiKey, onChunk, continuacao) {
   // consertava o JSON cortado em silêncio e o usuário recebia um orçamento pela metade sem saber.
   if (res._respostaCortada) {
     res.alertas = Array.isArray(res.alertas) ? res.alertas : [];
-    res.alertas.push("⚠ A resposta da IA foi CORTADA por atingir o limite de tamanho — o levantamento pode estar INCOMPLETO (faltando serviços no fim da lista). Rode novamente com menos folhas, ou uma disciplina por vez.");
+    const onde = (res._folhasCortadas && res._folhasCortadas.length) ? ` na(s) folha(s) ${res._folhasCortadas.join(", ")}` : "";
+    res.alertas.push(`⚠ A resposta da IA foi CORTADA${onde} (limite de tempo ou de tamanho) — o levantamento pode estar INCOMPLETO (faltando serviços no fim da lista dessa folha). Confira essa(s) folha(s).`);
     try { if (typeof feedPush === "function") feedPush("⚠ Resposta da IA cortada pelo limite de tamanho — confira se faltam serviços."); } catch (_) {}
   }
   const ef = res._disciplinaEfetiva || disc;
@@ -2394,7 +2525,13 @@ async function startAnalysis() {
     if (APP.disciplina === "auto") {
       await classificarPaginas(sortedPages);   // preenche/usa APP.pageDisc (respeita revisão do usuário)
       const byDisc = {};
-      sortedPages.forEach(p => { const d = APP.pageDisc[p] || "arquitetonico"; (byDisc[d] = byDisc[d] || []).push(p); });
+      sortedPages.forEach(p => {
+        const d = APP.pageDisc[p] || "arquitetonico"; (byDisc[d] = byDisc[d] || []).push(p);
+        // folha mista (ex.: quadro elétrico dos equipamentos de HVAC): lida também na 2ª disciplina
+        const x = APP.pageDiscExtra && APP.pageDiscExtra[p];
+        if (x && x !== d) (byDisc[x] = byDisc[x] || []).push(p);
+      });
+      Object.keys(byDisc).forEach(d => byDisc[d].sort((a, b) => a - b));   // mantém a ordem das folhas em cada grupo
       grupos = Object.keys(byDisc).map(d => ({ disc: d, pages: byDisc[d] }));
     } else {
       grupos = [{ disc: APP.disciplina, pages: sortedPages }];
@@ -2525,8 +2662,16 @@ function parseIAJson(rawText) {
   };
 
   // 1. Tenta direto (caso normal)
-  const clean = limpa(rawText);
+  let clean = limpa(rawText);
   let p = tryP(clean); if (p) return p;
+  // 1b. A IA às vezes escreve análise em texto ANTES do JSON ("Vou analisar sistematicamente…").
+  //     As estratégias de recuperação abaixo partiam do texto inteiro — com prosa na frente, nenhuma
+  //     conseguia fechar o JSON cortado. Recorta a partir do início real do objeto ('{' seguido de '"').
+  {
+    const semCerca = rawText.replace(/```json\s*/gi, "").replace(/```/g, "");
+    const ini = semCerca.search(/\{\s*"/);
+    if (ini > 0) { clean = semCerca.slice(ini).trim(); p = tryP(clean); if (p) return p; }
+  }
 
   // 2. Extrai o bloco { … } mais externo
   const m = rawText.match(/\{[\s\S]*\}/); if (m) { p = tryP(m[0]); if (p) return p; }
@@ -2573,6 +2718,13 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
   // A metodologia de leitura é injetada NO SERVIDOR (task="analise"); o cliente
   // envia só os dados (imagens, texto extraído) e as flags mode/hasAmp/hasText.
   if (APP.projectName) aiContent.push({ type: "text", text: `Nome do projeto: ${APP.projectName}` });
+  // Sem isso a IA às vezes "pensava em voz alta" antes do JSON (caso real de 28/09: projeto de VRF
+  // começou com "Vou analisar sistematicamente todas as folhas…"). Esse texto não serve para nada
+  // e come o tempo limite do servidor (150 s) — a leitura acabava cortada antes de terminar o JSON.
+  aiContent.push({ type: "text", text:
+    "FORMATO DA RESPOSTA (obrigatório): comece IMEDIATAMENTE pelo caractere { e responda SOMENTE com o objeto JSON. " +
+    "NÃO escreva análise, raciocínio, títulos ou comentários antes ou depois do JSON — o tempo de resposta é limitado e todo texto fora do JSON faz a leitura ser cortada e perdida. " +
+    "Justificativas e contas vão dentro do JSON, nos campos memoria_calculo e alertas." });
 
   const apiData = await callAnthropic({
     model: "claude-sonnet-4-6",
@@ -2592,9 +2744,15 @@ async function chamarIA(images, apiKey, lote, total, textoFolhas, disc, opts) {
         texto: String(rawText).slice(0, 400000)
       }));
     }catch(_){}
-    throw new Error("A IA retornou um JSON incompleto (resposta muito longa). Tente selecionar menos folhas e rode novamente. A resposta foi guardada no navegador — se o problema persistir, fale com o suporte antes de gastar outro crédito. Início: " + rawText.substring(0, 300));
+    const erroIncompleto = new Error(apiData._interrompida
+      ? "A leitura destas folhas passou do tempo limite do servidor e foi cortada antes de terminar. A resposta parcial foi guardada no navegador."
+      : "A IA retornou um JSON incompleto (resposta muito longa). A resposta foi guardada no navegador — se o problema persistir, fale com o suporte.");
+    erroIncompleto.leituraIncompleta = true;   // analisarGrupo divide o lote e refaz, em vez de abortar tudo
+    erroIncompleto.inicio = String(rawText).substring(0, 300);
+    throw erroIncompleto;
   }
   if (apiData._stop_reason === "max_tokens") parsed._respostaCortada = true;
+  if (apiData._interrompida) { parsed._interrompida = true; parsed._respostaCortada = true; }
   return parsed;
 }
 
@@ -6504,7 +6662,7 @@ document.getElementById("btnGoEap").addEventListener("click", () => goTo(3));
 document.getElementById("btnAddServ").addEventListener("click", incluirServico);
 document.getElementById("btnResetDur").addEventListener("click", () => { APP.cronoDurOverride = {}; APP.cronoLagOverride = {}; APP.cronoLinkOverride = {}; buildCronograma(); });
 document.getElementById("btnRestart").addEventListener("click", () => {
-  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageTextCache:{}, analysisResult:null, projectName:"", orcamentoValidado:false, filtroDisc:"todas" });
+  Object.assign(APP, { currentStep:1, pdfFile:null, pdfDoc:null, pdfDocs:[], pages:[], selectedPages:new Set(), pageImages:{}, pageDisc:{}, pageDiscExtra:{}, pageDiscManual:{}, pageTextCache:{}, analysisResult:null, projectName:"", orcamentoValidado:false, filtroDisc:"todas" });
   document.getElementById("fileInfo").style.display = "none";
   document.getElementById("pageCard").style.display = "none";
   document.getElementById("configCard").style.display = "none";
