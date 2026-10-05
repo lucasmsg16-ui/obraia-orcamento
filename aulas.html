@@ -3,101 +3,162 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aulas — Método NAVE · ObraIA</title>
+<title>Curso Dominante da IA · ObraIA</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="curso-progresso.js"></script>
 <style>
 :root{
-  --navy:#002B40; --blue:#1792C0; --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
-  --text:#2c3e50; --muted:#7f8c8d; --shadow: 0 2px 12px rgba(26,60,94,.10); --red:#e74c3c; --green:#27ae60;
+  --navy:#002B40; --blue:#1792C0; --sky:#4db8e8; --bg:#f0f4f8; --card:#ffffff; --border:#dce3ea;
+  --text:#2c3e50; --muted:#7f8c8d; --tint:#eaf6fb; --green:#27ae60; --red:#e74c3c;
+  --shadow:0 2px 12px rgba(26,60,94,.10);
 }
 *{box-sizing:border-box}
 body{ margin:0; min-height:100vh; font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+button{ font-family:inherit; }
+:focus-visible{ outline:3px solid var(--sky); outline-offset:2px; }
 header{
   background:linear-gradient(135deg, var(--navy) 0%, #1792C0 100%);
   color:#fff; padding:0 24px; height:60px; display:flex; align-items:center; gap:16px;
   box-shadow:0 2px 8px rgba(0,0,0,.25);
 }
 header .logo{ font-size:20px; font-weight:700; letter-spacing:-.5px; }
-header .logo span{ color:#4db8e8; }
+header .logo span{ color:var(--sky); }
 header a.back{ margin-left:auto; color:#fff; font-size:13px; text-decoration:none; opacity:.85; }
 header a.back:hover{ opacity:1; text-decoration:underline; }
-main{ max-width:760px; margin:0 auto; padding:40px 24px 60px; }
-h1{ font-size:24px; color:var(--navy); margin:0 0 6px; }
-p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
 
-.modulo{ margin-bottom:30px; }
-.modulo-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
-.modulo-head h2{ font-size:15px; color:var(--navy); margin:0; }
-.modulo-head .linha{ flex:1; height:1px; background:var(--border); }
-.modulo-head .add-mini{
-  background:none; border:1px dashed var(--border); color:var(--blue); border-radius:7px;
-  padding:4px 10px; font-size:11.5px; cursor:pointer; font-family:inherit; white-space:nowrap;
-}
-.modulo-head .add-mini:hover{ background:#eaf6fb; }
-.modulo-vazio{ font-size:12.5px; color:var(--muted); padding:12px 4px; }
+.crumbs{ background:#fff; border-bottom:1px solid var(--border); padding:11px 24px; font-size:13px; color:var(--muted); display:flex; gap:7px; flex-wrap:wrap; align-items:center; }
+.crumbs a, .crumbs button{ background:none; border:0; padding:0; color:var(--blue); font-weight:700; font-size:13px; cursor:pointer; text-decoration:none; }
+.crumbs a:hover, .crumbs button:hover{ text-decoration:underline; }
+.crumbs b{ color:var(--navy); }
 
-.card{
-  background:var(--card); border:1px solid var(--border); border-radius:14px;
-  box-shadow:var(--shadow); margin-bottom:12px; overflow:hidden;
-}
-.card .head{ display:flex; align-items:center; gap:14px; padding:16px 18px; cursor:pointer; }
-.card .head .num{
-  width:32px; height:32px; border-radius:50%; background:#eaf6fb; color:var(--blue);
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;
-}
-.card .head .info{ flex:1; min-width:0; }
-.card .head h3{ font-size:14.5px; margin:0; color:var(--navy); font-weight:700; }
-.card .head p{ font-size:12px; color:var(--muted); margin:3px 0 0; line-height:1.4; }
-.card .head .chev{ color:var(--muted); font-size:13px; flex-shrink:0; transition:transform .15s; }
-.card.aberto .head .chev{ transform:rotate(180deg); }
-.card .player{ display:none; background:#000; aspect-ratio:16/9; }
-.card.aberto .player{ display:block; }
-.card .player iframe{ width:100%; height:100%; border:0; display:block; }
-.card .player.vazio{ display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; background:#1a2733; }
-.card .admin-row{ display:flex; gap:10px; padding:0 18px 14px; flex-wrap:wrap; }
-.card .admin-row button{
-  background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px;
-  padding:5px 11px; font-size:12px; cursor:pointer; font-family:inherit;
-}
-.card .admin-row button:hover{ border-color:var(--blue); color:var(--blue); }
-.card .admin-row button.del:hover{ border-color:var(--red); color:var(--red); }
-.card.oculta{ opacity:.55 }
-.card.oculta .head .info h3::after{ content:" (oculta)"; font-weight:400; color:var(--muted); font-size:12px; }
+/* ── peças reutilizáveis ── */
+.card{ background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); }
+.pbar{ height:8px; border-radius:999px; background:#d8e4ed; overflow:hidden; }
+.pbar i{ display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--sky)); border-radius:999px; transition:width .35s; }
+.eyebrow{ font-size:11.5px; font-weight:800; letter-spacing:.9px; color:var(--blue); text-transform:uppercase; }
+.btn{ border:0; border-radius:9px; padding:11px 18px; font-size:14px; font-weight:700; cursor:pointer; background:var(--blue); color:#fff; text-decoration:none; display:inline-block; }
+.btn:hover{ filter:brightness(1.07); }
+.btn.out{ background:#fff; border:1.5px solid var(--border); color:var(--navy); }
+.btn.out:hover{ border-color:var(--blue); color:var(--blue); filter:none; }
+.btn.ok{ background:var(--green); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.chip{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; border-radius:999px; padding:3px 10px; }
+.chip.done{ background:#eafaf1; color:#1e7e42; } .chip.now{ background:var(--tint); color:#0b6a8d; } .chip.next{ background:#f1f4f7; color:var(--muted); }
+.pnote{ font-size:11.5px; color:var(--muted); margin-top:6px; }
+.vazio-lista{ text-align:center; padding:50px 20px; color:var(--muted); background:var(--card); border:1px dashed var(--border); border-radius:14px; }
 
-.vazio-lista{ text-align:center; padding:50px 20px; color:var(--muted); background:var(--card);
-  border:1px dashed var(--border); border-radius:14px; }
+/* ── 1 · DENTRO DO CURSO ── */
+.chero{ background:linear-gradient(135deg,var(--navy) 0%,#0b5f84 60%,#1792C0 100%); color:#fff; padding:30px 32px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:26px; align-items:center;
+  background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(135deg,var(--navy) 0%,#0b5f84 60%,#1792C0 100%);
+  background-size:30px 30px,30px 30px,100% 100%; }
+.chero .eyebrow{ color:var(--sky); }
+.chero h1{ margin:6px 0 6px; font-size:32px; letter-spacing:-.7px; line-height:1.12; }
+.chero p{ margin:0 0 6px; font-size:15.5px; color:#dff1fa; max-width:560px; line-height:1.5; }
+.chero .s2{ font-size:13px; color:#bfe2f3; margin-bottom:18px; }
+.chero .row{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.cta{ background:#fff; color:var(--navy); border:0; border-radius:11px; padding:14px 24px; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+.cta:hover{ transform:translateY(-2px); }
+.chero .row .sub{ font-size:12.5px; color:#bfe2f3; }
+.chero .pnote{ color:#bfe2f3; }
+.ring{ --p:0; width:132px; height:132px; border-radius:50%; background:conic-gradient(var(--sky) calc(var(--p)*1%),rgba(255,255,255,.2) 0); display:grid; place-items:center; }
+.ring div{ width:102px; height:102px; border-radius:50%; background:#0a4766; display:grid; place-items:center; text-align:center; }
+.ring b{ font-size:28px; line-height:1; } .ring small{ display:block; font-size:11px; opacity:.85; margin-top:3px; }
+.mods{ max-width:1080px; margin:0 auto; padding:28px 28px 44px; }
+.mods > h2{ margin:0 0 4px; font-size:21px; color:var(--navy); } .mods > .s{ margin:0 0 20px; color:var(--muted); font-size:14px; }
+.mgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:18px; }
+.mq{ background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); overflow:hidden; display:flex; flex-direction:column; transition:transform .18s,border-color .18s; }
+.mq:hover{ transform:translateY(-3px); border-color:var(--blue); }
+.mq.oculta{ opacity:.6; }
+.mq .cv{ position:relative; padding:20px 20px 26px; color:#fff; background:linear-gradient(135deg,#0a3a55,#0d6d93); }
+.mq .cv .n{ font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; opacity:.85; }
+.mq .cv h3{ margin:4px 0 0; font-size:19px; line-height:1.2; padding-right:54px; }
+.mq .cv .em{ position:absolute; right:16px; top:12px; font-size:34px; font-weight:800; opacity:.22; letter-spacing:-1px; }
+.mq .cv .st{ position:absolute; left:20px; bottom:-11px; }
+.mq .bd{ padding:22px 20px 18px; display:flex; flex-direction:column; gap:10px; flex:1; }
+.mq .bd p{ margin:0; font-size:13.5px; line-height:1.5; color:var(--muted); }
+.mq .pgl{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-weight:600; }
+.mq ul{ list-style:none; margin:2px 0 0; padding:0; display:grid; gap:2px; }
+.mq li button{ width:100%; display:flex; align-items:center; gap:10px; background:none; border:0; padding:8px 6px; border-radius:8px; cursor:pointer; text-align:left; font-size:13.5px; color:var(--navy); font-weight:600; }
+.mq li button:hover{ background:#f3f8fb; }
+.mq li.oc button{ opacity:.55; }
+.mq .d{ width:22px; height:22px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; font-size:11px; font-weight:800; background:#eef2f6; color:var(--muted); }
+.mq .d.done{ background:var(--green); color:#fff; } .mq .d.cur{ background:var(--blue); color:#fff; }
+.mq li .mm{ margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:500; white-space:nowrap; }
+.mq .ft{ padding:0 20px 20px; display:flex; flex-direction:column; gap:8px; } .mq .ft .btn{ width:100%; text-align:center; }
+.mq .vz{ font-size:12.5px; color:var(--muted); }
+.addmini{ background:none; border:1px dashed var(--border); color:var(--blue); border-radius:7px; padding:6px 10px; font-size:12px; cursor:pointer; }
+.addmini:hover{ background:var(--tint); }
 
-.painel-admin{
-  background:var(--card); border:1px solid var(--border); border-radius:14px;
-  box-shadow:var(--shadow); padding:22px 20px; margin-bottom:22px;
-}
+/* ── 2 · SALA DE AULA ── */
+.vstrip{ background:#fff; border-bottom:1px solid var(--border); padding:14px 24px; display:flex; gap:24px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.vstrip h1{ margin:2px 0 0; font-size:19px; color:var(--navy); }
+.vstrip .pg{ min-width:230px; font-size:12.5px; color:var(--muted); } .vstrip .pg b{ color:var(--navy); font-size:14px; }
+.vgrid{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:22px; padding:22px 24px 36px; align-items:start; max-width:1320px; margin:0 auto; }
+.video{ position:relative; aspect-ratio:16/9; border-radius:14px; overflow:hidden; background:#000; box-shadow:var(--shadow); }
+.video iframe{ width:100%; height:100%; border:0; display:block; }
+.video.vazio{ display:flex; align-items:center; justify-content:center; color:#fff; font-size:14px; background:linear-gradient(135deg,#0a3a55 0%,#071d2b 100%); }
+.vmain h2{ margin:16px 0 4px; font-size:22px; color:var(--navy); } .vmain .meta{ font-size:13px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.vmain .acts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.admrow{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:14px; padding:10px 12px; background:#fff; border:1px dashed var(--border); border-radius:10px; }
+.admrow .tg{ font-size:11.5px; color:var(--muted); margin-right:4px; }
+.admrow button{ background:none; border:1px solid var(--border); color:var(--muted); border-radius:7px; padding:5px 11px; font-size:12px; cursor:pointer; }
+.admrow button:hover{ border-color:var(--blue); color:var(--blue); }
+.admrow button.del:hover{ border-color:var(--red); color:var(--red); }
+.admrow button:disabled{ opacity:.4; cursor:not-allowed; }
+.tabs{ display:flex; gap:4px; border-bottom:1px solid var(--border); margin:18px 0 14px; }
+.tabs button{ background:none; border:0; border-bottom:3px solid transparent; padding:10px 14px; font-size:14px; font-weight:700; color:var(--muted); cursor:pointer; }
+.tabs button.on{ color:var(--navy); border-color:var(--blue); }
+.tabpane{ font-size:14.5px; line-height:1.65; display:none; white-space:pre-line; } .tabpane.on{ display:block; }
+.tabpane .btn{ margin-top:12px; white-space:normal; }
+.side{ padding:6px; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow:auto; }
+.side .hd{ padding:14px 14px 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; } .side .hd b{ color:var(--navy); font-size:15px; }
+.side .hd button{ background:none; border:0; color:var(--blue); font-weight:700; font-size:12.5px; cursor:pointer; }
+.mod{ border-top:1px solid var(--border); }
+.mod > button{ width:100%; display:flex; align-items:center; gap:8px; background:#f7fafc; border:0; padding:12px 14px; cursor:pointer; text-align:left; }
+.mod > button .n{ font-size:12.5px; font-weight:800; color:var(--navy); } .mod > button .s{ font-size:12px; color:var(--muted); flex:1; min-width:0; }
+.mod > button .c{ font-size:11.5px; color:var(--muted); font-weight:700; } .mod > button .cv{ font-size:11px; color:var(--muted); transition:transform .15s; }
+.mod.open > button .cv{ transform:rotate(180deg); } .mod .ls{ display:none; } .mod.open .ls{ display:block; }
+.les{ width:100%; display:flex; align-items:center; gap:12px; padding:12px 14px; border:0; border-left:4px solid transparent; background:#fff; cursor:pointer; text-align:left; }
+.les:hover{ background:#f7fbfd; } .les.cur{ background:var(--tint); border-left-color:var(--blue); } .les.oc{ opacity:.55; }
+.les .dot{ width:28px; height:28px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; font-size:12.5px; font-weight:800; background:#eef2f6; color:var(--muted); }
+.les.done .dot{ background:var(--green); color:#fff; } .les.cur .dot{ background:var(--blue); color:#fff; }
+.les .tt{ flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--navy); line-height:1.3; } .les .mm{ font-size:11.5px; color:var(--muted); white-space:nowrap; }
+
+/* ── administração (só o admin vê) ── */
+.admwrap{ max-width:1080px; margin:0 auto; padding:18px 28px 0; }
+.painel-admin{ background:var(--card); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); padding:22px 20px; margin-bottom:22px; }
 .painel-admin h3{ font-size:14px; margin:0 0 4px; color:var(--navy); }
 .painel-admin .tag{ font-size:11.5px; color:var(--muted); margin:0 0 16px; }
 .painel-admin label{ display:block; font-size:12.5px; font-weight:600; margin:12px 0 5px; }
-.painel-admin input[type=text], .painel-admin textarea, .painel-admin select{
-  width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px;
-  font-size:13.5px; font-family:inherit; outline:0; background:#fff;
-}
+.painel-admin input[type=text], .painel-admin textarea, .painel-admin select{ width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; font-family:inherit; outline:0; background:#fff; }
 .painel-admin textarea{ resize:vertical; min-height:60px; }
 .painel-admin .row{ display:flex; gap:10px; margin-top:16px; align-items:center; }
-.painel-admin .btn{
-  padding:9px 18px; border:0; border-radius:8px; font-size:13.5px; font-weight:700;
-  cursor:pointer; background:var(--blue); color:#fff; font-family:inherit;
-}
+.painel-admin .btn{ padding:9px 18px; border:0; border-radius:8px; font-size:13.5px; font-weight:700; cursor:pointer; background:var(--blue); color:#fff; font-family:inherit; }
 .painel-admin .btn:disabled{ opacity:.6; cursor:not-allowed; }
 .painel-admin .btn-out{ background:none; border:1px solid var(--border); color:var(--muted); }
 .painel-admin .msg{ font-size:12.5px; margin-top:10px; display:none; padding:8px 10px; border-radius:7px; }
 .painel-admin .msg.ok{ display:block; background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; }
 .painel-admin .msg.err{ display:block; background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; }
-
-.topo-admin{ display:none; gap:10px; margin-bottom:22px; }
-.topo-admin button{
-  flex:1; text-align:center; padding:13px; background:#eaf6fb; border:1.5px dashed var(--blue);
-  color:var(--blue); border-radius:11px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
-}
+.topo-admin{ display:none; gap:10px; margin-bottom:18px; }
+.topo-admin button{ flex:1; text-align:center; padding:13px; background:#eaf6fb; border:1.5px dashed var(--blue); color:var(--blue); border-radius:11px; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit; }
 .topo-admin button:hover{ background:#dcf0f9; }
 .topo-admin button.sec{ flex:none; padding:13px 18px; background:#fff; border-color:var(--border); color:var(--muted); }
+
+.toast{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--navy); color:#fff; padding:11px 18px; border-radius:10px; font-size:13.5px; box-shadow:0 8px 24px rgba(0,0,0,.28); z-index:50; max-width:calc(100% - 28px); display:none; text-align:center; }
+.toast.on{ display:block; }
+
+@media (max-width:780px){
+  header{ padding:0 14px; }
+  .crumbs{ padding:10px 14px; }
+  .chero{ grid-template-columns:1fr; padding:22px 18px; gap:18px; } .chero h1{ font-size:25px; }
+  .ring{ width:100px; height:100px; } .ring div{ width:76px; height:76px; } .ring b{ font-size:22px; } .cta{ width:100%; }
+  .mods{ padding:20px 14px 30px; } .mgrid{ grid-template-columns:1fr; }
+  .vstrip{ padding:12px 14px; } .vstrip h1{ font-size:16px; } .vstrip .pg{ min-width:0; width:100%; }
+  .vgrid{ grid-template-columns:1fr; padding:14px 14px 28px; } .side{ position:static; max-height:none; } .vmain h2{ font-size:19px; }
+  .vmain .acts .btn{ flex:1 1 100%; text-align:center; }
+  .admwrap{ padding:14px 14px 0; }
+}
 </style>
 </head>
 <body>
@@ -105,25 +166,34 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 26px; }
   <div class="logo">Obra<span>IA</span></div>
   <a class="back" href="dashboard.html">← voltar</a>
 </header>
-<main>
-  <h1>Aulas — Método NAVE</h1>
-  <p class="sub">A trilha em vídeo que ensina o engenheiro a comandar a IA — do primeiro prompt ao fluxo que roda sozinho.</p>
+<nav class="crumbs" id="crumbs"></nav>
 
+<div class="admwrap" id="admwrap" style="display:none">
   <div class="topo-admin" id="topoAdmin">
     <button type="button" id="btnNovaAula">+ Adicionar aula</button>
     <button type="button" class="sec" id="btnNovoModulo">+ Novo módulo</button>
   </div>
   <div id="formNovaAula"></div>
-  <div id="lista"><div class="vazio-lista">Carregando…</div></div>
-</main>
+</div>
+
+<div id="app"><div class="vazio-lista" style="margin:28px">Carregando…</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const ADMIN_ID = "cb35fabc-f999-43af-980e-28c440adaaa1"; // lucasmsg16@gmail.com
+const ZAP = "5581997977068";
 const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb_publishable_a93QzqdJJ0uSooob6JSwAg_ETcbQ0KF");
 let SOU_ADMIN = false;
+let UID = null;
 let MODULOS = [];
 let AULAS = [];
-let ABERTA = null;
+let LISTA = [];        // ordem do curso, tudo o que esta pessoa pode abrir
+let LISTA_ATIVA = [];  // só aulas ativas em módulos ativos: base do progresso
+let PROG = { done: new Set(), modo: "banco" };
+let PROXIMA = null;    // próxima aula pendente do curso
+let AULA_ATUAL = null; // null = tela de módulos; id = Sala de Aula
+let MOD_ESTADO = {};   // acordeão da lateral: chave do módulo -> aberto?
+let OCUPADO = false;
 
 function extrairYoutubeId(url){
   if(!url) return null;
@@ -131,6 +201,20 @@ function extrairYoutubeId(url){
   return m ? m[1] : null;
 }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+// Nas listas o número já aparece na bolinha: "Aula 3 - Prompt" vira "Prompt". No título da aula o texto fica completo.
+function tituloCurto(t){ const r = String(t||"").replace(/^aula\s*\d+\s*[-–—:.]\s*/i, "").trim(); return r || String(t||""); }
+function porOrdem(a,b){ return (a.ordem||0)-(b.ordem||0); }
+function fmtMin(n){
+  n = Number(n); if(!n || n < 1) return "";
+  if(n < 60) return n + " min";
+  const h = Math.floor(n/60), r = n % 60;
+  return h + " h" + (r ? " " + r + " min" : "");
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove("on"), 4500);
+}
 
 async function carregarTudo(){
   let qm = sb.from("modulos").select("*").order("ordem", {ascending:true});
@@ -139,74 +223,247 @@ async function carregarTudo(){
   if(!SOU_ADMIN) qa = qa.eq("ativo", true);
   const [rm, ra] = await Promise.all([qm, qa]);
   if(rm.error || ra.error){
-    document.getElementById("lista").innerHTML = '<div class="vazio-lista">Não consegui carregar as aulas.</div>';
+    document.getElementById("app").innerHTML = '<div class="vazio-lista" style="margin:28px">Não consegui carregar as aulas.</div>';
     return;
   }
   MODULOS = rm.data || [];
   AULAS = ra.data || [];
-  renderLista();
+  // Aluno: só módulos ativos e aulas ativas dentro deles (aula de módulo oculto não pode vazar para "Sem módulo").
+  if(!SOU_ADMIN){ const f = ObraCurso.filtrarAluno(MODULOS, AULAS); MODULOS = f.modulos; AULAS = f.aulas; }
+  LISTA = ObraCurso.listaOrdenada(MODULOS, AULAS);
+  const ativo = ObraCurso.filtrarAluno(MODULOS, AULAS);
+  LISTA_ATIVA = ObraCurso.listaOrdenada(ativo.modulos, ativo.aulas);
+  PROG = await ObraCurso.carregar(sb, UID, LISTA_ATIVA.map(a => a.id));
+  render();
 }
 
-// Cada módulo vira uma seção; aulas sem módulo (nenhuma hoje, mas por
-// segurança contra dado antigo) caem no final, sem título de seção.
-function renderLista(){
-  const host = document.getElementById("lista");
-  if(!MODULOS.length && !AULAS.length){
-    host.innerHTML = '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>';
+// ── agrupamento por módulo ────────────────────────────────────────────────
+// "Módulo 2 - Prompts" vira rótulo "Módulo 2" + nome "Prompts"; título fora do padrão usa a posição.
+function partesModulo(m, i){
+  const t = String(m.titulo || "").trim();
+  const mt = t.match(/^m[óo]dulo\s*(\d+)\s*[-–—:.]*\s*(.*)$/i);
+  if(mt) return { rotulo: "Módulo " + mt[1], nome: mt[2].trim() || ("Módulo " + mt[1]) };
+  return { rotulo: "Módulo " + (i+1), nome: t || ("Módulo " + (i+1)) };
+}
+function grupos(){
+  const gs = [];
+  MODULOS.forEach((m, i) => {
+    const aulas = AULAS.filter(a => a.modulo_id === m.id).sort(porOrdem);
+    if(!aulas.length && !SOU_ADMIN) return;
+    gs.push(Object.assign({ mod: m, key: m.id, aulas: aulas }, partesModulo(m, i)));
+  });
+  const ids = new Set(MODULOS.map(m => m.id));
+  const soltas = AULAS.filter(a => !a.modulo_id || !ids.has(a.modulo_id)).sort(porOrdem);
+  if(soltas.length) gs.push({ mod: null, key: "_extras", rotulo: "Extras", nome: "Outras aulas", aulas: soltas });
+  return gs;
+}
+function ativasDe(g){ return g.aulas.filter(a => a.ativo !== false); }
+function feitasDe(g){ return ativasDe(g).filter(a => PROG.done.has(a.id)).length; }
+function numero(a){ const i = LISTA_ATIVA.indexOf(a); return i >= 0 ? i + 1 : "•"; }
+function ytEmbed(a){
+  const id = extrairYoutubeId(a.video_url);
+  return id ? `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
+            : `<div class="video vazio">Vídeo ainda não cadastrado nesta aula.</div>`;
+}
+function notaModo(){ return PROG.modo === "navegador" ? '<div class="pnote">Seu progresso está salvo neste aparelho.</div>' : ""; }
+
+// ── navegação ─────────────────────────────────────────────────────────────
+function idDaUrl(){
+  const p = new URLSearchParams(location.search);
+  return p.get("aula") || p.get("abrir") || null; // "abrir" é o formato antigo, usado pelos links de "Comece por aqui"
+}
+function irParaAula(id){
+  AULA_ATUAL = id; MOD_ESTADO = {};
+  history.pushState(null, "", "?aula=" + encodeURIComponent(id));
+  render(); window.scrollTo(0, 0);
+}
+function irParaCurso(){
+  AULA_ATUAL = null;
+  history.pushState(null, "", location.pathname);
+  render(); window.scrollTo(0, 0);
+}
+window.addEventListener("popstate", () => { AULA_ATUAL = idDaUrl(); MOD_ESTADO = {}; render(); });
+
+function render(){
+  PROXIMA = ObraCurso.proximaPendente(LISTA_ATIVA, PROG.done);
+  const aula = AULA_ATUAL ? LISTA.find(a => a.id === AULA_ATUAL) : null;
+  if(AULA_ATUAL && !aula){ AULA_ATUAL = null; history.replaceState(null, "", location.pathname); }
+  renderCrumbs(aula);
+  document.getElementById("app").innerHTML = aula ? vAula(aula) : vCurso();
+  document.title = aula ? aula.titulo + " · Curso Dominante da IA · ObraIA" : "Curso Dominante da IA · ObraIA";
+}
+function renderCrumbs(aula){
+  let h = '<a href="dashboard.html">Início</a><span>›</span>';
+  if(!aula){ h += '<b>Curso Dominante da IA</b>'; }
+  else{
+    const g = grupos().find(x => x.aulas.some(a => a.id === aula.id));
+    h += '<button type="button" data-act="curso">Curso Dominante da IA</button><span>›</span>';
+    if(g) h += '<span>' + esc(g.rotulo) + '</span><span>›</span>';
+    h += '<b>' + esc(aula.titulo) + '</b>';
+  }
+  document.getElementById("crumbs").innerHTML = h;
+}
+
+// ── tela 1: módulos ───────────────────────────────────────────────────────
+function vCurso(){
+  const gs = grupos();
+  const total = LISTA_ATIVA.length;
+  const feitas = LISTA_ATIVA.filter(a => PROG.done.has(a.id)).length;
+  const pct = total ? Math.round(feitas * 100 / total) : 0;
+  let cta = "", sub = "";
+  if(total){
+    if(!PROXIMA){ cta = "Rever o curso"; sub = "Você concluiu as " + total + " aulas. 🎉"; }
+    else{
+      cta = (feitas ? "Continuar: Aula " : "Começar: Aula ") + numero(PROXIMA);
+      sub = feitas ? (feitas + " de " + total + " aulas concluídas") : (total + (total === 1 ? " aula" : " aulas") + " no curso");
+    }
+  }
+  const alvo = PROXIMA || LISTA_ATIVA[0];
+  const hero = `<div class="chero">
+    <div>
+      <div class="eyebrow">Curso prático · Método NAVE</div>
+      <h1>Curso Dominante da IA 🚀</h1>
+      <p>Comande a IA e entregue orçamentos em horas, não em dias.</p>
+      <div class="s2">Passo a passo, dentro da própria ferramenta — do primeiro prompt ao fluxo que roda sozinho.</div>
+      ${total ? `<div class="row"><button class="cta" type="button" data-aula="${esc(alvo.id)}">${esc(cta)}</button><span class="sub">${esc(sub)}</span></div>${notaModo()}` : ""}
+    </div>
+    ${total ? `<div class="ring" style="--p:${pct}" role="img" aria-label="${pct}% do curso concluído"><div><span><b>${pct}%</b><small>concluído</small></span></div></div>` : ""}
+  </div>`;
+  const cards = gs.map(cardModulo).join("");
+  return hero + `<div class="mods"><h2>Módulos do curso</h2><p class="s">Siga a ordem: cada módulo prepara o próximo.</p>
+    ${cards ? `<div class="mgrid">${cards}</div>` : '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>'}</div>`;
+}
+function cardModulo(g){
+  const ativas = ativasDe(g), feitas = feitasDe(g), n = ativas.length;
+  const todas = n > 0 && feitas === n;
+  const temProxima = PROXIMA && ativas.some(a => a.id === PROXIMA.id);
+  let chip;
+  if(todas) chip = '<span class="chip done">✓ Concluído</span>';
+  else if(feitas > 0) chip = '<span class="chip now">Em andamento</span>';
+  else if(temProxima) chip = '<span class="chip now">Próximo</span>';
+  else chip = '<span class="chip next">Não iniciado</span>';
+  const mins = ativas.reduce((s, a) => s + (Number(a.duracao_min) || 0), 0);
+  const pend = ativas.find(a => !PROG.done.has(a.id)) || ativas[0];
+  const rotuloBtn = todas ? "Rever módulo" : (feitas ? "Continuar módulo" : "Começar módulo");
+  const oculto = g.mod && g.mod.ativo === false;
+  const itens = g.aulas.map(a => {
+    const feita = PROG.done.has(a.id), atual = PROXIMA && PROXIMA.id === a.id;
+    return `<li class="${a.ativo === false ? "oc" : ""}"><button type="button" data-aula="${esc(a.id)}">
+      <span class="d ${feita ? "done" : atual ? "cur" : ""}">${feita ? "✓" : numero(a)}</span>
+      <span>${esc(tituloCurto(a.titulo))}${a.ativo === false ? " (oculta)" : ""}</span>
+      ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button></li>`;
+  }).join("");
+  const adm = SOU_ADMIN && g.mod ? `<button type="button" class="addmini" onclick="abrirFormNovaAula('${esc(g.mod.id)}')">+ aula neste módulo</button>` : "";
+  return `<article class="mq ${oculto ? "oculta" : ""}">
+    <div class="cv"><div class="n">${esc(g.rotulo)}${oculto ? " · oculto" : ""}</div><h3>${esc(g.nome)}</h3>
+      <div class="em">${(d => d ? d.padStart(2, "0") : "")(String(g.rotulo).replace(/\D/g, ""))}</div><div class="st">${n ? chip : ""}</div></div>
+    <div class="bd">
+      ${g.mod && g.mod.descricao ? `<p>${esc(g.mod.descricao)}</p>` : ""}
+      ${n ? `<div class="pgl"><span>${feitas} de ${n} ${n === 1 ? "aula" : "aulas"}</span><span>${mins ? fmtMin(mins) : ""}</span></div>
+        <div class="pbar"><i style="width:${Math.round(feitas * 100 / n)}%"></i></div>` : ""}
+      ${itens ? `<ul>${itens}</ul>` : '<div class="vz">Nenhuma aula neste módulo ainda.</div>'}
+    </div>
+    <div class="ft">${n ? `<button class="btn ${todas ? "out" : ""}" type="button" data-aula="${esc(pend.id)}">${rotuloBtn}</button>` : ""}${adm}</div>
+  </article>`;
+}
+
+// ── tela 2: sala de aula ──────────────────────────────────────────────────
+function vAula(a){
+  const gs = grupos();
+  const g = gs.find(x => x.aulas.some(y => y.id === a.id));
+  const total = LISTA_ATIVA.length;
+  const feitas = LISTA_ATIVA.filter(x => PROG.done.has(x.id)).length;
+  const pct = total ? Math.round(feitas * 100 / total) : 0;
+  const idx = LISTA.indexOf(a);
+  const ant = idx > 0 ? LISTA[idx-1] : null, prox = idx < LISTA.length-1 ? LISTA[idx+1] : null;
+  const feita = PROG.done.has(a.id);
+  const dur = fmtMin(a.duracao_min);
+  const naLista = LISTA_ATIVA.indexOf(a) >= 0;
+  const doGrupo = g ? g.aulas : [a];
+  const gi = doGrupo.findIndex(x => x.id === a.id);
+  const adm = SOU_ADMIN ? `<div class="admrow"><span class="tg">Só você vê:</span>
+      <button type="button" onclick="moverAula('${esc(a.id)}',-1)" ${gi === 0 ? "disabled" : ""}>↑ Subir</button>
+      <button type="button" onclick="moverAula('${esc(a.id)}',1)" ${gi === doGrupo.length-1 ? "disabled" : ""}>↓ Descer</button>
+      <button type="button" onclick="editarAula('${esc(a.id)}')">✎ Editar</button>
+      <button type="button" onclick="alternarAtiva('${esc(a.id)}')">${a.ativo === false ? "Reexibir" : "Ocultar"}</button>
+      <button type="button" class="del" onclick="excluirAula('${esc(a.id)}')">✕ Excluir</button></div>` : "";
+  const zapMsg = encodeURIComponent('Olá! Tenho uma dúvida na aula "' + a.titulo + '" do Curso Dominante da IA.');
+  return `<div class="vstrip">
+      <div><div class="eyebrow">🚀 Curso Dominante da IA</div><h1>${esc(g ? g.rotulo + " · " + g.nome : "Aula")}</h1></div>
+      <div class="pg"><b>${pct}% do curso</b> · ${feitas} de ${total} aulas<div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
+    </div>
+    <div class="vgrid">
+      <div class="vmain">
+        ${ytEmbed(a)}
+        <h2>${esc(a.titulo)}${a.ativo === false ? " (oculta)" : ""}</h2>
+        <div class="meta">${naLista ? `<span>Aula ${numero(a)} de ${total}</span>` : ""}${dur ? `<span>· ${dur}</span>` : ""}${feita ? '<span class="chip done">✓ Concluída</span>' : ""}</div>
+        <div class="acts">
+          <button class="btn out" type="button" ${ant ? `data-aula="${esc(ant.id)}"` : "disabled"}>← Aula anterior</button>
+          ${naLista ? `<button class="btn ${feita ? "ok" : ""}" type="button" data-act="concluir" data-id="${esc(a.id)}" ${feita ? 'title="Clique para desmarcar"' : ""}>${feita ? "✓ Concluída" : "Marcar como concluída"}</button>` : ""}
+          <button class="btn ${feita && prox ? "" : "out"}" type="button" ${prox ? `data-aula="${esc(prox.id)}"` : "disabled"}>Próxima aula →</button>
+          <a class="btn out" href="gestao.html">🏗️ Praticar na ferramenta ↗</a>
+        </div>
+        ${adm}
+        <div class="tabs" role="tablist"><button class="on" type="button" data-tab="s">Sobre a aula</button><button type="button" data-tab="d">Dúvidas</button></div>
+        <div class="tabpane on" id="tp-s">${a.descricao ? esc(a.descricao) : '<span style="color:var(--muted)">Esta aula ainda não tem descrição.</span>'}</div>
+        <div class="tabpane" id="tp-d">Ficou com dúvida nesta aula? Chame no WhatsApp que a gente responde.<br>
+          <a class="btn" href="https://wa.me/${ZAP}?text=${zapMsg}" target="_blank" rel="noopener">📱 Chamar no WhatsApp</a></div>
+      </div>
+      <aside class="side card"><div class="hd"><b>Conteúdo do curso</b><button type="button" data-act="curso">← Todos os módulos</button></div>${sidebar(a, gs)}</aside>
+    </div>`;
+}
+function sidebar(atual, gs){
+  return gs.map(g => {
+    const ativas = ativasDe(g), feitas = feitasDe(g);
+    const aberto = (g.key in MOD_ESTADO) ? MOD_ESTADO[g.key] : g.aulas.some(a => a.id === atual.id);
+    const itens = g.aulas.map(a => {
+      const feita = PROG.done.has(a.id), cur = a.id === atual.id;
+      return `<button type="button" class="les ${cur ? "cur" : ""} ${feita ? "done" : ""} ${a.ativo === false ? "oc" : ""}" data-aula="${esc(a.id)}">
+        <span class="dot">${feita ? "✓" : numero(a)}</span><span class="tt">${esc(tituloCurto(a.titulo))}${a.ativo === false ? " (oculta)" : ""}</span>
+        ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button>`;
+    }).join("");
+    return `<div class="mod ${aberto ? "open" : ""}"><button type="button" data-act="mod" data-key="${esc(g.key)}">
+      <span class="n">${esc(g.rotulo)}</span><span class="s">${esc(g.nome)}</span><span class="c">${feitas}/${ativas.length}</span><span class="cv">▾</span></button>
+      <div class="ls">${itens}</div></div>`;
+  }).join("");
+}
+
+async function alternarConcluida(id){
+  if(OCUPADO) return;
+  OCUPADO = true;
+  try{
+    const nova = !PROG.done.has(id);
+    const p = ObraCurso.marcar(sb, UID, id, nova, PROG); // a parte síncrona já atualiza PROG.done
+    render();
+    const r = await p;
+    if(!r.ok){
+      render();
+      if(r.guardadoNoNavegador) toast("Não consegui salvar agora. Ficou guardado neste aparelho e sobe sozinho depois.");
+      else if(r.revertido) toast("Não consegui desmarcar agora. Tente de novo em instantes.");
+      else toast("Não consegui salvar o seu progresso.");
+    }
+  }finally{ OCUPADO = false; }
+}
+
+// ── cliques (delegação) ───────────────────────────────────────────────────
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-aula],[data-act],[data-tab]");
+  if(!el || el.disabled) return;
+  if(el.dataset.tab){
+    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b === el));
+    document.getElementById("tp-s").classList.toggle("on", el.dataset.tab === "s");
+    document.getElementById("tp-d").classList.toggle("on", el.dataset.tab === "d");
     return;
   }
-  let html = "";
-  MODULOS.forEach(mod => {
-    const aulasDoModulo = AULAS.filter(a => a.modulo_id === mod.id);
-    if(!aulasDoModulo.length && !SOU_ADMIN) return;
-    html += `<div class="modulo">
-      <div class="modulo-head"><h2>${esc(mod.titulo)}</h2><div class="linha"></div>
-        ${SOU_ADMIN?`<button type="button" class="add-mini" onclick="abrirFormNovaAula('${mod.id}')">+ aula</button>`:""}
-      </div>
-      ${aulasDoModulo.length ? aulasDoModulo.map((a,idx) => cardAula(a, idx, aulasDoModulo.length)).join("")
-        : `<div class="modulo-vazio">Nenhuma aula neste módulo ainda.</div>`}
-    </div>`;
-  });
-  const semModulo = AULAS.filter(a => !a.modulo_id || !MODULOS.some(m=>m.id===a.modulo_id));
-  if(semModulo.length){
-    html += `<div class="modulo"><div class="modulo-head"><h2>Sem módulo</h2><div class="linha"></div></div>
-      ${semModulo.map((a,idx) => cardAula(a, idx, semModulo.length)).join("")}</div>`;
+  if(el.dataset.act === "curso"){ irParaCurso(); return; }
+  if(el.dataset.act === "concluir"){ alternarConcluida(el.dataset.id); return; }
+  if(el.dataset.act === "mod"){
+    const box = el.closest(".mod"); box.classList.toggle("open");
+    MOD_ESTADO[el.dataset.key] = box.classList.contains("open");
+    return;
   }
-  host.innerHTML = html || '<div class="vazio-lista">Nenhuma aula publicada ainda.</div>';
-}
-
-function cardAula(a, idx, totalNoGrupo){
-  const ytId = extrairYoutubeId(a.video_url);
-  const aberto = ABERTA === a.id;
-  const player = ytId
-    ? `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-    : `<div class="player vazio" style="display:flex">Vídeo ainda não cadastrado nesta aula.</div>`;
-  const admin = SOU_ADMIN ? `
-    <div class="admin-row">
-      <button type="button" onclick="moverAula('${a.id}',-1)" ${idx===0?"disabled":""}>↑</button>
-      <button type="button" onclick="moverAula('${a.id}',1)" ${idx===totalNoGrupo-1?"disabled":""}>↓</button>
-      <button type="button" onclick="editarAula('${a.id}')">✎ Editar</button>
-      <button type="button" onclick="alternarAtiva('${a.id}')">${a.ativo?"Ocultar":"Reexibir"}</button>
-      <button type="button" class="del" onclick="excluirAula('${a.id}')">✕ Excluir</button>
-    </div>` : "";
-  return `<div class="card ${aberto?"aberto":""} ${!a.ativo?"oculta":""}" id="card-${a.id}">
-      <div class="head" onclick="toggleAula('${a.id}')">
-        <div class="num">${idx+1}</div>
-        <div class="info"><h3>${esc(a.titulo)}</h3><p>${esc(a.descricao||"")}</p></div>
-        <div class="chev">▾</div>
-      </div>
-      <div class="player">${player}</div>
-      ${admin}
-    </div>`;
-}
-
-function toggleAula(id){
-  ABERTA = ABERTA === id ? null : id;
-  renderLista();
-  if(ABERTA){
-    document.getElementById("card-"+id).scrollIntoView({behavior:"smooth", block:"nearest"});
-  }
-}
+  if(el.dataset.aula) irParaAula(el.dataset.aula);
+});
 
 // ── Painel de administração (só o admin vê) ─────────────────────────────
 function abrirFormNovaAula(moduloIdPreSelecionado){
@@ -322,31 +579,27 @@ async function moverAula(id, dir){
   const { data: liberado, error: licErr } = await sb.rpc("minha_licenca_ativa");
   if(!licErr && liberado !== true){ window.location.href = "dashboard.html"; return; }
 
-  SOU_ADMIN = session.user.id === ADMIN_ID;
+  UID = session.user.id;
+  SOU_ADMIN = UID === ADMIN_ID;
 
-  // A trilha já tem aulas publicadas — todo usuário autenticado com licença
-  // ativa vê a lista real e assiste. Isso bloqueava geral antes (só o admin
-  // via), o que fazia o vídeo "não aparecer" pra quem clicava num link de
-  // aula vindo da tela de boas-vindas (aulas.html?abrir=...): a página
-  // inteira virava um card de "Em breve", descartando o vídeo escolhido.
-  // Escrita (criar/editar/excluir aula, reordenar) continua só pro admin,
-  // tanto aqui no front (topoAdmin/admin-row só rendem se SOU_ADMIN) quanto
-  // no banco (RLS aulas_admin_escreve/modulos_admin_escreve).
+  // Curso restrito por enquanto (ver CURSO_ABERTO em curso-progresso.js): quem não pode ver volta ao painel.
+  if(!ObraCurso.podeVerCurso(UID)){ window.location.href = "dashboard.html"; return; }
+
+  // Todo usuário com licença ativa vê a trilha e assiste. Escrita (criar/editar/excluir/reordenar)
+  // é só do admin: aqui no front (os controles só aparecem se SOU_ADMIN) e no banco (RLS
+  // aulas_admin_escreve / modulos_admin_escreve).
   if(SOU_ADMIN){
+    document.getElementById("admwrap").style.display = "block";
     document.getElementById("topoAdmin").style.display = "flex";
     document.getElementById("btnNovaAula").addEventListener("click", () => abrirFormNovaAula());
     document.getElementById("btnNovoModulo").addEventListener("click", criarModulo);
   }
 
-  // Chegando de um link "aulas.html?abrir=<id>" (ex: dos quadros da tela de
-  // boas-vindas), já abre a aula certa em vez de deixar a pessoa procurar.
-  const abrirId = new URLSearchParams(location.search).get("abrir");
-  if(abrirId) ABERTA = abrirId;
-
+  // Links antigos "aulas.html?abrir=<id>" (tela "Comece por aqui") e novos "?aula=<id>" abrem direto a aula.
+  AULA_ATUAL = idDaUrl();
   await carregarTudo();
-  if(abrirId){
-    const el = document.getElementById("card-"+abrirId);
-    if(el) el.scrollIntoView({behavior:"smooth", block:"start"});
+  if(AULA_ATUAL && new URLSearchParams(location.search).get("abrir")){
+    history.replaceState(null, "", "?aula=" + encodeURIComponent(AULA_ATUAL));
   }
 })();
 </script>
