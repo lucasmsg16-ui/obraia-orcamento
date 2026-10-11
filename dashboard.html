@@ -178,7 +178,7 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
       <div class="ico">🚀</div>
       <div class="eyebrow" id="cursoEyebrow">Curso prático · Método NAVE</div>
       <h2>Dominante da IA</h2>
-      <p id="cursoDesc">O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar o uso da Inteligência Artificial na engenharia e na arquitetura. Chegando em breve.</p>
+      <p id="cursoDesc">O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar com o uso da Inteligência Artificial na engenharia e na arquitetura. Chegando em breve.</p>
       <div class="pgbox" id="cursoPg" hidden><div class="pg" id="cursoPgTxt"></div><div class="pbar"><i id="cursoBar"></i></div></div>
       <span class="go" id="cursoGo">Em breve</span>
     </a>
@@ -269,7 +269,7 @@ async function carregarCurso(uid){
     q.classList.remove("soon");
     // Texto fixo (sem dado de usuário), por isso innerHTML é seguro aqui: serve só para destacar as letras do NAVE.
     document.getElementById("cursoDesc").innerHTML =
-      'O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar o uso da Inteligência Artificial na engenharia e na arquitetura.';
+      'O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar com o uso da Inteligência Artificial na engenharia e na arquitetura.';
     document.getElementById("cursoGo").textContent = "Acessar o curso";
     if(!ObraCurso.cursoAberto()) document.getElementById("cursoEyebrow").textContent = "Curso prático · só você vê por enquanto";
     const r = await ObraCurso.resumo(sb, uid);

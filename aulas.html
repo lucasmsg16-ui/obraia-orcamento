@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Curso Dominante da IA · ObraIA</title>
+<title>Dominante da IA · ObraIA</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230057a8'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-size='20' font-family='Arial,sans-serif' font-weight='bold' fill='white'%3EM%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="curso-progresso.js"></script>
@@ -216,7 +216,7 @@ const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb
 // da ferramenta (aulas.html?area=ferramenta). A coluna `area` das tabelas modulos/aulas separa os dois.
 const AREA = new URLSearchParams(location.search).get("area") === "ferramenta" ? "ferramenta" : "curso";
 const FERR = AREA === "ferramenta";
-const NOME = FERR ? "Tutoriais da ObraIA Gestão" : "Curso Dominante da IA";
+const NOME = FERR ? "Tutoriais da ObraIA Gestão" : "Dominante da IA";
 const VOLTAR = FERR ? "gestao.html" : "dashboard.html";
 function qs(aulaId){
   const p = new URLSearchParams();
@@ -378,9 +378,9 @@ function vCurso(){
   const hero = `<div class="chero">
     <div>
       <div class="eyebrow">${FERR ? "Ferramenta · Vídeos de apoio" : "Curso prático · Método NAVE"}</div>
-      <h1>${FERR ? "Tutoriais da ObraIA Gestão 🏗️" : "Curso Dominante da IA 🚀"}</h1>
+      <h1>${FERR ? "Tutoriais da ObraIA Gestão 🏗️" : "Dominante da IA 🚀"}</h1>
       <p>${FERR ? "Aprenda a usar cada tela da ferramenta, passo a passo." : "O método NAVE leva você do zero ao nível de dominante da IA."}</p>
-      <div class="s2">${FERR ? "Vídeos curtos para você tirar o máximo da ObraIA Gestão." : 'Aprenda a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar o uso da Inteligência Artificial na engenharia e na arquitetura.'}</div>
+      <div class="s2">${FERR ? "Vídeos curtos para você tirar o máximo da ObraIA Gestão." : 'Aprenda a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar com o uso da Inteligência Artificial na engenharia e na arquitetura.'}</div>
       ${total ? `<div class="row"><button class="cta" type="button" data-aula="${esc(alvo.id)}">${esc(cta)}</button><span class="sub">${esc(sub)}</span></div>${notaModo()}` : ""}
     </div>
     ${total ? `<div class="ring" style="--p:${pct}" role="img" aria-label="${pct}% do curso concluído"><div><span><b>${pct}%</b><small>concluído</small></span></div></div>` : ""}
@@ -443,7 +443,7 @@ function vAula(a){
       <button type="button" onclick="editarAula('${esc(a.id)}')">✎ Editar</button>
       <button type="button" onclick="alternarAtiva('${esc(a.id)}')">${a.ativo === false ? "Reexibir" : "Ocultar"}</button>
       <button type="button" class="del" onclick="excluirAula('${esc(a.id)}')">✕ Excluir</button></div>` : "";
-  const zapMsg = encodeURIComponent('Olá! Tenho uma dúvida na aula "' + a.titulo + '" do ' + NOME + '.');
+  const zapMsg = encodeURIComponent('Olá! Tenho uma dúvida na aula "' + a.titulo + '" ' + (FERR ? 'dos ' : 'do curso ') + NOME + '.');
   return `<div class="vstrip">
       <div><div class="eyebrow">${FERR ? "🏗️" : "🚀"} ${NOME}</div><h1>${esc(g ? g.rotulo + " · " + g.nome : "Aula")}</h1></div>
       <div class="pg"><b>${pct}% ${FERR ? "dos tutoriais" : "do curso"}</b> · ${feitas} de ${total} aulas<div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
