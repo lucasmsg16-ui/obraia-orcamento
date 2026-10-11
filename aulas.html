@@ -366,7 +366,7 @@ function cardModulo(g){
       <span>${esc(tituloCurto(a.titulo))}${a.ativo === false ? " (oculta)" : ""}</span>
       ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button></li>`;
   }).join("");
-  const adm = SOU_ADMIN && g.mod ? `<button type="button" class="addmini" onclick="abrirFormNovaAula('${esc(g.mod.id)}')">+ aula neste módulo</button>` : "";
+  const adm = SOU_ADMIN && g.mod ? `<button type="button" class="addmini" onclick="abrirFormNovaAula('${esc(g.mod.id)}')">+ aula neste módulo</button><button type="button" class="addmini" onclick="renomearModulo('${esc(g.mod.id)}')">✎ Renomear módulo</button>` : "";
   return `<article class="mq ${oculto ? "oculta" : ""}">
     <div class="cv"><div class="n">${esc(g.rotulo)}${oculto ? " · oculto" : ""}</div><h3>${esc(g.nome)}</h3>
       <div class="em">${(d => d ? d.padStart(2, "0") : "")(String(g.rotulo).replace(/\D/g, ""))}</div><div class="st">${n ? chip : ""}</div></div>
@@ -552,6 +552,32 @@ function renderForm(aula, moduloPre){
       msg.className="msg err"; msg.textContent="Não consegui salvar ("+(err.message||"erro")+").";
     }
   });
+}
+// Só o admin vê o botão (SOU_ADMIN) e o banco também barra qualquer outra conta (RLS modulos_admin_escreve).
+async function renomearModulo(id){
+  if(!SOU_ADMIN) return;
+  const m = MODULOS.find(x => x.id === id); if(!m) return;
+  const atual = String(m.titulo || "");
+  // Mantém o "Módulo N - " do início (é ele que gera o rótulo e o número do card) e pede só o nome.
+  const pt = atual.match(/^(m[óo]dulo\s*\d+\s*[-–—:.]*\s*)(.*)$/i);
+  let novo;
+  if(pt){
+    const nome = prompt("Novo nome do " + pt[1].replace(/[\s\-–—:.]+$/, "") + ":", pt[2].trim());
+    if(nome === null) return;
+    if(!nome.trim()){ alert("O nome não pode ficar vazio."); return; }
+    novo = pt[1].replace(/[\s\-–—:.]+$/, "") + " - " + nome.trim();
+  } else {
+    const t = prompt("Novo título do módulo:", atual);
+    if(t === null) return;
+    if(!t.trim()){ alert("O título não pode ficar vazio."); return; }
+    novo = t.trim();
+  }
+  if(novo === atual) return;
+  const { data, error } = await sb.from("modulos").update({ titulo: novo }).eq("id", id).select("id");
+  if(error){ alert("Não consegui renomear: " + error.message); return; }
+  if(!data || !data.length){ alert("Não consegui renomear: sem permissão para alterar este módulo."); return; }
+  toast("Módulo renomeado.");
+  await carregarTudo();
 }
 async function criarModulo(){
   const titulo = prompt('Nome do novo módulo (ex: "Módulo 4 - Avançado"):');
