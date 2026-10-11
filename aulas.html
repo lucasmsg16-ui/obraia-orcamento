@@ -116,6 +116,28 @@ header a.back:hover{ opacity:1; text-decoration:underline; }
 .tabs button.on{ color:var(--navy); border-color:var(--blue); }
 .tabpane{ font-size:14.5px; line-height:1.65; display:none; white-space:pre-line; } .tabpane.on{ display:block; }
 .tabpane .btn{ margin-top:12px; white-space:normal; }
+.tabs button[hidden]{ display:none; }
+/* Materiais de apoio */
+#tp-m{ white-space:normal; }
+.mat-vazio{ color:var(--muted); font-size:14px; }
+.mat-lista{ display:grid; gap:10px; margin:0 0 4px; }
+.mat{ display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+.mat .ic{ width:38px; height:38px; border-radius:10px; background:var(--tint); display:grid; place-items:center; font-size:19px; flex:none; }
+.mat .mi{ flex:1; min-width:0; }
+.mat .mi b{ display:block; color:var(--navy); font-size:14px; overflow-wrap:anywhere; }
+.mat .mi small{ color:var(--muted); font-size:12px; }
+.mat .btn{ margin:0; padding:9px 14px; font-size:13px; white-space:nowrap; }
+.mat .mdel{ background:none; border:0; color:var(--muted); cursor:pointer; padding:6px 8px; border-radius:7px; font-size:13px; }
+.mat .mdel:hover{ background:#fdecea; color:var(--red); }
+.matform{ margin-top:16px; padding:14px; background:#fff; border:1px dashed var(--border); border-radius:12px; display:grid; gap:10px; }
+.matform .tg{ font-size:11.5px; color:var(--muted); }
+.matform input[type=text]{ width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:8px; font-size:13.5px; font-family:inherit; outline:0; }
+.matform input[type=file]{ font-size:13px; max-width:100%; }
+.matform .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.matform .msg{ font-size:12.5px; padding:8px 10px; border-radius:7px; display:none; }
+.matform .msg.ok{ display:block; background:#eafaf1; color:#1e7e42; border:1px solid #b7e4c7; }
+.matform .msg.err{ display:block; background:#fdecea; color:#c0392b; border:1px solid #f5c6c0; }
+@media (max-width:780px){ .mat{ flex-wrap:wrap; } .mat .btn{ width:100%; text-align:center; } }
 .side{ padding:6px; position:sticky; top:16px; max-height:calc(100vh - 32px); overflow:auto; }
 .side .hd{ padding:14px 14px 8px; display:flex; justify-content:space-between; align-items:center; gap:8px; } .side .hd b{ color:var(--navy); font-size:15px; }
 .side .hd button{ background:none; border:0; color:var(--blue); font-weight:700; font-size:12.5px; cursor:pointer; }
@@ -323,6 +345,7 @@ function render(){
   renderCrumbs(aula);
   document.getElementById("app").innerHTML = aula ? vAula(aula) : vCurso();
   document.title = aula ? aula.titulo + " · " + NOME + " · ObraIA" : NOME + " · ObraIA";
+  if(aula) montarMateriais(aula.id);
 }
 function renderCrumbs(aula){
   let h = FERR ? '<a href="gestao.html">ObraIA Gestão</a><span>›</span>' : '<a href="dashboard.html">Início</a><span>›</span>';
@@ -433,11 +456,12 @@ function vAula(a){
           <button class="btn out" type="button" ${ant ? `data-aula="${esc(ant.id)}"` : "disabled"}>← Aula anterior</button>
           ${naLista ? `<button class="btn ${feita ? "ok" : ""}" type="button" data-act="concluir" data-id="${esc(a.id)}" ${feita ? 'title="Clique para desmarcar"' : ""}>${feita ? "✓ Concluída" : "Marcar como concluída"}</button>` : ""}
           <button class="btn ${feita && prox ? "" : "out"}" type="button" ${prox ? `data-aula="${esc(prox.id)}"` : "disabled"}>Próxima aula →</button>
-          <a class="btn out" href="gestao.html">${FERR ? "🏗️ Voltar à ferramenta" : "🏗️ Praticar na ferramenta ↗"}</a>
+          ${FERR ? `<a class="btn out" href="gestao.html">🏗️ Voltar à ferramenta</a>` : ""}
         </div>
         ${adm}
-        <div class="tabs" role="tablist"><button class="on" type="button" data-tab="s">Sobre a aula</button><button type="button" data-tab="d">Dúvidas</button></div>
+        <div class="tabs" role="tablist"><button class="on" type="button" data-tab="s">Sobre a aula</button><button type="button" data-tab="m" id="tabMat" ${SOU_ADMIN ? "" : "hidden"}>Materiais</button><button type="button" data-tab="d">Dúvidas</button></div>
         <div class="tabpane on" id="tp-s">${a.descricao ? esc(a.descricao) : '<span style="color:var(--muted)">Esta aula ainda não tem descrição.</span>'}</div>
+        <div class="tabpane" id="tp-m"></div>
         <div class="tabpane" id="tp-d">Ficou com dúvida nesta aula? Chame no WhatsApp que a gente responde.<br>
           <a class="btn" href="https://wa.me/${ZAP}?text=${zapMsg}" target="_blank" rel="noopener">📱 Chamar no WhatsApp</a></div>
       </div>
@@ -483,10 +507,12 @@ document.addEventListener("click", (e) => {
   if(!el || el.disabled) return;
   if(el.dataset.tab){
     document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b === el));
-    document.getElementById("tp-s").classList.toggle("on", el.dataset.tab === "s");
-    document.getElementById("tp-d").classList.toggle("on", el.dataset.tab === "d");
+    ["s", "m", "d"].forEach(k => { const p = document.getElementById("tp-" + k); if(p) p.classList.toggle("on", el.dataset.tab === k); });
     return;
   }
+  if(el.dataset.act === "baixar"){ baixarMaterial(el.dataset.id); return; }
+  if(el.dataset.act === "delmat"){ excluirMaterial(el.dataset.id); return; }
+  if(el.dataset.act === "enviarmat"){ enviarMaterial(); return; }
   if(el.dataset.act === "curso"){ irParaCurso(); return; }
   if(el.dataset.act === "concluir"){ alternarConcluida(el.dataset.id); return; }
   if(el.dataset.act === "mod"){
@@ -606,9 +632,138 @@ async function criarModulo(){
   if(error){ alert("Não consegui criar o módulo: "+error.message); return; }
   await carregarTudo();
 }
+// ── Materiais de apoio (arquivos que o aluno baixa) ─────────────────────────
+// Arquivos ficam no bucket privado "materiais-aulas"; a lista, na tabela aulas_materiais.
+// Se a tabela ainda não existir no banco, a aba some para o aluno e o admin recebe um aviso.
+const BUCKET = "materiais-aulas";
+const MAT_MAX = 50 * 1024 * 1024;
+const MAT_EXT = ["pdf","doc","docx","xls","xlsx","ppt","pptx","zip","csv","txt","png","jpg","jpeg"];
+let MAT = {};   // aula_id -> { lista: [...], ausente: bool, erro: bool }
+
+function extDe(nome){ const m = String(nome||"").toLowerCase().match(/\.([a-z0-9]{1,5})$/); return m ? m[1] : ""; }
+function fmtBytes(n){
+  n = Number(n); if(!n || n < 0) return "";
+  if(n < 1024*1024) return Math.max(1, Math.round(n/1024)) + " KB";
+  return (n/1024/1024).toFixed(1).replace(".", ",") + " MB";
+}
+function iconeMat(ext){
+  if(ext === "pdf") return "📕";
+  if(["doc","docx","txt"].includes(ext)) return "📄";
+  if(["xls","xlsx","csv"].includes(ext)) return "📊";
+  if(["ppt","pptx"].includes(ext)) return "📽️";
+  if(["png","jpg","jpeg"].includes(ext)) return "🖼️";
+  if(ext === "zip") return "🗜️";
+  return "📎";
+}
+function matAusente(err){
+  const c = (err && err.code) || "", m = String((err && err.message) || "").toLowerCase();
+  return c === "42P01" || c === "PGRST205" || m.indexOf("does not exist") > -1 || m.indexOf("could not find the table") > -1;
+}
+async function montarMateriais(aulaId){
+  if(!MAT[aulaId]){
+    pintarMateriais(aulaId, true);
+    const r = await sb.from("aulas_materiais").select("*").eq("aula_id", aulaId).order("ordem", {ascending:true});
+    MAT[aulaId] = r.error ? { lista: [], ausente: matAusente(r.error), erro: !matAusente(r.error) }
+                          : { lista: r.data || [], ausente: false, erro: false };
+  }
+  if(AULA_ATUAL === aulaId) pintarMateriais(aulaId, false);
+}
+function pintarMateriais(aulaId, carregando){
+  const pane = document.getElementById("tp-m"), tab = document.getElementById("tabMat");
+  if(!pane || !tab) return;
+  const st = MAT[aulaId] || { lista: [] };
+  const n = st.lista.length;
+  tab.textContent = n ? "Materiais (" + n + ")" : "Materiais";
+  if(!SOU_ADMIN) tab.hidden = !n;
+  if(carregando){ pane.innerHTML = '<span class="mat-vazio">Carregando…</span>'; return; }
+  let h = "";
+  if(st.ausente){
+    h = '<div class="mat-vazio">Os materiais ainda não foram ativados no banco de dados' + (SOU_ADMIN ? ' (falta rodar o SQL <b>materiais_aulas_1_CRIAR.sql</b> no Supabase).' : '.') + '</div>';
+  }else if(st.erro){
+    h = '<div class="mat-vazio">Não consegui carregar os materiais agora. Tente recarregar a página.</div>';
+  }else if(n){
+    h = '<div class="mat-lista">' + st.lista.map(m => {
+      const ext = extDe(m.arquivo_path);
+      const meta = [ext ? ext.toUpperCase() : "", fmtBytes(m.tamanho_bytes)].filter(Boolean).join(" · ");
+      return '<div class="mat"><div class="ic">' + iconeMat(ext) + '</div><div class="mi"><b>' + esc(m.nome) + '</b><small>' + esc(meta) + '</small></div>' +
+        '<button class="btn" type="button" data-act="baixar" data-id="' + esc(m.id) + '">⬇ Baixar</button>' +
+        (SOU_ADMIN ? '<button class="mdel" type="button" title="Excluir este material" aria-label="Excluir o material ' + esc(m.nome) + '" data-act="delmat" data-id="' + esc(m.id) + '">✕</button>' : '') + '</div>';
+    }).join("") + '</div>';
+  }else{
+    h = '<div class="mat-vazio">Esta aula ainda não tem materiais de apoio.</div>';
+  }
+  if(SOU_ADMIN && !st.ausente){
+    h += '<div class="matform"><div class="tg">Só você vê: enviar material de apoio (PDF, Word, Excel, PowerPoint, ZIP, CSV, TXT, imagem — até 50 MB)</div>' +
+      '<input type="file" id="matFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv,.txt,.png,.jpg,.jpeg">' +
+      '<input type="text" id="matNome" maxlength="200" placeholder="Nome que o aluno vai ver (opcional — se vazio, usa o nome do arquivo)">' +
+      '<div class="row"><button class="btn" type="button" id="matEnviar" data-act="enviarmat">Enviar material</button></div>' +
+      '<div class="msg" id="matMsg"></div></div>';
+  }
+  pane.innerHTML = h;
+}
+function msgMat(cls, txt){ const e = document.getElementById("matMsg"); if(e){ e.className = "msg " + cls; e.textContent = txt; } }
+function nomeSeguro(nome){
+  const base = String(nome||"arquivo").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  return (base || "arquivo").slice(-80);
+}
+async function enviarMaterial(){
+  const aulaId = AULA_ATUAL; if(!aulaId || !SOU_ADMIN) return;
+  const inp = document.getElementById("matFile"), btn = document.getElementById("matEnviar");
+  const f = inp && inp.files && inp.files[0];
+  if(!f){ msgMat("err", "Escolha um arquivo primeiro."); return; }
+  if(f.size > MAT_MAX){ msgMat("err", "Esse arquivo tem " + fmtBytes(f.size) + ". O limite é 50 MB."); return; }
+  const ext = extDe(f.name);
+  if(!MAT_EXT.includes(ext)){ msgMat("err", "Tipo de arquivo não permitido. Use: " + MAT_EXT.join(", ") + "."); return; }
+  const nome = ((document.getElementById("matNome").value || "").trim() || f.name.replace(/\.[^.]+$/, "")).slice(0, 200);
+  btn.disabled = true; msgMat("", ""); document.getElementById("matMsg").className = "msg";
+  const path = aulaId + "/" + Date.now() + "-" + nomeSeguro(f.name);
+  try{
+    const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || undefined, upsert: false });
+    if(up.error) throw up.error;
+    const st = MAT[aulaId] || { lista: [] };
+    const ordem = st.lista.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1;
+    const ins = await sb.from("aulas_materiais").insert({ aula_id: aulaId, nome, arquivo_path: path, tamanho_bytes: f.size, tipo: f.type || null, ordem });
+    if(ins.error){ await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
+    delete MAT[aulaId];
+    await montarMateriais(aulaId);
+    msgMat("ok", "Material enviado: " + nome + ".");
+  }catch(err){
+    const m = String((err && err.message) || "erro");
+    const semBucket = /bucket not found/i.test(m);
+    msgMat("err", "Não consegui enviar (" + (semBucket ? "o armário de arquivos ainda não existe no Supabase — rode materiais_aulas_1_CRIAR.sql" : m) + ").");
+    if(btn) btn.disabled = false;
+  }
+}
+async function baixarMaterial(id){
+  const m = (MAT[AULA_ATUAL] && MAT[AULA_ATUAL].lista || []).find(x => x.id === id); if(!m) return;
+  const ext = extDe(m.arquivo_path);
+  const nomeArq = (ext && extDe(m.nome) !== ext) ? m.nome + "." + ext : m.nome;
+  const r = await sb.storage.from(BUCKET).createSignedUrl(m.arquivo_path, 60, { download: nomeArq });
+  if(r.error || !r.data || !r.data.signedUrl){ toast("Não consegui baixar agora. Tente de novo em instantes."); return; }
+  const a = document.createElement("a");
+  a.href = r.data.signedUrl; a.rel = "noopener"; a.style.display = "none";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+async function excluirMaterial(id){
+  const aulaId = AULA_ATUAL;
+  const m = (MAT[aulaId] && MAT[aulaId].lista || []).find(x => x.id === id); if(!m || !SOU_ADMIN) return;
+  if(!confirm('Excluir o material "' + m.nome + '"? Os alunos deixam de poder baixar. Essa ação não pode ser desfeita.')) return;
+  const d = await sb.from("aulas_materiais").delete().eq("id", id);
+  if(d.error){ toast("Não consegui excluir o material: " + d.error.message); return; }
+  const rm = await sb.storage.from(BUCKET).remove([m.arquivo_path]);
+  if(rm.error) toast("O material saiu da lista, mas o arquivo não foi apagado do armário.");
+  delete MAT[aulaId];
+  await montarMateriais(aulaId);
+}
 async function excluirAula(id){
   const a = AULAS.find(x=>x.id===id); if(!a) return;
   if(!confirm('Excluir a aula "'+a.titulo+'"? Essa ação não pode ser desfeita.')) return;
+  // Apaga antes os arquivos de apoio da aula (a linha some sozinha com a aula, mas o arquivo ficaria órfão no armário).
+  try{
+    const mats = await sb.from("aulas_materiais").select("arquivo_path").eq("aula_id", id);   // sem permissão ou sem tabela: devolve erro e segue
+    if(!mats.error && mats.data && mats.data.length) await sb.storage.from(BUCKET).remove(mats.data.map(x => x.arquivo_path));
+  }catch(e){ /* sem materiais ativados: segue */ }
+  delete MAT[id];
   const { error } = await sb.from("aulas").delete().eq("id", id);
   if(error){ alert("Não consegui excluir: "+error.message); return; }
   await carregarTudo();
