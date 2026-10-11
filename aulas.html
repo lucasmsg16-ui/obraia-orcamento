@@ -346,7 +346,19 @@ function render(){
   renderCrumbs(aula);
   document.getElementById("app").innerHTML = aula ? vAula(aula) : vCurso();
   document.title = aula ? aula.titulo + " · " + NOME + " · ObraIA" : NOME + " · ObraIA";
-  if(aula) montarMateriais(aula.id);
+  if(aula){
+    montarMateriais(aula.id);   // com a lista já em cache, pinta na hora (antes de restaurar a aba)
+    // Redesenhar a mesma aula (ex.: marcar como concluída) não pode jogar a pessoa de volta para "Sobre a aula".
+    if(ABA.aulaId === aula.id && ABA.tab !== "s") ativarAba(ABA.tab);
+  }
+}
+// Aba aberta na Sala de Aula; vale só para a aula em que foi escolhida.
+let ABA = { aulaId: null, tab: "s" };
+function ativarAba(k){
+  const alvo = document.querySelector('.tabs button[data-tab="' + k + '"]');
+  if(!alvo || alvo.hidden) k = "s";
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === k));
+  ["s", "m", "d"].forEach(x => { const p = document.getElementById("tp-" + x); if(p) p.classList.toggle("on", x === k); });
 }
 function renderCrumbs(aula){
   let h = FERR ? '<a href="gestao.html">ObraIA Gestão</a><span>›</span>' : '<a href="dashboard.html">Início</a><span>›</span>';
@@ -507,8 +519,8 @@ document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-aula],[data-act],[data-tab]");
   if(!el || el.disabled) return;
   if(el.dataset.tab){
-    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b === el));
-    ["s", "m", "d"].forEach(k => { const p = document.getElementById("tp-" + k); if(p) p.classList.toggle("on", el.dataset.tab === k); });
+    ABA = { aulaId: AULA_ATUAL, tab: el.dataset.tab };
+    ativarAba(el.dataset.tab);
     return;
   }
   if(el.dataset.act === "baixar"){ baixarMaterial(el.dataset.id); return; }
@@ -639,7 +651,12 @@ async function criarModulo(){
 const BUCKET = "materiais-aulas";
 const MAT_MAX = 50 * 1024 * 1024;
 const MAT_EXT = ["pdf","doc","docx","xls","xlsx","ppt","pptx","zip","csv","txt","png","jpg","jpeg"];
-let MAT = {};   // aula_id -> { lista: [...], ausente: bool, erro: bool }
+let MAT = {};       // aula_id -> { lista: [...], ausente: bool, erro: bool }
+let MAT_PEND = {};  // aula_id -> busca em andamento (dois redesenhos seguidos não consultam o banco duas vezes)
+let FORM_MAT = {};  // { aulaId, files, nome }: o que o admin já escolheu no formulário, para não perder num redesenho
+let ENVIANDO = null; // aula_id com envio em andamento (o botão fica travado mesmo se a tela for redesenhada)
+
+function invalidarMat(aulaId){ delete MAT[aulaId]; delete MAT_PEND[aulaId]; }
 
 function extDe(nome){ const m = String(nome||"").toLowerCase().match(/\.([a-z0-9]{1,5})$/); return m ? m[1] : ""; }
 function fmtBytes(n){
@@ -663,11 +680,22 @@ function matAusente(err){
 async function montarMateriais(aulaId){
   if(!MAT[aulaId]){
     pintarMateriais(aulaId, true);
-    const r = await sb.from("aulas_materiais").select("*").eq("aula_id", aulaId).order("ordem", {ascending:true});
-    MAT[aulaId] = r.error ? { lista: [], ausente: matAusente(r.error), erro: !matAusente(r.error) }
-                          : { lista: r.data || [], ausente: false, erro: false };
+    if(!MAT_PEND[aulaId]){
+      const p = (async () => {
+        let st;
+        try{
+          const r = await sb.from("aulas_materiais").select("*").eq("aula_id", aulaId).order("ordem", {ascending:true});
+          st = r.error ? { lista: [], ausente: matAusente(r.error), erro: !matAusente(r.error) }
+                       : { lista: r.data || [], ausente: false, erro: false };
+        }catch(e){ st = { lista: [], ausente: false, erro: true }; }
+        // Só grava se ninguém invalidou no meio (senão uma resposta velha apagaria um envio recém-feito).
+        if(MAT_PEND[aulaId] === p){ MAT[aulaId] = st; delete MAT_PEND[aulaId]; }
+      })();
+      MAT_PEND[aulaId] = p;
+    }
+    await MAT_PEND[aulaId];
   }
-  if(AULA_ATUAL === aulaId) pintarMateriais(aulaId, false);
+  if(AULA_ATUAL === aulaId && MAT[aulaId]) pintarMateriais(aulaId, false);
 }
 function pintarMateriais(aulaId, carregando){
   const pane = document.getElementById("tp-m"), tab = document.getElementById("tabMat");
@@ -697,14 +725,25 @@ function pintarMateriais(aulaId, carregando){
     h += '<div class="matform"><div class="tg">Só você vê: enviar material de apoio (PDF, Word, Excel, PowerPoint, ZIP, CSV, TXT, imagem — até 50 MB)</div>' +
       '<input type="file" id="matFile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.csv,.txt,.png,.jpg,.jpeg">' +
       '<input type="text" id="matNome" maxlength="200" placeholder="Nome que o aluno vai ver (opcional — se vazio, usa o nome do arquivo)">' +
-      '<div class="row"><button class="btn" type="button" id="matEnviar" data-act="enviarmat">Enviar material</button></div>' +
+      '<div class="row"><button class="btn" type="button" id="matEnviar" data-act="enviarmat"' + (ENVIANDO === aulaId ? ' disabled>Enviando…' : '>Enviar material') + '</button></div>' +
       '<div class="msg" id="matMsg"></div></div>';
   }
   pane.innerHTML = h;
+  // Devolve ao formulário o que o admin já tinha escolhido (o redesenho da aula recria os campos vazios).
+  const fi = document.getElementById("matFile"), no = document.getElementById("matNome");
+  if(fi && no){
+    if(FORM_MAT.aulaId === aulaId){
+      if(FORM_MAT.files){ try{ fi.files = FORM_MAT.files; }catch(e){} }
+      no.value = FORM_MAT.nome || "";
+    }
+    const salvar = () => { FORM_MAT = { aulaId, files: fi.files && fi.files.length ? fi.files : null, nome: no.value }; };
+    fi.addEventListener("change", salvar);
+    no.addEventListener("input", salvar);
+  }
 }
 function msgMat(cls, txt){ const e = document.getElementById("matMsg"); if(e){ e.className = "msg " + cls; e.textContent = txt; } }
 function nomeSeguro(nome){
-  const base = String(nome||"arquivo").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+  const base = String(nome||"arquivo").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
   return (base || "arquivo").slice(-80);
 }
 async function enviarMaterial(){
@@ -715,8 +754,12 @@ async function enviarMaterial(){
   if(f.size > MAT_MAX){ msgMat("err", "Esse arquivo tem " + fmtBytes(f.size) + ". O limite é 50 MB."); return; }
   const ext = extDe(f.name);
   if(!MAT_EXT.includes(ext)){ msgMat("err", "Tipo de arquivo não permitido. Use: " + MAT_EXT.join(", ") + "."); return; }
-  const nome = ((document.getElementById("matNome").value || "").trim() || f.name.replace(/\.[^.]+$/, "")).slice(0, 200);
-  btn.disabled = true; msgMat("", ""); document.getElementById("matMsg").className = "msg";
+  const nome = ((document.getElementById("matNome").value || "").trim() || f.name.replace(/\.[^.]+$/, "").trim()).slice(0, 200);
+  if(!nome){ msgMat("err", "Dê um nome ao material (o arquivo não tem nome, só extensão)."); return; }
+  ENVIANDO = aulaId; btn.disabled = true; btn.textContent = "Enviando…"; msgMat("", "");
+  // O envio pode demorar: se o admin trocar de aula no meio, o resultado não pode aparecer no formulário da outra aula.
+  const aqui = () => AULA_ATUAL === aulaId;
+  const avisar = (cls, txt) => { if(aqui()) msgMat(cls, txt); else toast(txt); };
   const path = aulaId + "/" + Date.now() + "-" + nomeSeguro(f.name);
   try{
     const up = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || undefined, upsert: false });
@@ -725,14 +768,17 @@ async function enviarMaterial(){
     const ordem = st.lista.reduce((m, x) => Math.max(m, x.ordem || 0), 0) + 1;
     const ins = await sb.from("aulas_materiais").insert({ aula_id: aulaId, nome, arquivo_path: path, tamanho_bytes: f.size, tipo: f.type || null, ordem });
     if(ins.error){ await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
-    delete MAT[aulaId];
+    ENVIANDO = null;
+    if(FORM_MAT.aulaId === aulaId) FORM_MAT = {};
+    invalidarMat(aulaId);
     await montarMateriais(aulaId);
-    msgMat("ok", "Material enviado: " + nome + ".");
+    avisar("ok", "Material enviado: " + nome + ".");
   }catch(err){
+    ENVIANDO = null;
     const m = String((err && err.message) || "erro");
     const semBucket = /bucket not found/i.test(m);
-    msgMat("err", "Não consegui enviar (" + (semBucket ? "o armário de arquivos ainda não existe no Supabase — rode materiais_aulas_1_CRIAR.sql" : m) + ").");
-    if(btn) btn.disabled = false;
+    if(aqui() && MAT[aulaId]) pintarMateriais(aulaId, false);   // destrava o botão (o formulário volta com o que já estava escolhido)
+    avisar("err", "Não consegui enviar (" + (semBucket ? "o armário de arquivos ainda não existe no Supabase — rode materiais_aulas_1_CRIAR.sql" : m) + ").");
   }
 }
 async function baixarMaterial(id){
@@ -753,20 +799,28 @@ async function excluirMaterial(id){
   if(d.error){ toast("Não consegui excluir o material: " + d.error.message); return; }
   const rm = await sb.storage.from(BUCKET).remove([m.arquivo_path]);
   if(rm.error) toast("O material saiu da lista, mas o arquivo não foi apagado do armário.");
-  delete MAT[aulaId];
+  invalidarMat(aulaId);
   await montarMateriais(aulaId);
 }
 async function excluirAula(id){
   const a = AULAS.find(x=>x.id===id); if(!a) return;
   if(!confirm('Excluir a aula "'+a.titulo+'"? Essa ação não pode ser desfeita.')) return;
-  // Apaga antes os arquivos de apoio da aula (a linha some sozinha com a aula, mas o arquivo ficaria órfão no armário).
+  // Guarda os caminhos dos arquivos de apoio ANTES (a linha some junto com a aula, por CASCADE), mas só apaga os
+  // arquivos DEPOIS que a aula sair: se a exclusão da aula falhar, a lista e os arquivos continuam íntegros.
+  let caminhos = [];
   try{
     const mats = await sb.from("aulas_materiais").select("arquivo_path").eq("aula_id", id);   // sem permissão ou sem tabela: devolve erro e segue
-    if(!mats.error && mats.data && mats.data.length) await sb.storage.from(BUCKET).remove(mats.data.map(x => x.arquivo_path));
+    if(!mats.error && mats.data) caminhos = mats.data.map(x => x.arquivo_path);
   }catch(e){ /* sem materiais ativados: segue */ }
-  delete MAT[id];
   const { error } = await sb.from("aulas").delete().eq("id", id);
   if(error){ alert("Não consegui excluir: "+error.message); return; }
+  invalidarMat(id);
+  if(caminhos.length){
+    try{
+      const rm = await sb.storage.from(BUCKET).remove(caminhos);
+      if(rm.error) toast("A aula foi excluída, mas os arquivos de apoio dela não saíram do armário.");
+    }catch(e){ toast("A aula foi excluída, mas os arquivos de apoio dela não saíram do armário."); }
+  }
   await carregarTudo();
 }
 async function alternarAtiva(id){
