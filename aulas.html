@@ -81,6 +81,11 @@ header a.back:hover{ opacity:1; text-decoration:underline; }
 .mq ul{ list-style:none; margin:2px 0 0; padding:0; display:grid; gap:2px; }
 .mq li button{ width:100%; display:flex; align-items:center; gap:10px; background:none; border:0; padding:8px 6px; border-radius:8px; cursor:pointer; text-align:left; font-size:13.5px; color:var(--navy); font-weight:600; }
 .mq li button:hover{ background:#f3f8fb; }
+/* Admin: o ✕ de excluir fica ao lado da aula (botão dentro de botão não é válido, por isso o li vira uma linha flex). */
+.mq li{ display:flex; align-items:center; gap:2px; }
+.mq li > button:first-child{ flex:1; min-width:0; width:auto; }
+.mq li button.xdel{ flex:none; width:auto; padding:6px 9px; color:var(--muted); font-size:13px; opacity:.65; }
+.mq li button.xdel:hover{ background:#fdecea; color:var(--red); opacity:1; }
 .mq li.oc button{ opacity:.55; }
 .mq .d{ width:22px; height:22px; border-radius:50%; flex-shrink:0; display:grid; place-items:center; font-size:11px; font-weight:800; background:#eef2f6; color:var(--muted); }
 .mq .d.done{ background:var(--green); color:#fff; } .mq .d.cur{ background:var(--blue); color:#fff; }
@@ -378,7 +383,7 @@ function cardModulo(g){
     return `<li class="${a.ativo === false ? "oc" : ""}"><button type="button" data-aula="${esc(a.id)}">
       <span class="d ${feita ? "done" : atual ? "cur" : ""}">${feita ? "✓" : numero(a)}</span>
       <span>${esc(tituloCurto(a.titulo))}${a.ativo === false ? " (oculta)" : ""}</span>
-      ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button></li>`;
+      ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button>${SOU_ADMIN ? `<button type="button" class="xdel" title="Excluir esta aula" aria-label="Excluir a aula ${esc(tituloCurto(a.titulo))}" onclick="excluirAula('${esc(a.id)}')">✕</button>` : ""}</li>`;
   }).join("");
   const adm = SOU_ADMIN && g.mod ? `<button type="button" class="addmini" onclick="abrirFormNovaAula('${esc(g.mod.id)}')">+ aula neste módulo</button><button type="button" class="addmini" onclick="renomearModulo('${esc(g.mod.id)}')">✎ Renomear módulo</button>` : "";
   return `<article class="mq ${oculto ? "oculta" : ""}">
