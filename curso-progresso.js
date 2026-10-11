@@ -125,8 +125,9 @@
 
   // Resumo para o quadro do curso no painel inicial.
   async function resumo(sb, uid){
-    var rm = await sb.from("modulos").select("*").eq("ativo", true).order("ordem", { ascending: true });
-    var ra = await sb.from("aulas").select("*").eq("ativo", true).order("ordem", { ascending: true });
+    // Só o Curso Dominante da IA (area = 'curso'); os tutoriais da ferramenta têm o próprio espaço.
+    var rm = await sb.from("modulos").select("*").eq("area", "curso").eq("ativo", true).order("ordem", { ascending: true });
+    var ra = await sb.from("aulas").select("*").eq("area", "curso").eq("ativo", true).order("ordem", { ascending: true });
     if(rm.error || ra.error) throw (rm.error || ra.error);
     var f = filtrarAluno(rm.data, ra.data);
     var lista = listaOrdenada(f.modulos, f.aulas);

@@ -109,10 +109,10 @@ main{ max-width:1020px; margin:0 auto; padding:26px 28px 40px; }
     </div>
   </div>
 
-  <a class="help2" id="helpCurso" href="aulas.html" style="display:none">
-    <span style="font-size:22px">🚀</span>
-    <span><b>Com dúvida de como usar?</b> O Curso Dominante da IA ensina cada tela, passo a passo.</span>
-    <span class="go">Ver as aulas →</span>
+  <a class="help2" id="helpCurso" href="aulas.html?area=ferramenta">
+    <span style="font-size:22px">🎬</span>
+    <span><b>Com dúvida de como usar?</b> Os tutoriais em vídeo mostram cada tela da ferramenta, passo a passo.</span>
+    <span class="go">Ver os tutoriais →</span>
   </a>
 </main>
 
@@ -128,8 +128,6 @@ const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb
   if(!error && liberado !== true){ window.location.href = "dashboard.html"; return; }
   if(error){ console.warn("Nao consegui checar a licenca agora:", error.message); }
   mostrarChave();
-  // Convite para o curso: fica escondido enquanto o curso for restrito (ver CURSO_ABERTO em curso-progresso.js).
-  try{ if(ObraCurso.podeVerCurso(session.user.id)) document.getElementById("helpCurso").style.display = "flex"; }catch(e){}
 })();
 
 // A chave fica sempre à mão: o e-mail de boas-vindas se perde, a conta não.

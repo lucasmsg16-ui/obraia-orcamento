@@ -104,7 +104,7 @@ p.sub{ color:var(--muted); font-size:14.5px; margin:0 0 28px; white-space:pre-wr
     <p>Vídeo em breve — esse espaço já está reservado.</p>
   </div>
   <div class="aulas-sec">
-    <h2>Qual aula você quer assistir agora?</h2>
+    <h2>Qual tutorial da ferramenta você quer assistir agora?</h2>
     <div id="aulasGrid"><div class="aulas-vazio">Carregando…</div></div>
   </div>
   <div class="usar-obraia"><a href="index.html">Já quero usar o ObraIA →</a></div>
@@ -171,7 +171,7 @@ async function carregarConteudo(){
 // por módulo, na mesma ordem/estrutura que a página de aulas usa.
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function tileAulaHtml(a, idx){
-  return `<a class="aula-tile" href="aulas.html?abrir=${a.id}">
+  return `<a class="aula-tile" href="aulas.html?area=ferramenta&aula=${encodeURIComponent(a.id)}">
       <div class="num">${idx+1}</div>
       <div class="tit">${esc(a.titulo)}</div>
       ${a.descricao ? `<div class="desc">${esc(a.descricao)}</div>` : ""}
@@ -187,8 +187,8 @@ async function carregarOutrasAulas(souAdmin){
   // mostra o aviso de "em breve" — mas isso é sobre o CONTEÚDO, não sobre
   // quem está logado.
   const [rm, ra] = await Promise.all([
-    sb.from("modulos").select("id,titulo").eq("ativo", true).order("ordem", {ascending:true}),
-    sb.from("aulas").select("id,titulo,descricao,modulo_id").eq("ativo", true).order("ordem", {ascending:true})
+    sb.from("modulos").select("id,titulo").eq("area", "ferramenta").eq("ativo", true).order("ordem", {ascending:true}),
+    sb.from("aulas").select("id,titulo,descricao,modulo_id").eq("area", "ferramenta").eq("ativo", true).order("ordem", {ascending:true})
   ]);
   const aulas = ra.data || [];
   if(ra.error || !aulas.length){
