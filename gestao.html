@@ -51,11 +51,22 @@ main{ max-width:1020px; margin:0 auto; padding:26px 28px 40px; }
   text-decoration:none; display:inline-block; background:var(--navy); color:#fff; font-family:inherit; }
 .card .btn:hover{ filter:brightness(1.12); }
 
-.help2{ margin-top:22px; display:flex; align-items:center; gap:14px; background:var(--tint); border:1px solid #bfe3f2;
-  border-radius:12px; padding:14px 18px; font-size:14px; color:#0b4f6b; text-decoration:none; }
-.help2:hover{ border-color:var(--blue); }
-.help2 b{ color:var(--navy); }
-.help2 .go{ margin-left:auto; font-weight:800; color:var(--blue); white-space:nowrap; }
+/* Quadro de destaque dos vídeos de "como usar" */
+.tut{ display:flex; align-items:center; gap:22px; flex-wrap:wrap; margin-bottom:22px; padding:22px 26px; border-radius:16px;
+  background:linear-gradient(135deg, var(--navy) 0%, #1792C0 100%); color:#fff; box-shadow:0 6px 22px rgba(0,43,64,.22); }
+.tut .play{ width:72px; height:72px; border-radius:50%; background:rgba(255,255,255,.16); border:2px solid rgba(255,255,255,.55);
+  display:grid; place-items:center; font-size:30px; flex:none; padding-left:5px; }
+.tut .txt{ flex:1; min-width:240px; }
+.tut .eyebrow{ font-size:11.5px; font-weight:800; letter-spacing:.9px; text-transform:uppercase; color:#bfe9fb; }
+.tut h2{ margin:3px 0 5px; font-size:21px; line-height:1.25; }
+.tut p{ margin:0; font-size:14px; line-height:1.5; color:#e3f4fb; }
+.tut .qtd{ display:inline-block; margin-top:9px; font-size:12px; font-weight:700; background:rgba(255,255,255,.16); padding:3px 11px; border-radius:20px; }
+.tut .acoes{ display:flex; flex-direction:column; gap:8px; align-items:stretch; flex:none; }
+.tut .acoes a{ text-decoration:none; text-align:center; font-weight:800; font-size:14px; padding:11px 22px; border-radius:9px; white-space:nowrap; }
+.tut .acoes .pri{ background:#fff; color:var(--navy); }
+.tut .acoes .pri:hover{ background:#eaf6fb; }
+.tut .acoes .sec{ color:#fff; border:1.5px solid rgba(255,255,255,.55); font-size:13px; padding:8px 18px; }
+.tut .acoes .sec:hover{ background:rgba(255,255,255,.12); }
 
 @media (max-width:780px){
   header{ padding:0 14px; }
@@ -63,7 +74,8 @@ main{ max-width:1020px; margin:0 auto; padding:26px 28px 40px; }
   main{ padding:18px 14px 30px; }
   .chave-box code{ font-size:15px; }
   .tgrid{ grid-template-columns:1fr; }
-  .help2{ flex-wrap:wrap; }
+  .tut{ padding:18px 16px; gap:16px; } .tut h2{ font-size:18px; } .tut .play{ width:56px; height:56px; font-size:24px; }
+  .tut .acoes{ width:100%; }
 }
 </style>
 </head>
@@ -84,6 +96,20 @@ main{ max-width:1020px; margin:0 auto; padding:26px 28px 40px; }
 
 <main>
   <div id="chaveHost"></div>
+
+  <section class="tut" id="tutorial" aria-label="Vídeos de como usar a ObraIA">
+    <div class="play" aria-hidden="true">▶</div>
+    <div class="txt">
+      <div class="eyebrow">Vídeos de como usar</div>
+      <h2>Aprenda a usar a ObraIA Gestão em vídeo, passo a passo</h2>
+      <p>Cada tela da ferramenta explicada em vídeos curtos: do primeiro orçamento ao cronograma e à entrega dos resultados.</p>
+      <span class="qtd" id="tutQtd" hidden></span>
+    </div>
+    <div class="acoes">
+      <a class="pri" id="tutIniciar" href="aulas.html?area=ferramenta">▶ Assistir os vídeos</a>
+      <a class="sec" href="comece-por-aqui.html">Vídeo de boas-vindas</a>
+    </div>
+  </section>
 
   <div class="tgrid">
     <div class="card">
@@ -109,11 +135,6 @@ main{ max-width:1020px; margin:0 auto; padding:26px 28px 40px; }
     </div>
   </div>
 
-  <a class="help2" id="helpCurso" href="aulas.html?area=ferramenta">
-    <span style="font-size:22px">🎬</span>
-    <span><b>Com dúvida de como usar?</b> Os tutoriais em vídeo mostram cada tela da ferramenta, passo a passo.</span>
-    <span class="go">Ver os tutoriais →</span>
-  </a>
 </main>
 
 <script>
@@ -128,7 +149,41 @@ const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb
   if(!error && liberado !== true){ window.location.href = "dashboard.html"; return; }
   if(error){ console.warn("Nao consegui checar a licenca agora:", error.message); }
   mostrarChave();
+  carregarTutoriais();
 })();
+
+// Conta os vídeos de tutorial e aponta o botão para o primeiro ainda não assistido.
+// Se falhar, o quadro continua funcionando: o botão abre a lista de tutoriais.
+async function carregarTutoriais(){
+  try{
+    const [rm, ra] = await Promise.all([
+      sb.from("modulos").select("id,ordem").eq("area", "ferramenta").eq("ativo", true),
+      sb.from("aulas").select("id,ordem,modulo_id").eq("area", "ferramenta").eq("ativo", true)
+    ]);
+    if(rm.error || ra.error) return;
+    const ordemMod = {}; (rm.data || []).forEach(m => { ordemMod[m.id] = m.ordem || 0; });
+    const aulas = (ra.data || []).filter(a => a.modulo_id in ordemMod)
+      .sort((a, b) => (ordemMod[a.modulo_id] - ordemMod[b.modulo_id]) || ((a.ordem || 0) - (b.ordem || 0)));
+    if(!aulas.length) return;
+    const q = document.getElementById("tutQtd");
+    q.textContent = aulas.length + (aulas.length === 1 ? " vídeo" : " vídeos");
+    q.hidden = false;
+    let alvo = aulas[0];
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      const r = await sb.from("aulas_progresso").select("aula_id").eq("user_id", session.user.id);
+      if(!r.error){
+        const feitas = new Set((r.data || []).map(x => x.aula_id));
+        const prox = aulas.find(a => !feitas.has(a.id));
+        if(prox){
+          alvo = prox;
+          if(feitas.size) q.textContent += " · " + aulas.filter(a => feitas.has(a.id)).length + " assistidos";
+        }
+      }
+    }
+    document.getElementById("tutIniciar").href = "aulas.html?area=ferramenta&aula=" + encodeURIComponent(alvo.id);
+  }catch(e){ console.warn("Tutoriais indisponiveis:", e && e.message); }
+}
 
 // A chave fica sempre à mão: o e-mail de boas-vindas se perde, a conta não.
 async function mostrarChave(){
