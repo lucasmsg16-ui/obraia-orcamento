@@ -145,8 +145,9 @@ const sb = supabase.createClient("https://xcfqqpjljtnbamisqqvq.supabase.co", "sb
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ window.location.href = "login.html"; return; }
-  const { data: liberado, error } = await sb.rpc("minha_licenca_ativa");
-  if(!error && liberado !== true){ window.location.href = "dashboard.html"; return; }
+  // Ferramenta: só quem comprou a ferramenta ou o combo (quem tem só o curso volta ao painel com aviso).
+  const { data: liberado, error } = await sb.rpc("minha_ferramenta_ativa");
+  if(!error && liberado !== true){ window.location.href = "dashboard.html?nao_incluso=ferramenta"; return; }
   if(error){ console.warn("Nao consegui checar a licenca agora:", error.message); }
   mostrarChave();
   carregarTutoriais();

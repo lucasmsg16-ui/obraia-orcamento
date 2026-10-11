@@ -264,6 +264,10 @@ function montarPainelAdmin(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ window.location.href = "login.html"; return; }
 
+  // Boas-vindas e tutoriais são da ferramenta: quem tem só o curso volta ao painel com o aviso "não incluso".
+  const { data: temFerr, error: errFerr } = await sb.rpc("minha_ferramenta_ativa");
+  if(!errFerr && temFerr !== true){ window.location.href = "dashboard.html?nao_incluso=ferramenta"; return; }
+
   const souAdmin = session.user.id === ADMIN_ID;
   await carregarConteudo();
   await carregarOutrasAulas(souAdmin);

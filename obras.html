@@ -459,8 +459,9 @@ const msg=(el,txt,tipo)=>{const e=document.getElementById(el); if(!e)return; e.i
 (async()=>{
   const {data:{session}}=await sb.auth.getSession();
   if(!session){ location.href="login.html"; return; }
-  const {data:liberado,error:licErr}=await sb.rpc("minha_licenca_ativa");
-  if(!licErr && liberado!==true){ location.href="dashboard.html"; return; }
+  // Ferramenta: só quem comprou a ferramenta ou o combo (quem tem só o curso volta ao painel com aviso).
+  const {data:liberado,error:licErr}=await sb.rpc("minha_ferramenta_ativa");
+  if(!licErr && liberado!==true){ location.href="dashboard.html?nao_incluso=ferramenta"; return; }
   USER=session.user;
   document.getElementById("uEmail").textContent=USER.email;
   await carregarLista();

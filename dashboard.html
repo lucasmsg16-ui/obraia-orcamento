@@ -131,6 +131,15 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
 .q.tool h2{color:var(--navy)}
 .q.tool p{color:var(--muted)}
 .q.tool .go{background:var(--navy);color:#fff}
+/* Produto nao incluso no plano do aluno: mesmo quadro, com aviso e saida para comprar. */
+.naoincl{align-self:flex-start;font-size:12px;font-weight:800;border-radius:999px;padding:5px 12px;
+  background:#fff3cd;color:#7a5b00;border:1px solid #f0d98a}
+.q.locked{cursor:pointer}
+.q.course.locked .go{background:#fff;color:var(--navy)}
+.q.tool.locked .go{background:var(--blue);color:#fff}
+.aviso-plano{display:flex;gap:12px;align-items:flex-start;background:#fff8e1;border:1px solid #f0d98a;
+  border-left:4px solid #e0a800;border-radius:12px;padding:14px 18px;margin-bottom:22px;font-size:14px;color:#5f4a00;line-height:1.5}
+.aviso-plano b{color:#3f3000}
 /* Curso ainda nao liberado: mesmo quadro, sem afordancia de clique (nao e botao desabilitado, e um aviso). */
 .q.course.soon{cursor:default}
 .q.course.soon:hover{transform:none;box-shadow:0 10px 30px rgba(0,43,64,.28)}
@@ -182,7 +191,7 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
       <div class="pgbox" id="cursoPg" hidden><div class="pg" id="cursoPgTxt"></div><div class="pbar"><i id="cursoBar"></i></div></div>
       <span class="go" id="cursoGo">Em breve</span>
     </a>
-    <a class="q tool" href="gestao.html">
+    <a class="q tool" id="qFerr" href="gestao.html">
       <div class="ico">🏗️</div>
       <div class="eyebrow">Ferramenta</div>
       <h2>ObraIA Gestão</h2>
@@ -221,7 +230,7 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
     console.warn("Nao consegui checar a licenca agora:", error.message);
     return;
   }
-  if(liberado === true){ await mostrarChave(); carregarCurso(session.user.id); return; }
+  if(liberado === true){ await aplicarProdutos(session.user.id); return; }
 
   // Descobre a causa especifica do bloqueio pra nao chamar de "nunca comprou"
   // quem comprou e so teve o acesso vencido — sao problemas diferentes e
@@ -229,6 +238,60 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
   const { data: cliente } = await sb.from("clientes").select("validade, status, ativo").maybeSingle();
   bloquear(session.user.email, cliente);
 })();
+
+// ── Produtos: Curso Dominante da IA e ObraIA Gestão (ou os dois, no combo) ───────────────
+// Cada quadro só abre para quem comprou. O banco decide (minha_ferramenta_ativa / minha_curso_ativa);
+// aqui só mostramos o resultado. Em erro de rede NÃO bloqueamos (as páginas e o banco revalidam).
+// Links de compra: preencha aqui quando os checkouts da Kiwify estiverem criados. Vazio = abre o WhatsApp.
+const COMPRA = {
+  curso:      "",   // checkout do Curso Dominante da IA (a partir de 16/10)
+  ferramenta: "https://app.marabertoeng.com.br/planos.html",
+  combo:      ""    // checkout do combo Curso + ObraIA Gestão
+};
+const ZAP = "5581997977068";
+function linkCompra(chave, textoZap){
+  return COMPRA[chave] || ("https://wa.me/" + ZAP + "?text=" + encodeURIComponent(textoZap));
+}
+function travarQuadro(id, rotuloBotao, url, mensagem){
+  const q = document.getElementById(id); if(!q) return;
+  q.classList.remove("soon"); q.classList.add("locked");
+  q.setAttribute("href", url); q.setAttribute("target", "_blank"); q.setAttribute("rel", "noopener");
+  const go = q.querySelector(".go"); if(go) go.textContent = rotuloBotao;
+  const p = q.querySelector("p");
+  if(p){
+    p.textContent = mensagem;
+    const tag = document.createElement("div"); tag.className = "naoincl"; tag.textContent = "🔒 Não incluso no seu plano";
+    q.insertBefore(tag, p);
+  }
+  const pg = q.querySelector(".pgbox"); if(pg) pg.hidden = true;
+}
+async function aplicarProdutos(uid){
+  const [f, c] = await Promise.all([sb.rpc("minha_ferramenta_ativa"), sb.rpc("minha_curso_ativa")]);
+  const temFerr  = f.error ? true : f.data === true;
+  const temCurso = c.error ? true : c.data === true;
+
+  const aviso = new URLSearchParams(location.search).get("nao_incluso");
+  if(aviso === "ferramenta" && !temFerr || aviso === "curso" && !temCurso){
+    const nome = aviso === "ferramenta" ? "A ObraIA Gestão" : "O Curso Dominante da IA";
+    const box = document.createElement("div"); box.className = "aviso-plano";
+    box.innerHTML = '<span style="font-size:20px">🔒</span><span><b>' + nome + ' não está incluso no seu plano.</b> ' +
+      'Seu acesso atual libera apenas ' + (aviso === "ferramenta" ? "o curso" : "a ferramenta") + '. Quer adicionar? Use o botão do quadro abaixo.</span>';
+    document.querySelector(".qgrid").before(box);
+  }
+
+  window.TEM_FERR = temFerr;
+  if(temFerr) await mostrarChave();
+  else {
+    travarQuadro("qFerr", "Quero a ferramenta", linkCompra("ferramenta", "Ola! Tenho o Curso Dominante da IA e quero adicionar a ObraIA Gestao. Meu e-mail e " + (document.getElementById("userEmail").textContent || "")),
+      "A ferramenta de gestão (orçamento com IA, monitoramento de obras e composições) é um produto à parte. Seu plano atual não a inclui.");
+  }
+  if(temCurso) carregarCurso(uid);
+  else {
+    travarQuadro("qCurso", "Quero o curso", linkCompra("curso", "Ola! Tenho a ObraIA Gestao e quero o Curso Dominante da IA. Meu e-mail e " + (document.getElementById("userEmail").textContent || "")),
+      "A trilha em vídeo do Curso Dominante da IA é um produto à parte. Seu plano atual não a inclui.");
+  }
+  if(!temFerr) document.getElementById("first").style.display = "none";
+}
 
 // A chave fica sempre a mao: o e-mail de boas-vindas se perde, a conta nao.
 async function mostrarChave(){
@@ -282,7 +345,7 @@ async function carregarCurso(uid){
     document.getElementById("cursoGo").textContent =
       !r.proxima ? "Rever o curso" : (r.feitas ? "Continuar: Aula " + r.indiceProxima : "Começar: Aula 1");
     // Banner de boas-vindas so para quem ainda nao concluiu nenhuma aula.
-    if(r.feitas === 0) document.getElementById("first").classList.add("on");
+    if(r.feitas === 0 && window.TEM_FERR !== false) document.getElementById("first").classList.add("on");
   }catch(e){ console.warn("Progresso do curso indisponivel:", e && e.message); }
 }
 

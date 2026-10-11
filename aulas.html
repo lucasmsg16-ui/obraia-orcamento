@@ -848,14 +848,15 @@ async function moverAula(id, dir){
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if(!session){ window.location.href = "login.html"; return; }
-  const { data: liberado, error: licErr } = await sb.rpc("minha_licenca_ativa");
-  if(!licErr && liberado !== true){ window.location.href = "dashboard.html"; return; }
+  // Cada área só abre para quem comprou o produto: tutoriais = ferramenta/combo; curso = curso/combo.
+  // (O banco também barra: as regras de leitura de aulas/módulos usam as mesmas funções.)
+  const { data: liberado, error: licErr } = await sb.rpc(FERR ? "minha_ferramenta_ativa" : "minha_curso_ativa");
+  if(!licErr && liberado !== true){ window.location.href = "dashboard.html?nao_incluso=" + (FERR ? "ferramenta" : "curso"); return; }
 
   UID = session.user.id;
   SOU_ADMIN = UID === ADMIN_ID;
 
-  // Curso restrito por enquanto (ver CURSO_ABERTO em curso-progresso.js): quem não pode ver volta ao painel.
-  // Os tutoriais da ferramenta (area=ferramenta) são abertos a todo aluno com licença.
+  // Curso ainda em preparo (ver CURSO_ABERTO em curso-progresso.js): só o admin entra até o lançamento.
   if(!FERR && !ObraCurso.podeVerCurso(UID)){ window.location.href = "dashboard.html"; return; }
 
   // Todo usuário com licença ativa vê a trilha e assiste. Escrita (criar/editar/excluir/reordenar)
