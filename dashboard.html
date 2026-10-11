@@ -121,6 +121,7 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
 .q.course .ico{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25)}
 .q.course .eyebrow{color:#4db8e8}
 .q.course p{color:#d6edf8}
+.q.course .nave{color:#4db8e8;font-weight:800}
 .q.course .go{background:#fff;color:var(--navy);box-shadow:0 6px 16px rgba(0,0,0,.25)}
 .q.course .pg{font-size:12.5px;color:#bfe2f3;margin-bottom:6px}
 .q.course .pbar{background:rgba(255,255,255,.22)}
@@ -175,9 +176,9 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
     <!-- Começa "em breve" e sem link: só vira acesso se carregarCurso() confirmar que esta pessoa pode ver o curso. -->
     <a class="q course soon" id="qCurso">
       <div class="ico">🚀</div>
-      <div class="eyebrow" id="cursoEyebrow">Curso prático</div>
+      <div class="eyebrow" id="cursoEyebrow">Curso prático · Método NAVE</div>
       <h2>Curso Dominante da IA</h2>
-      <p id="cursoDesc">A trilha em vídeo que ensina o engenheiro a comandar a IA — do primeiro prompt ao fluxo que roda sozinho. Chegando em breve, já incluída no seu plano.</p>
+      <p id="cursoDesc">O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar o uso da Inteligência Artificial na engenharia e na arquitetura. Chegando em breve.</p>
       <div class="pgbox" id="cursoPg" hidden><div class="pg" id="cursoPgTxt"></div><div class="pbar"><i id="cursoBar"></i></div></div>
       <span class="go" id="cursoGo">Em breve</span>
     </a>
@@ -266,8 +267,9 @@ async function carregarCurso(uid){
     const q = document.getElementById("qCurso");
     q.setAttribute("href", "aulas.html");
     q.classList.remove("soon");
-    document.getElementById("cursoDesc").textContent =
-      "A trilha em vídeo que ensina o engenheiro a comandar a IA — do primeiro prompt ao fluxo que roda sozinho. Já incluída no seu plano.";
+    // Texto fixo (sem dado de usuário), por isso innerHTML é seguro aqui: serve só para destacar as letras do NAVE.
+    document.getElementById("cursoDesc").innerHTML =
+      'O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar o uso da Inteligência Artificial na engenharia e na arquitetura.';
     document.getElementById("cursoGo").textContent = "Acessar o curso";
     if(!ObraCurso.cursoAberto()) document.getElementById("cursoEyebrow").textContent = "Curso prático · só você vê por enquanto";
     const r = await ObraCurso.resumo(sb, uid);
