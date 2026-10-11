@@ -200,6 +200,17 @@ function extrairYoutubeId(url){
   const m = String(url).match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
   return m ? m[1] : null;
 }
+// Panda Video: aceita o link do player ou o código <iframe> inteiro copiado do painel da Panda.
+// Só passam endereços https://...pandavideo.com.br/embed/?v=<id>; devolve o link já normalizado (ou null).
+function extrairPanda(entrada){
+  if(!entrada) return null;
+  let s = String(entrada).trim();
+  const ifr = s.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i);
+  if(ifr) s = ifr[1].trim();
+  s = s.replace(/&amp;/g, "&");
+  const m = s.match(/^https:\/\/((?:[a-z0-9-]+\.)*pandavideo\.com\.br)\/embed\/?\?(?:[^#]*&)?v=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  return m ? "https://" + m[1].toLowerCase() + "/embed/?v=" + m[2].toLowerCase() : null;
+}
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 // Nas listas o número já aparece na bolinha: "Aula 3 - Prompt" vira "Prompt". No título da aula o texto fica completo.
 function tituloCurto(t){ const r = String(t||"").replace(/^aula\s*\d+\s*[-–—:.]\s*/i, "").trim(); return r || String(t||""); }
@@ -261,6 +272,8 @@ function ativasDe(g){ return g.aulas.filter(a => a.ativo !== false); }
 function feitasDe(g){ return ativasDe(g).filter(a => PROG.done.has(a.id)).length; }
 function numero(a){ const i = LISTA_ATIVA.indexOf(a); return i >= 0 ? i + 1 : "•"; }
 function ytEmbed(a){
+  const panda = extrairPanda(a.video_url);
+  if(panda) return `<div class="video"><iframe src="${esc(panda)}" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
   const id = extrairYoutubeId(a.video_url);
   return id ? `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}?modestbranding=1&rel=0" title="${esc(a.titulo)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`
             : `<div class="video vazio">Vídeo ainda não cadastrado nesta aula.</div>`;
@@ -490,8 +503,8 @@ function renderForm(aula, moduloPre){
         <input type="text" id="fTit" required value="${editando?esc(aula.titulo):""}">
         <label for="fDesc">Descrição</label>
         <textarea id="fDesc">${editando?esc(aula.descricao||""):""}</textarea>
-        <label for="fLink">Link do vídeo (YouTube — suba como "não listado")</label>
-        <input type="text" id="fLink" placeholder="https://youtu.be/..." value="${editando?esc(aula.video_url||""):""}">
+        <label for="fLink">Link do vídeo (Panda Video — cole o link ou o código de incorporação; YouTube "não listado" também funciona)</label>
+        <input type="text" id="fLink" placeholder="https://player.pandavideo.com.br/embed/?v=..." value="${editando?esc(aula.video_url||""):""}">
         <div class="row">
           <button type="submit" class="btn">${editando?"Salvar alterações":"Adicionar aula"}</button>
           <button type="button" class="btn btn-out" onclick="document.getElementById('formNovaAula').innerHTML=''">Cancelar</button>
@@ -505,11 +518,15 @@ function renderForm(aula, moduloPre){
     const msg = document.getElementById("msgAula");
     const titulo = document.getElementById("fTit").value.trim();
     const descricao = document.getElementById("fDesc").value.trim();
-    const link = document.getElementById("fLink").value.trim();
+    let link = document.getElementById("fLink").value.trim();
     const modulo_id = document.getElementById("fModulo").value || null;
-    if(link && !extrairYoutubeId(link)){
-      msg.className="msg err"; msg.textContent="Não reconheci esse link como um vídeo do YouTube.";
-      return;
+    if(link){
+      const p = extrairPanda(link);
+      if(p) link = p; // guarda só o endereço limpo do player
+      else if(!extrairYoutubeId(link)){
+        msg.className="msg err"; msg.textContent="Não reconheci esse link. Cole o link do player da Panda Video (pandavideo.com.br/embed/?v=...) ou um link do YouTube.";
+        return;
+      }
     }
     msg.className="msg"; msg.textContent="";
     try{
