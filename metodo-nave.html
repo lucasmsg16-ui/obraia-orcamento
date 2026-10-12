@@ -400,6 +400,88 @@ section{padding:70px 0}
 .apresenta{text-align:center;font-size:clamp(22px,3.2vw,32px);font-weight:900;color:var(--navy);letter-spacing:-.6px;margin-bottom:34px}
 .apresenta::after{content:"";display:block;width:64px;height:4px;border-radius:4px;background:var(--blue);margin:12px auto 0}
 .foto-lucas{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:center top;border-radius:20px;box-shadow:var(--shadow-lg);display:block}
+
+/* ═══ TIPOGRAFIA DE LEITURA ═══════════════════════════════════════════════════
+   Texto corrido justificado, com hifenização automática (lang="pt-BR") para não
+   abrir "buracos" entre as palavras, linhas de 60 a 75 caracteres, sem palavra
+   sozinha na última linha, corpo mínimo de 15 px e contraste de leitura.
+   Títulos, rótulos, preços e botões ficam centralizados/equilibrados: justificar
+   uma linha curta é o que deixa as palavras soltas.
+   Para desfazer tudo: apague este bloco inteiro (até FIM DA TIPOGRAFIA DE LEITURA). */
+:root{--muted:#5b7083}
+body{-webkit-text-size-adjust:100%;text-rendering:optimizeLegibility;font-kerning:normal}
+
+/* 1. parágrafos e itens: justificados, com hifenização e sem viúva */
+.hero .lead,.abertura,.embarque,.fecho-combo,.cta-final p,.ps,.planos-tit p,
+.dorcard p,.dorcard .resolve,.col-txt p,.pilar .oq,.pilar .pq,.destaque-validar,
+.prod li,.bonus p,.bonus.destaque li,.passo p,.pq-box li,.dep p,.autor p,.autor li,
+.garantia p,.faq .r,.incluso li{
+  text-align:justify;text-justify:inter-word;
+  hyphens:auto;-webkit-hyphens:auto;hyphenate-limit-chars:6 3 3;
+  overflow-wrap:break-word;
+}
+/* última linha: à esquerda nos cartões, centralizada nos blocos centralizados */
+.dorcard p,.dorcard .resolve,.col-txt p,.pilar .oq,.pilar .pq,.destaque-validar,
+.prod li,.bonus p,.bonus.destaque li,.passo p,.pq-box li,.dep p,.autor p,.autor li,
+.garantia p,.faq .r,.incluso li{text-align-last:left}
+.hero .lead,.abertura,.embarque,.fecho-combo,.cta-final p,.ps,.planos-tit p{text-align-last:center}
+
+/* 2. títulos e textos curtos: sem justificar, linhas equilibradas */
+h1,h2,h3,.virada,.apresenta,.bonus-tit,.cta-final h2,.lbl,.eyebrow,
+.escassez,.total-bonus,.parcela,.seguro,.preco-de,.depos-nota,.legenda,.cta-meio small{
+  text-wrap:balance;hyphens:manual;-webkit-hyphens:manual}
+.faq summary{hyphens:manual}
+
+/* 3. tamanho e entrelinha: corpo de 15 a 17 px, entrelinha de 1,6 a 1,7 */
+.hero .lead{font-size:17px;line-height:1.7;max-width:36em}
+.abertura{font-size:16.5px;line-height:1.75;max-width:38em}
+.embarque{font-size:16px;line-height:1.7;max-width:38em}
+.fecho-combo{font-size:16.5px;line-height:1.65;max-width:36em}
+.planos-tit p{font-size:16px;line-height:1.65;max-width:36em;margin-left:auto;margin-right:auto}
+.dorcard p{font-size:15px;line-height:1.65}
+.dorcard .resolve{font-size:14px;line-height:1.6}
+.pilar .oq{font-size:15.5px;line-height:1.65}
+.pilar .pq{font-size:13.5px;line-height:1.6}
+.prod li,.pq-box li,.incluso li{font-size:15px;line-height:1.6}
+.bonus p{font-size:15px;line-height:1.65}
+.bonus.destaque li,.autor li{font-size:15px;line-height:1.55}
+.passo p{font-size:15px;line-height:1.65}
+.dep p{font-size:15px;line-height:1.65}
+.autor p{font-size:16px;line-height:1.75}
+.garantia p{font-size:15px;line-height:1.65}
+.faq summary{font-size:16px;line-height:1.45}
+.faq .r{font-size:15.5px;line-height:1.7;max-width:36em}
+.destaque-validar{font-size:15px}
+.cta-final p{font-size:16.5px;line-height:1.7;max-width:34em}
+.ps{font-size:14px;line-height:1.6}
+.escassez{font-size:14.5px}
+.parcela{font-size:15px}
+.num-card span{font-size:13px}
+.seguro,.depos-nota,.hero .cta-sub{font-size:13px}
+.cta-meio small{font-size:13.5px}
+
+/* 4. medida (largura da linha): colunas confortáveis para ler */
+.pilares{grid-template-columns:repeat(2,1fr)}
+@media(max-width:560px){.pilares{grid-template-columns:1fr}}
+.garantia{max-width:700px}
+.abertura,.embarque,.fecho-combo{margin-left:auto;margin-right:auto}
+/* blocos que ficavam em 3 colunas (~36 caracteres por linha, estreito demais para justificar): uma coluna só */
+.bonus-grid,.passos,.depos{grid-template-columns:1fr;max-width:760px;margin-left:auto;margin-right:auto}
+.bonus.destaque ul{columns:1}
+.passo{display:grid;grid-template-columns:44px minmax(0,1fr);column-gap:16px;align-items:start}
+.passo .n{grid-column:1;grid-row:1 / span 2;margin:4px 0 0}
+.passo h3,.passo p{grid-column:2}
+.autor{grid-template-columns:300px minmax(0,1fr)}
+@media(max-width:820px){.autor{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .wrap{padding:0 16px}
+  .dorcard,.passo,.dep,.pilar,.pq-box,.prod,.bonus{padding-left:15px;padding-right:15px}
+  .hero .lead,.cta-final p,.fecho-combo{font-size:16px}
+  .abertura{font-size:15.5px}
+  .dorcard p,.bonus p,.passo p,.dep p,.garantia p,.prod li,.pq-box li,.incluso li,.autor li,.bonus.destaque li{font-size:14.5px}
+  .autor p,.faq .r,.pilar .oq{font-size:15px}
+}
+/* ═══ FIM DA TIPOGRAFIA DE LEITURA ═══════════════════════════════════════════ */
 </style>
 </head>
 <body>
@@ -411,12 +493,11 @@ section{padding:70px 0}
 <!-- ═══ HERO ═══ -->
 <section class="hero">
   <div class="wrap inner">
-    <div class="eyebrow">Curso + 4 bônus para engenheiros e arquitetos</div>
-    <h1>Engenheiro, Arquiteto: saia do modo amador e domine a Inteligência Artificial <em>com método</em>.</h1>
-    <p class="lead">O <b>Método NAVE</b> leva engenheiros e arquitetos a dominarem a IA: organizar o fluxo de trabalho e
-      potencializar os resultados em todas as etapas, do planejamento à execução, do monitoramento à entrega de obras e projetos.
-      E o melhor: <b>com estratégia em cada etapa</b>. Cada aula te dá munição para aplicar na hora.
-      Você aprende no <b>Curso Dominante da IA</b> e ainda leva de bônus a <b>ObraIA Gestão</b>, a ferramenta que eu uso nas minhas obras.</p>
+    <div class="eyebrow">Curso + 4 bônus para engenheiros e&nbsp;arquitetos</div>
+    <h1>Engenheiro, Arquiteto: saia do modo amador e&nbsp;domine a&nbsp;Inteligência Artificial <em>com método</em>.</h1>
+    <p class="lead">O&nbsp;<b>Método NAVE</b> leva enge&shy;nheiros e&nbsp;arqui&shy;tetos a&nbsp;domi&shy;narem a&nbsp;IA: orga&shy;nizar o&nbsp;fluxo de tra&shy;balho e&nbsp;poten&shy;ci&shy;a&shy;lizar os resul&shy;tados em todas as etapas, do pla&shy;ne&shy;ja&shy;mento à&nbsp;exe&shy;cução, do moni&shy;to&shy;ra&shy;mento à&nbsp;entrega de obras e&nbsp;pro&shy;jetos.
+      E&nbsp;o&nbsp;melhor: <b>com estra&shy;tégia em cada etapa</b>. Cada aula te dá munição para aplicar na hora.
+      Você aprende no <b>Curso Domi&shy;nante da IA</b> e&nbsp;ainda leva de bônus a&nbsp;<b>ObraIA Gestão</b>, a&nbsp;fer&shy;ra&shy;menta que eu uso nas minhas obras.</p>
     <a class="btn grande go" href="#oferta">Quero entrar no Método NAVE →</a>
 
     <div class="vitrine">
@@ -436,39 +517,39 @@ section{padding:70px 0}
   <div class="wrap">
     <div class="dores-tit">
       <div class="lbl">Seja honesto com você</div>
-      <h2>Todo mundo diz que a IA vai transformar a engenharia. Mas ninguém te mostrou por onde começar.</h2>
+      <h2>Todo mundo diz que a&nbsp;IA vai transformar a&nbsp;engenharia. Mas ninguém te mostrou por onde começar.</h2>
     </div>
-    <p class="abertura">Você já deve ter usado o ChatGPT, o Claude, o Gemini, feito perguntas soltas e recebido resultados genéricos.
-      Já viu vários gurus querendo ensinar cada uma dessas ferramentas, mas sem método, sem estratégia e, o principal,
-      <b>nada aplicado ao contexto de engenharia e arquitetura</b>. A sensação que fica é que você perdeu o bonde.
-      <b>Não perdeu.</b> O que te falta não é talento, é um caminho na ordem certa.</p>
+    <p class="abertura">Você já deve ter usado o&nbsp;ChatGPT, o&nbsp;Claude, o&nbsp;Gemini, feito per&shy;guntas soltas e&nbsp;rece&shy;bido resul&shy;tados gené&shy;ricos.
+      Já viu vários gurus que&shy;rendo ensinar cada uma dessas fer&shy;ra&shy;mentas, mas sem método, sem estra&shy;tégia e, o&nbsp;prin&shy;cipal,
+      <b>nada apli&shy;cado ao con&shy;texto de enge&shy;nharia e&nbsp;arqui&shy;te&shy;tura</b>. A&nbsp;sen&shy;sação que fica é&nbsp;que você perdeu o&nbsp;bonde.
+      <b>Não perdeu.</b> O&nbsp;que te falta não é&nbsp;talento, é&nbsp;um caminho na ordem certa.</p>
     <div class="dores">
       <div class="dorcard">
         <div class="ic">🎲</div>
         <h3>Você usa IA no improviso</h3>
-        <p>Cada pedido começa do zero, a resposta varia e você não confia no que recebe.</p>
-        <div class="resolve"><b>No NAVE:</b> você organiza o contexto antes de pedir qualquer coisa.</div>
+        <p>Cada pedido começa do zero, a&nbsp;res&shy;posta varia e&nbsp;você não confia no que recebe.</p>
+        <div class="resolve"><b>No NAVE:</b> você orga&shy;niza o&nbsp;con&shy;texto antes de pedir qual&shy;quer coisa.</div>
       </div>
       <div class="dorcard">
         <div class="ic">⏳</div>
         <h3>Seu tempo some em tarefa repetitiva</h3>
-        <p>Quantitativo, planilha, relatório, e-mail, cronograma refeito pela terceira vez.</p>
-        <div class="resolve"><b>No NAVE:</b> você transforma o que se repete em fluxo que roda sozinho.</div>
+        <p>Quan&shy;ti&shy;ta&shy;tivo, pla&shy;nilha, rela&shy;tório, e-mail, cro&shy;no&shy;grama refeito pela ter&shy;ceira vez.</p>
+        <div class="resolve"><b>No NAVE:</b> você trans&shy;forma o&nbsp;que se repete em fluxo que roda sozinho.</div>
       </div>
       <div class="dorcard">
         <div class="ic">✍️</div>
         <h3>Você não se sente seguro para assinar algo feito por IA</h3>
-        <p>Ela pode errar. Você só precisa saber validar.</p>
-        <div class="resolve"><b>No NAVE:</b> você aprende a conferir rápido e com a segurança de quem usa no dia a dia para gerenciar mais de 23 obras simultâneas.</div>
+        <p>Ela pode errar. Você só pre&shy;cisa saber validar.</p>
+        <div class="resolve"><b>No NAVE:</b> você aprende a&nbsp;con&shy;ferir rápido e&nbsp;com a&nbsp;segu&shy;rança de quem usa no dia a&nbsp;dia para geren&shy;ciar mais de 23&nbsp;obras simul&shy;tâ&shy;neas.</div>
       </div>
       <div class="dorcard">
         <div class="ic">🚪</div>
         <h3>Você vê todo mundo falando sobre IA, mas não sabe por onde começar</h3>
-        <p>Sobra informação solta e falta um passo a passo que respeite o seu nível.</p>
-        <div class="resolve"><b>No NAVE:</b> você aprende com método e estratégia, e potencializa os seus resultados.</div>
+        <p>Sobra infor&shy;mação solta e&nbsp;falta um passo a&nbsp;passo que res&shy;peite o&nbsp;seu nível.</p>
+        <div class="resolve"><b>No NAVE:</b> você aprende com método e&nbsp;estra&shy;tégia, e&nbsp;poten&shy;ci&shy;a&shy;liza os seus resul&shy;tados.</div>
       </div>
     </div>
-    <p class="virada">A IA não vai te substituir. Mas você pode ficar para trás de quem entrega <em>mais rápido e com menos erros</em>. Resultado: perde espaço no mercado de trabalho.</p>
+    <p class="virada">A&nbsp;IA não vai te substituir. Mas você pode ficar para trás de quem entrega <em>mais rápido e&nbsp;com menos erros</em>. Resultado: perde espaço no mercado de trabalho.</p>
   </div>
 </section>
 
@@ -476,34 +557,34 @@ section{padding:70px 0}
 <section class="como" id="metodo">
   <div class="wrap">
     <div class="como-tit">
-      <div class="lbl">O Método NAVE</div>
-      <h2>A trilha perfeita que vai te levar do modo amador ao modo dominante da IA em quatro pilares</h2>
+      <div class="lbl">O&nbsp;Método NAVE</div>
+      <h2>A&nbsp;trilha perfeita que vai te levar do modo amador ao modo dominante da IA em quatro pilares</h2>
     </div>
-    <p class="abertura" style="margin-top:12px">Cada pilar só faz sentido depois do anterior. É por isso que funciona para quem está começando.</p>
+    <p class="abertura" style="margin-top:12px">Cada pilar só faz sen&shy;tido depois do ante&shy;rior. É&nbsp;por isso que fun&shy;ciona para quem está come&shy;çando.</p>
     <div class="pilares">
       <div class="pilar">
         <div class="letra">N</div><h3>Navegar</h3>
-        <div class="oq">Organizar o contexto antes de pedir qualquer coisa à IA.</div>
-        <div class="pq"><b>Por que primeiro:</b> sem contexto, até a melhor IA devolve resposta genérica.</div>
+        <div class="oq">Orga&shy;nizar o&nbsp;con&shy;texto antes de pedir qual&shy;quer coisa à&nbsp;IA.</div>
+        <div class="pq"><b>Por que pri&shy;meiro:</b> sem con&shy;texto, até a&nbsp;melhor IA devolve res&shy;posta gené&shy;rica.</div>
       </div>
       <div class="pilar">
         <div class="letra">A</div><h3>Automatizar</h3>
-        <div class="oq">Transformar tarefa repetida em fluxo que roda sozinho.</div>
-        <div class="pq"><b>Por que depois de N:</b> só vale automatizar o que já está organizado.</div>
+        <div class="oq">Trans&shy;formar tarefa repe&shy;tida em fluxo que roda sozinho.</div>
+        <div class="pq"><b>Por que depois de N:</b> só vale auto&shy;ma&shy;tizar o&nbsp;que já está orga&shy;ni&shy;zado.</div>
       </div>
       <div class="pilar">
         <div class="letra">V</div><h3>Validar</h3>
-        <div class="oq">Conferir com segurança o que a IA devolve.</div>
-        <div class="pq"><b>Por que depois de A:</b> mais automação gera mais volume, e mais responsabilidade sobre o que sai assinado.</div>
+        <div class="oq">Con&shy;ferir com segu&shy;rança o&nbsp;que a&nbsp;IA devolve.</div>
+        <div class="pq"><b>Por que depois de A:</b> mais auto&shy;mação gera mais volume, e&nbsp;mais res&shy;pon&shy;sa&shy;bi&shy;li&shy;dade sobre o&nbsp;que sai assi&shy;nado.</div>
       </div>
       <div class="pilar">
         <div class="letra">E</div><h3>Escalar</h3>
-        <div class="oq">Transformar o tempo livre em crescimento real.</div>
-        <div class="pq"><b>Por que por último:</b> o tempo só sobra depois de organizar, automatizar e validar.</div>
+        <div class="oq">Trans&shy;formar o&nbsp;tempo livre em cres&shy;ci&shy;mento real.</div>
+        <div class="pq"><b>Por que por último:</b> o&nbsp;tempo só sobra depois de orga&shy;nizar, auto&shy;ma&shy;tizar e&nbsp;validar.</div>
       </div>
     </div>
-    <p class="embarque">O curso começa pelo <b>Embarque</b>: o mapa da travessia, o impacto real da IA na sua profissão e como ela entra no seu trabalho.</p>
-    <div class="cta-meio" style="margin-top:34px"><a class="go" href="#oferta">Quero aprender o Método NAVE →</a><small>7 dias de garantia</small></div>
+    <p class="embarque">O&nbsp;curso começa pelo <b>Embarque</b>: o&nbsp;mapa da tra&shy;vessia, o&nbsp;impacto real da IA na sua pro&shy;fissão e&nbsp;como ela entra no seu tra&shy;balho.</p>
+    <div class="cta-meio" style="margin-top:34px"><a class="go" href="#oferta">Quero aprender o&nbsp;Método NAVE →</a><small>7&nbsp;dias de garantia</small></div>
   </div>
 </section>
 
@@ -511,56 +592,56 @@ section{padding:70px 0}
 <section id="leva">
   <div class="wrap">
     <div class="dores-tit">
-      <div class="lbl">O que você leva</div>
-      <h2>O curso para dominar a IA, e 4 bônus para aplicar na hora</h2>
+      <div class="lbl">O&nbsp;que você leva</div>
+      <h2>O&nbsp;curso para dominar a&nbsp;IA, e&nbsp;4 bônus para aplicar na hora</h2>
     </div>
     <div class="prod curso curso-main">
       <span class="tag">Curso</span>
       <h3>Curso Dominante da IA (Método NAVE)</h3>
       <ul>
-        <li>Aulas em vídeo, passo a passo, na ordem do método</li>
-        <li>Materiais de apoio para baixar (guias, checklists e modelos)</li>
-        <li>Acesso por 12 meses</li>
-        <li class="aberto">Módulos e número de aulas: ementa completa será apresentada na aula ao vivo</li>
+        <li>Aulas em vídeo, passo a&nbsp;passo, na ordem do método</li>
+        <li>Mate&shy;riais de apoio para baixar (guias, check&shy;lists e&nbsp;modelos)</li>
+        <li>Acesso por 12&nbsp;meses</li>
+        <li class="aberto">Módulos e&nbsp;número de aulas: ementa com&shy;pleta será apre&shy;sen&shy;tada na aula ao vivo</li>
       </ul>
     </div>
 
     <div class="bonus-tit"><span>🎁</span> Bônus incluídos, sem custo extra</div>
     <div class="bonus-grid">
       <div class="bonus">
-        <div class="b-n">Bônus 1</div>
-        <h3>Kit dos 50 prompts da trilha da obra perfeita</h3>
-        <p>Prompts prontos para usar em cada etapa da obra e do projeto, do planejamento à entrega.</p>
-        <div class="b-val"><span class="de">✕ R$ 197</span><span class="gr">Grátis</span></div>
+        <div class="b-n">Bônus&nbsp;1</div>
+        <h3>Kit dos 50&nbsp;prompts da trilha da obra perfeita</h3>
+        <p>Prompts prontos para usar em cada etapa da obra e&nbsp;do pro&shy;jeto, do pla&shy;ne&shy;ja&shy;mento à&nbsp;entrega.</p>
+        <div class="b-val"><span class="de">✕ R$&nbsp;197</span><span class="gr">Grátis</span></div>
       </div>
       <div class="bonus">
-        <div class="b-n">Bônus 2</div>
-        <h3>Mais de 50 skills no Claude para gerenciamento de obras e projetos</h3>
-        <p>Skills prontas para você usar no Claude e automatizar o que mais consome o seu tempo.</p>
-        <div class="b-val"><span class="de">✕ R$ 497</span><span class="gr">Grátis</span></div>
+        <div class="b-n">Bônus&nbsp;2</div>
+        <h3>Mais de 50&nbsp;skills no Claude para gerenciamento de obras e&nbsp;projetos</h3>
+        <p>Skills prontas para você usar no Claude e&nbsp;auto&shy;ma&shy;tizar o&nbsp;que mais con&shy;some o&nbsp;seu tempo.</p>
+        <div class="b-val"><span class="de">✕ R$&nbsp;497</span><span class="gr">Grátis</span></div>
       </div>
       <div class="bonus">
-        <div class="b-n">Bônus 3</div>
-        <h3>2 mentorias individuais ao vivo no Zoom para cada aluno</h3>
-        <p>Duas mentorias individuais, direto comigo, durante o primeiro mês. Tire dúvidas e ajuste o método ao seu dia a dia.</p>
-        <div class="b-val"><span class="de">✕ R$ 600</span><span class="gr">Grátis</span></div>
+        <div class="b-n">Bônus&nbsp;3</div>
+        <h3>2&nbsp;mentorias individuais ao vivo no Zoom para cada aluno</h3>
+        <p>Duas men&shy;to&shy;rias indi&shy;vi&shy;duais, direto comigo, durante o&nbsp;pri&shy;meiro mês. Tire dúvidas e&nbsp;ajuste o&nbsp;método ao seu dia a&nbsp;dia.</p>
+        <div class="b-val"><span class="de">✕ R$&nbsp;600</span><span class="gr">Grátis</span></div>
       </div>
       <div class="bonus destaque">
-        <div class="b-n">Bônus 4 · ObraIA Gestão</div>
-        <h3>O que mais de 100 engenheiros já validaram em menos de 2 meses, você leva de graça</h3>
-        <p><b>5 análises por mês, durante 1 ano</b>, na ferramenta que eu uso nas minhas obras.</p>
-        <div class="b-val"><span class="de">✕ R$ 1.164</span><span class="gr">Grátis</span></div>
+        <div class="b-n">Bônus&nbsp;4 · ObraIA Gestão</div>
+        <h3>O&nbsp;que mais de 100 engenheiros já validaram em menos de 2&nbsp;meses, você leva de graça</h3>
+        <p><b>5&nbsp;aná&shy;lises por mês, durante 1&nbsp;ano</b>, na fer&shy;ra&shy;menta que eu uso nas minhas obras.</p>
+        <div class="b-val"><span class="de">✕ R$&nbsp;1.164</span><span class="gr">Grátis</span></div>
         <ul>
-          <li>Leitura de projetos em PDF gerando o pacote completo, do orçamento ao cronograma da obra</li>
-          <li>Monitoramento de obras: avanço físico e financeiro, curva S e cronograma</li>
-          <li>Suas próprias composições de preço</li>
-          <li>Tutoriais em vídeo de cada tela</li>
+          <li>Lei&shy;tura de pro&shy;jetos em PDF gerando o&nbsp;pacote com&shy;pleto, do orça&shy;mento ao cro&shy;no&shy;grama da obra</li>
+          <li>Moni&shy;to&shy;ra&shy;mento de obras: avanço físico e&nbsp;finan&shy;ceiro, curva S e&nbsp;cro&shy;no&shy;grama</li>
+          <li>Suas pró&shy;prias com&shy;po&shy;si&shy;ções de preço</li>
+          <li>Tuto&shy;riais em vídeo de cada tela</li>
         </ul>
       </div>
     </div>
-    <div class="total-bonus"><span class="pres">🎁</span><span>Valor dos 4 bônus: <s>R$ 2.458</s></span><b>Hoje, de graça para quem entrar no curso</b></div>
-    <p class="fecho-combo">Você não sai só com conhecimento. Sai com método, material pronto e a ferramenta aberta para aplicar na sua próxima obra.</p>
-    <div class="cta-meio" style="margin-top:22px"><a class="go" href="#oferta">Garantir minha vaga →</a><small>7 dias de garantia</small></div>
+    <div class="total-bonus"><span class="pres">🎁</span><span>Valor dos 4 bônus: <s>R$&nbsp;2.458</s></span><b>Hoje, de graça para quem entrar no curso</b></div>
+    <p class="fecho-combo">Você não sai só com conhe&shy;ci&shy;mento. Sai com método, mate&shy;rial pronto e&nbsp;a&nbsp;fer&shy;ra&shy;menta aberta para aplicar na sua pró&shy;xima obra.</p>
+    <div class="cta-meio" style="margin-top:22px"><a class="go" href="#oferta">Garantir minha vaga →</a><small>7&nbsp;dias de garantia</small></div>
   </div>
 </section>
 
@@ -572,9 +653,9 @@ section{padding:70px 0}
       <h2>Do acesso ao domínio da IA, em 3 passos</h2>
     </div>
     <div class="passos" style="margin-top:30px">
-      <div class="passo"><div class="n">01</div><h3>Entre e comece pelo Embarque</h3><p>Você recebe o acesso por e-mail logo após a confirmação da compra.</p></div>
-      <div class="passo"><div class="n">02</div><h3>Siga os 4 pilares</h3><p>Transforme a sua forma de usar a Inteligência Artificial. Sinta-se confiante e dominante da ferramenta.</p></div>
-      <div class="passo"><div class="n">03</div><h3>Crie as suas próprias ferramentas e sistemas</h3><p>Com o método na mão, você constrói os seus próprios fluxos, ferramentas e sistemas, sob medida para o seu trabalho.</p></div>
+      <div class="passo"><div class="n">01</div><h3>Entre e&nbsp;comece pelo Embarque</h3><p>Você recebe o&nbsp;acesso por e-mail logo após a&nbsp;con&shy;fir&shy;mação da compra.</p></div>
+      <div class="passo"><div class="n">02</div><h3>Siga os 4 pilares</h3><p>Trans&shy;forme a&nbsp;sua forma de usar a&nbsp;Inte&shy;li&shy;gência Arti&shy;fi&shy;cial. Sinta-se con&shy;fi&shy;ante e&nbsp;domi&shy;nante da fer&shy;ra&shy;menta.</p></div>
+      <div class="passo"><div class="n">03</div><h3>Crie as suas próprias ferramentas e&nbsp;sistemas</h3><p>Com o&nbsp;método na mão, você cons&shy;trói os seus pró&shy;prios fluxos, fer&shy;ra&shy;mentas e&nbsp;sis&shy;temas, sob medida para o&nbsp;seu tra&shy;balho.</p></div>
     </div>
   </div>
 </section>
@@ -582,23 +663,23 @@ section{padding:70px 0}
 <!-- ═══ PARA QUEM ═══ -->
 <section>
   <div class="wrap">
-    <div class="dores-tit"><h2>Para quem é, e para quem não é</h2></div>
+    <div class="dores-tit"><h2>Para quem é, e&nbsp;para quem não é</h2></div>
     <div class="paraquem">
       <div class="pq-box sim">
-        <h3>É para você se…</h3>
+        <h3>É&nbsp;para você se…</h3>
         <ul>
-          <li>é engenheiro(a) ou arquiteto(a) e ainda não domina IA</li>
+          <li>é&nbsp;enge&shy;nheiro(a) ou arqui&shy;teto(a) e&nbsp;ainda não domina IA</li>
           <li>quer um caminho com ordem, não dezenas de dicas soltas</li>
-          <li>faz orçamento, planejamento ou gestão de obra, pública ou privada</li>
-          <li>quer ganhar tempo sem abrir mão de conferir o que assina</li>
+          <li>faz orça&shy;mento, pla&shy;ne&shy;ja&shy;mento ou gestão de obra, pública ou pri&shy;vada</li>
+          <li>quer ganhar tempo sem abrir mão de con&shy;ferir o&nbsp;que assina</li>
         </ul>
       </div>
       <div class="pq-box nao">
-        <h3>Não é para você se…</h3>
+        <h3>Não é&nbsp;para você se…</h3>
         <ul>
-          <li>procura atalho para entregar sem conferir</li>
-          <li>espera que a IA assine no seu lugar</li>
-          <li>não pretende aplicar nada na prática</li>
+          <li>pro&shy;cura atalho para entregar sem con&shy;ferir</li>
+          <li>espera que a&nbsp;IA assine no seu lugar</li>
+          <li>não pre&shy;tende aplicar nada na prá&shy;tica</li>
         </ul>
       </div>
     </div>
@@ -608,16 +689,16 @@ section{padding:70px 0}
 <!-- ═══ DEPOIMENTOS ═══ -->
 <section class="como">
   <div class="wrap">
-    <div class="depos-tit"><div class="lbl">Quem já usa</div><h2>Engenheiros que já usam o ObraIA</h2></div>
+    <div class="depos-tit"><div class="lbl">Quem já usa</div><h2>Engenheiros que já usam o&nbsp;ObraIA</h2></div>
     <div class="depos">
-      <div class="dep"><div class="qm">"</div><p>A plataforma é sensacional, interativa e de fácil utilização. Gostei muito da ideia da utilização da IA para elaboração de planejamento e orçamento de obras — essa ferramenta irá otimizar muito o tempo para a execução desses serviços.</p>
+      <div class="dep"><div class="qm">"</div><p>A&nbsp;pla&shy;ta&shy;forma é&nbsp;sen&shy;sa&shy;ci&shy;onal, inte&shy;ra&shy;tiva e&nbsp;de fácil uti&shy;li&shy;zação. Gostei muito da ideia da uti&shy;li&shy;zação da IA para ela&shy;bo&shy;ração de pla&shy;ne&shy;ja&shy;mento e&nbsp;orça&shy;mento de obras — essa fer&shy;ra&shy;menta irá oti&shy;mizar muito o&nbsp;tempo para a&nbsp;exe&shy;cução desses ser&shy;viços.</p>
         <div class="quem"><div class="av">LC</div><div><div class="nome">Luiz Carlos</div><div class="cargo">Engenheiro Civil</div></div></div></div>
-      <div class="dep"><div class="qm">"</div><p>Consegui usar ele bem. É um aplicativo muito bom para nós, engenheiros civis que estamos chegando agora à área. Ele soube identificar os erros do projeto e também indicar o que deveria ser feito, além de auxiliar na elaboração do orçamento.</p>
+      <div class="dep"><div class="qm">"</div><p>Con&shy;segui usar ele bem. É&nbsp;um apli&shy;ca&shy;tivo muito bom para nós, enge&shy;nheiros civis que estamos che&shy;gando agora à&nbsp;área. Ele soube iden&shy;ti&shy;ficar os erros do pro&shy;jeto e&nbsp;também indicar o&nbsp;que deveria ser feito, além de auxi&shy;liar na ela&shy;bo&shy;ração do orça&shy;mento.</p>
         <div class="quem"><div class="av">AT</div><div><div class="nome">Angelline Tauana</div><div class="cargo">Engenheira Civil</div></div></div></div>
-      <div class="dep"><div class="qm">"</div><p>A leitura automática dos projetos e a geração do orçamento agilizam muito o processo de levantamento de quantitativos, reduzindo o tempo em tarefas repetitivas. A conferência técnica continua sendo essencial, mas a ferramenta já entrega uma excelente base de trabalho.</p>
+      <div class="dep"><div class="qm">"</div><p>A&nbsp;lei&shy;tura auto&shy;má&shy;tica dos pro&shy;jetos e&nbsp;a&nbsp;geração do orça&shy;mento agi&shy;lizam muito o&nbsp;pro&shy;cesso de levan&shy;ta&shy;mento de quan&shy;ti&shy;ta&shy;tivos, redu&shy;zindo o&nbsp;tempo em tarefas repe&shy;ti&shy;tivas. A&nbsp;con&shy;fe&shy;rência téc&shy;nica con&shy;tinua sendo essen&shy;cial, mas a&nbsp;fer&shy;ra&shy;menta já entrega uma exce&shy;lente base de tra&shy;balho.</p>
         <div class="quem"><div class="av">JL</div><div><div class="nome">Jorge Luiz</div><div class="cargo">Engenheiro Civil</div></div></div></div>
     </div>
-    <p class="depos-nota">Depoimentos sobre a ferramenta ObraIA.</p>
+    <p class="depos-nota">Depoimentos sobre a&nbsp;ferramenta ObraIA.</p>
   </div>
 </section>
 
@@ -628,17 +709,17 @@ section{padding:70px 0}
     <div class="autor">
       <img class="foto-lucas" src="foto-lucas-nave.jpg" alt="Lucas Mendes, engenheiro civil e criador do Método NAVE" loading="lazy">
       <div>
-        <h2>Método criado por quem entende e vive de obra</h2>
+        <h2>Método criado por quem entende e&nbsp;vive de obra</h2>
         <div class="nome">Lucas Mendes · Engenheiro Civil</div>
         <div class="numeros">
-          <div class="num-card"><b>+10 anos</b><span>de experiência no mercado</span></div>
-          <div class="num-card"><b>+R$ 60 mi</b><span>em obras já gerenciadas e entregues</span></div>
-          <div class="num-card"><b>+R$ 180 mi</b><span>em contratos gerenciados simultaneamente hoje</span></div>
+          <div class="num-card"><b>+10&nbsp;anos</b><span>de experiência no mercado</span></div>
+          <div class="num-card"><b>+R$&nbsp;60&nbsp;mi</b><span>em obras já gerenciadas e&nbsp;entregues</span></div>
+          <div class="num-card"><b>+R$&nbsp;180&nbsp;mi</b><span>em contratos gerenciados simultaneamente hoje</span></div>
         </div>
         <ul>
-          <li>Fundador da Mar Aberto Engenharia e criador do ObraIA</li>
+          <li>Fun&shy;dador da Mar Aberto Enge&shy;nharia e&nbsp;cri&shy;ador do ObraIA</li>
         </ul>
-        <p style="margin-top:12px">Eu criei o ObraIA porque senti na pele o que é gerenciar obras e projetos com prazo curto, planilha para todo lado e responsabilidade sobre cada contrato. Sei bem da sua dor, e é por isso que passei os últimos anos estruturando o método que vai te ajudar a entregar os melhores resultados. Foi ele que me deu segurança para hoje gerenciar mais de 23 obras simultâneas, que totalizam mais de 180 milhões.</p>
+        <p style="margin-top:12px">Eu criei o&nbsp;ObraIA porque senti na pele o&nbsp;que é&nbsp;geren&shy;ciar obras e&nbsp;pro&shy;jetos com prazo curto, pla&shy;nilha para todo lado e&nbsp;res&shy;pon&shy;sa&shy;bi&shy;li&shy;dade sobre cada con&shy;trato. Sei bem da sua dor, e&nbsp;é&nbsp;por isso que passei os últimos anos estru&shy;tu&shy;rando o&nbsp;método que vai te ajudar a&nbsp;entregar os melhores resul&shy;tados. Foi ele que me deu segu&shy;rança para hoje geren&shy;ciar mais de 23&nbsp;obras simul&shy;tâ&shy;neas, que tota&shy;lizam mais de 180 milhões.</p>
       </div>
     </div>
   </div>
@@ -647,30 +728,30 @@ section{padding:70px 0}
 <!-- ═══ OFERTA ═══ -->
 <section class="planos-sec" id="oferta">
   <div class="wrap">
-    <div class="planos-tit"><h2>Condição de lançamento</h2><p>Curso Dominante da IA com 4 bônus incluídos.</p></div>
+    <div class="planos-tit"><h2>Condição de lançamento</h2><p>Curso Domi&shy;nante da IA com 4 bônus inclu&shy;ídos.</p></div>
     <div class="oferta-box">
       <div class="topo-of"><div class="l1">Método NAVE</div><h3>Curso Dominante da IA + 4 bônus</h3></div>
       <div class="corpo-of">
-        <div class="preco-de">De <s>R$ 1.297</s> por</div>
+        <div class="preco-de">De <s>R$&nbsp;1.297</s> por</div>
         <div class="preco-por"><span class="cifra">R$</span><span class="num">697</span></div>
-        <div class="parcela">à vista ou <b>em até 10x</b> no cartão</div>
-        <div class="escassez"><b>A oferta de lançamento de R$ 697 vai até 14/10.</b> Depois disso, volta ao valor normal de R$ 1.297.</div>
+        <div class="parcela">à&nbsp;vista ou <b>em até 10x</b> no cartão</div>
+        <div class="escassez"><b>A&nbsp;oferta de lançamento de R$&nbsp;697 vai até 14/10.</b> Depois disso, volta ao valor normal de R$&nbsp;1.297.</div>
         <ul class="incluso">
-          <li>Curso Dominante da IA (Método NAVE), acesso por 12 meses</li>
-          <li>Materiais de apoio para baixar</li>
-          <li><b>Bônus 1:</b> kit dos 50 prompts da trilha da obra perfeita</li>
-          <li><b>Bônus 2:</b> mais de 50 skills no Claude para gerenciamento de obras e projetos</li>
-          <li><b>Bônus 3:</b> 2 mentorias individuais ao vivo no Zoom, no primeiro mês</li>
-          <li><b>Bônus 4:</b> ObraIA Gestão de graça, com 5 análises por mês durante 1 ano</li>
-          <li>Garantia de 7 dias</li>
+          <li>Curso Domi&shy;nante da IA (Método NAVE), acesso por 12&nbsp;meses</li>
+          <li>Mate&shy;riais de apoio para baixar</li>
+          <li><b>Bônus&nbsp;1:</b> kit dos 50&nbsp;prompts da trilha da obra per&shy;feita</li>
+          <li><b>Bônus&nbsp;2:</b> mais de 50&nbsp;skills no Claude para geren&shy;ci&shy;a&shy;mento de obras e&nbsp;pro&shy;jetos</li>
+          <li><b>Bônus&nbsp;3:</b> 2&nbsp;men&shy;to&shy;rias indi&shy;vi&shy;duais ao vivo no Zoom, no pri&shy;meiro mês</li>
+          <li><b>Bônus&nbsp;4:</b> ObraIA Gestão de graça, com 5&nbsp;aná&shy;lises por mês durante 1&nbsp;ano</li>
+          <li>Garantia de 7&nbsp;dias</li>
         </ul>
         <a class="btn grande go" href="#oferta" id="btnOferta">Garantir minha vaga no Método NAVE →</a>
-        <div class="seguro">🔒 Pagamento seguro Kiwify · Acesso liberado por e-mail após a confirmação</div>
+        <div class="seguro">🔒 Pagamento seguro Kiwify · Acesso liberado por e-mail após a&nbsp;confirmação</div>
       </div>
     </div>
     <div class="garantia">
       <div class="s7">7<small>DIAS</small></div>
-      <p><b>7 dias para testar sem risco.</b> Entre, assista às primeiras aulas e aplique o que aprendeu. Se o Método NAVE não fizer sentido para o seu trabalho, devolvemos o valor pago — sem burocracia e sem precisar justificar.</p>
+      <p><b>7&nbsp;dias para testar sem risco.</b> Entre, assista às pri&shy;meiras aulas e&nbsp;aplique o&nbsp;que aprendeu. Se o&nbsp;Método NAVE não fizer sen&shy;tido para o&nbsp;seu tra&shy;balho, devol&shy;vemos o&nbsp;valor pago — sem buro&shy;cracia e&nbsp;sem pre&shy;cisar jus&shy;ti&shy;ficar.</p>
     </div>
   </div>
 </section>
@@ -680,15 +761,15 @@ section{padding:70px 0}
   <div class="wrap">
     <div class="faq-tit"><h2>Perguntas antes de decidir</h2></div>
     <div class="faq-lista">
-      <details class="faq"><summary>Nunca usei IA. Consigo acompanhar?</summary><div class="r">Sim. O curso foi desenhado para quem está começando e segue uma ordem: você não precisa de conhecimento prévio.</div></details>
-      <details class="faq"><summary>Preciso saber programar?</summary><div class="r">Não. Você usa a IA e a ferramenta como um site comum: envia o PDF da planta e confere o resultado.</div></details>
-      <details class="faq"><summary>A IA vai errar? Posso assinar o resultado?</summary><div class="r">Ela pode errar, e por isso existe o pilar Validar. A decisão técnica, a conferência e a assinatura continuam sendo suas.</div></details>
-      <details class="faq"><summary>Serve para obra pública, com a Lei 14.133?</summary><div class="r">Sim. A ferramenta foi construída considerando o contexto de contratos públicos e fiscalização.</div></details>
-      <details class="faq"><summary>Serve para arquitetos?</summary><div class="r">Sim, para quem faz projeto, compatibilização, orçamento ou acompanha obra.</div></details>
-      <details class="faq"><summary>O que são as 5 análises por mês?</summary><div class="r">É o bônus da ObraIA Gestão: você analisa 5 projetos em PDF por mês, durante 1 ano, com o quantitativo e o orçamento montados para você conferir.</div></details>
-      <details class="faq"><summary>Por quanto tempo tenho acesso?</summary><div class="r">12 meses ao curso e 12 meses à ObraIA Gestão (bônus), a partir da compra.</div></details>
-      <details class="faq"><summary>Como recebo o acesso?</summary><div class="r">Por e-mail, logo após a confirmação do pagamento. Use o mesmo e-mail da compra para entrar na plataforma.</div></details>
-      <details class="faq"><summary>Posso pedir reembolso?</summary><div class="r">Sim, em até 7 dias após a compra, sem burocracia e sem precisar justificar.</div></details>
+      <details class="faq"><summary>Nunca usei IA. Consigo acompanhar?</summary><div class="r">Sim. O&nbsp;curso foi dese&shy;nhado para quem está come&shy;çando e&nbsp;segue uma ordem: você não pre&shy;cisa de conhe&shy;ci&shy;mento prévio.</div></details>
+      <details class="faq"><summary>Preciso saber programar?</summary><div class="r">Não. Você usa a&nbsp;IA e&nbsp;a&nbsp;fer&shy;ra&shy;menta como um site comum: envia o&nbsp;PDF da planta e&nbsp;con&shy;fere o&nbsp;resul&shy;tado.</div></details>
+      <details class="faq"><summary>A&nbsp;IA vai errar? Posso assinar o&nbsp;resultado?</summary><div class="r">Ela pode errar, e&nbsp;por isso existe o&nbsp;pilar Validar. A&nbsp;decisão téc&shy;nica, a&nbsp;con&shy;fe&shy;rência e&nbsp;a&nbsp;assi&shy;na&shy;tura con&shy;ti&shy;nuam sendo suas.</div></details>
+      <details class="faq"><summary>Serve para obra pública, com a&nbsp;Lei&nbsp;14.133?</summary><div class="r">Sim. A&nbsp;fer&shy;ra&shy;menta foi cons&shy;truída con&shy;si&shy;de&shy;rando o&nbsp;con&shy;texto de con&shy;tratos públicos e&nbsp;fis&shy;ca&shy;li&shy;zação.</div></details>
+      <details class="faq"><summary>Serve para arquitetos?</summary><div class="r">Sim, para quem faz pro&shy;jeto, com&shy;pa&shy;ti&shy;bi&shy;li&shy;zação, orça&shy;mento ou acom&shy;panha obra.</div></details>
+      <details class="faq"><summary>O&nbsp;que são as 5&nbsp;análises por mês?</summary><div class="r">É&nbsp;o&nbsp;bônus da ObraIA Gestão: você ana&shy;lisa 5 pro&shy;jetos em PDF por mês, durante 1&nbsp;ano, com o&nbsp;quan&shy;ti&shy;ta&shy;tivo e&nbsp;o&nbsp;orça&shy;mento mon&shy;tados para você con&shy;ferir.</div></details>
+      <details class="faq"><summary>Por quanto tempo tenho acesso?</summary><div class="r">12&nbsp;meses ao curso e&nbsp;12&nbsp;meses à&nbsp;ObraIA Gestão (bônus), a&nbsp;partir da compra.</div></details>
+      <details class="faq"><summary>Como recebo o&nbsp;acesso?</summary><div class="r">Por e-mail, logo após a&nbsp;con&shy;fir&shy;mação do paga&shy;mento. Use o&nbsp;mesmo e-mail da compra para entrar na pla&shy;ta&shy;forma.</div></details>
+      <details class="faq"><summary>Posso pedir reembolso?</summary><div class="r">Sim, em até 7&nbsp;dias após a&nbsp;compra, sem buro&shy;cracia e&nbsp;sem pre&shy;cisar jus&shy;ti&shy;ficar.</div></details>
     </div>
   </div>
 </section>
@@ -697,10 +778,10 @@ section{padding:70px 0}
 <section style="padding-top:20px">
   <div class="wrap">
     <div class="cta-final">
-      <h2>Daqui a alguns meses, ou você domina a IA, ou continua no estágio 0 e fica para trás no mercado de trabalho.</h2>
-      <p>Você pode seguir tentando sozinho ou seguir um método na ordem certa, com bônus que aceleram a sua prática e o risco coberto pela garantia.</p>
+      <h2>Daqui a&nbsp;alguns meses, ou você domina a&nbsp;IA, ou continua no estágio 0 e&nbsp;fica para trás no mercado de trabalho.</h2>
+      <p>Você pode seguir ten&shy;tando sozinho ou seguir um método na ordem certa, com bônus que ace&shy;leram a&nbsp;sua prá&shy;tica e&nbsp;o&nbsp;risco coberto pela garantia.</p>
       <a class="btn grande go" href="#oferta">Quero entrar no Método NAVE →</a>
-      <div class="ps"><b>P.S.:</b> a oferta de R$ 697 termina em 14/10. Depois disso, o valor volta a R$ 1.297.</div>
+      <div class="ps"><b>P.S.:</b> a&nbsp;oferta de R$&nbsp;697 ter&shy;mina em 14/10. Depois disso, o&nbsp;valor volta a&nbsp;R$&nbsp;1.297.</div>
     </div>
   </div>
 </section>
@@ -728,6 +809,69 @@ document.querySelectorAll("a.go").forEach(a => {
     }
   });
 });
+
+// Tipografia: cola as duas últimas palavras de cada parágrafo para nunca sobrar uma palavra sozinha na última linha.
+(function(){
+  var alvos = ".hero .lead,.abertura,.embarque,.fecho-combo,.cta-final p,.ps,.planos-tit p,.dorcard p,.dorcard .resolve,.pilar .oq,.pilar .pq,.destaque-validar,.prod li,.bonus p,.bonus.destaque li,.passo p,.pq-box li,.dep p,.autor p,.autor li,.garantia p,.faq .r,.incluso li,.escassez,.virada";
+  function textos(el){ var w=document.createTreeWalker(el,NodeFilter.SHOW_TEXT), n, a=[]; while((n=w.nextNode())) if(n.nodeValue.trim()) a.push(n); return a; }
+  document.querySelectorAll(alvos).forEach(function(el){
+    var ns = textos(el); if(!ns.length) return;
+    var ult = ns[ns.length-1], v = ult.nodeValue;
+    var fim = v.match(/[ \n\t]*$/)[0], s = v.slice(0, v.length - fim.length);
+    var m = /[ \n\t]+[^ \n\t]*$/.exec(s);
+    if(m){
+      var ultimo = m[0].replace(/^[ \n\t]+/, "");
+      if(ultimo.indexOf("\u00a0") === -1){ ult.nodeValue = s.slice(0, m.index) + "\u00a0" + ultimo + fim; }   // se j\u00e1 \u00e9 um bloco colado, n\u00e3o aumenta
+    } else if(ns.length > 1){
+      var ant = ns[ns.length-2];
+      if(/[ \n\t]+$/.test(ant.nodeValue)){ ant.nodeValue = ant.nodeValue.replace(/[ \n\t]+$/, "\u00a0"); }
+    }
+    // as \u00faltimas palavras n\u00e3o s\u00e3o hifenizadas: nunca sobra "menta." sozinho na \u00faltima linha
+    var nv = ult.nodeValue, corte = Math.max(0, nv.length - 28);
+    ult.nodeValue = nv.slice(0, corte) + nv.slice(corte).replace(/\u00ad/g, "");
+  });
+})();
+
+// Rede de segurança: mede cada parágrafo justificado já renderizado (a fonte muda entre Windows, Mac e Android).
+// Se alguma linha abrir demais entre as palavras, só aquele parágrafo volta para o alinhamento natural.
+(function(){
+  var LIMITE = 3.3;
+  var alvos = document.querySelectorAll(".hero .lead,.abertura,.embarque,.fecho-combo,.cta-final p,.ps,.planos-tit p,.dorcard p,.dorcard .resolve,.pilar .oq,.pilar .pq,.destaque-validar,.prod li,.bonus p,.bonus.destaque li,.passo p,.pq-box li,.dep p,.autor p,.autor li,.garantia p,.faq .r,.incluso li");
+  var cv = document.createElement("canvas").getContext("2d");
+  function pior(el){
+    var cs = getComputedStyle(el); cv.font = cs.fontStyle + " " + cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+    var esp = cv.measureText(" ").width, tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), n, itens = [], re, m, r, rcs, i;
+    while((n = tw.nextNode())){
+      re = /[^\s ]+/g;
+      while((m = re.exec(n.nodeValue))){
+        r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length); rcs = r.getClientRects();
+        for(i = 0; i < rcs.length; i++) if(rcs[i].width > 0) itens.push({l: rcs[i].left, r: rcs[i].right, t: Math.round(rcs[i].top / 4)});
+      }
+    }
+    var linhas = {}; itens.forEach(function(it){ (linhas[it.t] = linhas[it.t] || []).push(it); });
+    var ks = Object.keys(linhas).map(Number).sort(function(a, b){ return a - b; }), p = 0;
+    for(i = 0; i < ks.length - 1; i++){
+      var ls = linhas[ks[i]].sort(function(a, b){ return a.l - b.l; }); if(ls.length < 2) continue;
+      var soma = 0; for(var j = 1; j < ls.length; j++) soma += Math.max(0, ls[j].l - ls[j - 1].r);
+      p = Math.max(p, (soma / (ls.length - 1)) / esp);
+    }
+    return p;
+  }
+  function ajusta(){
+    var i, el, centro;
+    for(i = 0; i < alvos.length; i++){ alvos[i].style.textAlign = ""; alvos[i].style.textAlignLast = ""; }
+    for(i = 0; i < alvos.length; i++){
+      el = alvos[i]; if(!el.offsetParent) continue;
+      var ecs = getComputedStyle(el);
+      centro = ecs.textAlignLast === "center" && (el.getBoundingClientRect().height / parseFloat(ecs.lineHeight)) < 3.5;   // parágrafo longo centralizado cansa: vai para a esquerda
+      if(pior(el) > LIMITE){ el.style.textAlign = centro ? "center" : "left"; el.style.textAlignLast = "auto"; }
+    }
+  }
+  var t; function agenda(){ clearTimeout(t); t = setTimeout(ajusta, 150); }
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(ajusta);
+  window.addEventListener("load", ajusta); window.addEventListener("resize", agenda);
+  document.querySelectorAll("details.faq").forEach(function(d){ d.addEventListener("toggle", agenda); });
+})();
 </script>
 </body>
 </html>
