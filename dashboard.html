@@ -338,10 +338,10 @@ async function carregarCurso(uid){
     const r = await ObraCurso.resumo(sb, uid);
     if(!r.total) return;
     document.getElementById("cursoPg").hidden = false;
-    document.getElementById("cursoBar").style.width = r.pct + "%";
+    document.getElementById("cursoBar").style.width = r.pctExib + "%";
     document.getElementById("cursoPgTxt").textContent =
-      r.feitas === 0 ? r.total + (r.total === 1 ? " aula" : " aulas") + " no curso"
-                     : r.feitas + " de " + r.total + " aulas concluídas · " + r.pct + "%";
+      r.feitas === 0 ? r.totalExib + " aulas no curso"
+                     : r.feitas + " de " + r.totalExib + " aulas concluídas · " + r.pctExib + "%";
     document.getElementById("cursoGo").textContent =
       !r.proxima ? "Rever o curso" : (r.feitas ? "Continuar: Aula " + r.indiceProxima : "Começar: Aula 1");
     // Banner de boas-vindas so para quem ainda nao concluiu nenhuma aula.

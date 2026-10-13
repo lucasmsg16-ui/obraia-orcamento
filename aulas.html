@@ -389,19 +389,20 @@ function renderCrumbs(aula){
 function vCurso(){
   const gs = grupos();
   const total = LISTA_ATIVA.length;
+  const totalE = FERR ? total : ObraCurso.totalExibido(total); // no Curso mostra o total previsto (43), não só as já publicadas
   const feitas = LISTA_ATIVA.filter(a => PROG.done.has(a.id)).length;
-  const pct = total ? Math.round(feitas * 100 / total) : 0;
+  const pct = total ? Math.round(feitas * 100 / totalE) : 0;
   let cta = "", sub = "";
   if(total){
     if(!PROXIMA){
       const proxLib = Object.values(LIB).filter(x => !x.liberado).sort((a, b) => a.iso < b.iso ? -1 : 1)[0];
       cta = "Rever o curso";
-      sub = proxLib ? ("Você está em dia com as " + total + (total === 1 ? " aula liberada" : " aulas liberadas") + ". Próximo módulo em " + proxLib.texto + ". 🎉")
+      sub = (proxLib || total < totalE) ? ("Você está em dia com as " + total + (total === 1 ? " aula liberada" : " aulas liberadas") + (proxLib ? ". Próximo módulo em " + proxLib.texto : ". Novas aulas em breve") + ". 🎉")
                     : ("Você concluiu as " + total + " aulas. 🎉");
     }
     else{
       cta = (feitas ? "Continuar: Aula " : "Começar: Aula ") + numero(PROXIMA);
-      sub = feitas ? (feitas + " de " + total + " aulas concluídas") : (total + (total === 1 ? " aula" : " aulas") + " no curso");
+      sub = feitas ? (feitas + " de " + totalE + " aulas concluídas") : (totalE + (totalE === 1 ? " aula" : " aulas") + " no curso");
     }
   }
   const alvo = PROXIMA || LISTA_ATIVA[0];
@@ -470,8 +471,9 @@ function vAula(a){
   const gs = grupos();
   const g = gs.find(x => x.aulas.some(y => y.id === a.id));
   const total = LISTA_ATIVA.length;
+  const totalE = FERR ? total : ObraCurso.totalExibido(total);
   const feitas = LISTA_ATIVA.filter(x => PROG.done.has(x.id)).length;
-  const pct = total ? Math.round(feitas * 100 / total) : 0;
+  const pct = total ? Math.round(feitas * 100 / totalE) : 0;
   const idx = LISTA.indexOf(a);
   const ant = idx > 0 ? LISTA[idx-1] : null, prox = idx < LISTA.length-1 ? LISTA[idx+1] : null;
   const feita = PROG.done.has(a.id);
@@ -488,7 +490,7 @@ function vAula(a){
   const zapMsg = encodeURIComponent('Olá! Tenho uma dúvida na aula "' + a.titulo + '" ' + (FERR ? 'dos ' : 'do curso ') + NOME + '.');
   return `<div class="vstrip">
       <div><div class="eyebrow">${FERR ? "🏗️" : "🚀"} ${NOME}</div><h1>${esc(g ? g.rotulo + " · " + g.nome : "Aula")}</h1></div>
-      <div class="pg"><b>${pct}% ${FERR ? "dos tutoriais" : "do curso"}</b> · ${feitas} de ${total} aulas<div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
+      <div class="pg"><b>${pct}% ${FERR ? "dos tutoriais" : "do curso"}</b> · ${feitas} de ${totalE} aulas<div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
     </div>
     <div class="vgrid">
       <div class="vmain">

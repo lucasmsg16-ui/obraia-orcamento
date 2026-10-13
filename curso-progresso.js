@@ -40,6 +40,11 @@
   // (Módulo 2 = 20/10/2026, Módulo 3 = 27/10/2026 e assim por diante). A data vale a partir
   // das 00h no horário de Recife (UTC-3, sem horário de verão). O admin enxerga tudo.
   var CURSO_INICIO = [2026, 10, 13]; // ano, mês, dia
+
+  // Total de aulas previsto na ementa (14 módulos). Serve só para MOSTRAR ao aluno um número realista enquanto as aulas
+  // são publicadas semana a semana ("3 aulas no curso" assusta). Nunca fica abaixo do que já está cadastrado.
+  var TOTAL_PREVISTO = 43;
+  function totalExibido(n){ return Math.max(TOTAL_PREVISTO, n || 0); }
   function pad2(n){ return (n < 10 ? "0" : "") + n; }
   function numeroDoModulo(m, i){
     var mt = String(m.titulo || "").trim().match(/^m[óo]dulo\s*(\d+)/i);
@@ -167,6 +172,7 @@
     return {
       total: lista.length, feitas: feitas,
       pct: lista.length ? Math.round(feitas * 100 / lista.length) : 0,
+      totalExib: totalExibido(lista.length), pctExib: Math.round(feitas * 100 / totalExibido(lista.length)),
       proxima: prox, indiceProxima: prox ? lista.indexOf(prox) + 1 : 0,
       modulos: f.modulos.length, modo: est.modo
     };
@@ -175,7 +181,7 @@
   window.ObraCurso = {
     podeVerCurso: podeVerCurso, cursoAberto: function(){ return CURSO_ABERTO === true; },
     filtrarAluno: filtrarAluno, listaOrdenada: listaOrdenada, proximaPendente: proximaPendente,
-    liberacao: liberacao, soLiberadas: soLiberadas,
+    liberacao: liberacao, soLiberadas: soLiberadas, totalExibido: totalExibido,
     carregar: carregar, marcar: marcar, resumo: resumo
   };
 })();
