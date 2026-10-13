@@ -200,8 +200,19 @@ function telaExpirado(){
   // query string, sem interpretar o resto como parâmetros nossos.
   const CONF_KEY = "confirmation_url=";
   const confIdx = location.search.indexOf(CONF_KEY);
-  const confUrl = confIdx !== -1 ? location.search.slice(confIdx + CONF_KEY.length) : null;
+  let confUrl = confIdx !== -1 ? location.search.slice(confIdx + CONF_KEY.length) : null;
   if(confUrl){
+    // O Brevo (rastreio de cliques do SMTP) reescreve o link do e-mail e codifica o
+    // endereço interno ("https%3a%2f%2f..."). Sem decodificar, o clique em "Confirmar"
+    // virava um caminho relativo inexistente e a pessoa caía na raiz do app. Decodifica.
+    if(/^https?%3a/i.test(confUrl)){
+      try{ confUrl = decodeURIComponent(confUrl); }catch(e){ /* mantém como veio */ }
+    }
+    // Só segue para o endereço de verificação do nosso próprio projeto Supabase.
+    if(!/^https:\/\/xcfqqpjljtnbamisqqvq\.supabase\.co\/auth\/v1\/verify\?/i.test(confUrl)){
+      telaExpirado();
+      return;
+    }
     telaConfirmar(confUrl);
     return;
   }
