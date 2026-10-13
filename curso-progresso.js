@@ -12,7 +12,7 @@
   // ── Quem pode ver o curso ────────────────────────────────────────────────
   // Enquanto as aulas não estão prontas, só o dono (ADMIN_ID) enxerga o curso.
   // Para abrir a todos os alunos com licença: troque CURSO_ABERTO para true e publique.
-  var CURSO_ABERTO = false;
+  var CURSO_ABERTO = true;
   var ADMIN_ID = "cb35fabc-f999-43af-980e-28c440adaaa1"; // lucasmsg16@gmail.com
   function podeVerCurso(uid){ return CURSO_ABERTO === true || uid === ADMIN_ID; }
 
@@ -34,6 +34,35 @@
            m.indexOf("does not exist") > -1 || m.indexOf("could not find the table") > -1;
   }
   function ordem(a, b){ return (a.ordem || 0) - (b.ordem || 0); }
+
+  // ── Liberação semanal dos módulos (só o Curso; os tutoriais da ferramenta ficam sempre abertos) ──
+  // O Módulo 1 libera em CURSO_INICIO; cada módulo seguinte libera 7 dias depois do anterior
+  // (Módulo 2 = 20/10/2026, Módulo 3 = 27/10/2026 e assim por diante). A data vale a partir
+  // das 00h no horário de Recife (UTC-3, sem horário de verão). O admin enxerga tudo.
+  var CURSO_INICIO = [2026, 10, 13]; // ano, mês, dia
+  function pad2(n){ return (n < 10 ? "0" : "") + n; }
+  function numeroDoModulo(m, i){
+    var mt = String(m.titulo || "").trim().match(/^m[óo]dulo\s*(\d+)/i);
+    return mt ? parseInt(mt[1], 10) : (i + 1); // mesmo critério do rótulo mostrado na tela
+  }
+  function hojeRecife(){ return new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10); }
+  // Para cada módulo: { numero, iso, texto ("dd/mm/aaaa"), liberado }.
+  function liberacao(modulos){
+    var out = {}, hoje = hojeRecife();
+    (modulos || []).forEach(function(m, i){
+      var n = numeroDoModulo(m, i);
+      var d = new Date(Date.UTC(CURSO_INICIO[0], CURSO_INICIO[1] - 1, CURSO_INICIO[2] + (n - 1) * 7));
+      var iso = d.toISOString().slice(0, 10);
+      out[m.id] = { numero: n, iso: iso, liberado: hoje >= iso,
+                    texto: pad2(d.getUTCDate()) + "/" + pad2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear() };
+    });
+    return out;
+  }
+  // Aluno: tira as aulas dos módulos que ainda não foram liberados (o módulo continua aparecendo, com a data).
+  function soLiberadas(modulos, aulas){
+    var lib = liberacao(modulos);
+    return (aulas || []).filter(function(a){ return !a.modulo_id || !lib[a.modulo_id] || lib[a.modulo_id].liberado; });
+  }
 
   // Aluno vê só módulos ativos e aulas ativas que estejam num módulo ativo (ou sem módulo).
   function filtrarAluno(modulos, aulas){
@@ -130,7 +159,8 @@
     var ra = await sb.from("aulas").select("*").eq("area", "curso").eq("ativo", true).order("ordem", { ascending: true });
     if(rm.error || ra.error) throw (rm.error || ra.error);
     var f = filtrarAluno(rm.data, ra.data);
-    var lista = listaOrdenada(f.modulos, f.aulas);
+    var aulasVisiveis = (uid === ADMIN_ID) ? f.aulas : soLiberadas(f.modulos, f.aulas);
+    var lista = listaOrdenada(f.modulos, aulasVisiveis);
     var est = await carregar(sb, uid, lista.map(function(a){ return a.id; }));
     var feitas = lista.filter(function(a){ return est.done.has(a.id); }).length;
     var prox = proximaPendente(lista, est.done);
@@ -145,6 +175,7 @@
   window.ObraCurso = {
     podeVerCurso: podeVerCurso, cursoAberto: function(){ return CURSO_ABERTO === true; },
     filtrarAluno: filtrarAluno, listaOrdenada: listaOrdenada, proximaPendente: proximaPendente,
+    liberacao: liberacao, soLiberadas: soLiberadas,
     carregar: carregar, marcar: marcar, resumo: resumo
   };
 })();

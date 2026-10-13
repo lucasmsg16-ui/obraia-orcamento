@@ -79,7 +79,16 @@ header a.back:hover{ opacity:1; text-decoration:underline; }
 .mq .bd{ padding:22px 20px 18px; display:flex; flex-direction:column; gap:10px; flex:1; }
 .mq .bd p{ margin:0; font-size:13.5px; line-height:1.5; color:var(--muted); }
 .mq .pgl{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-weight:600; }
-.mq ul{ list-style:none; margin:2px 0 0; padding:0; display:grid; gap:2px; }
+.mq ul{ list-style:none; margin:2px 0 0; padding:0 6px 0 0; display:grid; gap:2px; align-content:start;
+  max-height:176px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#b4cbd9 transparent; }
+.mq ul::-webkit-scrollbar{ width:6px; } .mq ul::-webkit-scrollbar-track{ background:transparent; }
+.mq ul::-webkit-scrollbar-thumb{ background:#b4cbd9; border-radius:999px; } .mq ul::-webkit-scrollbar-thumb:hover{ background:#8fb0c4; }
+.mq.trava .cv{ background:linear-gradient(135deg,#3a5568,#5d7a8c); }
+.mq.trava:hover{ transform:none; border-color:var(--border); }
+.mq .lock{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:6px; flex:1; min-height:120px; padding:6px 4px; color:var(--navy); }
+.mq .lock .ic{ font-size:26px; line-height:1; }
+.mq .lock b{ font-size:15px; font-weight:800; }
+.mq .lock span{ font-size:12.5px; color:var(--muted); line-height:1.45; }
 .mq li button{ width:100%; display:flex; align-items:center; gap:10px; background:none; border:0; padding:8px 6px; border-radius:8px; cursor:pointer; text-align:left; font-size:13.5px; color:var(--navy); font-weight:600; }
 .mq li button:hover{ background:#f3f8fb; }
 /* Admin: o ✕ de excluir fica ao lado da aula (botão dentro de botão não é válido, por isso o li vira uma linha flex). */
@@ -236,6 +245,7 @@ let PROXIMA = null;    // próxima aula pendente do curso
 let AULA_ATUAL = null; // null = tela de módulos; id = Sala de Aula
 let MOD_ESTADO = {};   // acordeão da lateral: chave do módulo -> aberto?
 let OCUPADO = false;
+let LIB = {};          // liberação semanal: id do módulo -> { texto, liberado } (só no Curso)
 
 function extrairYoutubeId(url){
   if(!url) return null;
@@ -283,6 +293,9 @@ async function carregarTudo(){
   AULAS = ra.data || [];
   // Aluno: só módulos ativos e aulas ativas dentro deles (aula de módulo oculto não pode vazar para "Sem módulo").
   if(!SOU_ADMIN){ const f = ObraCurso.filtrarAluno(MODULOS, AULAS); MODULOS = f.modulos; AULAS = f.aulas; }
+  // Liberação semanal (só no Curso): o aluno vê o módulo bloqueado com a data, mas não as aulas dele.
+  LIB = FERR ? {} : ObraCurso.liberacao(MODULOS);
+  if(!SOU_ADMIN && !FERR) AULAS = ObraCurso.soLiberadas(MODULOS, AULAS);
   LISTA = ObraCurso.listaOrdenada(MODULOS, AULAS);
   const ativo = ObraCurso.filtrarAluno(MODULOS, AULAS);
   LISTA_ATIVA = ObraCurso.listaOrdenada(ativo.modulos, ativo.aulas);
@@ -302,7 +315,7 @@ function grupos(){
   const gs = [];
   MODULOS.forEach((m, i) => {
     const aulas = AULAS.filter(a => a.modulo_id === m.id).sort(porOrdem);
-    if(!aulas.length && !SOU_ADMIN) return;
+    if(!aulas.length && !SOU_ADMIN && FERR) return;
     gs.push(Object.assign({ mod: m, key: m.id, aulas: aulas }, partesModulo(m, i)));
   });
   const ids = new Set(MODULOS.map(m => m.id));
@@ -380,7 +393,12 @@ function vCurso(){
   const pct = total ? Math.round(feitas * 100 / total) : 0;
   let cta = "", sub = "";
   if(total){
-    if(!PROXIMA){ cta = "Rever o curso"; sub = "Você concluiu as " + total + " aulas. 🎉"; }
+    if(!PROXIMA){
+      const proxLib = Object.values(LIB).filter(x => !x.liberado).sort((a, b) => a.iso < b.iso ? -1 : 1)[0];
+      cta = "Rever o curso";
+      sub = proxLib ? ("Você está em dia com as " + total + (total === 1 ? " aula liberada" : " aulas liberadas") + ". Próximo módulo em " + proxLib.texto + ". 🎉")
+                    : ("Você concluiu as " + total + " aulas. 🎉");
+    }
     else{
       cta = (feitas ? "Continuar: Aula " : "Começar: Aula ") + numero(PROXIMA);
       sub = feitas ? (feitas + " de " + total + " aulas concluídas") : (total + (total === 1 ? " aula" : " aulas") + " no curso");
@@ -414,6 +432,8 @@ function cardModulo(g){
   const pend = ativas.find(a => !PROG.done.has(a.id)) || ativas[0];
   const rotuloBtn = todas ? "Rever módulo" : (feitas ? "Continuar módulo" : "Começar módulo");
   const oculto = g.mod && g.mod.ativo === false;
+  const lib = (!SOU_ADMIN && g.mod) ? LIB[g.mod.id] : null;
+  const travado = !!(lib && !lib.liberado);
   const itens = g.aulas.map(a => {
     const feita = PROG.done.has(a.id), atual = PROXIMA && PROXIMA.id === a.id;
     return `<li class="${a.ativo === false ? "oc" : ""}"><button type="button" data-aula="${esc(a.id)}">
@@ -422,6 +442,16 @@ function cardModulo(g){
       ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button>${SOU_ADMIN ? `<button type="button" class="xdel" title="Excluir esta aula" aria-label="Excluir a aula ${esc(tituloCurto(a.titulo))}" onclick="excluirAula('${esc(a.id)}')">✕</button>` : ""}</li>`;
   }).join("");
   const adm = SOU_ADMIN && g.mod ? `<button type="button" class="addmini" onclick="abrirFormNovaAula('${esc(g.mod.id)}')">+ aula neste módulo</button><button type="button" class="addmini" onclick="renomearModulo('${esc(g.mod.id)}')">✎ Renomear módulo</button>` : "";
+  if(travado){
+    return `<article class="mq trava">
+    <div class="cv"><div class="n">${esc(g.rotulo)}</div><h3>${esc(g.nome)}</h3>
+      <div class="em">${(d => d ? d.padStart(2, "0") : "")(String(g.rotulo).replace(/\D/g, ""))}</div><div class="st"><span class="chip next">🔒 Bloqueado</span></div></div>
+    <div class="bd">
+      ${g.mod && g.mod.descricao ? `<p>${esc(g.mod.descricao)}</p>` : ""}
+      <div class="lock"><div class="ic" aria-hidden="true">🔒</div><b>Liberado a partir de ${esc(lib.texto)}</b><span>Você poderá começar este módulo nessa data.</span></div>
+    </div>
+  </article>`;
+  }
   return `<article class="mq ${oculto ? "oculta" : ""}">
     <div class="cv"><div class="n">${esc(g.rotulo)}${oculto ? " · oculto" : ""}</div><h3>${esc(g.nome)}</h3>
       <div class="em">${(d => d ? d.padStart(2, "0") : "")(String(g.rotulo).replace(/\D/g, ""))}</div><div class="st">${n ? chip : ""}</div></div>
@@ -429,7 +459,7 @@ function cardModulo(g){
       ${g.mod && g.mod.descricao ? `<p>${esc(g.mod.descricao)}</p>` : ""}
       ${n ? `<div class="pgl"><span>${feitas} de ${n} ${n === 1 ? "aula" : "aulas"}</span><span>${mins ? fmtMin(mins) : ""}</span></div>
         <div class="pbar"><i style="width:${Math.round(feitas * 100 / n)}%"></i></div>` : ""}
-      ${itens ? `<ul>${itens}</ul>` : '<div class="vz">Nenhuma aula neste módulo ainda.</div>'}
+      ${itens ? `<ul>${itens}</ul>` : (SOU_ADMIN ? '<div class="vz">Nenhuma aula neste módulo ainda.</div>' : "")}
     </div>
     <div class="ft">${n ? `<button class="btn ${todas ? "out" : ""}" type="button" data-aula="${esc(pend.id)}">${rotuloBtn}</button>` : ""}${adm}</div>
   </article>`;
@@ -482,7 +512,7 @@ function vAula(a){
     </div>`;
 }
 function sidebar(atual, gs){
-  return gs.map(g => {
+  return gs.filter(g => SOU_ADMIN || g.aulas.length).map(g => {
     const ativas = ativasDe(g), feitas = feitasDe(g);
     const aberto = (g.key in MOD_ESTADO) ? MOD_ESTADO[g.key] : g.aulas.some(a => a.id === atual.id);
     const itens = g.aulas.map(a => {
