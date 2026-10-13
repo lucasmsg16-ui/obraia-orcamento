@@ -340,8 +340,7 @@ async function carregarCurso(uid){
     document.getElementById("cursoPg").hidden = false;
     document.getElementById("cursoBar").style.width = r.pctExib + "%";
     document.getElementById("cursoPgTxt").textContent =
-      r.feitas === 0 ? r.totalExib + " aulas no curso"
-                     : r.feitas + " de " + r.totalExib + " aulas concluídas · " + r.pctExib + "%";
+      r.feitas === 0 ? "Comece pelo Módulo 1" : r.pctExib + "% concluído";
     document.getElementById("cursoGo").textContent =
       !r.proxima ? "Rever o curso" : (r.feitas ? "Continuar: Aula " + r.indiceProxima : "Começar: Aula 1");
     // Banner de boas-vindas so para quem ainda nao concluiu nenhuma aula.

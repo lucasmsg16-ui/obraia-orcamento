@@ -397,12 +397,13 @@ function vCurso(){
     if(!PROXIMA){
       const proxLib = Object.values(LIB).filter(x => !x.liberado).sort((a, b) => a.iso < b.iso ? -1 : 1)[0];
       cta = "Rever o curso";
-      sub = (proxLib || total < totalE) ? ("Você está em dia com as " + total + (total === 1 ? " aula liberada" : " aulas liberadas") + (proxLib ? ". Próximo módulo em " + proxLib.texto : ". Novas aulas em breve") + ". 🎉")
-                    : ("Você concluiu as " + total + " aulas. 🎉");
+      sub = proxLib ? ("Você está em dia. Próximo módulo em " + proxLib.texto + ". 🎉")
+                    : (total < totalE ? "Você está em dia. Novas aulas em breve. 🎉"
+                                      : (FERR ? "Você concluiu os tutoriais. 🎉" : "Você concluiu o curso. 🎉"));
     }
     else{
       cta = (feitas ? "Continuar: Aula " : "Começar: Aula ") + numero(PROXIMA);
-      sub = feitas ? (feitas + " de " + totalE + " aulas concluídas") : (totalE + (totalE === 1 ? " aula" : " aulas") + " no curso");
+      sub = feitas ? "Continue de onde parou." : "";
     }
   }
   const alvo = PROXIMA || LISTA_ATIVA[0];
@@ -458,7 +459,7 @@ function cardModulo(g){
       <div class="em">${(d => d ? d.padStart(2, "0") : "")(String(g.rotulo).replace(/\D/g, ""))}</div><div class="st">${n ? chip : ""}</div></div>
     <div class="bd">
       ${g.mod && g.mod.descricao ? `<p>${esc(g.mod.descricao)}</p>` : ""}
-      ${n ? `<div class="pgl"><span>${feitas} de ${n} ${n === 1 ? "aula" : "aulas"}</span><span>${mins ? fmtMin(mins) : ""}</span></div>
+      ${n ? `<div class="pgl"><span>${Math.round(feitas * 100 / n)}% concluído</span><span>${mins ? fmtMin(mins) : ""}</span></div>
         <div class="pbar"><i style="width:${Math.round(feitas * 100 / n)}%"></i></div>` : ""}
       ${itens ? `<ul>${itens}</ul>` : (SOU_ADMIN ? '<div class="vz">Nenhuma aula neste módulo ainda.</div>' : "")}
     </div>
@@ -490,7 +491,7 @@ function vAula(a){
   const zapMsg = encodeURIComponent('Olá! Tenho uma dúvida na aula "' + a.titulo + '" ' + (FERR ? 'dos ' : 'do curso ') + NOME + '.');
   return `<div class="vstrip">
       <div><div class="eyebrow">${FERR ? "🏗️" : "🚀"} ${NOME}</div><h1>${esc(g ? g.rotulo + " · " + g.nome : "Aula")}</h1></div>
-      <div class="pg"><b>${pct}% ${FERR ? "dos tutoriais" : "do curso"}</b> · ${feitas} de ${totalE} aulas<div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
+      <div class="pg"><b>${pct}% ${FERR ? "dos tutoriais" : "do curso"}</b><div class="pbar" style="margin-top:6px"><i style="width:${pct}%"></i></div>${notaModo()}</div>
     </div>
     <div class="vgrid">
       <div class="vmain">
@@ -524,7 +525,7 @@ function sidebar(atual, gs){
         ${fmtMin(a.duracao_min) ? `<span class="mm">${fmtMin(a.duracao_min)}</span>` : ""}</button>`;
     }).join("");
     return `<div class="mod ${aberto ? "open" : ""}"><button type="button" data-act="mod" data-key="${esc(g.key)}">
-      <span class="n">${esc(g.rotulo)}</span><span class="s">${esc(g.nome)}</span><span class="c">${feitas}/${ativas.length}</span><span class="cv">▾</span></button>
+      <span class="n">${esc(g.rotulo)}</span><span class="s">${esc(g.nome)}</span><span class="c">${ativas.length && feitas === ativas.length ? "✓" : ""}</span><span class="cv">▾</span></button>
       <div class="ls">${itens}</div></div>`;
   }).join("");
 }
