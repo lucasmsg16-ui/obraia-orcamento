@@ -13,6 +13,17 @@
 -->
 <html lang="pt-BR">
 <head>
+<script>
+/* Rede de segurança dos links de e-mail (convite / redefinição de senha):
+   se o Supabase devolver a pessoa para a raiz do app com o token (ou erro) no hash,
+   manda para criar-senha.html mantendo o hash, em vez de abrir a ferramenta. */
+(function(){
+  var h = location.hash || "";
+  if (/(^|[#&])(access_token=|error_code=|error=)/.test(h) || /[#&]type=(invite|recovery)/.test(h)) {
+    location.replace("criar-senha.html" + h);
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ObraIA — Orçamento de Obras com Inteligência Artificial | SINAPI 27 Estados</title>
