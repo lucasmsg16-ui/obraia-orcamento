@@ -66,6 +66,8 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
    padrão, mas sem afordância de clique — não é um botão desabilitado, é um
    aviso. Botão cinza que não faz nada gera clique frustrado e ticket. */
 .card.aulas{opacity:.82}
+/* Quadro do curso só mostra o rótulo depois que o banco diz se a pessoa tem o curso (evita piscar "não incluído" para quem comprou). */
+.q.pend .go{visibility:hidden}
 .btn-off{display:inline-block;background:#e9eef3;color:#7f8c8d;border:1px dashed #c8d3dd;
   padding:10px 18px;border-radius:9px;font-weight:700;font-size:14px;cursor:default}
 
@@ -183,13 +185,13 @@ main{ max-width:940px; margin:0 auto; padding:48px 24px; }
 
   <div class="qgrid">
     <!-- Começa "em breve" e sem link: só vira acesso se carregarCurso() confirmar que esta pessoa pode ver o curso. -->
-    <a class="q course soon" id="qCurso">
+    <a class="q course soon pend" id="qCurso">
       <div class="ico">🚀</div>
       <div class="eyebrow" id="cursoEyebrow">Curso prático · Método NAVE</div>
       <h2>Dominante da IA</h2>
-      <p id="cursoDesc">O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar com o uso da Inteligência Artificial na engenharia e na arquitetura.<span id="cursoBreve"> Chegando em breve.</span></p>
+      <p id="cursoDesc">O método NAVE leva você do zero ao nível de dominante da IA. Você aprende a <b class="nave">N</b>avegar, <b class="nave">A</b>utomatizar, <b class="nave">V</b>alidar e <b class="nave">E</b>scalar com o uso da Inteligência Artificial na engenharia e na arquitetura.</p>
       <div class="pgbox" id="cursoPg" hidden><div class="pg" id="cursoPgTxt"></div><div class="pbar"><i id="cursoBar"></i></div></div>
-      <span class="go" id="cursoGo">Em breve</span>
+      <span class="go" id="cursoGo">Não incluído no seu plano</span>
     </a>
     <a class="q tool" id="qFerr" href="gestao.html">
       <div class="ico">🏗️</div>
@@ -260,7 +262,7 @@ function travarQuadro(id, rotuloBotao, url, mensagem){
   const p = q.querySelector("p");
   if(p){
     p.textContent = mensagem;
-    const tag = document.createElement("div"); tag.className = "naoincl"; tag.textContent = "🔒 Não incluso no seu plano";
+    const tag = document.createElement("div"); tag.className = "naoincl"; tag.textContent = "🔒 Não incluído no seu plano";
     q.insertBefore(tag, p);
   }
   const pg = q.querySelector(".pgbox"); if(pg) pg.hidden = true;
@@ -274,7 +276,7 @@ async function aplicarProdutos(uid){
   if(aviso === "ferramenta" && !temFerr || aviso === "curso" && !temCurso){
     const nome = aviso === "ferramenta" ? "A ObraIA Gestão" : "O Curso Dominante da IA";
     const box = document.createElement("div"); box.className = "aviso-plano";
-    box.innerHTML = '<span style="font-size:20px">🔒</span><span><b>' + nome + ' não está incluso no seu plano.</b> ' +
+    box.innerHTML = '<span style="font-size:20px">🔒</span><span><b>' + nome + ' não está incluído no seu plano.</b>' +
       'Seu acesso atual libera apenas ' + (aviso === "ferramenta" ? "o curso" : "a ferramenta") + '. Quer adicionar? Use o botão do quadro abaixo.</span>';
     document.querySelector(".qgrid").before(box);
   }
@@ -291,6 +293,7 @@ async function aplicarProdutos(uid){
       "A trilha em vídeo do Curso Dominante da IA é um produto à parte. Seu plano atual não a inclui.");
   }
   if(!temFerr) document.getElementById("first").style.display = "none";
+  const qc = document.getElementById("qCurso"); if(qc) qc.classList.remove("pend");
 }
 
 // A chave fica sempre a mao: o e-mail de boas-vindas se perde, a conta nao.

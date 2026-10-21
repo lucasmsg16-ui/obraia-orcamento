@@ -1329,8 +1329,28 @@ function expandirChave(){
   if(inp){ inp.value = ""; inp.focus(); }
 }
 
+// Quem entrou pelo login (compra na Kiwify → criar senha → painel) tem a chave na própria
+// conta. Se este navegador ainda não tem a chave gravada, busca na conta e grava, para a
+// pessoa não precisar copiar e colar. Só preenche quando está VAZIO: nunca troca uma chave
+// que a pessoa já informou. Falha em silêncio (cai no campo manual de sempre).
+async function _autoPreencherChave(){
+  try{
+    if ((localStorage.getItem("mar_chave") || "").trim()) return;
+    const sb = (typeof _getSbMinhas === "function") ? _getSbMinhas() : null;
+    if (!sb) return;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const { data, error } = await sb.from("clientes").select("chave").maybeSingle();
+    if (error || !data || !data.chave) return;
+    localStorage.setItem("mar_chave", String(data.chave).trim());
+    _pintarChaveUI();
+    try { if (typeof ofereceRetomar === "function") setTimeout(ofereceRetomar, 100); } catch (e) {}
+  }catch(e){ console.warn("Não consegui preencher a chave pela conta.", e); }
+}
+
 (function initApiKeyUI() {
   _pintarChaveUI();
+  _autoPreencherChave();
   // A referência da base de preços é buscada logo no início: ela aparece no topo
   // da tela, no Excel e no PDF assinado. Falhar aqui não trava nada — o rótulo
   // apenas passa a dizer que a referência não foi confirmada.
@@ -1377,6 +1397,7 @@ async function callAnthropic(payload, opts) {
   const MAX_RETRIES = 3;
   const RETRY_BASE_MS = 3000; // 3s, 6s, 12s
   const semCredito = !!(opts && opts.semCredito);
+  await _autoPreencherChave();   // quem entrou pelo login: pega a chave da própria conta
   const chave = (localStorage.getItem("mar_chave") || "").trim();
   if (!chave) throw new Error("Informe sua CHAVE DE ACESSO no campo acima e clique em Salvar.");
 
@@ -2537,6 +2558,7 @@ async function startAnalysis() {
       sortedPages = sortedPages.filter(g => (APP.paginasTexto && APP.paginasTexto.has(g)) || (++_n <= MAX_PAGES_TOTAL));
     }
 
+    await _autoPreencherChave();   // quem entrou pelo login: pega a chave da própria conta
     const apiKey = (localStorage.getItem("mar_chave") || "").trim();
     if (!apiKey) throw new Error("Chave de acesso não configurada. Informe sua chave no campo acima e clique em Salvar.");
 
