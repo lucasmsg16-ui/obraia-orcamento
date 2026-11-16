@@ -43,6 +43,9 @@
   // Adiamento: do Módulo 4 em diante a liberação foi empurrada 1 semana (Módulo 4 = 10/11/2026, M5 = 17/11…).
   // Os Módulos 1–3 não mudam. Mesma regra nas políticas do banco (aulas_8_ADIAR_MODULO_4_EM_DIANTE.sql).
   var ATRASO_A_PARTIR_DO_MODULO = 4, ATRASO_DIAS = 7;
+  // 2º adiamento (16/11/2026): do Módulo 5 em diante, mais 1 semana (Módulo 5 = 24/11, M6 = 01/12 … M10 = 29/12).
+  // O Módulo 4 já foi liberado em 10/11. Mesma regra nas políticas do banco (aulas_10_ADIAR_MODULO_5_EM_DIANTE.sql).
+  var ATRASO2_A_PARTIR_DO_MODULO = 5, ATRASO2_DIAS = 7;
 
   // Total de aulas previsto na ementa (14 módulos). Serve só para MOSTRAR ao aluno um número realista enquanto as aulas
   // são publicadas semana a semana ("3 aulas no curso" assusta). Nunca fica abaixo do que já está cadastrado.
@@ -59,7 +62,7 @@
     var out = {}, hoje = hojeRecife();
     (modulos || []).forEach(function(m, i){
       var n = numeroDoModulo(m, i);
-      var d = new Date(Date.UTC(CURSO_INICIO[0], CURSO_INICIO[1] - 1, CURSO_INICIO[2] + (n - 1) * 7 + (n >= ATRASO_A_PARTIR_DO_MODULO ? ATRASO_DIAS : 0)));
+      var d = new Date(Date.UTC(CURSO_INICIO[0], CURSO_INICIO[1] - 1, CURSO_INICIO[2] + (n - 1) * 7 + (n >= ATRASO_A_PARTIR_DO_MODULO ? ATRASO_DIAS : 0) + (n >= ATRASO2_A_PARTIR_DO_MODULO ? ATRASO2_DIAS : 0)));
       var iso = d.toISOString().slice(0, 10);
       out[m.id] = { numero: n, iso: iso, liberado: hoje >= iso,
                     texto: pad2(d.getUTCDate()) + "/" + pad2(d.getUTCMonth() + 1) + "/" + d.getUTCFullYear() };
